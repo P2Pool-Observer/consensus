@@ -24,12 +24,14 @@ type SideData struct {
 	CumulativeDifficulty types.Difficulty       `json:"cumulative_difficulty"`
 
 	// ExtraBuffer available in ShareVersion ShareVersion_V2 and above
-	ExtraBuffer struct {
-		SoftwareId          p2pooltypes.SoftwareId      `json:"software_id"`
-		SoftwareVersion     p2pooltypes.SoftwareVersion `json:"software_version"`
-		RandomNumber        uint32                      `json:"random_number"`
-		SideChainExtraNonce uint32                      `json:"side_chain_extra_nonce"`
-	} `json:"extra_buffer,omitempty"`
+	ExtraBuffer SideDataExtraBuffer `json:"extra_buffer,omitempty"`
+}
+
+type SideDataExtraBuffer struct {
+	SoftwareId          p2pooltypes.SoftwareId      `json:"software_id"`
+	SoftwareVersion     p2pooltypes.SoftwareVersion `json:"software_version"`
+	RandomNumber        uint32                      `json:"random_number"`
+	SideChainExtraNonce uint32                      `json:"side_chain_extra_nonce"`
 }
 
 func (b *SideData) BufferLength() int {

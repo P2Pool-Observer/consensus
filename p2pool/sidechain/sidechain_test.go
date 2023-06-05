@@ -2,12 +2,10 @@ package sidechain
 
 import (
 	"compress/gzip"
-	"encoding/binary"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"io"
-	unsafeRandom "math/rand/v2"
 	"os"
 	"path"
 	"runtime"
@@ -31,55 +29,9 @@ func init() {
 	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
 }
 
-func (c *SideChain) LoadTestData(reader io.Reader, patchedBlocks ...[]byte) error {
-	var err error
-	buf := make([]byte, PoolBlockMaxTemplateSize)
-
-	blocks := make([]*PoolBlock, 0, c.Consensus().ChainWindowSize*3)
-
-	for {
-		buf = buf[:0]
-		var blockLen uint32
-		if err = binary.Read(reader, binary.LittleEndian, &blockLen); err == io.EOF {
-			break
-		} else if err != nil {
-			return err
-		}
-		if _, err = io.ReadFull(reader, buf[:blockLen]); err != nil {
-			return err
-		}
-		b := &PoolBlock{}
-		if err = b.UnmarshalBinary(c.Consensus(), c.DerivationCache(), buf[:blockLen]); err != nil {
-			return err
-		}
-		blocks = append(blocks, b)
-	}
-
-	for _, buf := range patchedBlocks {
-		b := &PoolBlock{}
-		if err = b.UnmarshalBinary(c.Consensus(), c.DerivationCache(), buf); err != nil {
-			return err
-		}
-		blocks = append(blocks, b)
-	}
-
-	// Shuffle blocks. This allows testing proper reorg
-	unsafeRandom.Shuffle(len(blocks), func(i, j int) {
-		blocks[i], blocks[j] = blocks[j], blocks[i]
-	})
-
-	for _, b := range blocks {
-		if err = c.AddPoolBlock(b); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func testSideChain(s *SideChain, t *testing.T, reader io.Reader, sideHeight, mainHeight uint64, patchedBlocks ...[]byte) {
 
-	if err := s.LoadTestData(reader, patchedBlocks...); err != nil {
+	if err := LoadSideChainTestData(s, reader, patchedBlocks...); err != nil {
 		if t == nil {
 			panic(err)
 		}

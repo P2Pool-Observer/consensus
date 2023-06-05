@@ -1,7 +1,6 @@
 package crypto
 
 import (
-	"encoding/hex"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	fasthex "github.com/tmthrgd/go-hex"
 	"os"
@@ -88,7 +87,7 @@ func TestDeriveViewTag(t *testing.T) {
 		viewTag := GetDerivationViewTagForOutputIndex(&derivation, outputIndex)
 
 		if result[0] != viewTag {
-			t.Fatalf("expected %s, got %s", hex.EncodeToString(result), hex.EncodeToString([]byte{viewTag}))
+			t.Fatalf("expected %s, got %s", fasthex.EncodeToString(result), fasthex.EncodeToString([]byte{viewTag}))
 		}
 	}
 }
