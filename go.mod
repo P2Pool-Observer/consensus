@@ -1,4 +1,4 @@
-module git.gammaspectra.live/P2Pool/p2pool-observer
+module git.gammaspectra.live/P2Pool/consensus/v3
 
 go 1.22
 

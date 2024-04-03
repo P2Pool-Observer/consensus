@@ -1,9 +1,9 @@
 package mempool
 
 import (
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/go-monero/pkg/rpc/daemon"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/utils"
 	"lukechampine.com/uint128"
 	"slices"
 )

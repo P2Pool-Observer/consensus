@@ -1,8 +1,8 @@
 package types
 
 import (
-	"git.gammaspectra.live/P2Pool/p2pool-observer/p2pool/mempool"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"time"
 )
 

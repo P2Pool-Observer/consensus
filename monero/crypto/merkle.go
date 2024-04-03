@@ -1,8 +1,8 @@
 package crypto
 
 import (
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
 )
 

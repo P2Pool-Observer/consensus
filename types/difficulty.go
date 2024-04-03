@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"errors"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"github.com/holiman/uint256"
 	fasthex "github.com/tmthrgd/go-hex"
 	"io"

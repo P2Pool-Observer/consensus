@@ -2,11 +2,11 @@ package address
 
 import (
 	"encoding/binary"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
+	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	"git.gammaspectra.live/P2Pool/moneroutil"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/crypto"
-	p2poolcrypto "git.gammaspectra.live/P2Pool/p2pool-observer/p2pool/crypto"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
 	"git.gammaspectra.live/P2Pool/sha3"
 	"strings"
 )

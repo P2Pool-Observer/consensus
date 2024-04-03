@@ -1,7 +1,7 @@
 package randomx
 
 import (
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 )
 
 type Hasher interface {

@@ -2,7 +2,7 @@ package crypto
 
 import (
 	"encoding/hex"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"os"
 	"path"
 	"runtime"

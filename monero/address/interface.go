@@ -1,7 +1,7 @@
 package address
 
 import (
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 )
 
 type Interface interface {

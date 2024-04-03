@@ -3,12 +3,12 @@ package sidechain
 import (
 	"errors"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/randomx"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/moneroutil"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/crypto"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/randomx"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/utils"
 	"strconv"
 )
 

@@ -2,10 +2,10 @@ package sidechain
 
 import (
 	"context"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/client"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/crypto"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/randomx"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/randomx"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"os"
 	"testing"
 )

@@ -2,11 +2,11 @@ package sidechain
 
 import (
 	"encoding/binary"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/address"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/crypto"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
 )
 

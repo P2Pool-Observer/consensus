@@ -2,9 +2,9 @@ package sidechain
 
 import (
 	"encoding/binary"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/client"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"os"

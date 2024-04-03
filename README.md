@@ -7,7 +7,7 @@ Other general tools to work with Monero cryptography are also included.
 ## Reporting issues
 
 You can give feedback or report / discuss issues on:
-* [The issue tracker on git.gammaspectra.live/P2Pool/p2pool-observer](https://git.gammaspectra.live/P2Pool/p2pool-observer/issues?state=open)
+* [The issue tracker on git.gammaspectra.live/P2Pool/consensus](https://git.gammaspectra.live/P2Pool/consensus/issues?state=open)
 * Via IRC on [#p2pool-observer@libera.chat](ircs://irc.libera.chat/#p2pool-observer), or via [Matrix](https://matrix.to/#/#p2pool-observer:monero.social)
 * Any of the relevant rooms for the specific observer instances listed below.
 
@@ -42,7 +42,7 @@ If desired each tool can be run individually, but that is left to the user to co
 
 ### Initial setup
 ```bash
-$ git clone https://git.gammaspectra.live/P2Pool/p2pool-observer.git test-instance
+$ git clone https://git.gammaspectra.live/P2Pool/consensus.git test-instance
 $ cd test-instance
 $ cp .env.example .env
 ```
@@ -67,7 +67,7 @@ It is recommended to run `docker system prune` regularly or after update to clea
 When a new instance starts with previously imported archives you might want to backfill sweep transactions. For new instances this is not necessary, and you can also skip this step and just rely on future data.
 ```bash
 $ docker-compose exec --workdir /usr/src/p2pool daemon \
-go run -v git.gammaspectra.live/P2Pool/p2pool-observer/cmd/scansweeps \
+go run -v git.gammaspectra.live/P2Pool/consensus/cmd/scansweeps \
 -host MONEROD_HOST -rpc-port MONEROD_RPC_PORT \
 -api-host "http://p2pool:3131" \
 -db="host=db port=5432 dbname=p2pool user=p2pool password=p2pool sslmode=disable"

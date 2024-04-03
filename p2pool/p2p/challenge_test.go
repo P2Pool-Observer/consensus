@@ -3,7 +3,7 @@ package p2p
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/p2pool/sidechain"
+	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/sidechain"
 	"sync/atomic"
 	"testing"
 )

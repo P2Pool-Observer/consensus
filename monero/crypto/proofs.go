@@ -1,7 +1,7 @@
 package crypto
 
 import (
-	"git.gammaspectra.live/P2Pool/p2pool-observer/types"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 )
 
 var TxProofV2DomainSeparatorHash = Keccak256([]byte("TXPROOF_V2")) // HASH_KEY_TXPROOF_V2

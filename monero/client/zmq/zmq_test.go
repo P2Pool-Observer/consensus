@@ -3,7 +3,7 @@ package zmq_test
 import (
 	"context"
 	"errors"
-	"git.gammaspectra.live/P2Pool/p2pool-observer/monero/client/zmq"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/zmq"
 	"os"
 	"testing"
 	"time"
