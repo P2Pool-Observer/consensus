@@ -27,7 +27,7 @@ steps:
   - name: init-tests
     image: alpine
     commands:
-      - apk add --no-cache curl gzip bash
+      - apk add --no-cache curl bash
       - ./testdata/setup.sh
   - name: build-sources
     image: alpine
@@ -36,18 +36,11 @@ steps:
       - apk add --no-cache git gcc g++ musl-dev bash autoconf automake cmake make libtool
       - cd /tmp
       - git clone --depth 1 --branch v1.2.1 https://github.com/tevador/RandomX.git && cd RandomX && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX:PATH=/drone/src/build_deps && make -j$(nproc) && make install && cd ../..
-  - name: go-generate
-    image: golang:1.22-alpine3.19
-    commands:
-      - apk update
-      - apk add --no-cache git
-      - go run github.com/valyala/quicktemplate/qtc@v1.7.0
   - name: test-cgo
     image: golang:1.22-alpine3.19
     depends_on:
       - init-tests
       - build-sources
-      - go-generate
     environment:
       MONEROD_RPC_URL:
         from_secret: MONEROD_RPC_URL
@@ -85,7 +78,7 @@ steps:
   - name: init-tests
     image: alpine
     commands:
-      - apk add --no-cache curl gzip bash
+      - apk add --no-cache curl bash
       - ./testdata/setup.sh
   - name: build-sources
     image: alpine
@@ -94,18 +87,11 @@ steps:
       - apk add --no-cache git gcc g++ musl-dev bash autoconf automake cmake make libtool
       - cd /tmp
       - git clone --depth 1 --branch v1.2.1 https://github.com/tevador/RandomX.git && cd RandomX && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX:PATH=/drone/src/build_deps && make -j$(nproc) && make install && cd ../..
-  - name: go-generate
-    image: golang:1.22-alpine3.19
-    commands:
-      - apk update
-      - apk add --no-cache git
-      - go run github.com/valyala/quicktemplate/qtc@v1.7.0
   - name: test-cgo
     image: golang:1.22-alpine3.19
     depends_on:
       - init-tests
       - build-sources
-      - go-generate
     environment:
       MONEROD_RPC_URL:
         from_secret: MONEROD_RPC_URL
