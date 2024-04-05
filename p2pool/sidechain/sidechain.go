@@ -821,8 +821,9 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 		blocksToUpdate = blocksToUpdate[:len(blocksToUpdate)-1]
 
 		blockDepth := block.Depth.Load()
+
 		// Verify this block and possibly other blocks on top of it when we're sure it will get verified
-		if !block.Verified.Load() && (blockDepth >= c.Consensus().ChainWindowSize*2 || block.Side.Height == 0) {
+		if !block.Verified.Load() && (blockDepth > ((c.Consensus().ChainWindowSize-1)*2+UncleBlockDepth) || block.Side.Height == 0) {
 			_ = c.verifyLoop(block)
 		}
 
