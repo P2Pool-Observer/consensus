@@ -3,6 +3,7 @@ package crypto
 import (
 	"encoding/hex"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	fasthex "github.com/tmthrgd/go-hex"
 	"os"
 	"path"
 	"runtime"
@@ -82,7 +83,7 @@ func TestDeriveViewTag(t *testing.T) {
 	for e := range results {
 		derivation := PublicKeyBytes(types.MustHashFromString(e[0]))
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
-		result, _ := hex.DecodeString(e[2])
+		result, _ := fasthex.DecodeString(e[2])
 
 		viewTag := GetDerivationViewTagForOutputIndex(&derivation, outputIndex)
 

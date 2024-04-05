@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/transaction"
@@ -11,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/go-monero/pkg/rpc"
 	"git.gammaspectra.live/P2Pool/go-monero/pkg/rpc/daemon"
 	"github.com/floatdrop/lru"
+	fasthex "github.com/tmthrgd/go-hex"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -123,7 +123,7 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 		}
 
 		for _, tx := range result.Txs {
-			if buf, err := hex.DecodeString(tx.PrunedAsHex); err != nil {
+			if buf, err := fasthex.DecodeString(tx.PrunedAsHex); err != nil {
 				return nil, nil, err
 			} else {
 				data = append(data, buf)
@@ -144,7 +144,7 @@ func (c *Client) GetCoinbaseTransaction(txId types.Hash) (*transaction.CoinbaseT
 				return nil, errors.New("invalid transaction count")
 			}
 
-			if buf, err := hex.DecodeString(result.Txs[0].PrunedAsHex); err != nil {
+			if buf, err := fasthex.DecodeString(result.Txs[0].PrunedAsHex); err != nil {
 				return nil, err
 			} else {
 				tx := &transaction.CoinbaseTransaction{}

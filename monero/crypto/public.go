@@ -3,7 +3,6 @@ package crypto
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/hex"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
@@ -64,7 +63,7 @@ func PublicKeyFromPoint(point *edwards25519.Point, _ ...any) *PublicKeyPoint {
 }
 
 func (k *PublicKeyPoint) String() string {
-	return hex.EncodeToString(k.Point().Bytes())
+	return fasthex.EncodeToString(k.Point().Bytes())
 }
 
 func (k *PublicKeyPoint) UnmarshalJSON(b []byte) error {
@@ -73,7 +72,7 @@ func (k *PublicKeyPoint) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	if buf, err := hex.DecodeString(s); err != nil {
+	if buf, err := fasthex.DecodeString(s); err != nil {
 		return err
 	} else {
 		if len(buf) != PublicKeySize {
@@ -107,7 +106,7 @@ func (k *PublicKeyBytes) AsPoint() *PublicKeyPoint {
 }
 
 func (k *PublicKeyBytes) String() string {
-	return hex.EncodeToString(k.AsSlice())
+	return fasthex.EncodeToString(k.AsSlice())
 }
 
 func (k *PublicKeyBytes) Scan(src any) error {
@@ -175,7 +174,7 @@ func (k *PublicKeySlice) AsPoint() *PublicKeyPoint {
 }
 
 func (k *PublicKeySlice) String() string {
-	return hex.EncodeToString(*k)
+	return fasthex.EncodeToString(*k)
 }
 
 func (k *PublicKeySlice) Scan(src any) error {
@@ -209,7 +208,7 @@ func (k *PublicKeySlice) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	if buf, err := hex.DecodeString(s); err != nil {
+	if buf, err := fasthex.DecodeString(s); err != nil {
 		return err
 	} else {
 		if len(buf) != PublicKeySize {

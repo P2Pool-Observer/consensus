@@ -1,13 +1,13 @@
 package crypto
 
 import (
-	"encoding/hex"
 	"git.gammaspectra.live/P2Pool/edwards25519"
+	fasthex "github.com/tmthrgd/go-hex"
 	"testing"
 )
 
 func TestKeyImageRaw(t *testing.T) {
-	sec, _ := hex.DecodeString("981d477fb18897fa1f784c89721a9d600bf283f06b89cb018a077f41dcefef0f")
+	sec, _ := fasthex.DecodeString("981d477fb18897fa1f784c89721a9d600bf283f06b89cb018a077f41dcefef0f")
 
 	scalar, _ := (&edwards25519.Scalar{}).SetCanonicalBytes(sec)
 	keyImage := GetKeyImage(NewKeyPairFromPrivate(PrivateKeyFromScalar(scalar)))

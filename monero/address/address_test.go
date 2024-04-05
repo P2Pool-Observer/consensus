@@ -2,11 +2,11 @@ package address
 
 import (
 	"bytes"
-	"encoding/hex"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
+	fasthex "github.com/tmthrgd/go-hex"
 	"sync/atomic"
 	"testing"
 )
@@ -17,10 +17,10 @@ var testAddress = FromBase58("42HEEF3NM9cHkJoPpDhNyJHuZ6DFhdtymCohF9CwP5KPM1Mp3e
 var testAddress2 = FromBase58("4AQ3YkqG2XdWsPHEgrDGdyQLq1qMMGFqWTFJfrVQW99qPmCzZKvJqzxgf5342KC17o9bchfJcUzLhVW9QgNKTYUBLg876Gt")
 var testAddress3 = FromBase58("47Eqp7fsvVnPPSU4rsXrKJhyAme6LhDRZDzFky9xWsWUS9pd6FPjJCMDCNX1NnNiDzTwfbAgGMk2N6A1aucNcrkhLffta1p")
 
-var ephemeralPubKey, _ = hex.DecodeString("20efc1310db960b0e8d22c8b85b3414fcaa1ed9aab40cf757321dd6099a62d5e")
+var ephemeralPubKey, _ = fasthex.DecodeString("20efc1310db960b0e8d22c8b85b3414fcaa1ed9aab40cf757321dd6099a62d5e")
 
 func init() {
-	h, _ := hex.DecodeString("74b98b1e7ce5fc50d1634f8634622395ec2a19a4698a016fedd8139df374ac00")
+	h, _ := fasthex.DecodeString("74b98b1e7ce5fc50d1634f8634622395ec2a19a4698a016fedd8139df374ac00")
 	if _, err := privateKey.SetCanonicalBytes(h); err != nil {
 		utils.Panic(err)
 	}
@@ -33,7 +33,7 @@ func TestAddress(t *testing.T) {
 	ephemeralPublicKey := GetPublicKeyForSharedData(testAddress, sharedData)
 
 	if bytes.Compare(ephemeralPublicKey.AsSlice(), ephemeralPubKey) != 0 {
-		t.Fatalf("ephemeral key mismatch, expected %s, got %s", hex.EncodeToString(ephemeralPubKey), ephemeralPublicKey.String())
+		t.Fatalf("ephemeral key mismatch, expected %s, got %s", fasthex.EncodeToString(ephemeralPubKey), ephemeralPublicKey.String())
 	}
 }
 

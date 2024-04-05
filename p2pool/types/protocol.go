@@ -3,8 +3,8 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
+	fasthex "github.com/tmthrgd/go-hex"
 	"net/netip"
 )
 
@@ -121,7 +121,7 @@ func (c SoftwareId) String() string {
 		var buf = [17]byte{'U', 'n', 'k', 'n', 'o', 'w', 'n', '(', 0, 0, 0, 0, 0, 0, 0, 0, ')'}
 		var intBuf [4]byte
 		binary.LittleEndian.PutUint32(intBuf[:], uint32(c))
-		hex.Encode(buf[8:], intBuf[:])
+		fasthex.Encode(buf[8:], intBuf[:])
 		return string(buf[:])
 	}
 }

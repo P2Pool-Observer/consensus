@@ -3,7 +3,6 @@ package sidechain
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
@@ -15,6 +14,7 @@ import (
 	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	fasthex "github.com/tmthrgd/go-hex"
 	"io"
 	"slices"
 	"sync/atomic"
@@ -377,7 +377,7 @@ type FullId [FullIdSize]byte
 
 func FullIdFromString(s string) (FullId, error) {
 	var h FullId
-	if buf, err := hex.DecodeString(s); err != nil {
+	if buf, err := fasthex.DecodeString(s); err != nil {
 		return h, err
 	} else {
 		if len(buf) != FullIdSize {
@@ -401,7 +401,7 @@ func (id FullId) ExtraNonce() uint32 {
 }
 
 func (id FullId) String() string {
-	return hex.EncodeToString(id[:])
+	return fasthex.EncodeToString(id[:])
 }
 
 func (b *PoolBlock) CalculateFullId(consensus *Consensus) FullId {

@@ -28,6 +28,9 @@ func InterfaceAddrs(ifi *net.Interface) ([]*ExtendedIPNet, error) {
 // If the ifi is nil, interfaceAddrTable returns addresses for all
 // network interfaces. Otherwise it returns addresses for a specific
 // interface.
+//
+// Modified from https://github.com/golang/go/blob/a2d2e6e7cb12c57cd8f5af64909882bab1dbca19/src/net/interface_linux.go
+// Adds support for ExtendedIPNet, no other changes
 func interfaceAddrTable(ifi *net.Interface) ([]*ExtendedIPNet, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
 	if err != nil {
@@ -55,6 +58,9 @@ func interfaceAddrTable(ifi *net.Interface) ([]*ExtendedIPNet, error) {
 // If the ifindex is zero, interfaceTable returns mappings of all
 // network interfaces. Otherwise it returns a mapping of a specific
 // interface.
+//
+// Modified from https://github.com/golang/go/blob/a2d2e6e7cb12c57cd8f5af64909882bab1dbca19/src/net/interface_linux.go
+// Adds support for ExtendedIPNet, no other changes
 func interfaceTable(ifindex int) ([]net.Interface, error) {
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
 	if err != nil {
@@ -87,6 +93,7 @@ loop:
 	return ift, nil
 }
 
+// Copied from https://github.com/golang/go/blob/a2d2e6e7cb12c57cd8f5af64909882bab1dbca19/src/net/interface.go
 func interfaceByIndex(ift []net.Interface, index int) (*net.Interface, error) {
 	for _, ifi := range ift {
 		if index == ifi.Index {
@@ -96,6 +103,8 @@ func interfaceByIndex(ift []net.Interface, index int) (*net.Interface, error) {
 	return nil, errors.New("no such network interface")
 }
 
+// Modified from https://github.com/golang/go/blob/a2d2e6e7cb12c57cd8f5af64909882bab1dbca19/src/net/interface.go
+// Adds support for ExtendedIPNet, no other changes
 func addrTable(ift []net.Interface, ifi *net.Interface, msgs []syscall.NetlinkMessage) ([]*ExtendedIPNet, error) {
 	var ifat []*ExtendedIPNet
 loop:
@@ -148,6 +157,9 @@ const (
 )
 
 // newAddr altered version
+//
+// Modified from https://github.com/golang/go/blob/a2d2e6e7cb12c57cd8f5af64909882bab1dbca19/src/net/interface_linux.go
+// Adds support for ExtendedIPNet, interface address flags
 func newAddr(ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRouteAttr) *ExtendedIPNet {
 	var ipPointToPoint bool
 	// Seems like we need to make sure whether the IP interface
@@ -206,6 +218,7 @@ const (
 	sysARPHardwareGREIPv6  = 823 // any over GRE over IPv6 tunneling
 )
 
+// Copied from https://github.com/golang/go/blob/a2d2e6e7cb12c57cd8f5af64909882bab1dbca19/src/net/interface.go
 func linkFlags(rawFlags uint32) net.Flags {
 	var f net.Flags
 	if rawFlags&syscall.IFF_UP != 0 {
@@ -229,6 +242,7 @@ func linkFlags(rawFlags uint32) net.Flags {
 	return f
 }
 
+// Copied from https://github.com/golang/go/blob/a2d2e6e7cb12c57cd8f5af64909882bab1dbca19/src/net/interface.go
 func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) *net.Interface {
 	ifi := &net.Interface{Index: int(ifim.Index), Flags: linkFlags(ifim.Flags)}
 	for _, a := range attrs {

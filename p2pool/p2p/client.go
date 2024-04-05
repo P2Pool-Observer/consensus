@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	fasthex "github.com/tmthrgd/go-hex"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"net"
@@ -406,17 +406,17 @@ func (c *Client) OnConnection() {
 			if c.IsIncomingConnection {
 				if hash, ok := CalculateChallengeHash(c.handshakeChallenge, c.Owner.Consensus().Id, solution); !ok {
 					//not enough PoW
-					c.Ban(DefaultBanTime, fmt.Errorf("not enough PoW on HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", hex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
+					c.Ban(DefaultBanTime, fmt.Errorf("not enough PoW on HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
 					return
 				} else if hash != challengeHash {
 					//wrong hash
-					c.Ban(DefaultBanTime, fmt.Errorf("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", hex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
+					c.Ban(DefaultBanTime, fmt.Errorf("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
 					return
 				}
 			} else {
 				if hash, _ := CalculateChallengeHash(c.handshakeChallenge, c.Owner.Consensus().Id, solution); hash != challengeHash {
 					//wrong hash
-					c.Ban(DefaultBanTime, fmt.Errorf("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", hex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
+					c.Ban(DefaultBanTime, fmt.Errorf("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
 					return
 				}
 			}

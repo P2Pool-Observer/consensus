@@ -2,8 +2,8 @@ package p2p
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/sidechain"
+	fasthex "github.com/tmthrgd/go-hex"
 	"sync/atomic"
 	"testing"
 )
@@ -21,8 +21,8 @@ func TestFindChallengeSolution(t *testing.T) {
 	var stop atomic.Bool
 
 	if solution, hash, ok := FindChallengeSolution(handshakeChallenge, sidechain.ConsensusDefault.Id, &stop); !ok {
-		t.Fatalf("No solution for %s", hex.EncodeToString(handshakeChallenge[:]))
+		t.Fatalf("No solution for %s", fasthex.EncodeToString(handshakeChallenge[:]))
 	} else {
-		t.Logf("Solution for %s is %d (hash %s)", hex.EncodeToString(handshakeChallenge[:]), solution, hash.String())
+		t.Logf("Solution for %s is %d (hash %s)", fasthex.EncodeToString(handshakeChallenge[:]), solution, hash.String())
 	}
 }

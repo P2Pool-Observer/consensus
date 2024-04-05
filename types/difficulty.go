@@ -3,7 +3,6 @@ package types
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/hex"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"github.com/holiman/uint256"
@@ -219,7 +218,7 @@ func MustDifficultyFromString(s string) Difficulty {
 
 func DifficultyFromString(s string) (Difficulty, error) {
 	if strings.HasPrefix(s, "0x") {
-		if buf, err := hex.DecodeString(s[2:]); err != nil {
+		if buf, err := fasthex.DecodeString(s[2:]); err != nil {
 			return ZeroDifficulty, err
 		} else {
 			//TODO: check this
@@ -228,7 +227,7 @@ func DifficultyFromString(s string) (Difficulty, error) {
 			return DifficultyFromBytes(d[:]), nil
 		}
 	} else {
-		if buf, err := hex.DecodeString(s); err != nil {
+		if buf, err := fasthex.DecodeString(s); err != nil {
 			return ZeroDifficulty, err
 		} else {
 			if len(buf) != DifficultySize {
@@ -299,7 +298,7 @@ func (d Difficulty) Bytes() []byte {
 }
 
 func (d Difficulty) String() string {
-	return hex.EncodeToString(d.Bytes())
+	return fasthex.EncodeToString(d.Bytes())
 }
 
 func (d Difficulty) StringNumeric() string {

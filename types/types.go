@@ -3,7 +3,6 @@ package types
 import (
 	"database/sql/driver"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	fasthex "github.com/tmthrgd/go-hex"
 	"runtime"
@@ -34,7 +33,7 @@ func MustHashFromString(s string) Hash {
 
 func HashFromString(s string) (Hash, error) {
 	var h Hash
-	if buf, err := hex.DecodeString(s); err != nil {
+	if buf, err := fasthex.DecodeString(s); err != nil {
 		return h, err
 	} else {
 		if len(buf) != HashSize {
@@ -93,7 +92,7 @@ func (h Hash) Compare(other Hash) int {
 }
 
 func (h Hash) String() string {
-	return hex.EncodeToString(h[:])
+	return fasthex.EncodeToString(h[:])
 }
 
 func (h Hash) Uint64() uint64 {
@@ -151,7 +150,7 @@ func (b Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (b Bytes) String() string {
-	return hex.EncodeToString(b)
+	return fasthex.EncodeToString(b)
 }
 
 func (b *Bytes) UnmarshalJSON(buf []byte) error {

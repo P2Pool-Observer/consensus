@@ -3,7 +3,6 @@ package crypto
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/hex"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
@@ -68,7 +67,7 @@ func (p *PrivateKeyScalar) GetDerivationCofactor(public PublicKey) PublicKey {
 }
 
 func (p *PrivateKeyScalar) String() string {
-	return hex.EncodeToString(p.Scalar().Bytes())
+	return fasthex.EncodeToString(p.Scalar().Bytes())
 }
 
 func (p *PrivateKeyScalar) UnmarshalJSON(b []byte) error {
@@ -77,7 +76,7 @@ func (p *PrivateKeyScalar) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	if buf, err := hex.DecodeString(s); err != nil {
+	if buf, err := fasthex.DecodeString(s); err != nil {
 		return err
 	} else {
 		if len(buf) != PrivateKeySize {
@@ -124,7 +123,7 @@ func (k *PrivateKeyBytes) GetDerivationCofactor(public PublicKey) PublicKey {
 }
 
 func (k *PrivateKeyBytes) String() string {
-	return hex.EncodeToString(k.AsSlice())
+	return fasthex.EncodeToString(k.AsSlice())
 }
 
 func (k *PrivateKeyBytes) Scan(src any) error {
@@ -205,7 +204,7 @@ func (k *PrivateKeySlice) GetDerivationCofactor(public PublicKey) PublicKey {
 }
 
 func (k *PrivateKeySlice) String() string {
-	return hex.EncodeToString(*k)
+	return fasthex.EncodeToString(*k)
 }
 
 func (k *PrivateKeySlice) Scan(src any) error {
@@ -239,7 +238,7 @@ func (k *PrivateKeySlice) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	if buf, err := hex.DecodeString(s); err != nil {
+	if buf, err := fasthex.DecodeString(s); err != nil {
 		return err
 	} else {
 		if len(buf) != PrivateKeySize {

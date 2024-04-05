@@ -1,92 +1,11 @@
 package utils
 
 import (
-	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
-	"github.com/jxskiss/base62"
-	fasthex "github.com/tmthrgd/go-hex"
 	"math/bits"
 	"strconv"
-	"strings"
 )
-
-var encoding = base62.NewEncoding("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-
-func DecodeBinaryNumber(i string) uint64 {
-	if n, err := strconv.ParseUint(i, 10, 0); strings.Index(i, ".") == -1 && err == nil {
-		return n
-	}
-
-	if n, err := encoding.ParseUint([]byte(strings.ReplaceAll(i, ".", ""))); err == nil {
-		return n
-	}
-
-	return 0
-}
-
-func EncodeBinaryNumber(n uint64) string {
-	v1 := string(encoding.FormatUint(n))
-	v2 := strconv.FormatUint(n, 10)
-
-	if !strings.ContainsAny(v1, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz") {
-		v1 = "." + v1
-	}
-
-	if len(v1) >= len(v2) {
-		return v2
-	}
-
-	return v1
-}
-
-func DecodeHexBinaryNumber(i string) string {
-	if _, err := hex.DecodeString(i); strings.Index(i, ".") == -1 && err == nil {
-		return i
-	}
-
-	if n, err := encoding.Decode([]byte(strings.ReplaceAll(i, ".", ""))); err == nil {
-		return hex.EncodeToString(n)
-	}
-
-	return ""
-}
-
-func EncodeSliceBinaryNumber(dst, src []byte) []byte {
-	if len(dst) < 1+(len(src)*2) {
-		return nil
-	}
-	v := encoding.EncodeToBuf(dst[:0], src)
-
-	if !bytes.ContainsAny(v, "GHIJKLMNOPQRSTUVWXYZghijklmnopqrstuvwxyz") {
-		copy(dst[1:], v)
-		dst[0] = '.'
-		v = dst[:len(v)]
-	}
-
-	if len(v) >= (len(src) * 2) {
-		fasthex.Encode(dst, src)
-		return dst[:len(src)*2]
-	}
-
-	return v
-}
-
-func EncodeHexBinaryNumber(v2 string) string {
-	b, _ := hex.DecodeString(v2)
-	v1 := encoding.EncodeToString(b)
-
-	if !strings.ContainsAny(v1, "GHIJKLMNOPQRSTUVWXYZghijklmnopqrstuvwxyz") {
-		v1 = "." + v1
-	}
-
-	if len(v1) >= len(v2) {
-		return v2
-	}
-
-	return v1
-}
 
 func PreviousPowerOfTwo(x uint64) int {
 	if x == 0 {

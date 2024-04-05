@@ -2,7 +2,6 @@ package mainchain
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v3/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
@@ -15,6 +14,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"github.com/dolthub/swiss"
+	fasthex "github.com/tmthrgd/go-hex"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -91,7 +91,7 @@ func (c *MainChain) Listen() error {
 						ViewTag:            0,
 					})
 				} else if o.ToTaggedKey != nil {
-					tk, _ := hex.DecodeString(o.ToTaggedKey.ViewTag)
+					tk, _ := fasthex.DecodeString(o.ToTaggedKey.ViewTag)
 					outputs = append(outputs, transaction.Output{
 						Index:              uint64(i),
 						Reward:             o.Amount,
@@ -110,7 +110,7 @@ func (c *MainChain) Listen() error {
 				return
 			}
 
-			extraDataRaw, _ := hex.DecodeString(fullChainMain.MinerTx.Extra)
+			extraDataRaw, _ := fasthex.DecodeString(fullChainMain.MinerTx.Extra)
 			extraTags := transaction.ExtraTags{}
 			if err := extraTags.UnmarshalBinary(extraDataRaw); err != nil {
 				//TODO: err
