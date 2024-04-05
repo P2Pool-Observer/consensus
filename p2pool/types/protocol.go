@@ -106,7 +106,11 @@ func (v SoftwareVersion) String() string {
 }
 
 const SupportedProtocolVersion = ProtocolVersion_1_2
-const CurrentSoftwareVersion SoftwareVersion = (3 << 16) | 0
+
+const CurrentSoftwareVersionMajor = 3 & 0xFFFF
+const CurrentSoftwareVersionMinor = 1 & 0xFFFF
+
+const CurrentSoftwareVersion SoftwareVersion = (CurrentSoftwareVersionMajor << 16) | CurrentSoftwareVersionMinor
 const CurrentSoftwareId = SoftwareIdGoObserver
 
 type SoftwareId uint32
