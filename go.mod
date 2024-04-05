@@ -3,7 +3,7 @@ module git.gammaspectra.live/P2Pool/consensus/v3
 go 1.22
 
 require (
-	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20240405081606-a67b1e9d0a56
+	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20240405085108-e2f706cb5c00
 	git.gammaspectra.live/P2Pool/go-monero v0.0.0-20230410011208-910450c4a523
 	git.gammaspectra.live/P2Pool/go-randomx v0.0.0-20221027085532-f46adfce03a7
 	git.gammaspectra.live/P2Pool/moneroutil v0.0.0-20230722215223-18ecc51ae61e

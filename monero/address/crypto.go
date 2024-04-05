@@ -73,6 +73,15 @@ func GetDerivationNoAllocate(viewPublicKeyPoint *edwards25519.Point, txKey *edwa
 	return crypto.PublicKeyBytes(derivation.Bytes())
 }
 
+// GetDerivationNoAllocateTable Special version but with table
+func GetDerivationNoAllocateTable(viewPublicKeyTable *edwards25519.PrecomputedTable, txKey *edwards25519.Scalar) crypto.PublicKeyBytes {
+	var point, derivation edwards25519.Point
+	point.UnsafeVarTimeScalarMultPrecomputed(txKey, viewPublicKeyTable)
+	derivation.MultByCofactor(&point)
+
+	return crypto.PublicKeyBytes(derivation.Bytes())
+}
+
 func GetTxProofV2(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
 	prefixHash := crypto.Keccak256(txId[:], []byte(message))
 
