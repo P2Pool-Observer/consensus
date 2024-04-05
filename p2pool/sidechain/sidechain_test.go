@@ -1,6 +1,7 @@
 package sidechain
 
 import (
+	"compress/gzip"
 	"encoding/binary"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
@@ -62,7 +63,7 @@ func (c *SideChain) LoadTestData(reader io.Reader, patchedBlocks ...[]byte) erro
 		blocks = append(blocks, b)
 	}
 
-	// Shuffle blocks
+	// Shuffle blocks. This allows testing proper reorg
 	unsafeRandom.Shuffle(len(blocks), func(i, j int) {
 		blocks[i], blocks[j] = blocks[j], blocks[i]
 	})
@@ -132,13 +133,19 @@ func TestSideChainDefault(t *testing.T) {
 
 	s := NewSideChain(GetFakeTestServer(ConsensusDefault))
 
-	f, err := os.Open("testdata/sidechain_dump.dat")
+	f, err := os.Open("testdata/sidechain_dump.dat.gz")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
 
-	testSideChain(s, t, f, 4957203, 2870010)
+	r, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	testSideChain(s, t, r, 4957203, 2870010)
 }
 
 func TestSideChainDefaultPreFork(t *testing.T) {
@@ -158,13 +165,19 @@ func TestSideChainMini(t *testing.T) {
 
 	s := NewSideChain(GetFakeTestServer(ConsensusMini))
 
-	f, err := os.Open("testdata/sidechain_dump_mini.dat")
+	f, err := os.Open("testdata/sidechain_dump_mini.dat.gz")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
 
-	testSideChain(s, t, f, 4414446, 2870010)
+	r, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	testSideChain(s, t, r, 4414446, 2870010)
 }
 
 func TestSideChainMiniPreFork(t *testing.T) {
