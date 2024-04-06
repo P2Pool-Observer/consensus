@@ -234,12 +234,19 @@ func (c *Consensus) DefaultPort() uint16 {
 }
 
 func (c *Consensus) SeedNode() string {
-	if c.IsMini() {
-		return "seeds-mini.p2pool.io"
-	} else if c.IsDefault() {
-		return "seeds.p2pool.io"
+	if nodes := c.SeedNodes(); len(nodes) > 0 {
+		return nodes[0]
 	}
 	return ""
+}
+
+func (c *Consensus) SeedNodes() []string {
+	if c.IsMini() {
+		return []string{"seeds-mini.p2pool.io", "main.p2poolpeers.net", "main.gupax.io"}
+	} else if c.IsDefault() {
+		return []string{"seeds.p2pool.io", "mini.p2poolpeers.net", "mini.gupax.io"}
+	}
+	return nil
 }
 
 func (c *Consensus) InitHasher(n int, flags ...randomx.Flag) error {
