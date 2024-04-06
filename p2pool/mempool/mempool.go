@@ -4,7 +4,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/go-monero/pkg/rpc/daemon"
-	"lukechampine.com/uint128"
 	"math/bits"
 	"slices"
 )
@@ -81,7 +80,7 @@ func (m Mempool) Pick(baseReward, minerTxWeight, medianWeight uint64) Mempool {
 			n := len(mempoolTxsOrder2)
 			for j, j1 := n-1, max(0, n-100); j >= j1; j-- {
 				prevTx := mempoolTxsOrder2[j]
-				reward2 := GetBlockReward(baseReward, medianWeight, finalFees+prevTx.Fee, finalWeight+prevTx.Weight)
+				reward2 := GetBlockReward(baseReward, medianWeight, finalFees+tx.Fee-prevTx.Fee, finalWeight+tx.Weight-prevTx.Weight)
 				if reward2 > finalReward {
 					// If replacing some other transaction increases the reward even more, remember it
 					// And keep trying to replace other transactions
@@ -173,9 +172,9 @@ func GetBlockReward(baseReward, medianWeight, fees, weight uint64) uint64 {
 	// TODO: Maybe fix it later like in Monero code
 	// Performance of this code is more important
 	hi, lo := bits.Mul64(baseReward, (medianWeight*2-weight)*weight)
-	reward := uint128.New(lo, hi).Div64(medianWeight * medianWeight)
+	reward, _ := bits.Div64(hi, lo, medianWeight*medianWeight)
 	//reward := uint128.From64(baseReward).Mul64((medianWeight*2 - weight) * weight).Div64(medianWeight).Div64(medianWeight)
-	return reward.Lo + fees
+	return reward + fees
 }
 
 func isRctBulletproof(t int) bool {

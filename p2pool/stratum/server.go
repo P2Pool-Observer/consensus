@@ -258,6 +258,8 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		return errors.New("could not find reserved share index")
 	}
 
+	//TODO: limit max Monero block size
+
 	baseReward := block.GetBaseReward(s.minerData.AlreadyGeneratedCoins)
 
 	totalWeight, totalFees := s.mempool.WeightAndFees()
