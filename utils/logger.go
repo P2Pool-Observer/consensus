@@ -67,18 +67,18 @@ func Logf(prefix, format string, v ...any) {
 	innerPrint(prefix, "INFO", fmt.Sprintf(format, v...))
 }
 
-func Noticef(format string, v ...any) {
+func Noticef(prefix, format string, v ...any) {
 	if GlobalLogLevel&LogLevelNotice == 0 {
 		return
 	}
-	innerPrint("", "NOTICE", fmt.Sprintf(format, v...))
+	innerPrint(prefix, "NOTICE", fmt.Sprintf(format, v...))
 }
 
-func Debugf(format string, v ...any) {
+func Debugf(prefix, format string, v ...any) {
 	if GlobalLogLevel&LogLevelDebug == 0 {
 		return
 	}
-	innerPrint("", "DEBUG", fmt.Sprintf(format, v...))
+	innerPrint(prefix, "DEBUG", fmt.Sprintf(format, v...))
 }
 
 func innerPrint(prefix, class, v string) {

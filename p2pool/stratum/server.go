@@ -16,7 +16,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	gojson "github.com/goccy/go-json"
 	fasthex "github.com/tmthrgd/go-hex"
-	"log"
 	"math"
 	unsafeRandom "math/rand/v2"
 	"net"
@@ -679,7 +678,7 @@ func (s *Server) HandleMempoolData(data mempool.Mempool) {
 		if time.Now().Sub(s.lastMempoolRefresh) >= time.Second*10 {
 			s.lastMempoolRefresh = time.Now()
 			if err := s.fillNewTemplateData(types.ZeroDifficulty); err != nil {
-				log.Printf("[Stratum] Error building new template data: %s", err)
+				utils.Errorf("Stratum", "Error building new template data: %s", err)
 				return false
 			}
 			return true
@@ -698,7 +697,7 @@ func (s *Server) HandleMinerData(minerData *p2pooltypes.MinerData) {
 			s.mempool = minerData.TxBacklog
 			s.lastMempoolRefresh = time.Now()
 			if err := s.fillNewTemplateData(types.ZeroDifficulty); err != nil {
-				log.Printf("[Stratum] Error building new template data: %s", err)
+				utils.Errorf("Stratum", "Error building new template data: %s", err)
 				return false
 			}
 			return true
@@ -717,7 +716,7 @@ func (s *Server) HandleTip(tip *sidechain.PoolBlock) {
 			s.tip = tip
 			s.lastMempoolRefresh = time.Now()
 			if err := s.fillNewTemplateData(currentDifficulty); err != nil {
-				log.Printf("[Stratum] Error building new template data: %s", err)
+				utils.Errorf("Stratum", "Error building new template data: %s", err)
 				return false
 			}
 			return true
@@ -734,7 +733,7 @@ func (s *Server) HandleBroadcast(block *sidechain.PoolBlock) {
 		if s.tip != nil && block != s.tip && block.Side.Height <= s.tip.Side.Height {
 			//probably a new block was added as alternate
 			if err := s.fillNewTemplateData(types.ZeroDifficulty); err != nil {
-				log.Printf("[Stratum] Error building new template data: %s", err)
+				utils.Errorf("Stratum", "Error building new template data: %s", err)
 				return false
 			}
 			return true
@@ -754,10 +753,10 @@ func (s *Server) Update() {
 	defer s.clientsLock.RUnlock()
 
 	if len(s.clients) > 0 {
-		log.Printf("[Stratum] Sending new job to %d connection(s)", len(s.clients))
+		utils.Logf("Stratum", "Sending new job to %d connection(s)", len(s.clients))
 		for _, c := range s.clients {
 			if err := s.SendTemplate(c); err != nil {
-				log.Printf("[Stratum] Closing connection %s: %s", c.Conn.RemoteAddr().String(), err)
+				utils.Noticef("Stratum", "Closing connection %s: %s", c.Conn.RemoteAddr().String(), err)
 				closeClients = append(closeClients, c)
 			}
 		}
@@ -821,7 +820,7 @@ func (s *Server) Ban(ip netip.Addr, duration time.Duration, err error) {
 		return
 	}
 
-	log.Printf("[Stratum] Banned %s for %s: %s", ip.String(), duration.String(), err.Error())
+	utils.Noticef("Stratum", "Banned %s for %s: %s", ip.String(), duration.String(), err.Error())
 	if !ip.IsLoopback() {
 		ip = ip.Unmap()
 		var prefix netip.Prefix
@@ -904,13 +903,13 @@ func (s *Server) Listen(listen string) error {
 				}(); err != nil {
 					go func() {
 						defer conn.Close()
-						log.Printf("[Stratum] Connection from %s rejected (%s)", conn.RemoteAddr().String(), err.Error())
+						utils.Noticef("Stratum", "Connection from %s rejected (%s)", conn.RemoteAddr().String(), err.Error())
 					}()
 					continue
 				}
 
 				func() {
-					log.Printf("[Stratum] Incoming connection from %s", conn.RemoteAddr().String())
+					utils.Noticef("Stratum", "Incoming connection from %s", conn.RemoteAddr().String())
 
 					var rpcId uint32
 					for rpcId == 0 {
@@ -935,15 +934,16 @@ func (s *Server) Listen(listen string) error {
 						defer s.CloseClient(client)
 						defer func() {
 							if err != nil {
-								log.Printf("[Stratum] Connection %s closed with error: %s", client.Conn.RemoteAddr().String(), err)
+								utils.Noticef("Stratum", "Connection %s closed with error: %s", client.Conn.RemoteAddr().String(), err)
 							} else {
-								log.Printf("[Stratum] Connection %s closed", client.Conn.RemoteAddr().String())
+								utils.Noticef("Stratum", "Connection %s closed", client.Conn.RemoteAddr().String())
 							}
 						}()
 						defer func() {
 							if e := recover(); e != nil {
-								err = errors.New("panic called")
-								log.Print(e)
+								if err = e.(error); err == nil {
+									err = fmt.Errorf("panic called: %v", e)
+								}
 								s.CloseClient(client)
 							}
 						}()
@@ -997,7 +997,7 @@ func (s *Server) Listen(listen string) error {
 											return errors.New("algo rx/0 not found")
 										}
 
-										log.Printf("[Stratum] Connection %s address = %s, agent = \"%s\", pass = \"%s\"", client.Conn.RemoteAddr().String(), client.Address.ToAddress(addressNetwork).ToBase58(), client.Agent, client.Password)
+										utils.Debugf("Stratum", "Connection %s address = %s, agent = \"%s\", pass = \"%s\"", client.Conn.RemoteAddr().String(), client.Address.ToAddress(addressNetwork).ToBase58(), client.Agent, client.Password)
 
 										client.Login = true
 										return nil
