@@ -47,6 +47,13 @@ func (m Mempool) Weight() (r uint64) {
 	return r
 }
 
+// Pick Selects transactions semi-optimally
+//
+// Picking all transactions will result in the base reward penalty
+// Use a heuristic algorithm to pick transactions and get the maximum possible reward
+// Testing has shown that this algorithm is very close to the optimal selection
+// Usually no more than 0.5 micronero away from the optimal discrete knapsack solution
+// Sometimes it even finds the optimal solution
 func (m Mempool) Pick(baseReward, minerTxWeight, medianWeight uint64) Mempool {
 	// Sort all transactions by fee per byte (highest to lowest)
 	m.Sort()
@@ -55,7 +62,7 @@ func (m Mempool) Pick(baseReward, minerTxWeight, medianWeight uint64) Mempool {
 	finalFees := uint64(0)
 	finalWeight := minerTxWeight
 
-	m2 := make(Mempool, 0, len(m))
+	mempoolTxsOrder2 := make(Mempool, 0, len(m))
 
 	for i, tx := range m {
 		k := -1
@@ -64,15 +71,15 @@ func (m Mempool) Pick(baseReward, minerTxWeight, medianWeight uint64) Mempool {
 		if reward > finalReward {
 			// If simply adding this transaction increases the reward, remember it
 			finalReward = reward
-			k = 1
+			k = i
 		}
 
 		// Try replacing other transactions when we are above the limit
 		if finalWeight+tx.Weight > medianWeight {
 			// Don't check more than 100 transactions deep because they have higher and higher fee/byte
-			n := len(m2)
+			n := len(mempoolTxsOrder2)
 			for j, j1 := n-1, max(0, n-100); j >= j1; j-- {
-				prevTx := m2[j]
+				prevTx := mempoolTxsOrder2[j]
 				reward2 := GetBlockReward(baseReward, medianWeight, finalFees+prevTx.Fee, finalWeight+prevTx.Weight)
 				if reward2 > finalReward {
 					// If replacing some other transaction increases the reward even more, remember it
@@ -85,19 +92,19 @@ func (m Mempool) Pick(baseReward, minerTxWeight, medianWeight uint64) Mempool {
 
 		if k == i {
 			// Simply adding this tx improves the reward
-			m2 = append(m2, tx)
+			mempoolTxsOrder2 = append(mempoolTxsOrder2, tx)
 			finalFees += tx.Fee
 			finalWeight += tx.Weight
 		} else if k >= 0 {
 			// Replacing another tx with this tx improves the reward
-			prevTx := m2[k]
-			m2[k] = tx
+			prevTx := mempoolTxsOrder2[k]
+			mempoolTxsOrder2[k] = tx
 			finalFees += tx.Fee - prevTx.Fee
 			finalWeight += tx.Weight - prevTx.Weight
 		}
 	}
 
-	return m2
+	return mempoolTxsOrder2
 }
 
 func (m Mempool) perfectSumRecursion(c chan Mempool, targetFee uint64, i int, currentSum uint64, top *int, m2 Mempool) {
@@ -118,12 +125,12 @@ func (m Mempool) perfectSumRecursion(c chan Mempool, targetFee uint64, i int, cu
 }
 
 func (m Mempool) PerfectSum(targetFee uint64) chan Mempool {
-	m2 := make(Mempool, 0, len(m))
+	mempoolTxsOrder2 := make(Mempool, 0, len(m))
 	c := make(chan Mempool)
 	go func() {
 		defer close(c)
 		var i int
-		m.perfectSumRecursion(c, targetFee, 0, 0, &i, m2)
+		m.perfectSumRecursion(c, targetFee, 0, 0, &i, mempoolTxsOrder2)
 	}()
 	return c
 }
