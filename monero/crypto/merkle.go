@@ -24,6 +24,7 @@ func (t BinaryTreeHash) leafHash(hasher *sha3.HasherState) (rootHash types.Hash)
 	}
 }
 
+// RootHash Calculates the Merkle root hash of the tree
 func (t BinaryTreeHash) RootHash() (rootHash types.Hash) {
 
 	hasher := GetKeccak256Hasher()
