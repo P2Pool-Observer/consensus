@@ -5,6 +5,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/go-monero/pkg/rpc/daemon"
 	"lukechampine.com/uint128"
+	"math/bits"
 	"slices"
 )
 
@@ -168,7 +169,12 @@ func GetBlockReward(baseReward, medianWeight, fees, weight uint64) uint64 {
 		return 0
 	}
 
-	reward := uint128.From64(baseReward).Mul64(medianWeight*2 - weight).Div64(medianWeight).Div64(medianWeight)
+	// This will overflow if median_weight >= 2^32
+	// TODO: Maybe fix it later like in Monero code
+	// Performance of this code is more important
+	hi, lo := bits.Mul64(baseReward, (medianWeight*2-weight)*weight)
+	reward := uint128.New(lo, hi).Div64(medianWeight * medianWeight)
+	//reward := uint128.From64(baseReward).Mul64((medianWeight*2 - weight) * weight).Div64(medianWeight).Div64(medianWeight)
 	return reward.Lo + fees
 }
 

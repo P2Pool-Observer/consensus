@@ -62,6 +62,6 @@ func GetBlockReward(medianWeight, currentBlockWeight, alreadyGeneratedCoins uint
 		return 0
 	}
 
-	product := uint128.From64(baseReward).Mul64(2*medianWeight - currentBlockWeight)
+	product := uint128.From64(baseReward).Mul64((2*medianWeight - currentBlockWeight) * currentBlockWeight)
 	return product.Div64(medianWeight).Div64(medianWeight).Lo
 }
