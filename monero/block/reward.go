@@ -4,6 +4,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
 	"lukechampine.com/uint128"
 	"math"
+	"math/bits"
 )
 
 func GetBaseReward(alreadyGeneratedCounts uint64) uint64 {
@@ -62,6 +63,7 @@ func GetBlockReward(medianWeight, currentBlockWeight, alreadyGeneratedCoins uint
 		return 0
 	}
 
-	product := uint128.From64(baseReward).Mul64((2*medianWeight - currentBlockWeight) * currentBlockWeight)
-	return product.Div64(medianWeight).Div64(medianWeight).Lo
+	hi, lo := bits.Mul64(baseReward, (2*medianWeight-currentBlockWeight)*currentBlockWeight)
+
+	return uint128.New(lo, hi).Div64(medianWeight).Div64(medianWeight).Lo
 }
