@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"slices"
 	"strings"
@@ -42,11 +43,11 @@ type Stream struct {
 	FullTxPoolAddC    func([]FullTxPoolAdd)
 	FullMinerDataC    func(*FullMinerData)
 	MinimalChainMainC func(*MinimalChainMain)
-	MinimalTxPoolAddC func([]TxMempoolData)
+	MinimalTxPoolAddC func(mempool.Mempool)
 }
 
 // Listen listens for a list of topics pre-configured for this client (via NewClient).
-func (c *Client) Listen(ctx context.Context, fullChainMain func(chainMain *FullChainMain), fullTxPoolAdd func(txs []FullTxPoolAdd), fullMinerData func(main *FullMinerData), minimalChainMain func(chainMain *MinimalChainMain), minimalTxPoolAdd func(txs []TxMempoolData)) error {
+func (c *Client) Listen(ctx context.Context, fullChainMain func(chainMain *FullChainMain), fullTxPoolAdd func(txs []FullTxPoolAdd), fullMinerData func(main *FullMinerData), minimalChainMain func(chainMain *MinimalChainMain), minimalTxPoolAdd func(txs mempool.Mempool)) error {
 	if err := c.listen(ctx, c.topics...); err != nil {
 		return fmt.Errorf("listen on '%s': %w", strings.Join(func() (r []string) {
 			for _, s := range c.topics {
@@ -191,7 +192,7 @@ func (c *Client) transmitMinimalChainMain(stream *Stream, gson []byte) error {
 }
 
 func (c *Client) transmitMinimalTxPoolAdd(stream *Stream, gson []byte) error {
-	var arr []TxMempoolData
+	var arr mempool.Mempool
 
 	if err := utils.UnmarshalJSON(gson, &arr); err != nil {
 		return fmt.Errorf("unmarshal: %w", err)

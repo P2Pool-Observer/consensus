@@ -2,6 +2,7 @@ package zmq
 
 import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 )
 
@@ -25,6 +26,17 @@ type MinimalChainMain struct {
 	Ids         []types.Hash `json:"ids"`
 }
 
+type TxOutput struct {
+	Amount uint64 `json:"amount"`
+	ToKey  *struct {
+		Key crypto.PublicKeyBytes `json:"key"`
+	} `json:"to_key,omitempty"`
+	ToTaggedKey *struct {
+		Key     crypto.PublicKeyBytes `json:"key"`
+		ViewTag string                `json:"view_tag"`
+	} `json:"to_tagged_key,omitempty"`
+}
+
 type FullChainMain struct {
 	MajorVersion int        `json:"major_version"`
 	MinorVersion int        `json:"minor_version"`
@@ -39,16 +51,7 @@ type FullChainMain struct {
 				Height uint64 `json:"height"`
 			} `json:"gen"`
 		} `json:"inputs"`
-		Outputs []struct {
-			Amount uint64 `json:"amount"`
-			ToKey  *struct {
-				Key crypto.PublicKeyBytes `json:"key"`
-			} `json:"to_key"`
-			ToTaggedKey *struct {
-				Key     crypto.PublicKeyBytes `json:"key"`
-				ViewTag string                `json:"view_tag"`
-			} `json:"to_tagged_key"`
-		} `json:"outputs"`
+		Outputs    []TxOutput    `json:"outputs"`
 		Extra      string        `json:"extra"`
 		Signatures []interface{} `json:"signatures"`
 		Ringct     struct {
@@ -71,12 +74,7 @@ type FullTxPoolAdd struct {
 			KeyImage   types.Hash `json:"key_image"`
 		} `json:"to_key"`
 	} `json:"inputs"`
-	Outputs []struct {
-		Amount int `json:"amount"`
-		ToKey  struct {
-			Key crypto.PublicKeyBytes `json:"key"`
-		} `json:"to_key"`
-	} `json:"outputs"`
+	Outputs    []TxOutput    `json:"outputs"`
 	Extra      string        `json:"extra"`
 	Signatures []interface{} `json:"signatures"`
 	Ringct     struct {
@@ -88,7 +86,7 @@ type FullTxPoolAdd struct {
 		Commitments []string `json:"commitments"`
 		Fee         int      `json:"fee"`
 		Prunable    struct {
-			RangeProofs  []interface{} `json:"range_proofs"`
+			RangeProofs  []any `json:"range_proofs"`
 			Bulletproofs []struct {
 				V      []string `json:"V"`
 				AUpper string   `json:"A"`
@@ -109,21 +107,14 @@ type FullTxPoolAdd struct {
 	} `json:"ringct"`
 }
 
-type TxMempoolData struct {
-	Id       types.Hash `json:"id"`
-	BlobSize uint64     `json:"blob_size"`
-	Weight   uint64     `json:"weight"`
-	Fee      uint64     `json:"fee"`
-}
-
 type FullMinerData struct {
-	MajorVersion          uint8            `json:"major_version"`
-	Height                uint64           `json:"height"`
-	PrevId                types.Hash       `json:"prev_id"`
-	SeedHash              types.Hash       `json:"seed_hash"`
-	Difficulty            types.Difficulty `json:"difficulty"`
-	MedianWeight          uint64           `json:"median_weight"`
-	AlreadyGeneratedCoins uint64           `json:"already_generated_coins"`
-	MedianTimestamp       uint64           `json:"median_timestamp"`
-	TxBacklog             []TxMempoolData  `json:"tx_backlog"`
+	MajorVersion          uint8                   `json:"major_version"`
+	Height                uint64                  `json:"height"`
+	PrevId                types.Hash              `json:"prev_id"`
+	SeedHash              types.Hash              `json:"seed_hash"`
+	Difficulty            types.Difficulty        `json:"difficulty"`
+	MedianWeight          uint64                  `json:"median_weight"`
+	AlreadyGeneratedCoins uint64                  `json:"already_generated_coins"`
+	MedianTimestamp       uint64                  `json:"median_timestamp"`
+	TxBacklog             []*mempool.MempoolEntry `json:"tx_backlog"`
 }

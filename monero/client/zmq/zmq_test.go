@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/zmq"
+	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
 	"os"
 	"testing"
 	"time"
@@ -78,7 +79,7 @@ func TestClient(t *testing.T) {
 		t.Log(main)
 	}, func(chainMain *zmq.MinimalChainMain) {
 		t.Log(chainMain)
-	}, func(txs []zmq.TxMempoolData) {
+	}, func(txs mempool.Mempool) {
 
 		t.Log(txs)
 	})

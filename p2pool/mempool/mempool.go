@@ -3,7 +3,6 @@ package mempool
 import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
-	"git.gammaspectra.live/P2Pool/go-monero/pkg/rpc/daemon"
 	"lukechampine.com/uint128"
 	"math"
 	"math/bits"
@@ -11,10 +10,10 @@ import (
 )
 
 type MempoolEntry struct {
-	Id       types.Hash
-	BlobSize uint64
-	Weight   uint64
-	Fee      uint64
+	Id       types.Hash `json:"id"`
+	BlobSize uint64     `json:"blob_size"`
+	Weight   uint64     `json:"weight"`
+	Fee      uint64     `json:"fee"`
 }
 
 type Mempool []*MempoolEntry
@@ -184,101 +183,4 @@ func GetBlockReward(baseReward, medianWeight, fees, weight uint64) uint64 {
 	reward, _ := bits.Div64(hi, lo, medianWeight*medianWeight)
 
 	return reward + fees
-}
-
-func isRctBulletproof(t int) bool {
-	switch t {
-	case 3, 4, 5: // RCTTypeBulletproof, RCTTypeBulletproof2, RCTTypeCLSAG:
-		return true
-	default:
-		return false
-	}
-}
-
-func isRctBulletproofPlus(t int) bool {
-	switch t {
-	case 6: // RCTTypeBulletproofPlus:
-		return true
-	default:
-		return false
-	}
-}
-
-func NewEntryFromRPCData(id types.Hash, buf []byte, json *daemon.TransactionJSON) *MempoolEntry {
-	isBulletproof := isRctBulletproof(json.RctSignatures.Type)
-	isBulletproofPlus := isRctBulletproofPlus(json.RctSignatures.Type)
-
-	var weight, paddedOutputs, bpBase, bpSize, bpClawback uint64
-	if !isBulletproof && !isBulletproofPlus {
-		weight = uint64(len(buf))
-	} else if isBulletproofPlus {
-		for _, proof := range json.RctsigPrunable.Bpp {
-			LSize := len(proof.L) / 2
-			n2 := uint64(1 << (LSize - 6))
-			if n2 == 0 {
-				paddedOutputs = 0
-				break
-			}
-			paddedOutputs += n2
-		}
-		{
-
-			bpBase = uint64(32*6+7*2) / 2
-
-			//get_transaction_weight_clawback
-			if len(json.RctSignatures.Outpk) <= 2 {
-				bpClawback = 0
-			} else {
-				nlr := 0
-				for (1 << nlr) < paddedOutputs {
-					nlr++
-				}
-				nlr += 6
-
-				bpSize = uint64(32*6 + 2*nlr)
-
-				bpClawback = (bpBase*paddedOutputs - bpSize) * 4 / 5
-			}
-		}
-
-		weight = uint64(len(buf)) + bpClawback
-	} else {
-		for _, proof := range json.RctsigPrunable.Bp {
-			LSize := len(proof.L) / 2
-			n2 := uint64(1 << (LSize - 6))
-			if n2 == 0 {
-				paddedOutputs = 0
-				break
-			}
-			paddedOutputs += n2
-		}
-		{
-
-			bpBase = uint64(32*9+7*2) / 2
-
-			//get_transaction_weight_clawback
-			if len(json.RctSignatures.Outpk) <= 2 {
-				bpClawback = 0
-			} else {
-				nlr := 0
-				for (1 << nlr) < paddedOutputs {
-					nlr++
-				}
-				nlr += 6
-
-				bpSize = uint64(32*9 + 2*nlr)
-
-				bpClawback = (bpBase*paddedOutputs - bpSize) * 4 / 5
-			}
-		}
-
-		weight = uint64(len(buf)) + bpClawback
-	}
-
-	return &MempoolEntry{
-		Id:       id,
-		BlobSize: uint64(len(buf)),
-		Weight:   weight,
-		Fee:      json.RctSignatures.Txnfee,
-	}
 }

@@ -139,18 +139,9 @@ func (c *MainChain) Listen() error {
 				TransactionParentIndices: nil,
 			}
 			c.HandleMainBlock(blockData)
-		}, func(txs []zmq.FullTxPoolAdd) {
-
-		}, func(fullMinerData *zmq.FullMinerData) {
-			pool := make(mempool.Mempool, len(fullMinerData.TxBacklog))
-			for i := range fullMinerData.TxBacklog {
-				pool[i] = &mempool.MempoolEntry{
-					Id:       fullMinerData.TxBacklog[i].Id,
-					BlobSize: fullMinerData.TxBacklog[i].BlobSize,
-					Weight:   fullMinerData.TxBacklog[i].Weight,
-					Fee:      fullMinerData.TxBacklog[i].Fee,
-				}
-			}
+		},
+		func(txs []zmq.FullTxPoolAdd) {},
+		func(fullMinerData *zmq.FullMinerData) {
 			c.HandleMinerData(&p2pooltypes.MinerData{
 				MajorVersion:          fullMinerData.MajorVersion,
 				Height:                fullMinerData.Height,
@@ -160,23 +151,13 @@ func (c *MainChain) Listen() error {
 				MedianWeight:          fullMinerData.MedianWeight,
 				AlreadyGeneratedCoins: fullMinerData.AlreadyGeneratedCoins,
 				MedianTimestamp:       fullMinerData.MedianTimestamp,
-				TxBacklog:             pool,
+				TxBacklog:             fullMinerData.TxBacklog,
 				TimeReceived:          time.Now(),
 			})
-		}, func(chainMain *zmq.MinimalChainMain) {
-
-		}, func(txs []zmq.TxMempoolData) {
-			m := make(mempool.Mempool, len(txs))
-			for i := range txs {
-				m[i] = &mempool.MempoolEntry{
-					Id:       txs[i].Id,
-					BlobSize: txs[i].BlobSize,
-					Weight:   txs[i].Weight,
-					Fee:      txs[i].Fee,
-				}
-			}
-			c.p2pool.UpdateMempoolData(m)
-		})
+		},
+		func(chainMain *zmq.MinimalChainMain) {},
+		c.p2pool.UpdateMempoolData,
+	)
 	if err != nil {
 		return err
 	}
