@@ -1,16 +1,15 @@
 package zmq_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/zmq"
 	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
 	"os"
+	"strings"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestJSONFromFrame(t *testing.T) {
@@ -55,14 +54,26 @@ func TestJSONFromFrame(t *testing.T) {
 
 			aTopic, aJSON, err := zmq.JSONFromFrame(tc.input)
 			if tc.err != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.err)
+				if err == nil {
+					t.Fatal("expected error")
+				}
+				if !strings.Contains(err.Error(), tc.err) {
+					t.Errorf("expected %s in, got %s", tc.err, err.Error())
+				}
 				return
 			}
 
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedTopic, aTopic)
-			assert.Equal(t, tc.expectedJSON, aJSON)
+			if err != nil {
+				t.Errorf("expected no error, got %s", err)
+			}
+
+			if tc.expectedTopic != aTopic {
+				t.Errorf("expected %s, got %s", tc.expectedTopic, aTopic)
+			}
+
+			if bytes.Compare(tc.expectedJSON, aJSON) != 0 {
+				t.Errorf("expected %s, got %s", string(tc.expectedJSON), string(aJSON))
+			}
 		})
 	}
 }
