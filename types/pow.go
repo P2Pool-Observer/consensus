@@ -66,10 +66,9 @@ func (d Difficulty) CheckPoW_Native(pow Hash) bool {
 	return true
 }
 
-// Target
-// Finds a 64-bit target for mining (target = 2^64 / difficulty) and rounds up the result of division
+// Target Finds a 64-bit target for mining (target = 2^64 / difficulty) and rounds up the result of division
 // Because of that, there's a very small chance that miners will find a hash that meets the target but is still wrong (hash * difficulty >= 2^256)
-// A proper difficulty check is in check_pow()
+// A proper difficulty check is in CheckPoW / CheckPoW_Native
 func (d Difficulty) Target() uint64 {
 	if d.Hi > 0 {
 		return 1
@@ -80,10 +79,10 @@ func (d Difficulty) Target() uint64 {
 		return math.MaxUint64
 	}
 
-	q, rem := Difficulty{Hi: 1, Lo: 0}.QuoRem64(d.Lo)
+	q, rem := bits.Div64(1, 0, d.Lo)
 	if rem > 0 {
-		return q.Lo + 1
+		return q + 1
 	} else {
-		return q.Lo
+		return q
 	}
 }
