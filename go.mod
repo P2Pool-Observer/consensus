@@ -11,7 +11,7 @@ require (
 	git.gammaspectra.live/P2Pool/sha3 v0.17.0
 	github.com/dolthub/swiss v0.2.1
 	github.com/floatdrop/lru v1.3.0
-	github.com/go-zeromq/zmq4 v0.16.0
+	github.com/go-zeromq/zmq4 v0.16.1-0.20240124085909-e75c615ba1b3
 	github.com/goccy/go-json v0.10.2
 	github.com/stretchr/testify v1.8.1
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc
@@ -23,7 +23,6 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
-	github.com/go-zeromq/goczmq/v4 v4.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
@@ -32,3 +31,5 @@ require (
 )
 
 replace github.com/goccy/go-json => github.com/WeebDataHoarder/go-json v0.0.0-20230730135821-d8f6463bb887
+
+replace github.com/go-zeromq/zmq4 => git.gammaspectra.live/P2Pool/zmq4 v0.16.1-0.20240407153747-7f7d531f586e
