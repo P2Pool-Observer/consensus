@@ -53,6 +53,8 @@ func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(k PublicKeyBytes,
 	return c, h[0]
 }
 
+/* TODO: wait for HashToPoint in edwards25519
 func GetKeyImage(pair *KeyPair) PublicKey {
 	return PublicKeyFromPoint(HashToPoint(pair.PublicKey)).Multiply(pair.PrivateKey.AsScalar())
 }
+*/

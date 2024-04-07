@@ -6,7 +6,7 @@ import (
 	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
-	"git.gammaspectra.live/P2Pool/moneroutil"
+	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 	"git.gammaspectra.live/P2Pool/sha3"
 	"strings"
 )
@@ -87,7 +87,7 @@ func GetTxProofV2(a Interface, txId types.Hash, txKey crypto.PrivateKey, message
 
 	sharedSecret, signature := crypto.GenerateTxProofV2(prefixHash, txKey, a.ViewPublicKey(), nil)
 
-	return "OutProofV2" + string(moneroutil.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(moneroutil.EncodeMoneroBase58(signature.Bytes()))
+	return "OutProofV2" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
 }
 
 func GetTxProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
@@ -95,7 +95,7 @@ func GetTxProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message
 
 	sharedSecret, signature := crypto.GenerateTxProofV1(prefixHash, txKey, a.ViewPublicKey(), nil)
 
-	return "OutProofV1" + string(moneroutil.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(moneroutil.EncodeMoneroBase58(signature.Bytes()))
+	return "OutProofV1" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
 }
 
 type SignatureVerifyResult int
@@ -131,7 +131,7 @@ func VerifyMessage(a Interface, message []byte, signature string) SignatureVerif
 	} else {
 		return ResultFail
 	}
-	raw := moneroutil.DecodeMoneroBase58([]byte(signature[5:]))
+	raw := base58.DecodeMoneroBase58([]byte(signature[5:]))
 
 	sig := crypto.NewSignatureFromBytes(raw)
 
@@ -170,7 +170,7 @@ func VerifyMessageFallbackToZero(a Interface, message []byte, signature string) 
 	} else {
 		return ResultFail
 	}
-	raw := moneroutil.DecodeMoneroBase58([]byte(signature[5:]))
+	raw := base58.DecodeMoneroBase58([]byte(signature[5:]))
 
 	sig := crypto.NewSignatureFromBytes(raw)
 

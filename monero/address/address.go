@@ -3,8 +3,9 @@ package address
 import (
 	"bytes"
 	"errors"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
-	"git.gammaspectra.live/P2Pool/moneroutil"
+	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 	"slices"
 )
 
@@ -13,8 +14,12 @@ type Address struct {
 	ViewPub     crypto.PublicKeyBytes
 	Network     uint8
 	hasChecksum bool
-	checksum    moneroutil.Checksum
+	checksum    Checksum
 }
+
+const ChecksumLength = 4
+
+type Checksum [ChecksumLength]byte
 
 func (a *Address) Compare(b Interface) int {
 	//compare spend key
@@ -53,31 +58,32 @@ func (a *Address) ToPackedAddress() PackedAddress {
 
 func FromBase58(address string) *Address {
 	preAllocatedBuf := make([]byte, 0, 69)
-	raw := moneroutil.DecodeMoneroBase58PreAllocated(preAllocatedBuf, []byte(address))
+	raw := base58.DecodeMoneroBase58PreAllocated(preAllocatedBuf, []byte(address))
 
 	if len(raw) != 69 {
 		return nil
 	}
 
 	switch raw[0] {
-	case moneroutil.MainNetwork, moneroutil.TestNetwork, moneroutil.StageNetwork:
+	case monero.MainNetwork, monero.TestNetwork, monero.StageNetwork:
 		break
-	case moneroutil.IntegratedMainNetwork, moneroutil.IntegratedTestNetwork, moneroutil.IntegratedStageNetwork:
+	case monero.IntegratedMainNetwork, monero.IntegratedTestNetwork, monero.IntegratedStageNetwork:
 		return nil
-	case moneroutil.SubAddressMainNetwork, moneroutil.SubAddressTestNetwork, moneroutil.SubAddressStageNetwork:
+	case monero.SubAddressMainNetwork, monero.SubAddressTestNetwork, monero.SubAddressStageNetwork:
 		return nil
 	default:
 		return nil
 	}
 
-	checksum := moneroutil.GetChecksum(raw[:65])
-	if bytes.Compare(checksum[:], raw[65:]) != 0 {
-		return nil
-	}
+	checksum := crypto.PooledKeccak256(raw[:65])
 	a := &Address{
-		Network:     raw[0],
-		checksum:    checksum,
-		hasChecksum: true,
+		Network: raw[0],
+	}
+	copy(a.checksum[:], checksum[:ChecksumLength])
+	a.hasChecksum = true
+
+	if bytes.Compare(a.checksum[:], raw[65:]) != 0 {
+		return nil
 	}
 
 	copy(a.SpendPub[:], raw[1:33])
@@ -88,18 +94,18 @@ func FromBase58(address string) *Address {
 
 func FromBase58NoChecksumCheck(address []byte) *Address {
 	preAllocatedBuf := make([]byte, 0, 69)
-	raw := moneroutil.DecodeMoneroBase58PreAllocated(preAllocatedBuf, address)
+	raw := base58.DecodeMoneroBase58PreAllocated(preAllocatedBuf, address)
 
 	if len(raw) != 69 {
 		return nil
 	}
 
 	switch raw[0] {
-	case moneroutil.MainNetwork, moneroutil.TestNetwork, moneroutil.StageNetwork:
+	case monero.MainNetwork, monero.TestNetwork, monero.StageNetwork:
 		break
-	case moneroutil.IntegratedMainNetwork, moneroutil.IntegratedTestNetwork, moneroutil.IntegratedStageNetwork:
+	case monero.IntegratedMainNetwork, monero.IntegratedTestNetwork, monero.IntegratedStageNetwork:
 		return nil
-	case moneroutil.SubAddressMainNetwork, moneroutil.SubAddressTestNetwork, moneroutil.SubAddressStageNetwork:
+	case monero.SubAddressMainNetwork, monero.SubAddressTestNetwork, monero.SubAddressStageNetwork:
 		return nil
 	default:
 		return nil
@@ -128,7 +134,7 @@ func FromRawAddress(network uint8, spend, view crypto.PublicKey) *Address {
 	a := &Address{
 		Network: nice[0],
 	}
-	copy(a.checksum[:], checksum[:4])
+	copy(a.checksum[:], checksum[:ChecksumLength])
 	a.hasChecksum = true
 
 	a.SpendPub = spend.AsBytes()
@@ -145,7 +151,7 @@ func (a *Address) verifyChecksum() {
 		copy(nice[1+crypto.PublicKeySize:], a.ViewPub.AsSlice())
 		sum := crypto.PooledKeccak256(nice[:65])
 		//this race is ok
-		copy(a.checksum[:], sum[:4])
+		copy(a.checksum[:], sum[:ChecksumLength])
 		a.hasChecksum = true
 	}
 }
@@ -153,14 +159,14 @@ func (a *Address) verifyChecksum() {
 func (a *Address) ToBase58() []byte {
 	a.verifyChecksum()
 	buf := make([]byte, 0, 95)
-	return moneroutil.EncodeMoneroBase58PreAllocated(buf, []byte{a.Network}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
+	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{a.Network}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
 }
 
 func (a *Address) MarshalJSON() ([]byte, error) {
 	a.verifyChecksum()
 	buf := make([]byte, 95+2)
 	buf[0] = '"'
-	moneroutil.EncodeMoneroBase58PreAllocated(buf[1:1], []byte{a.Network}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
+	base58.EncodeMoneroBase58PreAllocated(buf[1:1], []byte{a.Network}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
 	buf[len(buf)-1] = '"'
 	return buf, nil
 }

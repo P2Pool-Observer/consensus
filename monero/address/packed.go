@@ -2,7 +2,7 @@ package address
 
 import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
-	"git.gammaspectra.live/P2Pool/moneroutil"
+	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 	"unsafe"
 )
 
@@ -78,7 +78,7 @@ func (p PackedAddress) ToBase58(network uint8, err ...error) []byte {
 	sum := crypto.PooledKeccak256(nice[:65])
 
 	buf := make([]byte, 0, 95)
-	return moneroutil.EncodeMoneroBase58PreAllocated(buf, []byte{network}, p[PackedAddressSpend][:], p[PackedAddressView][:], sum[:4])
+	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{network}, p[PackedAddressSpend][:], p[PackedAddressView][:], sum[:4])
 }
 
 func (p PackedAddress) Reference() *PackedAddress {

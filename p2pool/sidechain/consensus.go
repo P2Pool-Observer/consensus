@@ -8,7 +8,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
-	"git.gammaspectra.live/P2Pool/moneroutil"
 	"strconv"
 )
 
@@ -48,11 +47,11 @@ func (n NetworkType) AddressNetwork() (uint8, error) {
 	case NetworkInvalid:
 		return 0, errors.New("invalid network")
 	case NetworkMainnet:
-		return moneroutil.MainNetwork, nil
+		return monero.MainNetwork, nil
 	case NetworkTestnet:
-		return moneroutil.TestNetwork, nil
+		return monero.TestNetwork, nil
 	case NetworkStagenet:
-		return moneroutil.StageNetwork, nil
+		return monero.StageNetwork, nil
 	}
 	return 0, errors.New("unknown network")
 }
