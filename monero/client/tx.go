@@ -1,9 +1,9 @@
 package client
 
 import (
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/rpc/daemon"
 	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
-	"git.gammaspectra.live/P2Pool/go-monero/pkg/rpc/daemon"
 )
 
 func isRctBulletproof(t int) bool {
