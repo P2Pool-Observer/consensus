@@ -10,7 +10,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
-	"lukechampine.com/uint128"
 	"math"
 	"math/bits"
 	"slices"
@@ -453,13 +452,13 @@ func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []
 			}
 		}()
 
-		deltaDifficulty := uint128.Uint128(maxDifficulty).Sub(uint128.Uint128(minDifficulty))
+		deltaDifficulty := maxDifficulty.Sub(minDifficulty)
 		curDifficulty := deltaDifficulty.Mul64(consensus.TargetBlockTime).Div64(deltaTimestamp)
 
 		if curDifficulty.Cmp64(consensus.MinimumDifficulty) < 0 {
 			return types.DifficultyFrom64(consensus.MinimumDifficulty), nil
 		}
-		return types.Difficulty(curDifficulty), nil
+		return curDifficulty, nil
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"math/bits"
 	"sync/atomic"
 	"unsafe"
 )
@@ -41,7 +42,7 @@ func FindChallengeSolution(challenge HandshakeChallenge, consensusId types.Hash,
 			return salt, sum, false
 		}
 
-		if types.DifficultyFrom64(binary.LittleEndian.Uint64(sum[len(sum)-int(unsafe.Sizeof(uint64(0))):])).Mul64(HandshakeChallengeDifficulty).Hi == 0 {
+		if hi, _ := bits.Mul64(binary.LittleEndian.Uint64(sum[len(sum)-int(unsafe.Sizeof(uint64(0))):]), HandshakeChallengeDifficulty); hi == 0 {
 			//found solution
 			return salt, sum, true
 		}
@@ -52,5 +53,6 @@ func FindChallengeSolution(challenge HandshakeChallenge, consensusId types.Hash,
 
 func CalculateChallengeHash(challenge HandshakeChallenge, consensusId types.Hash, solution uint64) (hash types.Hash, ok bool) {
 	hash = crypto.PooledKeccak256(challenge[:], consensusId[:], binary.LittleEndian.AppendUint64(nil, solution))
-	return hash, types.DifficultyFrom64(binary.LittleEndian.Uint64(hash[types.HashSize-int(unsafe.Sizeof(uint64(0))):])).Mul64(HandshakeChallengeDifficulty).Hi == 0
+	hi, _ := bits.Mul64(binary.LittleEndian.Uint64(hash[types.HashSize-int(unsafe.Sizeof(uint64(0))):]), HandshakeChallengeDifficulty)
+	return hash, hi == 0
 }
