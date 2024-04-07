@@ -2,8 +2,8 @@ package daemon
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 )
 
 const (
@@ -229,7 +229,7 @@ func (r *GetTransactionsResult) GetTransactions() ([]*TransactionJSON, error) {
 		}
 
 		t := &TransactionJSON{}
-		err := json.Unmarshal([]byte(txn.AsJSON), t)
+		err := utils.UnmarshalJSON([]byte(txn.AsJSON), t)
 		if err != nil {
 			return nil, fmt.Errorf("unmarshal txn '%s': %w",
 				txn.TxHash, err)

@@ -3,9 +3,9 @@ package daemon
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
+	fasthex "github.com/tmthrgd/go-hex"
 	"io"
 )
 
@@ -17,7 +17,7 @@ func (c *Client) GetOIndexes(
 	ctx context.Context, txid string,
 ) (indexes []uint64, finalError error) {
 
-	binaryTxId, err := hex.DecodeString(txid)
+	binaryTxId, err := fasthex.DecodeString(txid)
 	if err != nil {
 		return nil, err
 	}

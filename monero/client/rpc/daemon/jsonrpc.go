@@ -2,9 +2,9 @@ package daemon
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	fasthex "github.com/tmthrgd/go-hex"
 )
 
 const (
@@ -251,7 +251,7 @@ func (c *Client) SubmitBlock(ctx context.Context, blobs ...[]byte) (*SubmitBlock
 
 	params := make([]string, 0, len(blobs))
 	for _, blob := range blobs {
-		params = append(params, hex.EncodeToString(blob))
+		params = append(params, fasthex.EncodeToString(blob))
 	}
 
 	err := c.JSONRPC(ctx, methodSubmitBlock, params, resp)
@@ -321,7 +321,7 @@ func (c *Client) GetCoinbaseTxSum(
 func (j *GetBlockResult) InnerJSON() (*GetBlockResultJSON, error) {
 	res := &GetBlockResultJSON{}
 
-	err := json.Unmarshal([]byte(j.JSON), res)
+	err := utils.UnmarshalJSON([]byte(j.JSON), res)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal: %w", err)
 	}

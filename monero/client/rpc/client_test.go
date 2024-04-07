@@ -2,8 +2,8 @@ package rpc_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -100,7 +100,7 @@ func TestClient(t *testing.T) {
 			)
 
 			handler := func(w http.ResponseWriter, r *http.Request) {
-				err := json.NewDecoder(r.Body).Decode(body)
+				err := utils.NewJSONDecoder(r.Body).Decode(body)
 				assert.NoError(t, err)
 			}
 

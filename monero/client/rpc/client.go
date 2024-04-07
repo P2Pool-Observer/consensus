@@ -3,8 +3,8 @@ package rpc
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"io"
 	"net/http"
 	"net/url"
@@ -137,7 +137,7 @@ func (c *Client) RawRequest(ctx context.Context, endpoint string, params interfa
 	var body io.Reader
 
 	if params != nil {
-		b, err := json.Marshal(params)
+		b, err := utils.MarshalJSON(params)
 		if err != nil {
 			return fmt.Errorf("marshal: %w", err)
 		}
@@ -166,7 +166,7 @@ func (c *Client) JSONRPC(ctx context.Context, method string, params interface{},
 	address := *c.address
 	address.Path = endpointJSONRPC
 
-	b, err := json.Marshal(&RequestEnvelope{
+	b, err := utils.MarshalJSON(&RequestEnvelope{
 		ID:      "0",
 		JSONRPC: versionJSONRPC,
 		Method:  method,
@@ -215,7 +215,7 @@ func (c *Client) submitRequest(req *http.Request, response interface{}) error {
 		return fmt.Errorf("non-2xx status code: %d", resp.StatusCode)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(response); err != nil {
+	if err := utils.NewJSONDecoder(resp.Body).Decode(response); err != nil {
 		return fmt.Errorf("decode: %w", err)
 	}
 
