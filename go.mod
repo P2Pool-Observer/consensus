@@ -9,7 +9,7 @@ require (
 	git.gammaspectra.live/P2Pool/moneroutil v0.0.0-20230722215223-18ecc51ae61e
 	git.gammaspectra.live/P2Pool/randomx-go-bindings v0.0.0-20230514082649-9c5f18cd5a71
 	git.gammaspectra.live/P2Pool/sha3 v0.17.0
-	github.com/dolthub/swiss v0.2.1
+	github.com/dolthub/swiss v0.2.2-0.20240312182618-f4b2babd2bc1
 	github.com/floatdrop/lru v1.3.0
 	github.com/go-zeromq/zmq4 v0.16.1-0.20240124085909-e75c615ba1b3
 	github.com/goccy/go-json v0.10.2
