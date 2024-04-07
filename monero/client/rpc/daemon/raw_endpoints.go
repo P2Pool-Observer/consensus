@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 )
 
@@ -242,7 +243,7 @@ func (r *GetTransactionsResult) GetTransactions() ([]*TransactionJSON, error) {
 }
 
 func (c *Client) GetTransactions(
-	ctx context.Context, txns []string,
+	ctx context.Context, txns []types.Hash,
 ) (*GetTransactionsResult, error) {
 	resp := &GetTransactionsResult{}
 	params := map[string]interface{}{

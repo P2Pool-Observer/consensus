@@ -10,7 +10,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"github.com/floatdrop/lru"
-	fasthex "github.com/tmthrgd/go-hex"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -105,14 +104,10 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 		return data, jsonTx, nil
 	}
 	<-c.throttler
-	hs := make([]string, 0, len(txIds))
-	for _, h := range txIds {
-		hs = append(hs, h.String())
-	}
-	if result, err := c.d.GetTransactions(context.Background(), hs); err != nil {
+	if result, err := c.d.GetTransactions(context.Background(), txIds); err != nil {
 		return nil, nil, err
 	} else {
-		if len(result.Txs) != len(hs) {
+		if len(result.Txs) != len(txIds) {
 			return nil, nil, errors.New("invalid transaction count")
 		}
 
@@ -123,11 +118,7 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 		}
 
 		for _, tx := range result.Txs {
-			if buf, err := fasthex.DecodeString(tx.PrunedAsHex); err != nil {
-				return nil, nil, err
-			} else {
-				data = append(data, buf)
-			}
+			data = append(data, tx.PrunedAsHex)
 		}
 	}
 
@@ -137,29 +128,25 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 func (c *Client) GetCoinbaseTransaction(txId types.Hash) (*transaction.CoinbaseTransaction, error) {
 	if tx := c.coinbaseTransactionCache.Get(txId); tx == nil {
 		<-c.throttler
-		if result, err := c.d.GetTransactions(context.Background(), []string{txId.String()}); err != nil {
+		if result, err := c.d.GetTransactions(context.Background(), []types.Hash{txId}); err != nil {
 			return nil, err
 		} else {
 			if len(result.Txs) != 1 {
 				return nil, errors.New("invalid transaction count")
 			}
 
-			if buf, err := fasthex.DecodeString(result.Txs[0].PrunedAsHex); err != nil {
+			tx := &transaction.CoinbaseTransaction{}
+			if err = tx.UnmarshalBinary(result.Txs[0].PrunedAsHex); err != nil {
 				return nil, err
-			} else {
-				tx := &transaction.CoinbaseTransaction{}
-				if err = tx.UnmarshalBinary(buf); err != nil {
-					return nil, err
-				}
-
-				if tx.CalculateId() != txId {
-					return nil, fmt.Errorf("expected %s, got %s", txId.String(), tx.CalculateId().String())
-				}
-
-				c.coinbaseTransactionCache.Set(txId, tx)
-
-				return tx, nil
 			}
+
+			if tx.CalculateId() != txId {
+				return nil, fmt.Errorf("expected %s, got %s", txId.String(), tx.CalculateId().String())
+			}
+
+			c.coinbaseTransactionCache.Set(txId, tx)
+
+			return tx, nil
 		}
 	} else {
 		return *tx, nil
@@ -182,13 +169,7 @@ type TransactionInput struct {
 func (c *Client) GetTransactionInputs(ctx context.Context, hashes ...types.Hash) ([]TransactionInputResult, error) {
 	<-c.throttler
 
-	if result, err := c.d.GetTransactions(ctx, func() []string {
-		result := make([]string, 0, len(hashes))
-		for _, h := range hashes {
-			result = append(result, h.String())
-		}
-		return result
-	}()); err != nil {
+	if result, err := c.d.GetTransactions(ctx, hashes); err != nil {
 		return nil, err
 	} else {
 		if len(result.Txs) != len(hashes) {
@@ -208,7 +189,7 @@ func (c *Client) GetTransactionInputs(ctx context.Context, hashes ...types.Hash)
 			s[ix].Inputs = make([]TransactionInput, len(tx.Vin))
 			for i, input := range tx.Vin {
 				s[ix].Inputs[i].Amount = uint64(input.Key.Amount)
-				s[ix].Inputs[i].KeyImage, _ = types.HashFromString(input.Key.KImage)
+				s[ix].Inputs[i].KeyImage = input.Key.KImage
 				s[ix].Inputs[i].KeyOffsets = make([]uint64, len(input.Key.KeyOffsets))
 				for j, o := range input.Key.KeyOffsets {
 					s[ix].Inputs[i].KeyOffsets[j] = uint64(o)
@@ -237,7 +218,7 @@ type Output struct {
 func (c *Client) GetOutputIndexes(id types.Hash) (indexes []uint64, err error) {
 	<-c.throttler
 
-	return c.d.GetOIndexes(context.Background(), id.String())
+	return c.d.GetOIndexes(context.Background(), id)
 }
 
 func (c *Client) GetOuts(inputs ...uint64) ([]Output, error) {
@@ -261,9 +242,9 @@ func (c *Client) GetOuts(inputs ...uint64) ([]Output, error) {
 			o := &result.Outs[i]
 			s[i].GlobalOutputIndex = inputs[i]
 			s[i].Height = o.Height
-			s[i].Key, _ = types.HashFromString(o.Key)
-			s[i].Mask, _ = types.HashFromString(o.Mask)
-			s[i].TransactionId, _ = types.HashFromString(o.Txid)
+			s[i].Key = o.Key
+			s[i].Mask = o.Mask
+			s[i].TransactionId = o.Txid
 			s[i].Unlocked = o.Unlocked
 		}
 
@@ -300,7 +281,7 @@ func (c *Client) GetInfo() (*daemon.GetInfoResult, error) {
 
 func (c *Client) GetBlockHeaderByHash(hash types.Hash, ctx context.Context) (*daemon.BlockHeader, error) {
 	<-c.throttler
-	if result, err := c.d.GetBlockHeaderByHash(ctx, []string{hash.String()}); err != nil {
+	if result, err := c.d.GetBlockHeaderByHash(ctx, []types.Hash{hash}); err != nil {
 		return nil, err
 	} else if result != nil && len(result.BlockHeaders) > 0 {
 		return &result.BlockHeaders[0], nil
@@ -312,7 +293,7 @@ func (c *Client) GetBlockHeaderByHash(hash types.Hash, ctx context.Context) (*da
 func (c *Client) GetBlock(hash types.Hash, ctx context.Context) (*daemon.GetBlockResult, error) {
 	<-c.throttler
 	if result, err := c.d.GetBlock(ctx, daemon.GetBlockRequestParameters{
-		Hash: hash.String(),
+		Hash: hash,
 	}); err != nil {
 		return nil, err
 	} else {

@@ -356,18 +356,16 @@ func (c *MainChain) DownloadBlockHeaders(currentHeight uint64) error {
 		return fmt.Errorf("couldn't download block headers range for height %d to %d: %s", startHeight, currentHeight-1, err)
 	} else {
 		for _, header := range rangeResult.Headers {
-			prevHash, _ := types.HashFromString(header.PrevHash)
-			h, _ := types.HashFromString(header.Hash)
 			c.HandleMainHeader(&mainblock.Header{
 				MajorVersion: uint8(header.MajorVersion),
 				MinorVersion: uint8(header.MinorVersion),
 				Timestamp:    uint64(header.Timestamp),
-				PreviousId:   prevHash,
+				PreviousId:   header.PrevHash,
 				Height:       header.Height,
 				Nonce:        uint32(header.Nonce),
 				Reward:       header.Reward,
-				Id:           h,
-				Difficulty:   types.DifficultyFrom64(header.Difficulty),
+				Id:           header.Hash,
+				Difficulty:   types.NewDifficulty(header.Difficulty, header.DifficultyTop64),
 			})
 		}
 		utils.Logf("MainChain", "Downloaded headers for range %d to %d", startHeight, currentHeight-1)
@@ -457,18 +455,16 @@ func (c *MainChain) getBlockHeader(height uint64) error {
 	if header, err := c.p2pool.ClientRPC().GetBlockHeaderByHeight(height, c.p2pool.Context()); err != nil {
 		return fmt.Errorf("couldn't download block header for height %d: %s", height, err)
 	} else {
-		prevHash, _ := types.HashFromString(header.BlockHeader.PrevHash)
-		h, _ := types.HashFromString(header.BlockHeader.Hash)
 		c.HandleMainHeader(&mainblock.Header{
 			MajorVersion: uint8(header.BlockHeader.MajorVersion),
 			MinorVersion: uint8(header.BlockHeader.MinorVersion),
 			Timestamp:    uint64(header.BlockHeader.Timestamp),
-			PreviousId:   prevHash,
+			PreviousId:   header.BlockHeader.PrevHash,
 			Height:       header.BlockHeader.Height,
 			Nonce:        uint32(header.BlockHeader.Nonce),
 			Reward:       header.BlockHeader.Reward,
-			Id:           h,
-			Difficulty:   types.DifficultyFrom64(header.BlockHeader.Difficulty),
+			Id:           header.BlockHeader.Hash,
+			Difficulty:   types.NewDifficulty(header.BlockHeader.Difficulty, header.BlockHeader.DifficultyTop64),
 		})
 	}
 

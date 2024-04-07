@@ -1,5 +1,10 @@
 package daemon
 
+import (
+	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+)
+
 // RPCResultFooter contains the set of fields that every RPC result message
 // will contain.
 type RPCResultFooter struct {
@@ -33,11 +38,11 @@ type GetAlternateChainsResult struct {
 		// BlockHash is the hash of the first diverging block of this
 		// alternative chain.
 		//
-		BlockHash string `json:"block_hash"`
+		BlockHash types.Hash `json:"block_hash"`
 
 		// BlockHashes TODO
 		//
-		BlockHashes []string `json:"block_hashes"`
+		BlockHashes []types.Hash `json:"block_hashes"`
 
 		// Difficulty is the cumulative difficulty of all blocks in the
 		// alternative chain.
@@ -61,7 +66,7 @@ type GetAlternateChainsResult struct {
 
 		// MainChainParentBlock TODO
 		//
-		MainChainParentBlock string `json:"main_chain_parent_block"`
+		MainChainParentBlock types.Hash `json:"main_chain_parent_block"`
 
 		// WideDifficulty is the network difficulty as a hexadecimal
 		// string representing a 128-bit number.
@@ -194,44 +199,44 @@ type GetFeeEstimateResult struct {
 
 // GetInfoResult is the result of a call to the GetInfo RPC method.
 type GetInfoResult struct {
-	AdjustedTime              uint64 `json:"adjusted_time"`
-	AltBlocksCount            int    `json:"alt_blocks_count"`
-	BlockSizeLimit            uint64 `json:"block_size_limit"`
-	BlockSizeMedian           uint64 `json:"block_size_median"`
-	BlockWeightLimit          uint64 `json:"block_weight_limit"`
-	BlockWeightMedian         uint64 `json:"block_weight_median"`
-	BootstrapDaemonAddress    string `json:"bootstrap_daemon_address"`
-	BusySyncing               bool   `json:"busy_syncing"`
-	CumulativeDifficulty      int64  `json:"cumulative_difficulty"`
-	CumulativeDifficultyTop64 uint64 `json:"cumulative_difficulty_top64"`
-	DatabaseSize              uint64 `json:"database_size"`
-	Difficulty                uint64 `json:"difficulty"`
-	DifficultyTop64           uint64 `json:"difficulty_top64"`
-	FreeSpace                 uint64 `json:"free_space"`
-	GreyPeerlistSize          uint   `json:"grey_peerlist_size"`
-	Height                    uint64 `json:"height"`
-	HeightWithoutBootstrap    uint64 `json:"height_without_bootstrap"`
-	IncomingConnectionsCount  uint   `json:"incoming_connections_count"`
-	Mainnet                   bool   `json:"mainnet"`
-	Nettype                   string `json:"nettype"`
-	Offline                   bool   `json:"offline"`
-	OutgoingConnectionsCount  uint   `json:"outgoing_connections_count"`
-	RPCConnectionsCount       uint   `json:"rpc_connections_count"`
-	Stagenet                  bool   `json:"stagenet"`
-	StartTime                 uint64 `json:"start_time"`
-	Synchronized              bool   `json:"synchronized"`
-	Target                    uint64 `json:"target"`
-	TargetHeight              uint64 `json:"target_height"`
-	Testnet                   bool   `json:"testnet"`
-	TopBlockHash              string `json:"top_block_hash"`
-	TxCount                   uint64 `json:"tx_count"`
-	TxPoolSize                uint64 `json:"tx_pool_size"`
-	UpdateAvailable           bool   `json:"update_available"`
-	Version                   string `json:"version"`
-	WasBootstrapEverUsed      bool   `json:"was_bootstrap_ever_used"`
-	WhitePeerlistSize         uint   `json:"white_peerlist_size"`
-	WideCumulativeDifficulty  string `json:"wide_cumulative_difficulty"`
-	WideDifficulty            string `json:"wide_difficulty"`
+	AdjustedTime              uint64     `json:"adjusted_time"`
+	AltBlocksCount            int        `json:"alt_blocks_count"`
+	BlockSizeLimit            uint64     `json:"block_size_limit"`
+	BlockSizeMedian           uint64     `json:"block_size_median"`
+	BlockWeightLimit          uint64     `json:"block_weight_limit"`
+	BlockWeightMedian         uint64     `json:"block_weight_median"`
+	BootstrapDaemonAddress    string     `json:"bootstrap_daemon_address"`
+	BusySyncing               bool       `json:"busy_syncing"`
+	CumulativeDifficulty      int64      `json:"cumulative_difficulty"`
+	CumulativeDifficultyTop64 uint64     `json:"cumulative_difficulty_top64"`
+	DatabaseSize              uint64     `json:"database_size"`
+	Difficulty                uint64     `json:"difficulty"`
+	DifficultyTop64           uint64     `json:"difficulty_top64"`
+	FreeSpace                 uint64     `json:"free_space"`
+	GreyPeerlistSize          uint       `json:"grey_peerlist_size"`
+	Height                    uint64     `json:"height"`
+	HeightWithoutBootstrap    uint64     `json:"height_without_bootstrap"`
+	IncomingConnectionsCount  uint       `json:"incoming_connections_count"`
+	Mainnet                   bool       `json:"mainnet"`
+	Nettype                   string     `json:"nettype"`
+	Offline                   bool       `json:"offline"`
+	OutgoingConnectionsCount  uint       `json:"outgoing_connections_count"`
+	RPCConnectionsCount       uint       `json:"rpc_connections_count"`
+	Stagenet                  bool       `json:"stagenet"`
+	StartTime                 uint64     `json:"start_time"`
+	Synchronized              bool       `json:"synchronized"`
+	Target                    uint64     `json:"target"`
+	TargetHeight              uint64     `json:"target_height"`
+	Testnet                   bool       `json:"testnet"`
+	TopBlockHash              types.Hash `json:"top_block_hash"`
+	TxCount                   uint64     `json:"tx_count"`
+	TxPoolSize                uint64     `json:"tx_pool_size"`
+	UpdateAvailable           bool       `json:"update_available"`
+	Version                   string     `json:"version"`
+	WasBootstrapEverUsed      bool       `json:"was_bootstrap_ever_used"`
+	WhitePeerlistSize         uint       `json:"white_peerlist_size"`
+	WideCumulativeDifficulty  string     `json:"wide_cumulative_difficulty"`
+	WideDifficulty            string     `json:"wide_difficulty"`
 
 	RPCResultFooter `json:",inline"`
 }
@@ -241,11 +246,11 @@ type GetInfoResult struct {
 type GetBlockTemplateResult struct {
 	// BlockhashingBlob is the blob on which to try to find a valid nonce.
 	//
-	BlockhashingBlob string `json:"blockhashing_blob"`
+	BlockhashingBlob types.Bytes `json:"blockhashing_blob"`
 
 	// BlocktemplateBlob is the blob on which to try to mine a new block.
 	//
-	BlocktemplateBlob string `json:"blocktemplate_blob"`
+	BlocktemplateBlob types.Bytes `json:"blocktemplate_blob"`
 
 	// Difficulty is the difficulty of the next block.
 	Difficulty int64 `json:"difficulty"`
@@ -262,7 +267,7 @@ type GetBlockTemplateResult struct {
 	// PrevHash is the hash of the most recent block on which to mine the
 	// next block.
 	//
-	PrevHash string `json:"prev_hash"`
+	PrevHash types.Hash `json:"prev_hash"`
 
 	// ReservedOffset TODO
 	//
@@ -274,20 +279,15 @@ type GetBlockTemplateResult struct {
 // GetMinerDataResult is the result of a call to the GetMinerData RPC
 // method.
 type GetMinerDataResult struct {
-	MajorVersion          uint8  `json:"major_version"`
-	Height                uint64 `json:"height"`
-	PrevId                string `json:"prev_id"`
-	SeedHash              string `json:"seed_hash"`
-	Difficulty            string `json:"difficulty"`
-	MedianWeight          uint64 `json:"median_weight"`
-	AlreadyGeneratedCoins uint64 `json:"already_generated_coins"`
-	MedianTimestamp       uint64 `json:"median_timestamp"`
-	TxBacklog             []struct {
-		Id       string `json:"id"`
-		BlobSize uint64 `json:"blob_size"`
-		Weight   uint64 `json:"weight"`
-		Fee      uint64 `json:"fee"`
-	} `json:"tx_backlog"`
+	MajorVersion          uint8            `json:"major_version"`
+	Height                uint64           `json:"height"`
+	PrevId                types.Hash       `json:"prev_id"`
+	SeedHash              types.Hash       `json:"seed_hash"`
+	Difficulty            types.Difficulty `json:"difficulty"`
+	MedianWeight          uint64           `json:"median_weight"`
+	AlreadyGeneratedCoins uint64           `json:"already_generated_coins"`
+	MedianTimestamp       uint64           `json:"median_timestamp"`
+	TxBacklog             mempool.Mempool  `json:"tx_backlog"`
 }
 
 // SubmitBlockResult is the result of a call to the SubmitBlock RPC
@@ -352,11 +352,11 @@ type GetConnectionsResult struct {
 
 type GetOutsResult struct {
 	Outs []struct {
-		Height   uint64 `json:"height"`
-		Key      string `json:"key"`
-		Mask     string `json:"mask"`
-		Txid     string `json:"txid"`
-		Unlocked bool   `json:"unlocked"`
+		Height   uint64     `json:"height"`
+		Key      types.Hash `json:"key"`
+		Mask     types.Hash `json:"mask"`
+		Txid     types.Hash `json:"txid"`
+		Unlocked bool       `json:"unlocked"`
 	} `json:"outs"`
 
 	RPCResultFooter `json:",inline"`
@@ -364,8 +364,8 @@ type GetOutsResult struct {
 
 // GetHeightResult is the result of a call to the GetHeight RPC method.
 type GetHeightResult struct {
-	Hash   string `json:"hash"`
-	Height uint64 `json:"height"`
+	Hash   types.Hash `json:"hash"`
+	Height uint64     `json:"height"`
 
 	RPCResultFooter `json:",inline"`
 }
@@ -393,8 +393,8 @@ type GetPublicNodesResult struct {
 // GenerateBlocksResult is the result of a call to the GenerateBlocks RPC
 // method.
 type GenerateBlocksResult struct {
-	Blocks []string `json:"blocks"`
-	Height int      `json:"height"`
+	Blocks []types.Hash `json:"blocks"`
+	Height int          `json:"height"`
 
 	RPCResultFooter `json:",inline"`
 }
@@ -460,7 +460,7 @@ type BlockHeader struct {
 
 	// Hash is the hash of this block.
 	//
-	Hash string `json:"hash"`
+	Hash types.Hash `json:"hash"`
 
 	// Height is the number of blocks preceding this block on the
 	// blockchain.
@@ -478,7 +478,7 @@ type BlockHeader struct {
 
 	// MinerTxHash TODO
 	//
-	MinerTxHash string `json:"miner_tx_hash"`
+	MinerTxHash types.Hash `json:"miner_tx_hash"`
 
 	// MinorVersion is the minor version of the monero protocol at
 	// this block height.
@@ -502,12 +502,12 @@ type BlockHeader struct {
 
 	// PowHash TODO
 	//
-	PowHash string `json:"pow_hash"`
+	PowHash types.Hash `json:"pow_hash"`
 
 	// PrevHash is the hash of the block immediately preceding this
 	// block in the chain.
 	//
-	PrevHash string `json:"prev_hash"`
+	PrevHash types.Hash `json:"prev_hash,omitempty"`
 
 	// Reward the amount of new atomic-units generated in this
 	// block and rewarded to the miner (1XMR = 1e12 atomic units).
@@ -535,7 +535,7 @@ type BlockHeader struct {
 type GetBlockResult struct {
 	// Blob is a hexadecimal representation of the block.
 	//
-	Blob string `json:"blob"`
+	Blob types.Bytes `json:"blob"`
 
 	// BlockHeader contains the details from the block header.
 	//
@@ -548,7 +548,7 @@ type GetBlockResult struct {
 
 	// MinerTxHash is the hash of the coinbase transaction
 	//
-	MinerTxHash string `json:"miner_tx_hash"`
+	MinerTxHash types.Hash `json:"miner_tx_hash"`
 
 	RPCResultFooter `json:",inline"`
 }
@@ -569,7 +569,7 @@ type GetBlockResultJSON struct {
 
 	// PrevID (same as `block_hash` in the block header)
 	//
-	PrevID string `json:"prev_id"`
+	PrevID types.Hash `json:"prev_id"`
 
 	// Nonce (same as in the block header)
 	//
@@ -600,7 +600,7 @@ type GetBlockResultJSON struct {
 		Vout []struct {
 			Amount uint64 `json:"amount"`
 			Target struct {
-				Key string `json:"key"`
+				Key types.Hash `json:"key"`
 			} `json:"target"`
 		} `json:"vout"`
 		// Extra (aka the transaction id) can be used to include any
@@ -620,7 +620,7 @@ type GetBlockResultJSON struct {
 	// TxHashes is the list of hashes of non-coinbase transactions in the
 	// block.
 	//
-	TxHashes []string `json:"tx_hashes"`
+	TxHashes []types.Hash `json:"tx_hashes"`
 }
 
 func (c *GetBlockResultJSON) MinerOutputs() uint64 {
@@ -637,13 +637,13 @@ func (c *GetBlockResultJSON) MinerOutputs() uint64 {
 type SyncInfoResult struct {
 	Credits uint64 `json:"credits"`
 
-	Height                uint64 `json:"height"`
-	NextNeededPruningSeed uint64 `json:"next_needed_pruning_seed"`
-	Overview              string `json:"overview"`
-	Status                string `json:"status"`
-	TargetHeight          uint64 `json:"target_height"`
-	TopHash               string `json:"top_hash"`
-	Untrusted             bool   `json:"untrusted"`
+	Height                uint64     `json:"height"`
+	NextNeededPruningSeed uint64     `json:"next_needed_pruning_seed"`
+	Overview              string     `json:"overview"`
+	Status                string     `json:"status"`
+	TargetHeight          uint64     `json:"target_height"`
+	TopHash               types.Hash `json:"top_hash"`
+	Untrusted             bool       `json:"untrusted"`
 	Peers                 []struct {
 		Info struct {
 			Address           string `json:"address"`
@@ -756,25 +756,25 @@ type GetTransactionPoolStatsResult struct {
 }
 
 type GetTransactionsResultTransaction struct {
-	AsHex           string `json:"as_hex"`
-	AsJSON          string `json:"as_json"`
-	BlockHeight     uint64 `json:"block_height"`
-	BlockTimestamp  int64  `json:"block_timestamp"`
-	DoubleSpendSeen bool   `json:"double_spend_seen"`
-	InPool          bool   `json:"in_pool"`
-	OutputIndices   []int  `json:"output_indices"`
-	PrunableAsHex   string `json:"prunable_as_hex"`
-	PrunableHash    string `json:"prunable_hash"`
-	PrunedAsHex     string `json:"pruned_as_hex"`
-	TxHash          string `json:"tx_hash"`
+	AsHex           types.Bytes `json:"as_hex"`
+	AsJSON          string      `json:"as_json"`
+	BlockHeight     uint64      `json:"block_height"`
+	BlockTimestamp  int64       `json:"block_timestamp"`
+	DoubleSpendSeen bool        `json:"double_spend_seen"`
+	InPool          bool        `json:"in_pool"`
+	OutputIndices   []int       `json:"output_indices"`
+	PrunableAsHex   types.Bytes `json:"prunable_as_hex"`
+	PrunableHash    types.Hash  `json:"prunable_hash"`
+	PrunedAsHex     types.Bytes `json:"pruned_as_hex"`
+	TxHash          types.Hash  `json:"tx_hash"`
 }
 
 type GetTransactionsResult struct {
 	Credits   int                                `json:"credits"`
 	Status    string                             `json:"status"`
-	TopHash   string                             `json:"top_hash"`
+	TopHash   types.Hash                         `json:"top_hash"`
 	Txs       []GetTransactionsResultTransaction `json:"txs"`
-	TxsAsHex  []string                           `json:"txs_as_hex"`
+	TxsAsHex  []types.Bytes                      `json:"txs_as_hex"`
 	Untrusted bool                               `json:"untrusted"`
 }
 
@@ -783,15 +783,15 @@ type TransactionJSON struct {
 	UnlockTime int `json:"unlock_time"`
 	Vin        []struct {
 		Key struct {
-			Amount     int    `json:"amount"`
-			KeyOffsets []uint `json:"key_offsets"`
-			KImage     string `json:"k_image"`
+			Amount     int        `json:"amount"`
+			KeyOffsets []uint     `json:"key_offsets"`
+			KImage     types.Hash `json:"k_image"`
 		} `json:"key"`
 	} `json:"vin"`
 	Vout []struct {
 		Amount uint64 `json:"amount"`
 		Target struct {
-			Key string `json:"key"`
+			Key types.Hash `json:"key"`
 		} `json:"target"`
 	} `json:"vout"`
 	Extra         []byte `json:"extra"`
@@ -840,28 +840,28 @@ type TransactionJSON struct {
 type GetTransactionPoolResult struct {
 	Credits        int `json:"credits"`
 	SpentKeyImages []struct {
-		IDHash    string   `json:"id_hash"`
-		TxsHashes []string `json:"txs_hashes"`
+		IDHash    types.Hash   `json:"id_hash"`
+		TxsHashes []types.Hash `json:"txs_hashes"`
 	} `json:"spent_key_images"`
-	Status       string `json:"status"`
-	TopHash      string `json:"top_hash"`
+	Status       string     `json:"status"`
+	TopHash      types.Hash `json:"top_hash"`
 	Transactions []struct {
-		BlobSize           uint64 `json:"blob_size"`
-		DoNotRelay         bool   `json:"do_not_relay"`
-		DoubleSpendSeen    bool   `json:"double_spend_seen"`
-		Fee                uint64 `json:"fee"`
-		IDHash             string `json:"id_hash"`
-		KeptByBlock        bool   `json:"kept_by_block"`
-		LastFailedHeight   uint64 `json:"last_failed_height"`
-		LastFailedIDHash   string `json:"last_failed_id_hash"`
-		LastRelayedTime    uint64 `json:"last_relayed_time"`
-		MaxUsedBlockHeight uint64 `json:"max_used_block_height"`
-		MaxUsedBlockIDHash string `json:"max_used_block_id_hash"`
-		ReceiveTime        int64  `json:"receive_time"`
-		Relayed            bool   `json:"relayed"`
-		TxBlob             string `json:"tx_blob"`
-		TxJSON             string `json:"tx_json"`
-		Weight             uint64 `json:"weight"`
+		BlobSize           uint64     `json:"blob_size"`
+		DoNotRelay         bool       `json:"do_not_relay"`
+		DoubleSpendSeen    bool       `json:"double_spend_seen"`
+		Fee                uint64     `json:"fee"`
+		IDHash             types.Hash `json:"id_hash"`
+		KeptByBlock        bool       `json:"kept_by_block"`
+		LastFailedHeight   uint64     `json:"last_failed_height"`
+		LastFailedIDHash   string     `json:"last_failed_id_hash"`
+		LastRelayedTime    uint64     `json:"last_relayed_time"`
+		MaxUsedBlockHeight uint64     `json:"max_used_block_height"`
+		MaxUsedBlockIDHash string     `json:"max_used_block_id_hash"`
+		ReceiveTime        int64      `json:"receive_time"`
+		Relayed            bool       `json:"relayed"`
+		TxBlob             string     `json:"tx_blob"`
+		TxJSON             string     `json:"tx_json"`
+		Weight             uint64     `json:"weight"`
 	} `json:"transactions"`
 	Untrusted bool `json:"untrusted"`
 }

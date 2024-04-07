@@ -47,9 +47,9 @@ func getMinerData() *p2pooltypes.MinerData {
 		return &p2pooltypes.MinerData{
 			MajorVersion:          d.MajorVersion,
 			Height:                d.Height,
-			PrevId:                types.MustHashFromString(d.PrevId),
-			SeedHash:              types.MustHashFromString(d.SeedHash),
-			Difficulty:            types.MustDifficultyFromString(d.Difficulty),
+			PrevId:                d.PrevId,
+			SeedHash:              d.SeedHash,
+			Difficulty:            d.Difficulty,
 			MedianWeight:          d.MedianWeight,
 			AlreadyGeneratedCoins: d.AlreadyGeneratedCoins,
 			MedianTimestamp:       d.MedianTimestamp,

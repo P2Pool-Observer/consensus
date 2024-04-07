@@ -20,7 +20,7 @@ func testPoolBlock(b *PoolBlock, t *testing.T, expectedBufferLength int, majorVe
 		if h, err := client.GetDefaultClient().GetBlockByHeight(seedHeight, context.Background()); err != nil {
 			return types.ZeroHash
 		} else {
-			return types.MustHashFromString(h.BlockHeader.Hash)
+			return h.BlockHeader.Hash
 		}
 	})
 
@@ -58,7 +58,7 @@ func testPoolBlock(b *PoolBlock, t *testing.T, expectedBufferLength int, majorVe
 		if h, err := client.GetDefaultClient().GetBlockByHeight(seedHeight, context.Background()); err != nil {
 			return types.ZeroHash
 		} else {
-			return types.MustHashFromString(h.BlockHeader.Hash)
+			return h.BlockHeader.Hash
 		}
 	}) {
 		t.Fatal()

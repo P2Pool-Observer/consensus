@@ -63,12 +63,12 @@ func (s *FakeServer) GetMinimalBlockHeaderByHeight(height uint64) *mainblock.Hea
 			MajorVersion: uint8(h.BlockHeader.MajorVersion),
 			MinorVersion: uint8(h.BlockHeader.MinorVersion),
 			Timestamp:    uint64(h.BlockHeader.Timestamp),
-			PreviousId:   types.MustHashFromString(h.BlockHeader.PrevHash),
+			PreviousId:   h.BlockHeader.PrevHash,
 			Height:       h.BlockHeader.Height,
 			Nonce:        uint32(h.BlockHeader.Nonce),
 			Reward:       h.BlockHeader.Reward,
-			Difficulty:   types.DifficultyFrom64(h.BlockHeader.Difficulty),
-			Id:           types.MustHashFromString(h.BlockHeader.Hash),
+			Difficulty:   types.NewDifficulty(h.BlockHeader.Difficulty, h.BlockHeader.DifficultyTop64),
+			Id:           h.BlockHeader.Hash,
 		}
 		s.headers[height] = header
 		return header

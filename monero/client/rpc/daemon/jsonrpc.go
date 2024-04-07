@@ -3,8 +3,8 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
-	fasthex "github.com/tmthrgd/go-hex"
 )
 
 const (
@@ -189,20 +189,20 @@ func (c *Client) GetBlockCount(
 
 func (c *Client) OnGetBlockHash(
 	ctx context.Context, height uint64,
-) (string, error) {
+) (types.Hash, error) {
 	resp := ""
 	params := []uint64{height}
 
 	err := c.JSONRPC(ctx, methodOnGetBlockHash, params, &resp)
 	if err != nil {
-		return "", fmt.Errorf("jsonrpc: %w", err)
+		return types.ZeroHash, fmt.Errorf("jsonrpc: %w", err)
 	}
 
-	return resp, nil
+	return types.HashFromString(resp)
 }
 
 func (c *Client) RelayTx(
-	ctx context.Context, txns []string,
+	ctx context.Context, txns []types.Hash,
 ) (*RelayTxResult, error) {
 	resp := &RelayTxResult{}
 	params := map[string]interface{}{
@@ -246,15 +246,10 @@ func (c *Client) GetMinerData(ctx context.Context) (*GetMinerDataResult, error) 
 	return resp, nil
 }
 
-func (c *Client) SubmitBlock(ctx context.Context, blobs ...[]byte) (*SubmitBlockResult, error) {
+func (c *Client) SubmitBlock(ctx context.Context, blobs ...types.Bytes) (*SubmitBlockResult, error) {
 	resp := &SubmitBlockResult{}
 
-	params := make([]string, 0, len(blobs))
-	for _, blob := range blobs {
-		params = append(params, fasthex.EncodeToString(blob))
-	}
-
-	err := c.JSONRPC(ctx, methodSubmitBlock, params, resp)
+	err := c.JSONRPC(ctx, methodSubmitBlock, blobs, resp)
 	if err != nil {
 		return nil, fmt.Errorf("jsonrpc: %w", err)
 	}
@@ -367,7 +362,7 @@ func (c *Client) GetBlockHeaderByHeight(
 // GetBlockHeaderByHash retrieves block header information for either one or
 // multiple blocks.
 func (c *Client) GetBlockHeaderByHash(
-	ctx context.Context, hashes []string,
+	ctx context.Context, hashes []types.Hash,
 ) (*GetBlockHeaderByHashResult, error) {
 	resp := &GetBlockHeaderByHashResult{}
 	params := map[string]interface{}{
@@ -385,8 +380,8 @@ func (c *Client) GetBlockHeaderByHash(
 // GetBlockRequestParameters represents the set of possible parameters that can
 // be used for submitting a call to the `get_block` jsonrpc method.
 type GetBlockRequestParameters struct {
-	Height uint64 `json:"height,omitempty"`
-	Hash   string `json:"hash,omitempty"`
+	Height uint64     `json:"height,omitempty"`
+	Hash   types.Hash `json:"hash,omitempty"`
 }
 
 // GetBlock fetches full block information from a block at a particular hash OR

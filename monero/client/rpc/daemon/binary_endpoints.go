@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
-	fasthex "github.com/tmthrgd/go-hex"
+	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"io"
 )
 
@@ -14,18 +14,13 @@ const (
 )
 
 func (c *Client) GetOIndexes(
-	ctx context.Context, txid string,
+	ctx context.Context, txid types.Hash,
 ) (indexes []uint64, finalError error) {
-
-	binaryTxId, err := fasthex.DecodeString(txid)
-	if err != nil {
-		return nil, err
-	}
 
 	storage := levin.PortableStorage{Entries: levin.Entries{
 		levin.Entry{
 			Name:         "txid",
-			Serializable: levin.BoostString(binaryTxId),
+			Serializable: levin.BoostString(txid[:]),
 		},
 	}}
 
