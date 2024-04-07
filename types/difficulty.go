@@ -188,7 +188,7 @@ func (d Difficulty) Big() *big.Int {
 }
 
 func (d Difficulty) Float64() float64 {
-	return float64(d.Lo) + float64(d.Hi)*math.MaxUint64
+	return float64(d.Lo) + float64(d.Hi)*(float64(math.MaxUint64)+1)
 }
 
 func (d Difficulty) MarshalJSON() ([]byte, error) {
