@@ -6,15 +6,44 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"strings"
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/rpc"
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/rpc"
 )
+
+func assertError(t *testing.T, err error, msgAndArgs ...any) {
+	if err == nil {
+		message := ""
+		if len(msgAndArgs) > 0 {
+			message = fmt.Sprint(msgAndArgs...) + ": "
+		}
+		t.Errorf("%sexpected err", message)
+	}
+}
+
+func assertContains(t *testing.T, actual, expected string, msgAndArgs ...any) {
+	if !strings.Contains(actual, expected) {
+		message := ""
+		if len(msgAndArgs) > 0 {
+			message = fmt.Sprint(msgAndArgs...) + ": "
+		}
+		t.Errorf("%sactual: %v expected: %v", message, actual, expected)
+	}
+}
+
+func assertEqual(t *testing.T, actual, expected any, msgAndArgs ...any) {
+	if !reflect.DeepEqual(actual, expected) {
+		message := ""
+		if len(msgAndArgs) > 0 {
+			message = fmt.Sprint(msgAndArgs...) + ": "
+		}
+		t.Errorf("%sactual: %v expected: %v", message, actual, expected)
+	}
+}
 
 // nolint:funlen
 func TestClient(t *testing.T) {
@@ -30,11 +59,13 @@ func TestClient(t *testing.T) {
 			daemon.Close()
 
 			client, err = rpc.NewClient(daemon.URL, rpc.WithHTTPClient(daemon.Client()))
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
 
 			err = client.JSONRPC(ctx, "method", nil, nil)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "do:")
+			assertError(t, err)
+			assertContains(t, err.Error(), "do:")
 		})
 
 		it("errors w/ empty response", func() {
@@ -44,11 +75,13 @@ func TestClient(t *testing.T) {
 			defer daemon.Close()
 
 			client, err = rpc.NewClient(daemon.URL, rpc.WithHTTPClient(daemon.Client()))
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
 
 			err = client.JSONRPC(ctx, "method", nil, nil)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "decode")
+			assertError(t, err)
+			assertContains(t, err.Error(), "decode")
 		})
 
 		it("errors w/ non-200 response", func() {
@@ -60,11 +93,13 @@ func TestClient(t *testing.T) {
 			defer daemon.Close()
 
 			client, err = rpc.NewClient(daemon.URL, rpc.WithHTTPClient(daemon.Client()))
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
 
 			err = client.JSONRPC(ctx, "method", nil, nil)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "non-2xx status")
+			assertError(t, err)
+			assertContains(t, err.Error(), "non-2xx status")
 		})
 
 		it("makes GET request to the jsonrpc endpoint", func() {
@@ -82,11 +117,13 @@ func TestClient(t *testing.T) {
 			defer daemon.Close()
 
 			client, err = rpc.NewClient(daemon.URL, rpc.WithHTTPClient(daemon.Client()))
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
 
 			err = client.JSONRPC(ctx, "method", nil, nil)
-			assert.Equal(t, rpc.EndpointJSONRPC, endpoint)
-			assert.Equal(t, method, "GET")
+			assertEqual(t, rpc.EndpointJSONRPC, endpoint)
+			assertEqual(t, method, "GET")
 		})
 
 		it("encodes rpc in request", func() {
@@ -101,20 +138,24 @@ func TestClient(t *testing.T) {
 
 			handler := func(w http.ResponseWriter, r *http.Request) {
 				err := utils.NewJSONDecoder(r.Body).Decode(body)
-				assert.NoError(t, err)
+				if err != nil {
+					t.Errorf("unexpected err: %v", err)
+				}
 			}
 
 			daemon := httptest.NewServer(http.HandlerFunc(handler))
 			defer daemon.Close()
 
 			client, err = rpc.NewClient(daemon.URL, rpc.WithHTTPClient(daemon.Client()))
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
 
 			err = client.JSONRPC(ctx, "rpc-method", params, nil)
-			assert.Equal(t, body.ID, "0")
-			assert.Equal(t, body.JSONRPC, "2.0")
-			assert.Equal(t, body.Method, "rpc-method")
-			assert.Equal(t, body.Params, params)
+			assertEqual(t, body.ID, "0")
+			assertEqual(t, body.JSONRPC, "2.0")
+			assertEqual(t, body.Method, "rpc-method")
+			assertEqual(t, body.Params, params)
 		})
 
 		it("captures result", func() {
@@ -126,14 +167,18 @@ func TestClient(t *testing.T) {
 			defer daemon.Close()
 
 			client, err = rpc.NewClient(daemon.URL, rpc.WithHTTPClient(daemon.Client()))
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
 
 			result := map[string]string{}
 
-			err = client.JSONRPC(ctx, "rpc-method", nil, &result)
-			assert.NoError(t, err)
+			err = client.JSONRPC(ctx, "rpc-method/home/shoghicp/radio/p2pool-observer", nil, &result)
+			if err != nil {
+				t.Errorf("unexpected err: %v", err)
+			}
 
-			assert.Equal(t, result, map[string]string{"foo": "bar"})
+			assertEqual(t, result, map[string]string{"foo": "bar"})
 		})
 
 		it("fails if rpc errored", func() {
@@ -145,15 +190,17 @@ func TestClient(t *testing.T) {
 			defer daemon.Close()
 
 			client, err = rpc.NewClient(daemon.URL, rpc.WithHTTPClient(daemon.Client()))
-			require.NoError(t, err)
+			if err != nil {
+				t.Fatalf("unexpected err: %v", err)
+			}
 
 			result := map[string]string{}
 
 			err = client.JSONRPC(ctx, "rpc-method", nil, &result)
-			assert.Error(t, err)
+			assertError(t, err)
 
-			assert.Contains(t, err.Error(), "foo")
-			assert.Contains(t, err.Error(), "-1")
+			assertContains(t, err.Error(), "foo")
+			assertContains(t, err.Error(), "-1")
 		})
 	}, spec.Report(report.Terminal{}), spec.Parallel(), spec.Random())
 }

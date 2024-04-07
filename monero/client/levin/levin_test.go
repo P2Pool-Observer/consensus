@@ -1,14 +1,55 @@
 package levin_test
 
 import (
+	"fmt"
+	"reflect"
+	"strings"
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
-	"github.com/stretchr/testify/assert"
-
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
 )
+
+func assertNoError(t *testing.T, err error, msgAndArgs ...any) {
+	if err != nil {
+		message := ""
+		if len(msgAndArgs) > 0 {
+			message = fmt.Sprint(msgAndArgs...) + ": "
+		}
+		t.Errorf("%sunexpected err: %s", message, err)
+	}
+}
+
+func assertError(t *testing.T, err error, msgAndArgs ...any) {
+	if err == nil {
+		message := ""
+		if len(msgAndArgs) > 0 {
+			message = fmt.Sprint(msgAndArgs...) + ": "
+		}
+		t.Errorf("%sexpected err", message)
+	}
+}
+
+func assertContains(t *testing.T, actual, expected string, msgAndArgs ...any) {
+	if !strings.Contains(actual, expected) {
+		message := ""
+		if len(msgAndArgs) > 0 {
+			message = fmt.Sprint(msgAndArgs...) + ": "
+		}
+		t.Errorf("%sactual: %v expected: %v", message, actual, expected)
+	}
+}
+
+func assertEqual(t *testing.T, actual, expected any, msgAndArgs ...any) {
+	if !reflect.DeepEqual(actual, expected) {
+		message := ""
+		if len(msgAndArgs) > 0 {
+			message = fmt.Sprint(msgAndArgs...) + ": "
+		}
+		t.Errorf("%sactual: %v expected: %v", message, actual, expected)
+	}
+}
 
 func TestLevin(t *testing.T) {
 	spec.Run(t, "NewHeaderFromBytes", func(t *testing.T, when spec.G, it spec.S) {
@@ -18,7 +59,7 @@ func TestLevin(t *testing.T) {
 			}
 
 			_, err := levin.NewHeaderFromBytesBytes(bytes)
-			assert.Error(t, err)
+			assertError(t, err)
 		})
 
 		it("fails w/ wrong signature", func() {
@@ -35,8 +76,8 @@ func TestLevin(t *testing.T) {
 			}
 
 			_, err := levin.NewHeaderFromBytesBytes(bytes)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "signature mismatch")
+			assertError(t, err)
+			assertContains(t, err.Error(), "signature mismatch")
 		})
 
 		it("fails w/ invalid command", func() {
@@ -53,8 +94,8 @@ func TestLevin(t *testing.T) {
 			}
 
 			_, err := levin.NewHeaderFromBytesBytes(bytes)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "invalid command")
+			assertError(t, err)
+			assertContains(t, err.Error(), "invalid command")
 		})
 
 		it("fails w/ invalid return code", func() {
@@ -71,8 +112,8 @@ func TestLevin(t *testing.T) {
 			}
 
 			_, err := levin.NewHeaderFromBytesBytes(bytes)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "invalid return code")
+			assertError(t, err)
+			assertContains(t, err.Error(), "invalid return code")
 		})
 
 		it("fails w/ invalid version", func() {
@@ -89,8 +130,8 @@ func TestLevin(t *testing.T) {
 			}
 
 			_, err := levin.NewHeaderFromBytesBytes(bytes)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "invalid version")
+			assertError(t, err)
+			assertContains(t, err.Error(), "invalid version")
 		})
 
 		it("assembles properly from pong", func() {
@@ -107,11 +148,11 @@ func TestLevin(t *testing.T) {
 			}
 
 			header, err := levin.NewHeaderFromBytesBytes(bytes)
-			assert.NoError(t, err)
-			assert.Equal(t, header.Command, levin.CommandPing)
-			assert.Equal(t, header.ReturnCode, levin.LevinOk)
-			assert.Equal(t, header.Flags, levin.LevinPacketReponse)
-			assert.Equal(t, header.Version, levin.LevinProtocolVersion)
+			assertNoError(t, err)
+			assertEqual(t, header.Command, levin.CommandPing)
+			assertEqual(t, header.ReturnCode, levin.LevinOk)
+			assertEqual(t, header.Flags, levin.LevinPacketReponse)
+			assertEqual(t, header.Version, levin.LevinProtocolVersion)
 		})
 	})
 
@@ -119,7 +160,7 @@ func TestLevin(t *testing.T) {
 		it("assembles properly w/ ping", func() {
 			bytes := levin.NewRequestHeader(levin.CommandPing, 1).Bytes()
 
-			assert.ElementsMatch(t, bytes, []byte{
+			assertEqual(t, bytes, []byte{
 				0x01, 0x21, 0x01, 0x01, // signature
 				0x01, 0x01, 0x01, 0x01,
 				0x01, 0x00, 0x00, 0x00, // length		-- 0 for a ping msg
@@ -135,7 +176,7 @@ func TestLevin(t *testing.T) {
 		it("assembles properly w/ handshake", func() {
 			bytes := levin.NewRequestHeader(levin.CommandHandshake, 4).Bytes()
 
-			assert.ElementsMatch(t, bytes, []byte{
+			assertEqual(t, bytes, []byte{
 				0x01, 0x21, 0x01, 0x01, // signature
 				0x01, 0x01, 0x01, 0x01,
 				0x04, 0x00, 0x00, 0x00, // length		-- 0 for a ping msg

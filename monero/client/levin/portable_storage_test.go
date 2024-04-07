@@ -3,11 +3,9 @@ package levin_test
 import (
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
 	"github.com/sclevine/spec"
 	"github.com/sclevine/spec/report"
-	"github.com/stretchr/testify/assert"
-
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
 )
 
 func TestPortableStorage(t *testing.T) {
@@ -18,8 +16,8 @@ func TestPortableStorage(t *testing.T) {
 			}
 
 			_, err := levin.NewPortableStorageFromBytes(bytes)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "sig-a doesn't match")
+			assertError(t, err)
+			assertContains(t, err.Error(), "sig-a doesn't match")
 		})
 
 		it("fails w/ wrong sigB", func() {
@@ -29,8 +27,8 @@ func TestPortableStorage(t *testing.T) {
 			}
 
 			_, err := levin.NewPortableStorageFromBytes(bytes)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "sig-b doesn't match")
+			assertError(t, err)
+			assertContains(t, err.Error(), "sig-b doesn't match")
 		})
 
 		it("fails w/ wrong format ver", func() {
@@ -41,8 +39,8 @@ func TestPortableStorage(t *testing.T) {
 			}
 
 			_, err := levin.NewPortableStorageFromBytes(bytes)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "version doesn't match")
+			assertError(t, err)
+			assertContains(t, err.Error(), "version doesn't match")
 		})
 
 		it("reads the contents", func() {
@@ -80,19 +78,19 @@ func TestPortableStorage(t *testing.T) {
 			}
 
 			ps, err := levin.NewPortableStorageFromBytes(bytes)
-			assert.NoError(t, err)
+			assertNoError(t, err)
 
-			assert.Len(t, ps.Entries, 2)
-			assert.Equal(t, ps.Entries[0].Name, "node_data")
-			assert.EqualValues(t, ps.Entries[0].Value, levin.Entries{
+			assertEqual(t, len(ps.Entries), 2, "len")
+			assertEqual(t, ps.Entries[0].Name, "node_data")
+			assertEqual(t, ps.Entries[0].Value, levin.Entries{
 				{
 					Name:  "foo",
 					Value: "bar",
 				},
 			})
 
-			assert.Equal(t, ps.Entries[1].Name, "payload_data")
-			assert.EqualValues(t, ps.Entries[1].Value, levin.Entries{
+			assertEqual(t, ps.Entries[1].Name, "payload_data")
+			assertEqual(t, ps.Entries[1].Value, levin.Entries{
 				{
 					Name:  "number",
 					Value: uint32(1),
@@ -106,22 +104,22 @@ func TestPortableStorage(t *testing.T) {
 			b := []byte{0x08}
 			n, v := levin.ReadVarInt(b)
 
-			assert.Equal(t, n, 1)
-			assert.Equal(t, v, 2)
+			assertEqual(t, n, 1)
+			assertEqual(t, v, 2)
 		})
 
 		it("64 <= i <= 16383", func() {
 			b := []byte{0x01, 0x02}
 			n, v := levin.ReadVarInt(b)
-			assert.Equal(t, n, 2)
-			assert.Equal(t, v, 128)
+			assertEqual(t, n, 2)
+			assertEqual(t, v, 128)
 		})
 
 		it("16384 <= i <= 1073741823", func() {
 			b := []byte{0x02, 0x00, 0x01, 0x00}
 			n, v := levin.ReadVarInt(b)
-			assert.Equal(t, n, 4)
-			assert.Equal(t, v, 16384)
+			assertEqual(t, n, 4)
+			assertEqual(t, v, 16384)
 		})
 	}, spec.Report(report.Log{}), spec.Parallel(), spec.Random())
 
@@ -130,8 +128,8 @@ func TestPortableStorage(t *testing.T) {
 			i := 2 // 0b00000010
 
 			b, err := levin.VarIn(i)
-			assert.NoError(t, err)
-			assert.Equal(t, b, []byte{
+			assertNoError(t, err)
+			assertEqual(t, b, []byte{
 				0x08, // 0b00001000	(shift left twice, union 0)
 			})
 		})
@@ -140,8 +138,8 @@ func TestPortableStorage(t *testing.T) {
 			i := 128 // 0b010000000
 
 			b, err := levin.VarIn(i)
-			assert.NoError(t, err)
-			assert.Equal(t, b, []byte{
+			assertNoError(t, err)
+			assertEqual(t, b, []byte{
 				0x01, 0x02, // 0b1000000001 ((128 * 2 * 2) | 1) == 513
 				// '    '
 				// 1   2 * 256
@@ -152,8 +150,8 @@ func TestPortableStorage(t *testing.T) {
 			i := 16384 // 1 << 14
 
 			b, err := levin.VarIn(i)
-			assert.NoError(t, err)
-			assert.Equal(t, b, []byte{
+			assertNoError(t, err)
+			assertEqual(t, b, []byte{
 				0x02, 0x00, 0x01, 0x00, // (1 << 16) | 2
 			})
 		})
@@ -188,7 +186,7 @@ func TestPortableStorage(t *testing.T) {
 				},
 			}
 
-			assert.Equal(t, []byte{
+			assertEqual(t, []byte{
 				0x01, 0x11, 0x01, 0x01, // sig a
 				0x01, 0x01, 0x02, 0x01, // sig b
 				0x01, // format ver
