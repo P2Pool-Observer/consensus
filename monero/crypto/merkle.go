@@ -40,6 +40,9 @@ func (t BinaryTreeHash) RootHash() (rootHash types.Hash) {
 	temporaryTree := make(BinaryTreeHash, pow2cnt)
 	copy(temporaryTree, t[:offset])
 
+	//TODO: maybe can be done zero-alloc
+	//temporaryTree := t[:max(pow2cnt, offset)]
+
 	offsetTree := temporaryTree[offset:]
 	for i := range offsetTree {
 		offsetTree[i] = t[offset+i*2:].leafHash(hasher)
