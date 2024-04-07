@@ -76,6 +76,10 @@ func testSideChain(s *SideChain, t *testing.T, reader io.Reader, sideHeight, mai
 	total = max(1, hits+misses)
 	t.Logf("Derivation Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
 
+	hits, misses = s.DerivationCache().pubKeyToTableCache.Stats()
+	total = max(1, hits+misses)
+	t.Logf("PubKeyToTable Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
+
 	hits, misses = s.DerivationCache().pubKeyToPointCache.Stats()
 	total = max(1, hits+misses)
 	t.Logf("PubKeyToPoint Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
