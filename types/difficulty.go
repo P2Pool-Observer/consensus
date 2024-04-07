@@ -1,11 +1,9 @@
 package types
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
-	"github.com/holiman/uint256"
 	fasthex "github.com/tmthrgd/go-hex"
 	"io"
 	"lukechampine.com/uint128"
@@ -326,45 +324,4 @@ func (d *Difficulty) Scan(src any) error {
 
 func (d *Difficulty) Value() (driver.Value, error) {
 	return d.Bytes(), nil
-}
-
-// TODO: remove uint256 dependency as it's unique to this section
-var powBase = uint256.NewInt(0).SetBytes32(bytes.Repeat([]byte{0xff}, 32))
-
-func DifficultyFromPoW(powHash Hash) Difficulty {
-	if powHash == ZeroHash {
-		return ZeroDifficulty
-	}
-
-	pow := uint256.NewInt(0).SetBytes32(powHash[:])
-	pow = &uint256.Int{bits.ReverseBytes64(pow[3]), bits.ReverseBytes64(pow[2]), bits.ReverseBytes64(pow[1]), bits.ReverseBytes64(pow[0])}
-
-	powResult := uint256.NewInt(0).Div(powBase, pow).Bytes32()
-	return DifficultyFromBytes(powResult[16:])
-}
-
-func (d Difficulty) CheckPoW(pow Hash) bool {
-	return DifficultyFromPoW(pow).Cmp(d) >= 0
-}
-
-// Target
-// Finds a 64-bit target for mining (target = 2^64 / difficulty) and rounds up the result of division
-// Because of that, there's a very small chance that miners will find a hash that meets the target but is still wrong (hash * difficulty >= 2^256)
-// A proper difficulty check is in check_pow()
-func (d Difficulty) Target() uint64 {
-	if d.Hi > 0 {
-		return 1
-	}
-
-	// Safeguard against division by zero (CPU will trigger it even if lo = 1 because result doesn't fit in 64 bits)
-	if d.Lo <= 1 {
-		return math.MaxUint64
-	}
-
-	q, rem := Difficulty{Hi: 1, Lo: 0}.QuoRem64(d.Lo)
-	if rem > 0 {
-		return q.Lo + 1
-	} else {
-		return q.Lo
-	}
 }
