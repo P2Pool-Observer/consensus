@@ -692,14 +692,17 @@ func (s *Server) HandleMempoolData(data mempool.Mempool) {
 
 		var highFeeReceived bool
 		for _, tx := range data {
-			//prevent a lot of calls if not needed
-			if utils.GlobalLogLevel&utils.LogLevelDebug > 0 {
-				utils.Debugf("Stratum", "new tx id = %s, size = %d, weight = %d, fee = %s", tx.Id, tx.BlobSize, tx.Weight, utils.XMRUnits(tx.Fee))
-			}
 
-			if s.mempool.Add(tx) && tx.Fee >= HighFeeValue {
-				highFeeReceived = true
-				utils.Noticef("Stratum", "high fee tx received: %s, %s", tx.Id, utils.XMRUnits(tx.Fee))
+			if s.mempool.Add(tx) {
+				if tx.Fee >= HighFeeValue {
+					//prevent a lot of calls if not needed
+					if utils.GlobalLogLevel&utils.LogLevelDebug > 0 {
+						utils.Debugf("Stratum", "new tx id = %s, size = %d, weight = %d, fee = %s", tx.Id, tx.BlobSize, tx.Weight, utils.XMRUnits(tx.Fee))
+					}
+
+					highFeeReceived = true
+					utils.Noticef("Stratum", "high fee tx received: %s, %s", tx.Id, utils.XMRUnits(tx.Fee))
+				}
 			}
 		}
 
