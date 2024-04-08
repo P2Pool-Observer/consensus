@@ -64,6 +64,8 @@ type NewTemplateData struct {
 type Server struct {
 	SubmitFunc func(block *sidechain.PoolBlock) error
 
+	refreshDuration time.Duration
+
 	minerData       *p2pooltypes.MinerData
 	tip             *sidechain.PoolBlock
 	newTemplateData NewTemplateData
@@ -125,6 +127,9 @@ func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBloc
 		mempool:                           (*MiningMempool)(swiss.NewMap[types.Hash, *mempool.Entry](512)),
 		// buffer 4 at a time for non-blocking source
 		incomingChanges: make(chan func() bool, 4),
+
+		//refresh every n seconds
+		refreshDuration: time.Duration(s.Consensus().TargetBlockTime) * time.Second,
 	}
 	return server
 }
@@ -697,17 +702,17 @@ func (s *Server) HandleMempoolData(data mempool.Mempool) {
 				if tx.Fee >= HighFeeValue {
 					//prevent a lot of calls if not needed
 					if utils.GlobalLogLevel&utils.LogLevelDebug > 0 {
-						utils.Debugf("Stratum", "new tx id = %s, size = %d, weight = %d, fee = %s", tx.Id, tx.BlobSize, tx.Weight, utils.XMRUnits(tx.Fee))
+						utils.Debugf("Stratum", "new tx id = %s, size = %d, weight = %d, fee = %s XMR", tx.Id, tx.BlobSize, tx.Weight, utils.XMRUnits(tx.Fee))
 					}
 
 					highFeeReceived = true
-					utils.Noticef("Stratum", "high fee tx received: %s, %s", tx.Id, utils.XMRUnits(tx.Fee))
+					utils.Noticef("Stratum", "high fee tx received: %s, %s XMR - updating template", tx.Id, utils.XMRUnits(tx.Fee))
 				}
 			}
 		}
 
 		// Refresh if 10 seconds have passed between templates and new transactions arrived, or a high fee was received
-		if highFeeReceived || timeReceived.Sub(s.lastMempoolRefresh) >= time.Second*10 {
+		if highFeeReceived || timeReceived.Sub(s.lastMempoolRefresh) >= s.refreshDuration {
 			s.lastMempoolRefresh = timeReceived
 			if err := s.fillNewTemplateData(types.ZeroDifficulty); err != nil {
 				utils.Errorf("Stratum", "Error building new template data: %s", err)
