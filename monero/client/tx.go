@@ -25,7 +25,7 @@ func isRctBulletproofPlus(t int) bool {
 }
 
 // NewEntryFromRPCData TODO
-func NewEntryFromRPCData(id types.Hash, buf []byte, json *daemon.TransactionJSON) *mempool.MempoolEntry {
+func NewEntryFromRPCData(id types.Hash, buf []byte, json *daemon.TransactionJSON) *mempool.Entry {
 	isBulletproof := isRctBulletproof(json.RctSignatures.Type)
 	isBulletproofPlus := isRctBulletproofPlus(json.RctSignatures.Type)
 
@@ -96,7 +96,7 @@ func NewEntryFromRPCData(id types.Hash, buf []byte, json *daemon.TransactionJSON
 		weight = uint64(len(buf)) + bpClawback
 	}
 
-	return &mempool.MempoolEntry{
+	return &mempool.Entry{
 		Id:       id,
 		BlobSize: uint64(len(buf)),
 		Weight:   weight,

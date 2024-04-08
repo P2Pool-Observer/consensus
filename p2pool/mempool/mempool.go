@@ -7,21 +7,23 @@ import (
 	"math"
 	"math/bits"
 	"slices"
+	"time"
 )
 
-type MempoolEntry struct {
-	Id       types.Hash `json:"id"`
-	BlobSize uint64     `json:"blob_size"`
-	Weight   uint64     `json:"weight"`
-	Fee      uint64     `json:"fee"`
+type Entry struct {
+	Id           types.Hash `json:"id"`
+	BlobSize     uint64     `json:"blob_size"`
+	Weight       uint64     `json:"weight"`
+	Fee          uint64     `json:"fee"`
+	TimeReceived time.Time  `json:"-"`
 }
 
-type Mempool []*MempoolEntry
+type Mempool []*Entry
 
 func (m Mempool) Sort() {
 	// Sort all transactions by fee per byte (highest to lowest)
 
-	slices.SortFunc(m, func(a, b *MempoolEntry) int {
+	slices.SortFunc(m, func(a, b *Entry) int {
 		return a.Compare(b)
 	})
 }
@@ -137,7 +139,7 @@ func (m Mempool) PerfectSum(targetFee uint64) chan Mempool {
 }
 
 // Compare returns -1 if self is preferred over o, 0 if equal, 1 if o is preferred over self
-func (t *MempoolEntry) Compare(o *MempoolEntry) int {
+func (t *Entry) Compare(o *Entry) int {
 	a := t.Fee * o.Weight
 	b := o.Fee * t.Weight
 

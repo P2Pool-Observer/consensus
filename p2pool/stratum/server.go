@@ -14,6 +14,7 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"github.com/dolthub/swiss"
 	gojson "github.com/goccy/go-json"
 	fasthex "github.com/tmthrgd/go-hex"
 	"math"
@@ -24,6 +25,10 @@ import (
 	"sync"
 	"time"
 )
+
+// HighFeeValue 0.006 XMR
+const HighFeeValue uint64 = 6000000000
+const TimeInMempool = time.Second * 5
 
 type ephemeralPubKeyCacheKey [crypto.PublicKeySize*2 + 8]byte
 
@@ -65,7 +70,7 @@ type Server struct {
 	lock            sync.RWMutex
 	sidechain       *sidechain.SideChain
 
-	mempool            mempool.Mempool
+	mempool            *MiningMempool
 	lastMempoolRefresh time.Time
 
 	preAllocatedDifficultyData        []sidechain.DifficultyData
@@ -117,6 +122,7 @@ func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBloc
 		preAllocatedSharesPool:            sidechain.NewPreAllocatedSharesPool(s.Consensus().ChainWindowSize * 2),
 		preAllocatedBuffer:                make([]byte, 0, sidechain.PoolBlockMaxTemplateSize),
 		miners:                            make(map[address.PackedAddress]*MinerTrackingEntry),
+		mempool:                           (*MiningMempool)(swiss.NewMap[types.Hash, *mempool.Entry](512)),
 		// buffer 4 at a time for non-blocking source
 		incomingChanges: make(chan func() bool, 4),
 	}
@@ -258,11 +264,14 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		return errors.New("could not find reserved share index")
 	}
 
+	// Only choose transactions that were received 5 or more seconds ago, or high fee (>= 0.006 XMR) transactions
+	selectedMempool := s.mempool.Select(HighFeeValue, TimeInMempool)
+
 	//TODO: limit max Monero block size
 
 	baseReward := block.GetBaseReward(s.minerData.AlreadyGeneratedCoins)
 
-	totalWeight, totalFees := s.mempool.WeightAndFees()
+	totalWeight, totalFees := selectedMempool.WeightAndFees()
 
 	maxReward := baseReward + totalFees
 
@@ -276,22 +285,27 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 	coinbaseTransactionWeight := uint64(tx.BufferLength())
 
-	var selectedMempool mempool.Mempool
+	var pickedMempool mempool.Mempool
 
 	if totalWeight+coinbaseTransactionWeight <= s.minerData.MedianWeight {
 		// if a block doesn't get into the penalty zone, just pick all transactions
-		selectedMempool = s.mempool
+		pickedMempool = selectedMempool
 	} else {
-		selectedMempool = s.mempool.Pick(baseReward, coinbaseTransactionWeight, s.minerData.MedianWeight)
+		pickedMempool = selectedMempool.Pick(baseReward, coinbaseTransactionWeight, s.minerData.MedianWeight)
 	}
 
-	s.newTemplateData.Transactions = make([]types.Hash, len(selectedMempool))
+	//shuffle transactions
+	unsafeRandom.Shuffle(len(pickedMempool), func(i, j int) {
+		pickedMempool[i], pickedMempool[j] = pickedMempool[j], pickedMempool[i]
+	})
 
-	for i, entry := range selectedMempool {
+	s.newTemplateData.Transactions = make([]types.Hash, len(pickedMempool))
+
+	for i, entry := range pickedMempool {
 		s.newTemplateData.Transactions[i] = entry.Id
 	}
 
-	finalReward := mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, selectedMempool.Fees(), coinbaseTransactionWeight+selectedMempool.Weight())
+	finalReward := mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, pickedMempool.Fees(), coinbaseTransactionWeight+pickedMempool.Weight())
 
 	if finalReward < baseReward {
 		return errors.New("final reward < base reward, should never happen")
@@ -671,14 +685,27 @@ func (s *Server) createCoinbaseTransaction(txType uint8, shares sidechain.Shares
 
 func (s *Server) HandleMempoolData(data mempool.Mempool) {
 	s.incomingChanges <- func() bool {
+		timeReceived := time.Now()
+
 		s.lock.Lock()
 		defer s.lock.Unlock()
 
-		s.mempool = append(s.mempool, data...)
+		var highFeeReceived bool
+		for _, tx := range data {
+			//prevent a lot of calls if not needed
+			if utils.GlobalLogLevel&utils.LogLevelDebug > 0 {
+				utils.Debugf("Stratum", "new tx id = %s, size = %d, weight = %d, fee = %s", tx.Id, tx.BlobSize, tx.Weight, utils.XMRUnits(tx.Fee))
+			}
 
-		// Refresh if 10 seconds have passed between templates and new transactions arrived
-		if time.Now().Sub(s.lastMempoolRefresh) >= time.Second*10 {
-			s.lastMempoolRefresh = time.Now()
+			if s.mempool.Add(tx) && tx.Fee >= HighFeeValue {
+				highFeeReceived = true
+				utils.Noticef("Stratum", "high fee tx received: %s, %s", tx.Id, utils.XMRUnits(tx.Fee))
+			}
+		}
+
+		// Refresh if 10 seconds have passed between templates and new transactions arrived, or a high fee was received
+		if highFeeReceived || timeReceived.Sub(s.lastMempoolRefresh) >= time.Second*10 {
+			s.lastMempoolRefresh = timeReceived
 			if err := s.fillNewTemplateData(types.ZeroDifficulty); err != nil {
 				utils.Errorf("Stratum", "Error building new template data: %s", err)
 				return false
@@ -696,7 +723,7 @@ func (s *Server) HandleMinerData(minerData *p2pooltypes.MinerData) {
 
 		if s.minerData == nil || s.minerData.Height <= minerData.Height {
 			s.minerData = minerData
-			s.mempool = minerData.TxBacklog
+			s.mempool.Swap(minerData.TxBacklog)
 			s.lastMempoolRefresh = time.Now()
 			if err := s.fillNewTemplateData(types.ZeroDifficulty); err != nil {
 				utils.Errorf("Stratum", "Error building new template data: %s", err)

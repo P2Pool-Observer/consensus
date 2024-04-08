@@ -108,13 +108,13 @@ type FullTxPoolAdd struct {
 }
 
 type FullMinerData struct {
-	MajorVersion          uint8                   `json:"major_version"`
-	Height                uint64                  `json:"height"`
-	PrevId                types.Hash              `json:"prev_id"`
-	SeedHash              types.Hash              `json:"seed_hash"`
-	Difficulty            types.Difficulty        `json:"difficulty"`
-	MedianWeight          uint64                  `json:"median_weight"`
-	AlreadyGeneratedCoins uint64                  `json:"already_generated_coins"`
-	MedianTimestamp       uint64                  `json:"median_timestamp"`
-	TxBacklog             []*mempool.MempoolEntry `json:"tx_backlog"`
+	MajorVersion          uint8            `json:"major_version"`
+	Height                uint64           `json:"height"`
+	PrevId                types.Hash       `json:"prev_id"`
+	SeedHash              types.Hash       `json:"seed_hash"`
+	Difficulty            types.Difficulty `json:"difficulty"`
+	MedianWeight          uint64           `json:"median_weight"`
+	AlreadyGeneratedCoins uint64           `json:"already_generated_coins"`
+	MedianTimestamp       uint64           `json:"median_timestamp"`
+	TxBacklog             []*mempool.Entry `json:"tx_backlog"`
 }
