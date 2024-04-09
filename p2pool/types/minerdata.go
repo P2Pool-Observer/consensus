@@ -15,6 +15,16 @@ type MinerData struct {
 	MedianWeight          uint64           `json:"median_weight"`
 	AlreadyGeneratedCoins uint64           `json:"already_generated_coins"`
 	MedianTimestamp       uint64           `json:"median_timestamp"`
-	TimeReceived          time.Time        `json:"time_received"`
 	TxBacklog             mempool.Mempool  `json:"tx_backlog"`
+
+	TimeReceived time.Time `json:"time_received"`
+
+	AuxiliaryChains []AuxiliaryChainData `json:"aux_chains,omitempty"`
+	AuxiliaryNonce  uint32               `json:"aux_nonce,omitempty"`
+}
+
+type AuxiliaryChainData struct {
+	UniqueId   types.Hash
+	Data       types.Hash
+	Difficulty types.Difficulty
 }

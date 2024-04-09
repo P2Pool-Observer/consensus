@@ -148,6 +148,10 @@ func NetworkMajorVersion(consensus *Consensus, height uint64) uint8 {
 	return result
 }
 
+// P2PoolShareVersion
+// P2Pool forks to v2 at 2023-03-18 21:00 UTC
+// Different miners can have different timestamps,
+// so a temporary mix of v1 and v2 blocks is allowed
 func P2PoolShareVersion(consensus *Consensus, timestamp uint64) ShareVersion {
 	hardForks := consensus.HardForks
 

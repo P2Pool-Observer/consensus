@@ -136,7 +136,7 @@ func (c *Client) GetCoinbaseTransaction(txId types.Hash) (*transaction.CoinbaseT
 			}
 
 			tx := &transaction.CoinbaseTransaction{}
-			if err = tx.UnmarshalBinary(result.Txs[0].PrunedAsHex); err != nil {
+			if err = tx.UnmarshalBinary(result.Txs[0].PrunedAsHex, false, false); err != nil {
 				return nil, err
 			}
 

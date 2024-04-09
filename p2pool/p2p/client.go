@@ -513,7 +513,8 @@ func (c *Client) OnConnection() {
 					c.Ban(DefaultBanTime, err)
 					return
 				} else {
-					tipHash := types.HashFromBytes(block.CoinbaseExtra(sidechain.SideTemplateId))
+					tipHash := block.FastSideTemplateId(c.Owner.Consensus())
+
 					if isChainTipBlockRequest {
 						if lastTip := c.LastKnownTip.Load(); lastTip == nil || lastTip.Side.Height <= block.Side.Height {
 							if _, err = c.Owner.SideChain().PreprocessBlock(block); err == nil {
@@ -545,7 +546,7 @@ func (c *Client) OnConnection() {
 						}
 					}
 					if c.Owner.SideChain().BlockSeen(block) {
-						//utils.Logf("P2PClient", "Peer %s block id = %s, height = %d (nonce %d, extra_nonce %d) was received before, skipping it", c.AddressPort.String(), types.HashFromBytes(block.CoinbaseExtra(sidechain.SideTemplateId)), block.Side.Height, block.Main.Nonce, block.ExtraNonce())
+						//utils.Logf("P2PClient", "Peer %s block id = %s, height = %d (nonce %d, extra_nonce %d) was received before, skipping it", c.AddressPort.String(), types.HashFromBytes(block.CoinbaseExtra(sidechain.SideIdentifierHash)), block.Side.Height, block.Main.Nonce, block.ExtraNonce())
 						break
 					}
 					if missingBlocks, err, ban := c.Owner.SideChain().AddPoolBlockExternal(block); err != nil {
@@ -605,12 +606,6 @@ func (c *Client) OnConnection() {
 				}
 			}
 
-			tipHash := types.HashFromBytes(block.CoinbaseExtra(sidechain.SideTemplateId))
-
-			c.BroadcastedHashes.Push(tipHash)
-
-			c.LastBroadcastTimestamp.Store(uint64(time.Now().Unix()))
-
 			//utils.Logf("P2PClient", "Peer %s broadcast tip is at id = %s, height = %d, main height = %d", c.AddressPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.GenHeight)
 
 			if missingBlocks, err := c.Owner.SideChain().PreprocessBlock(block); err != nil {
@@ -620,6 +615,12 @@ func (c *Client) OnConnection() {
 				//TODO: ban here, but sort blocks properly, maybe a queue to re-try?
 				break
 			} else {
+				tipHash := block.FastSideTemplateId(c.Owner.Consensus())
+
+				c.BroadcastedHashes.Push(tipHash)
+
+				c.LastBroadcastTimestamp.Store(uint64(time.Now().Unix()))
+
 				if lastTip := c.LastKnownTip.Load(); lastTip == nil || lastTip.Side.Height <= block.Side.Height {
 					c.LastKnownTip.Store(block)
 				}
@@ -652,7 +653,7 @@ func (c *Client) OnConnection() {
 				}
 
 				if c.Owner.SideChain().BlockSeen(block) {
-					//utils.Logf("P2PClient", "Peer %s block id = %s, height = %d (nonce %d, extra_nonce %d) was received before, skipping it", c.AddressPort.String(), types.HashFromBytes(block.CoinbaseExtra(sidechain.SideTemplateId)), block.Side.Height, block.Main.Nonce, block.ExtraNonce())
+					//utils.Logf("P2PClient", "Peer %s block id = %s, height = %d (nonce %d, extra_nonce %d) was received before, skipping it", c.AddressPort.String(), types.HashFromBytes(block.CoinbaseExtra(sidechain.SideIdentifierHash)), block.Side.Height, block.Main.Nonce, block.ExtraNonce())
 					break
 				}
 

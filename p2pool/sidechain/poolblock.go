@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/address"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v3/monero/block"
@@ -15,7 +16,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	fasthex "github.com/tmthrgd/go-hex"
-	"io"
 	"slices"
 	"sync/atomic"
 	"unsafe"
@@ -29,7 +29,9 @@ const SideExtraNonceMaxSize = SideExtraNonceSize + 10
 const (
 	SideCoinbasePublicKey = transaction.TxExtraTagPubKey
 	SideExtraNonce        = transaction.TxExtraTagNonce
-	SideTemplateId        = transaction.TxExtraTagMergeMining
+
+	// SideIdentifierHash Depending on version, this can be a PoolBlock TemplateId or Merkle Root Hash
+	SideIdentifierHash = transaction.TxExtraTagMergeMining
 )
 
 // PoolBlockMaxTemplateSize Max P2P message size (128 KB) minus BLOCK_RESPONSE header (5 bytes)
@@ -50,13 +52,15 @@ const (
 	ShareVersion_None ShareVersion = 0
 	ShareVersion_V1   ShareVersion = 1
 	ShareVersion_V2   ShareVersion = 2
+	// ShareVersion_V3 Tentative future version with merge mining support
+	ShareVersion_V3 ShareVersion = 3
 )
 
 type UniquePoolBlockSlice []*PoolBlock
 
-func (s UniquePoolBlockSlice) Get(id types.Hash) *PoolBlock {
+func (s UniquePoolBlockSlice) Get(consensus *Consensus, id types.Hash) *PoolBlock {
 	if i := slices.IndexFunc(s, func(p *PoolBlock) bool {
-		return bytes.Compare(p.CoinbaseExtra(SideTemplateId), id[:]) == 0
+		return p.FastSideTemplateId(consensus) == id
 	}); i != -1 {
 		return s[i]
 	}
@@ -85,6 +89,8 @@ type PoolBlock struct {
 	Side SideData `json:"side"`
 
 	//Temporary data structures
+	mergeMiningTag merge_mining.Tag
+
 	cache    poolBlockCache
 	Depth    atomic.Uint64 `json:"-"`
 	Verified atomic.Bool   `json:"-"`
@@ -127,143 +133,13 @@ func (b *PoolBlock) iteratorUncles(getByTemplateId GetByTemplateIdFunc, uncleFun
 	return nil
 }
 
-// NewShareFromExportedBytes
-// Deprecated
-func NewShareFromExportedBytes(buf []byte, consensus *Consensus, cacheInterface DerivationCacheInterface) (*PoolBlock, error) {
-	b := &PoolBlock{}
-
-	if len(buf) < 32 {
-		return nil, errors.New("invalid block data")
-	}
-
-	reader := bytes.NewReader(buf)
-
-	var (
-		err     error
-		version uint64
-
-		mainDataSize uint64
-		mainData     []byte
-
-		sideDataSize uint64
-		sideData     []byte
-	)
-
-	if err = binary.Read(reader, binary.BigEndian, &version); err != nil {
-		return nil, err
-	}
-
-	switch version {
-	case 1:
-
-		var mainId types.Hash
-
-		if _, err = io.ReadFull(reader, mainId[:]); err != nil {
-			return nil, err
-		}
-
-		var h types.Hash
-		// Read PoW hash
-		if _, err = io.ReadFull(reader, h[:]); err != nil {
-			return nil, err
-		}
-
-		var mainDifficulty types.Difficulty
-
-		if err = binary.Read(reader, binary.BigEndian, &mainDifficulty.Hi); err != nil {
-			return nil, err
-		}
-		if err = binary.Read(reader, binary.BigEndian, &mainDifficulty.Lo); err != nil {
-			return nil, err
-		}
-
-		mainDifficulty.ReverseBytes()
-
-		_ = mainDifficulty
-
-		if err = binary.Read(reader, binary.BigEndian, &mainDataSize); err != nil {
-			return nil, err
-		}
-		mainData = make([]byte, mainDataSize)
-		if _, err = io.ReadFull(reader, mainData); err != nil {
-			return nil, err
-		}
-
-		if err = binary.Read(reader, binary.BigEndian, &sideDataSize); err != nil {
-			return nil, err
-		}
-		sideData = make([]byte, sideDataSize)
-		if _, err = io.ReadFull(reader, sideData); err != nil {
-			return nil, err
-		}
-
-		/*
-			//Ignore error when unable to read peer
-			_ = func() error {
-				var peerSize uint64
-
-				if err = binary.Read(reader, binary.BigEndian, &peerSize); err != nil {
-					return err
-				}
-				b.Extra.Peer = make([]byte, peerSize)
-				if _, err = io.ReadFull(reader, b.Extra.Peer); err != nil {
-					return err
-				}
-
-				return nil
-			}()
-		*/
-
-	case 0:
-		if err = binary.Read(reader, binary.BigEndian, &mainDataSize); err != nil {
-			return nil, err
-		}
-		mainData = make([]byte, mainDataSize)
-		if _, err = io.ReadFull(reader, mainData); err != nil {
-			return nil, err
-		}
-		if sideData, err = io.ReadAll(reader); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("unknown block version %d", version)
-	}
-
-	if err = b.Main.UnmarshalBinary(mainData); err != nil {
-		return nil, err
-	}
-
-	if expectedMajorVersion := NetworkMajorVersion(consensus, b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
-		return nil, fmt.Errorf("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
-	}
-
-	b.CachedShareVersion = b.CalculateShareVersion(consensus)
-
-	//TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
-	if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining); t == nil || t.VarInt != 32 {
-		return nil, errors.New("wrong merge mining tag depth")
-	}
-
-	if err = b.Side.UnmarshalBinary(sideData, b.ShareVersion()); err != nil {
-		return nil, err
-	}
-
-	b.FillPrivateKeys(cacheInterface)
-
-	//zero cache as it can be wrong
-	b.cache.templateId.Store(nil)
-	b.cache.powHash.Store(nil)
-
-	return b, nil
-}
-
 func (b *PoolBlock) NeedsCompactTransactionFilling() bool {
 	return len(b.Main.TransactionParentIndices) > 0 && len(b.Main.TransactionParentIndices) == len(b.Main.Transactions) && slices.Index(b.Main.Transactions, types.ZeroHash) != -1
 }
 
-func (b *PoolBlock) FillTransactionsFromTransactionParentIndices(parent *PoolBlock) error {
+func (b *PoolBlock) FillTransactionsFromTransactionParentIndices(consensus *Consensus, parent *PoolBlock) error {
 	if b.NeedsCompactTransactionFilling() {
-		if parent != nil && types.HashFromBytes(parent.CoinbaseExtra(SideTemplateId)) == b.Side.Parent {
+		if parent != nil && parent.FastSideTemplateId(consensus) == b.Side.Parent {
 			for i, parentIndex := range b.Main.TransactionParentIndices {
 				if parentIndex != 0 {
 					// p2pool stores coinbase transaction hash as well, decrease
@@ -282,9 +158,9 @@ func (b *PoolBlock) FillTransactionsFromTransactionParentIndices(parent *PoolBlo
 	return nil
 }
 
-func (b *PoolBlock) FillTransactionParentIndices(parent *PoolBlock) bool {
+func (b *PoolBlock) FillTransactionParentIndices(consensus *Consensus, parent *PoolBlock) bool {
 	if len(b.Main.Transactions) != len(b.Main.TransactionParentIndices) {
-		if parent != nil && types.HashFromBytes(parent.CoinbaseExtra(SideTemplateId)) == b.Side.Parent {
+		if parent != nil && parent.FastSideTemplateId(consensus) == b.Side.Parent {
 			b.Main.TransactionParentIndices = make([]uint64, len(b.Main.Transactions))
 			//do not fail if not found
 			for i, txHash := range b.Main.Transactions {
@@ -303,9 +179,6 @@ func (b *PoolBlock) FillTransactionParentIndices(parent *PoolBlock) bool {
 }
 
 func (b *PoolBlock) CalculateShareVersion(consensus *Consensus) ShareVersion {
-	// P2Pool forks to v2 at 2023-03-18 21:00 UTC
-	// Different miners can have different timestamps,
-	// so a temporary mix of v1 and v2 blocks is allowed
 	return P2PoolShareVersion(consensus, b.Main.Timestamp)
 }
 
@@ -328,6 +201,20 @@ func (b *PoolBlock) ExtraNonce() uint32 {
 	return binary.LittleEndian.Uint32(extraNonce)
 }
 
+// FastSideTemplateId Returns SideTemplateId from either coinbase extra tags or pruned data, or main block if not pruned
+func (b *PoolBlock) FastSideTemplateId(consensus *Consensus) types.Hash {
+	if b.ShareVersion() > ShareVersion_V2 {
+		if b.Main.Coinbase.AuxiliaryData.WasPruned {
+			return b.Main.Coinbase.AuxiliaryData.TemplateId
+		} else {
+			//fallback to full calculation
+			return b.SideTemplateId(consensus)
+		}
+	} else {
+		return types.HashFromBytes(b.CoinbaseExtra(SideIdentifierHash))
+	}
+}
+
 func (b *PoolBlock) CoinbaseExtra(tag CoinbaseExtraTag) []byte {
 	switch tag {
 	case SideExtraNonce:
@@ -337,12 +224,22 @@ func (b *PoolBlock) CoinbaseExtra(tag CoinbaseExtraTag) []byte {
 			}
 			return t.Data
 		}
-	case SideTemplateId:
+	case SideIdentifierHash:
 		if t := b.Main.Coinbase.Extra.GetTag(uint8(tag)); t != nil {
-			if len(t.Data) != types.HashSize {
-				return nil
+			if b.ShareVersion() > ShareVersion_V2 {
+				mergeMineReader := bytes.NewReader(t.Data)
+				var mergeMiningTag merge_mining.Tag
+				if err := mergeMiningTag.FromReader(mergeMineReader); err != nil || mergeMineReader.Len() != 0 {
+					return nil
+				}
+
+				return mergeMiningTag.RootHash[:]
+			} else {
+				if t.VarInt != types.HashSize || len(t.Data) != types.HashSize {
+					return nil
+				}
+				return t.Data
 			}
-			return t.Data
 		}
 	case SideCoinbasePublicKey:
 		if t := b.Main.Coinbase.Extra.GetTag(uint8(tag)); t != nil {
@@ -360,9 +257,10 @@ func (b *PoolBlock) MainId() types.Hash {
 	return b.Main.Id()
 }
 
-func (b *PoolBlock) FullId() FullId {
+func (b *PoolBlock) FullId(consensus *Consensus) FullId {
 	var buf FullId
-	sidechainId := b.CoinbaseExtra(SideTemplateId)
+
+	sidechainId := b.FastSideTemplateId(consensus)
 	copy(buf[:], sidechainId[:])
 	binary.LittleEndian.PutUint32(buf[types.HashSize:], b.Main.Nonce)
 	copy(buf[types.HashSize+unsafe.Sizeof(b.Main.Nonce):], b.CoinbaseExtra(SideExtraNonce)[:SideExtraNonceSize])
@@ -443,6 +341,10 @@ func (b *PoolBlock) CoinbaseId() types.Hash {
 	}
 }
 
+func (b *PoolBlock) MergeMiningTag() merge_mining.Tag {
+	return b.mergeMiningTag
+}
+
 func (b *PoolBlock) PowHash(hasher randomx.Hasher, f mainblock.GetSeedByHeightFunc) types.Hash {
 	h, _ := b.PowHashWithError(hasher, f)
 	return h
@@ -471,7 +373,7 @@ func (b *PoolBlock) UnmarshalBinary(consensus *Consensus, derivationCache Deriva
 }
 
 func (b *PoolBlock) BufferLength() int {
-	return b.Main.BufferLength() + b.Side.BufferLength()
+	return b.Main.BufferLength() + b.Side.BufferLength(b.ShareVersion())
 }
 
 func (b *PoolBlock) MarshalBinary() ([]byte, error) {
@@ -485,7 +387,7 @@ func (b *PoolBlock) MarshalBinaryFlags(pruned, compact bool) ([]byte, error) {
 func (b *PoolBlock) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bool) (buf []byte, err error) {
 	buf = preAllocatedBuf
 
-	if buf, err = b.Main.AppendBinaryFlags(buf, pruned, compact); err != nil {
+	if buf, err = b.Main.AppendBinaryFlags(buf, compact, pruned, b.ShareVersion() > ShareVersion_V2); err != nil {
 		return nil, err
 	} else if buf, err = b.Side.AppendBinary(buf, b.ShareVersion()); err != nil {
 		return nil, err
@@ -498,46 +400,56 @@ func (b *PoolBlock) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bo
 }
 
 func (b *PoolBlock) FromReader(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
-	if err = b.Main.FromReader(reader); err != nil {
+	if err = b.Main.FromReader(reader, true, func() (containsAuxiliaryTemplateId bool) {
+		return b.CalculateShareVersion(consensus) > ShareVersion_V2
+	}); err != nil {
 		return err
 	}
 
-	if expectedMajorVersion := NetworkMajorVersion(consensus, b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
-		return fmt.Errorf("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
-	}
-
-	//TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
-	if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining); t == nil || t.VarInt != 32 {
-		return errors.New("wrong merge mining tag depth")
-	}
-
-	b.CachedShareVersion = b.CalculateShareVersion(consensus)
-
-	if err = b.Side.FromReader(reader, b.ShareVersion()); err != nil {
-		return err
-	}
-
-	b.FillPrivateKeys(derivationCache)
-
-	return nil
+	return b.consensusDecode(consensus, derivationCache, reader)
 }
 
 // FromCompactReader used in Protocol 1.1 and above
 func (b *PoolBlock) FromCompactReader(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
-	if err = b.Main.FromCompactReader(reader); err != nil {
+	if err = b.Main.FromCompactReader(reader, true, func() (containsAuxiliaryTemplateId bool) {
+		return b.CalculateShareVersion(consensus) > ShareVersion_V2
+	}); err != nil {
 		return err
 	}
 
+	return b.consensusDecode(consensus, derivationCache, reader)
+}
+
+func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
 	if expectedMajorVersion := NetworkMajorVersion(consensus, b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
 		return fmt.Errorf("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
 	}
 
-	//TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
-	if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining); t == nil || t.VarInt != 32 {
-		return errors.New("wrong merge mining tag depth")
+	if b.CachedShareVersion == ShareVersion_None {
+		b.CachedShareVersion = b.CalculateShareVersion(consensus)
 	}
 
-	b.CachedShareVersion = b.CalculateShareVersion(consensus)
+	mergeMineTag := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining)
+
+	if mergeMineTag == nil {
+		return errors.New("missing merge mining tag")
+	}
+
+	if b.ShareVersion() < ShareVersion_V3 {
+		//TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
+		if mergeMineTag.VarInt != types.HashSize {
+			return errors.New("wrong merge mining tag depth")
+		}
+	} else {
+		//properly decode merge mining tag
+		mergeMineReader := bytes.NewReader(mergeMineTag.Data)
+		if err = b.mergeMiningTag.FromReader(mergeMineReader); err != nil {
+			return err
+		}
+		if mergeMineReader.Len() != 0 {
+			return errors.New("wrong merge mining tag len")
+		}
+	}
 
 	if err = b.Side.FromReader(reader, b.ShareVersion()); err != nil {
 		return err
@@ -550,13 +462,13 @@ func (b *PoolBlock) FromCompactReader(consensus *Consensus, derivationCache Deri
 
 // PreProcessBlock processes and fills the block data from either pruned or compact modes
 func (b *PoolBlock) PreProcessBlock(consensus *Consensus, derivationCache DerivationCacheInterface, preAllocatedShares Shares, difficultyByHeight mainblock.GetDifficultyByHeightFunc, getTemplateById GetByTemplateIdFunc) (missingBlocks []types.Hash, err error) {
-	return b.PreProcessBlockWithOutputs(getTemplateById, func() (outputs transaction.Outputs, bottomHeight uint64) {
+	return b.PreProcessBlockWithOutputs(consensus, getTemplateById, func() (outputs transaction.Outputs, bottomHeight uint64) {
 		return CalculateOutputs(b, consensus, difficultyByHeight, getTemplateById, derivationCache, preAllocatedShares, nil)
 	})
 }
 
 // PreProcessBlockWithOutputs processes and fills the block data from either pruned or compact modes
-func (b *PoolBlock) PreProcessBlockWithOutputs(getTemplateById GetByTemplateIdFunc, calculateOutputs func() (outputs transaction.Outputs, bottomHeight uint64)) (missingBlocks []types.Hash, err error) {
+func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplateById GetByTemplateIdFunc, calculateOutputs func() (outputs transaction.Outputs, bottomHeight uint64)) (missingBlocks []types.Hash, err error) {
 
 	getTemplateByIdFillingTx := func(h types.Hash) *PoolBlock {
 		chain := make(UniquePoolBlockSlice, 0, 1)
@@ -568,7 +480,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(getTemplateById GetByTemplateIdFu
 				break
 			}
 			if len(chain) > 1 {
-				if chain[len(chain)-2].FillTransactionsFromTransactionParentIndices(chain[len(chain)-1]) == nil {
+				if chain[len(chain)-2].FillTransactionsFromTransactionParentIndices(consensus, chain[len(chain)-1]) == nil {
 					if !chain[len(chain)-2].NeedsCompactTransactionFilling() {
 						//early abort if it can all be filled
 						chain = chain[:len(chain)-1]
@@ -582,7 +494,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(getTemplateById GetByTemplateIdFu
 		}
 		//skips last entry
 		for i := len(chain) - 2; i >= 0; i-- {
-			if err := chain[i].FillTransactionsFromTransactionParentIndices(chain[i+1]); err != nil {
+			if err := chain[i].FillTransactionsFromTransactionParentIndices(consensus, chain[i+1]); err != nil {
 				return nil
 			}
 		}
@@ -596,7 +508,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(getTemplateById GetByTemplateIdFu
 			missingBlocks = append(missingBlocks, b.Side.Parent)
 			return missingBlocks, errors.New("parent does not exist in compact block")
 		}
-		if err := b.FillTransactionsFromTransactionParentIndices(parent); err != nil {
+		if err := b.FillTransactionsFromTransactionParentIndices(consensus, parent); err != nil {
 			return nil, fmt.Errorf("error filling transactions for block: %w", err)
 		}
 	}
@@ -605,7 +517,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(getTemplateById GetByTemplateIdFu
 		if parent == nil {
 			parent = getTemplateByIdFillingTx(b.Side.Parent)
 		}
-		b.FillTransactionParentIndices(parent)
+		b.FillTransactionParentIndices(consensus, parent)
 	}
 
 	if len(b.Main.Coinbase.Outputs) == 0 {
@@ -617,8 +529,8 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(getTemplateById GetByTemplateIdFu
 
 		if outputBlob, err := b.Main.Coinbase.Outputs.AppendBinary(make([]byte, 0, b.Main.Coinbase.Outputs.BufferLength())); err != nil {
 			return nil, fmt.Errorf("error filling outputs for block: %s", err)
-		} else if uint64(len(outputBlob)) != b.Main.Coinbase.OutputsBlobSize {
-			return nil, fmt.Errorf("error filling outputs for block: invalid output blob size, got %d, expected %d", b.Main.Coinbase.OutputsBlobSize, len(outputBlob))
+		} else if uint64(len(outputBlob)) != b.Main.Coinbase.AuxiliaryData.OutputsBlobSize {
+			return nil, fmt.Errorf("error filling outputs for block: invalid output blob size, got %d, expected %d", b.Main.Coinbase.AuxiliaryData.OutputsBlobSize, len(outputBlob))
 		}
 	}
 
@@ -685,7 +597,7 @@ func (b *PoolBlock) GetPrivateKeySeed() types.Hash {
 func (b *PoolBlock) CalculateTransactionPrivateKeySeed() types.Hash {
 	if b.ShareVersion() > ShareVersion_V1 {
 		preAllocatedMainData := make([]byte, 0, b.Main.BufferLength())
-		preAllocatedSideData := make([]byte, 0, b.Side.BufferLength())
+		preAllocatedSideData := make([]byte, 0, b.Side.BufferLength(b.ShareVersion()))
 		mainData, _ := b.Main.SideChainHashingBlob(preAllocatedMainData, false)
 		sideData, _ := b.Side.AppendBinary(preAllocatedSideData, b.ShareVersion())
 		return p2poolcrypto.CalculateTransactionPrivateKeySeed(

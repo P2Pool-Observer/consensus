@@ -1,8 +1,10 @@
 package mainchain
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/merge_mining"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v3/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/zmq"
@@ -124,16 +126,18 @@ func (c *MainChain) Listen() error {
 				PreviousId:   fullChainMain.PrevID,
 				Nonce:        uint32(fullChainMain.Nonce),
 				Coinbase: transaction.CoinbaseTransaction{
-					Version:         uint8(fullChainMain.MinerTx.Version),
-					UnlockTime:      uint64(fullChainMain.MinerTx.UnlockTime),
-					InputCount:      uint8(len(fullChainMain.MinerTx.Inputs)),
-					InputType:       transaction.TxInGen,
-					GenHeight:       fullChainMain.MinerTx.Inputs[0].Gen.Height,
-					Outputs:         outputs,
-					OutputsBlobSize: 0,
-					TotalReward:     totalReward,
-					Extra:           extraTags,
-					ExtraBaseRCT:    0,
+					Version:      uint8(fullChainMain.MinerTx.Version),
+					UnlockTime:   uint64(fullChainMain.MinerTx.UnlockTime),
+					InputCount:   uint8(len(fullChainMain.MinerTx.Inputs)),
+					InputType:    transaction.TxInGen,
+					GenHeight:    fullChainMain.MinerTx.Inputs[0].Gen.Height,
+					Outputs:      outputs,
+					Extra:        extraTags,
+					ExtraBaseRCT: 0,
+					AuxiliaryData: transaction.CoinbaseTransactionAuxiliaryData{
+						OutputsBlobSize: 0,
+						TotalReward:     totalReward,
+					},
 				},
 				Transactions:             fullChainMain.TxHashes,
 				TransactionParentIndices: nil,
@@ -223,7 +227,7 @@ func (c *MainChain) HandleMainBlock(b *mainblock.Block) {
 		Difficulty: types.ZeroDifficulty,
 		Height:     b.Coinbase.GenHeight,
 		Timestamp:  b.Timestamp,
-		Reward:     b.Coinbase.TotalReward,
+		Reward:     b.Coinbase.AuxiliaryData.TotalReward,
 		Id:         b.Id(),
 	}
 
@@ -248,24 +252,49 @@ func (c *MainChain) HandleMainBlock(b *mainblock.Block) {
 		c.updateMedianTimestamp()
 	}()
 
-	extraMergeMiningTag := b.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining)
-	if extraMergeMiningTag == nil {
-		return
-	}
-	sidechainHashData := extraMergeMiningTag.Data
-	if len(sidechainHashData) != types.HashSize {
+	defer c.updateTip()
+
+	mergeMineTag := b.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining)
+	if mergeMineTag == nil {
 		return
 	}
 
-	sidechainId := types.HashFromBytes(sidechainHashData)
+	shareVersion := sidechain.P2PoolShareVersion(c.sidechain.Consensus(), mainData.Timestamp)
 
-	if block := c.sidechain.GetPoolBlockByTemplateId(sidechainId); block != nil {
-		c.p2pool.UpdateBlockFound(mainData, block)
+	if shareVersion < sidechain.ShareVersion_V3 {
+		//TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
+		if mergeMineTag.VarInt != types.HashSize {
+			return
+		}
+
+		if len(mergeMineTag.Data) != types.HashSize {
+			return
+		}
+
+		sidechainId := types.HashFromBytes(mergeMineTag.Data)
+
+		if block := c.sidechain.GetPoolBlockByTemplateId(sidechainId); block != nil {
+			c.p2pool.UpdateBlockFound(mainData, block)
+		} else {
+			c.sidechain.WatchMainChainBlock(mainData, sidechainId)
+		}
 	} else {
-		c.sidechain.WatchMainChainBlock(mainData, sidechainId)
-	}
+		//properly decode merge mining tag
+		mergeMineReader := bytes.NewReader(mergeMineTag.Data)
+		var mergeMiningTag merge_mining.Tag
+		if err := mergeMiningTag.FromReader(mergeMineReader); err != nil {
+			return
+		}
+		if mergeMineReader.Len() != 0 {
+			return
+		}
 
-	c.updateTip()
+		if block := c.sidechain.GetPoolBlockByTemplateId(mergeMiningTag.RootHash); block != nil {
+			c.p2pool.UpdateBlockFound(mainData, block)
+		} else {
+			c.sidechain.WatchMainChainBlock(mainData, mergeMiningTag.RootHash)
+		}
+	}
 }
 
 func (c *MainChain) GetChainMainByHeight(height uint64) *sidechain.ChainMain {

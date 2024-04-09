@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v3/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
@@ -68,10 +69,11 @@ type SideChain struct {
 
 	sidechainLock sync.RWMutex
 
-	watchBlock            *ChainMain
-	watchBlockSidechainId types.Hash
+	watchBlock           *ChainMain
+	watchBlockPossibleId types.Hash
 
 	blocksByTemplateId       *swiss.Map[types.Hash, *PoolBlock]
+	blocksByMerkleRoot       *swiss.Map[types.Hash, *PoolBlock]
 	blocksByHeight           *swiss.Map[uint64, []*PoolBlock]
 	blocksByHeightKeysSorted bool
 	blocksByHeightKeys       []uint64
@@ -131,8 +133,8 @@ func (c *SideChain) PreCalcFinished() bool {
 func (c *SideChain) PreprocessBlock(block *PoolBlock) (missingBlocks []types.Hash, err error) {
 	var preAllocatedShares Shares
 	if len(block.Main.Coinbase.Outputs) == 0 {
-		//cannot use SideTemplateId() as it might not be proper to calculate yet. fetch from coinbase only here
-		if b := c.GetPoolBlockByTemplateId(types.HashFromBytes(block.CoinbaseExtra(SideTemplateId))); b != nil {
+		//cannot use SideTemplateId() as it might not be proper to calculate yet. fetch appropriate identifier from coinbase only here
+		if b := c.GetPoolBlockByTemplateId(block.FastSideTemplateId(c.Consensus())); b != nil {
 			block.Main.Coinbase.Outputs = b.Main.Coinbase.Outputs
 		} else {
 			preAllocatedShares = c.preAllocatedSharesPool.Get()
@@ -143,8 +145,16 @@ func (c *SideChain) PreprocessBlock(block *PoolBlock) (missingBlocks []types.Has
 	return block.PreProcessBlock(c.Consensus(), c.derivationCache, preAllocatedShares, c.server.GetDifficultyByHeight, c.GetPoolBlockByTemplateId)
 }
 
+func (c *SideChain) isWatched(block *PoolBlock) bool {
+	if block.ShareVersion() > ShareVersion_V2 {
+		return c.watchBlockPossibleId == block.MergeMiningTag().RootHash
+	} else {
+		return c.watchBlockPossibleId == block.FastSideTemplateId(c.Consensus())
+	}
+}
+
 func (c *SideChain) fillPoolBlockTransactionParentIndices(block *PoolBlock) {
-	block.FillTransactionParentIndices(c.getParent(block))
+	block.FillTransactionParentIndices(c.Consensus(), c.getParent(block))
 }
 
 func (c *SideChain) isPoolBlockTransactionKeyIsDeterministic(block *PoolBlock) bool {
@@ -230,7 +240,12 @@ func (c *SideChain) BlockSeen(block *PoolBlock) bool {
 		return true
 	}
 
-	fullId := block.FullId()
+	if block.ShareVersion() > ShareVersion_V2 {
+		// need to pre-fill to have working SideTemplateId
+		_, _ = c.PreprocessBlock(block)
+	}
+
+	fullId := block.FullId(c.Consensus())
 
 	c.seenBlocksLock.Lock()
 	defer c.seenBlocksLock.Unlock()
@@ -243,7 +258,7 @@ func (c *SideChain) BlockSeen(block *PoolBlock) bool {
 }
 
 func (c *SideChain) BlockUnsee(block *PoolBlock) {
-	fullId := block.FullId()
+	fullId := block.FullId(c.Consensus())
 
 	c.seenBlocksLock.Lock()
 	defer c.seenBlocksLock.Unlock()
@@ -267,7 +282,7 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 
 	// Technically some p2pool node could keep stuffing block with transactions until reward is less than 0.6 XMR
 	// But default transaction picking algorithm never does that. It's better to just ban such nodes
-	if block.Main.Coinbase.TotalReward < monero.TailEmissionReward {
+	if block.Main.Coinbase.AuxiliaryData.TotalReward < monero.TailEmissionReward {
 		return nil, errors.New("block reward too low"), true
 	}
 
@@ -291,9 +306,24 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 		}
 	}
 
-	templateId := types.HashFromBytes(block.CoinbaseExtra(SideTemplateId))
-	if templateId != block.SideTemplateId(c.Consensus()) {
-		return nil, fmt.Errorf("invalid template id %s, expected %s", templateId.String(), block.SideTemplateId(c.Consensus()).String()), true
+	templateId := block.SideTemplateId(c.Consensus())
+
+	if block.ShareVersion() > ShareVersion_V2 {
+		if templateId != block.FastSideTemplateId(c.Consensus()) {
+			return nil, fmt.Errorf("invalid template id %s, expected %s", block.FastSideTemplateId(c.Consensus()), templateId), true
+		}
+
+		//verify template id against merkle proof
+		mmTag := block.MergeMiningTag()
+		auxiliarySlot := merge_mining.GetAuxiliarySlot(c.Consensus().Id, mmTag.Nonce, mmTag.NumberAuxiliaryChains)
+
+		if !block.Side.MerkleProof.Verify(templateId, int(auxiliarySlot), int(mmTag.NumberAuxiliaryChains), mmTag.RootHash) {
+			return nil, fmt.Errorf("could not verify template id %s merkle proof against merkle tree root hash %s (number of chains = %d, nonce = %d, auxiliary slot = %d)", templateId, mmTag.RootHash, mmTag.NumberAuxiliaryChains, mmTag.Nonce, auxiliarySlot), true
+		}
+	} else {
+		if templateId != types.HashFromBytes(block.CoinbaseExtra(SideIdentifierHash)) {
+			return nil, fmt.Errorf("invalid template id %s, expected %s", block.SideTemplateId(c.Consensus()), templateId), true
+		}
 	}
 
 	if block.Side.Difficulty.Cmp64(c.Consensus().MinimumDifficulty) < 0 {
@@ -336,9 +366,9 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 
 					block.Verified.Store(true)
 					block.Invalid.Store(false)
-					if block.SideTemplateId(c.Consensus()) == c.watchBlockSidechainId {
+					if c.isWatched(block) {
 						c.server.UpdateBlockFound(c.watchBlock, block)
-						c.watchBlockSidechainId = types.ZeroHash
+						c.watchBlockPossibleId = types.ZeroHash
 					}
 
 					block.Depth.Store(otherBlock.Depth.Load())
@@ -433,9 +463,9 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 
 	utils.Logf("SideChain", "add_block: height = %d, id = %s, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()), block.Main.Coinbase.GenHeight, block.Verified.Load(), c.blocksByTemplateId.Count())
 
-	if block.SideTemplateId(c.Consensus()) == c.watchBlockSidechainId {
+	if c.isWatched(block) {
 		c.server.UpdateBlockFound(c.watchBlock, block)
-		c.watchBlockSidechainId = types.ZeroHash
+		c.watchBlockPossibleId = types.ZeroHash
 	}
 
 	if l, ok := c.blocksByHeight.Get(block.Side.Height); ok {
@@ -446,6 +476,10 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 			c.blocksByHeightKeysSorted = false
 		}
 		c.blocksByHeightKeys = append(c.blocksByHeightKeys, block.Side.Height)
+	}
+
+	if block.ShareVersion() > ShareVersion_V2 {
+		c.blocksByMerkleRoot.Put(block.MergeMiningTag().RootHash, block)
 	}
 
 	c.updateDepths(block)
@@ -490,7 +524,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 				err = invalid
 			}
 		} else if verification != nil {
-			//utils.Logf("SideChain", "can't verify block at height = %d, id = %s, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideTemplateId(c.Consensus()), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(), verification.Error())
+			//utils.Logf("SideChain", "can't verify block at height = %d, id = %s, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideIdentifierHash(c.Consensus()), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(), verification.Error())
 			block.Verified.Store(false)
 			block.Invalid.Store(false)
 		} else {
@@ -545,7 +579,10 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 			}
 
 			//store for faster startup
-			c.saveBlock(block)
+			go func() {
+				c.server.Store(block)
+				return
+			}()
 
 			// Try to verify blocks on top of this one
 			for i := uint64(1); i <= UncleBlockDepth; i++ {
@@ -736,8 +773,8 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				result += o.Reward
 			}
 			return
-		}(); totalReward != block.Main.Coinbase.TotalReward {
-			return nil, fmt.Errorf("invalid total reward, got %d, expected %d", block.Main.Coinbase.TotalReward, totalReward)
+		}(); totalReward != block.Main.Coinbase.AuxiliaryData.TotalReward {
+			return nil, fmt.Errorf("invalid total reward, got %d, expected %d", block.Main.Coinbase.AuxiliaryData.TotalReward, totalReward)
 		} else if rewards := SplitReward(c.preAllocatedRewards, totalReward, shares); len(rewards) != len(block.Main.Coinbase.Outputs) {
 			return nil, fmt.Errorf("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(rewards))
 		} else {
@@ -978,8 +1015,18 @@ func (c *SideChain) pruneOldBlocks() {
 					c.blocksByTemplateId.Delete(templateId)
 					numBlocksPruned++
 				} else {
-					utils.Logf("SideChain", "blocksByHeight and blocksByTemplateId are inconsistent at height = %d, id = %s", height, block.SideTemplateId(c.Consensus()))
+					utils.Logf("SideChain", "blocksByHeight and blocksByTemplateId are inconsistent at height = %d, id = %s", height, templateId)
 				}
+
+				if block.ShareVersion() > ShareVersion_V2 {
+					rootHash := block.MergeMiningTag().RootHash
+					if c.blocksByMerkleRoot.Has(rootHash) {
+						c.blocksByMerkleRoot.Delete(rootHash)
+					} else {
+						utils.Logf("SideChain", "blocksByHeight and m_blocksByMerkleRoot are inconsistent at height = %d, id = %s", height, rootHash)
+					}
+				}
+
 				v = slices.Delete(v, i, i+1)
 
 				// Empty cache here
@@ -1104,6 +1151,28 @@ func (c *SideChain) getPoolBlockByTemplateId(id types.Hash) *PoolBlock {
 	return b
 }
 
+func (c *SideChain) GetPoolBlockByMerkleRoot(id types.Hash) *PoolBlock {
+	c.sidechainLock.RLock()
+	defer c.sidechainLock.RUnlock()
+	return c.getPoolBlockByMerkleRoot(id)
+}
+
+func (c *SideChain) getPoolBlockByMerkleRoot(id types.Hash) *PoolBlock {
+	b, _ := c.blocksByMerkleRoot.Get(id)
+	return b
+}
+
+func (c *SideChain) GetPoolBlockByCoinbaseExtraIdentifier(version ShareVersion, id types.Hash) *PoolBlock {
+	if id == types.ZeroHash {
+		return nil
+	}
+	if version > ShareVersion_V2 {
+		return c.GetPoolBlockByMerkleRoot(id)
+	} else {
+		return c.GetPoolBlockByTemplateId(id)
+	}
+}
+
 func (c *SideChain) GetPoolBlocksByHeight(height uint64) []*PoolBlock {
 	c.sidechainLock.RLock()
 	defer c.sidechainLock.RUnlock()
@@ -1168,7 +1237,7 @@ func (c *SideChain) WatchMainChainBlock(mainData *ChainMain, possibleId types.Ha
 	defer c.sidechainLock.Unlock()
 
 	c.watchBlock = mainData
-	c.watchBlockSidechainId = possibleId
+	c.watchBlockPossibleId = possibleId
 }
 
 func (c *SideChain) GetHighestKnownTip() *PoolBlock {

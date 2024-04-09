@@ -47,7 +47,7 @@ type Header struct {
 }
 
 func (b *Block) MarshalBinary() (buf []byte, err error) {
-	return b.MarshalBinaryFlags(false, false)
+	return b.MarshalBinaryFlags(false, false, false)
 }
 
 func (b *Block) BufferLength() int {
@@ -59,11 +59,11 @@ func (b *Block) BufferLength() int {
 		utils.UVarInt64Size(len(b.Transactions)) + types.HashSize*len(b.Transactions)
 }
 
-func (b *Block) MarshalBinaryFlags(pruned, compact bool) (buf []byte, err error) {
-	return b.AppendBinaryFlags(make([]byte, 0, b.BufferLength()), pruned, compact)
+func (b *Block) MarshalBinaryFlags(compact, pruned, containsAuxiliaryTemplateId bool) (buf []byte, err error) {
+	return b.AppendBinaryFlags(make([]byte, 0, b.BufferLength()), pruned, compact, containsAuxiliaryTemplateId)
 }
 
-func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bool) (buf []byte, err error) {
+func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, containsAuxiliaryTemplateId bool) (buf []byte, err error) {
 	buf = preAllocatedBuf
 	buf = append(buf, b.MajorVersion)
 	if b.MajorVersion > monero.HardForkSupportedVersion {
@@ -77,7 +77,7 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bool) 
 	buf = append(buf, b.PreviousId[:]...)
 	buf = binary.LittleEndian.AppendUint32(buf, b.Nonce)
 
-	if buf, err = b.Coinbase.AppendBinaryFlags(buf, pruned); err != nil {
+	if buf, err = b.Coinbase.AppendBinaryFlags(buf, pruned, containsAuxiliaryTemplateId); err != nil {
 		return nil, err
 	}
 
@@ -100,20 +100,22 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bool) 
 	return buf, nil
 }
 
-func (b *Block) FromReader(reader utils.ReaderAndByteReader) (err error) {
-	return b.FromReaderFlags(reader, false)
+type PrunedFlagsFunc func() (containsAuxiliaryTemplateId bool)
+
+func (b *Block) FromReader(reader utils.ReaderAndByteReader, canBePruned bool, f PrunedFlagsFunc) (err error) {
+	return b.FromReaderFlags(reader, false, canBePruned, f)
 }
 
-func (b *Block) FromCompactReader(reader utils.ReaderAndByteReader) (err error) {
-	return b.FromReaderFlags(reader, true)
+func (b *Block) FromCompactReader(reader utils.ReaderAndByteReader, canBePruned bool, f PrunedFlagsFunc) (err error) {
+	return b.FromReaderFlags(reader, true, canBePruned, f)
 }
 
-func (b *Block) UnmarshalBinary(data []byte) error {
+func (b *Block) UnmarshalBinary(data []byte, canBePruned bool, f PrunedFlagsFunc) error {
 	reader := bytes.NewReader(data)
-	return b.FromReader(reader)
+	return b.FromReader(reader, canBePruned, f)
 }
 
-func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact bool) (err error) {
+func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBePruned bool, f PrunedFlagsFunc) (err error) {
 	var (
 		txCount         uint64
 		transactionHash types.Hash
@@ -138,9 +140,15 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact bool) 
 		return err
 	}
 
+	var containsAuxiliaryTemplateId bool
+
+	if canBePruned && f != nil {
+		containsAuxiliaryTemplateId = f()
+	}
+
 	// Coinbase Tx Decoding
 	{
-		if err = b.Coinbase.FromReader(reader); err != nil {
+		if err = b.Coinbase.FromReader(reader, canBePruned, containsAuxiliaryTemplateId); err != nil {
 			return err
 		}
 	}
@@ -200,7 +208,7 @@ func (b *Block) Header() *Header {
 		PreviousId:   b.PreviousId,
 		Height:       b.Coinbase.GenHeight,
 		Nonce:        b.Nonce,
-		Reward:       b.Coinbase.TotalReward,
+		Reward:       b.Coinbase.AuxiliaryData.TotalReward,
 		Id:           b.Id(),
 		Difficulty:   types.ZeroDifficulty,
 	}

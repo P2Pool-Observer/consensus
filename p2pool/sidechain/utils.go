@@ -28,7 +28,7 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 	if preAllocatedRewards == nil {
 		preAllocatedRewards = make([]uint64, 0, len(tmpShares))
 	}
-	tmpRewards := SplitReward(preAllocatedRewards, block.Main.Coinbase.TotalReward, tmpShares)
+	tmpRewards := SplitReward(preAllocatedRewards, block.Main.Coinbase.AuxiliaryData.TotalReward, tmpShares)
 
 	if tmpShares == nil || tmpRewards == nil || len(tmpRewards) != len(tmpShares) {
 		return nil, 0

@@ -598,18 +598,24 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 }
 
 func (s *Server) createCoinbaseTransaction(txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (tx transaction.CoinbaseTransaction, err error) {
+
+	//TODO: v3
+	mergeMineTag := slices.Clone(types.ZeroHash[:])
+
 	tx = transaction.CoinbaseTransaction{
 		Version:    2,
 		UnlockTime: s.minerData.Height + monero.MinerRewardUnlockTime,
 		InputCount: 1,
 		InputType:  transaction.TxInGen,
 		GenHeight:  s.minerData.Height,
-		TotalReward: func() (v uint64) {
-			for i := range rewards {
-				v += rewards[i]
-			}
-			return
-		}(),
+		AuxiliaryData: transaction.CoinbaseTransactionAuxiliaryData{
+			TotalReward: func() (v uint64) {
+				for i := range rewards {
+					v += rewards[i]
+				}
+				return
+			}(),
+		},
 		Extra: transaction.ExtraTags{
 			transaction.ExtraTag{
 				Tag:    transaction.TxExtraTagPubKey,
@@ -623,10 +629,11 @@ func (s *Server) createCoinbaseTransaction(txType uint8, shares sidechain.Shares
 				Data:      make(types.Bytes, sidechain.SideExtraNonceSize),
 			},
 			transaction.ExtraTag{
+				//TODO: fix this for V3
 				Tag:       transaction.TxExtraTagMergeMining,
-				VarInt:    32,
+				VarInt:    uint64(len(mergeMineTag)),
 				HasVarInt: true,
-				Data:      slices.Clone(types.ZeroHash[:]),
+				Data:      mergeMineTag,
 			},
 		},
 		ExtraBaseRCT: 0,

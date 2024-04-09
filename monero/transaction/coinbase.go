@@ -9,6 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"io"
 )
 
 type CoinbaseTransaction struct {
@@ -21,28 +22,37 @@ type CoinbaseTransaction struct {
 	GenHeight  uint64  `json:"gen_height"`
 	Outputs    Outputs `json:"outputs"`
 
+	Extra ExtraTags `json:"extra"`
+
+	ExtraBaseRCT uint8 `json:"extra_base_rct"`
+
+	// AuxiliaryData Used by p2pool serialized pruned blocks
+	AuxiliaryData CoinbaseTransactionAuxiliaryData `json:"auxiliary_data"`
+}
+
+type CoinbaseTransactionAuxiliaryData struct {
+	// WasPruned TODO: use this in encoding instead of flags?
+	WasPruned bool `json:"-"`
 	// OutputsBlobSize length of serialized Outputs. Used by p2pool serialized pruned blocks, filled regardless
 	OutputsBlobSize uint64 `json:"outputs_blob_size"`
 	// TotalReward amount of reward existing Outputs. Used by p2pool serialized pruned blocks, filled regardless
 	TotalReward uint64 `json:"total_reward"`
-
-	Extra ExtraTags `json:"extra"`
-
-	ExtraBaseRCT uint8 `json:"extra_base_rct"`
+	// TemplateId Required by sidechain.GetOutputs to speed up repeated broadcasts from different peers
+	TemplateId types.Hash `json:"template_id,omitempty"`
 }
 
-func (c *CoinbaseTransaction) UnmarshalBinary(data []byte) error {
+func (c *CoinbaseTransaction) UnmarshalBinary(data []byte, canBePruned, containsAuxiliaryTemplateId bool) error {
 	reader := bytes.NewReader(data)
-	return c.FromReader(reader)
+	return c.FromReader(reader, canBePruned, containsAuxiliaryTemplateId)
 }
 
-func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader) (err error) {
+func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBePruned, containsAuxiliaryTemplateId bool) (err error) {
 	var (
 		txExtraSize uint64
 	)
 
-	c.TotalReward = 0
-	c.OutputsBlobSize = 0
+	c.AuxiliaryData.TotalReward = 0
+	c.AuxiliaryData.OutputsBlobSize = 0
 
 	if c.Version, err = reader.ReadByte(); err != nil {
 		return err
@@ -86,25 +96,38 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader) (err 
 		for _, o := range c.Outputs {
 			switch o.Type {
 			case TxOutToTaggedKey:
-				c.OutputsBlobSize += 1 + types.HashSize + 1
+				c.AuxiliaryData.OutputsBlobSize += 1 + types.HashSize + 1
 			case TxOutToKey:
-				c.OutputsBlobSize += 1 + types.HashSize
+				c.AuxiliaryData.OutputsBlobSize += 1 + types.HashSize
 			default:
 				return fmt.Errorf("unknown %d TXOUT key", o.Type)
 			}
-			c.TotalReward += o.Reward
+			c.AuxiliaryData.TotalReward += o.Reward
 		}
 	} else {
+		if !canBePruned {
+			return errors.New("pruned outputs not supported")
+		}
+
+		c.AuxiliaryData.WasPruned = true
+
 		// Outputs are not in the buffer and must be calculated from sidechain data
 		// We only have total reward and outputs blob size here
 		//special case, pruned block. outputs have to be generated from chain
 
-		if c.TotalReward, err = binary.ReadUvarint(reader); err != nil {
+		if c.AuxiliaryData.TotalReward, err = binary.ReadUvarint(reader); err != nil {
 			return err
 		}
 
-		if c.OutputsBlobSize, err = binary.ReadUvarint(reader); err != nil {
+		if c.AuxiliaryData.OutputsBlobSize, err = binary.ReadUvarint(reader); err != nil {
 			return err
+		}
+
+		if containsAuxiliaryTemplateId {
+			// Required by sidechain.get_outputs_blob() to speed up repeated broadcasts from different peers
+			if _, err = io.ReadFull(reader, c.AuxiliaryData.TemplateId[:]); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -134,7 +157,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader) (err 
 }
 
 func (c *CoinbaseTransaction) MarshalBinary() ([]byte, error) {
-	return c.MarshalBinaryFlags(false)
+	return c.MarshalBinaryFlags(false, false)
 }
 
 func (c *CoinbaseTransaction) BufferLength() int {
@@ -146,11 +169,11 @@ func (c *CoinbaseTransaction) BufferLength() int {
 		utils.UVarInt64Size(c.Extra.BufferLength()) + c.Extra.BufferLength() + 1
 }
 
-func (c *CoinbaseTransaction) MarshalBinaryFlags(pruned bool) ([]byte, error) {
-	return c.AppendBinaryFlags(make([]byte, 0, c.BufferLength()), pruned)
+func (c *CoinbaseTransaction) MarshalBinaryFlags(pruned, containsAuxiliaryTemplateId bool) ([]byte, error) {
+	return c.AppendBinaryFlags(make([]byte, 0, c.BufferLength()), pruned, containsAuxiliaryTemplateId)
 }
 
-func (c *CoinbaseTransaction) AppendBinaryFlags(preAllocatedBuf []byte, pruned bool) ([]byte, error) {
+func (c *CoinbaseTransaction) AppendBinaryFlags(preAllocatedBuf []byte, pruned, containsAuxiliaryTemplateId bool) ([]byte, error) {
 	buf := preAllocatedBuf
 
 	buf = append(buf, c.Version)
@@ -162,10 +185,14 @@ func (c *CoinbaseTransaction) AppendBinaryFlags(preAllocatedBuf []byte, pruned b
 	if pruned {
 		//pruned output
 		buf = binary.AppendUvarint(buf, 0)
-		buf = binary.AppendUvarint(buf, c.TotalReward)
+		buf = binary.AppendUvarint(buf, c.AuxiliaryData.TotalReward)
 		outputs := make([]byte, 0, c.Outputs.BufferLength())
 		outputs, _ = c.Outputs.AppendBinary(outputs)
 		buf = binary.AppendUvarint(buf, uint64(len(outputs)))
+
+		if containsAuxiliaryTemplateId {
+			buf = append(buf, c.AuxiliaryData.TemplateId[:]...)
+		}
 	} else {
 		buf, _ = c.Outputs.AppendBinary(buf)
 	}
@@ -201,7 +228,7 @@ func (c *CoinbaseTransaction) SideChainHashingBlob(preAllocatedBuf []byte, zeroT
 
 func (c *CoinbaseTransaction) CalculateId() (hash types.Hash) {
 
-	txBytes, _ := c.AppendBinaryFlags(make([]byte, 0, c.BufferLength()), false)
+	txBytes, _ := c.AppendBinaryFlags(make([]byte, 0, c.BufferLength()), false, false)
 
 	return crypto.PooledKeccak256(
 		// remove base RCT

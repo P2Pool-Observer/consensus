@@ -20,7 +20,7 @@ func TestTemplate(t *testing.T) {
 
 	preAllocatedBuffer := make([]byte, 0, len(tpl.Buffer))
 
-	blockTemplateId := types.HashFromBytes(b.CoinbaseExtra(sidechain.SideTemplateId))
+	blockTemplateId := b.FastSideTemplateId(sidechain.ConsensusDefault)
 
 	if tplBuf := tpl.Blob(preAllocatedBuffer, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, blockTemplateId); bytes.Compare(tplBuf, buf) != 0 {
 		if len(tplBuf) == len(buf) {

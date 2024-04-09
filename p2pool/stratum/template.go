@@ -211,7 +211,7 @@ func (tpl *Template) HashingBlob(hasher *sha3.HasherState, preAllocatedBuffer []
 }
 
 func TemplateFromPoolBlock(b *sidechain.PoolBlock) (tpl *Template, err error) {
-	if b.ShareVersion() < sidechain.ShareVersion_V1 {
+	if b.ShareVersion() != sidechain.ShareVersion_V2 {
 		return nil, errors.New("unsupported share version")
 	}
 	totalLen := b.BufferLength()

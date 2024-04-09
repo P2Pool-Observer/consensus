@@ -12,6 +12,8 @@ import (
 	"io"
 )
 
+const MaxMerkleProofSize = 7
+
 type SideData struct {
 	PublicKey              address.PackedAddress `json:"public_key"`
 	CoinbasePrivateKeySeed types.Hash            `json:"coinbase_private_key_seed,omitempty"`
@@ -23,7 +25,10 @@ type SideData struct {
 	Difficulty           types.Difficulty       `json:"difficulty"`
 	CumulativeDifficulty types.Difficulty       `json:"cumulative_difficulty"`
 
-	// ExtraBuffer available in ShareVersion ShareVersion_V2 and above
+	// MerkleProof Merkle proof for merge mining, available in ShareVersion ShareVersion_V3 and above
+	MerkleProof crypto.MerkleProof `json:"merkle_proof,omitempty"`
+
+	// ExtraBuffer Arbitrary extra data, available in ShareVersion ShareVersion_V2 and above
 	ExtraBuffer SideDataExtraBuffer `json:"extra_buffer,omitempty"`
 }
 
@@ -34,20 +39,30 @@ type SideDataExtraBuffer struct {
 	SideChainExtraNonce uint32                      `json:"side_chain_extra_nonce"`
 }
 
-func (b *SideData) BufferLength() int {
-	return crypto.PublicKeySize +
+func (b *SideData) BufferLength(version ShareVersion) (size int) {
+	size = crypto.PublicKeySize +
 		crypto.PublicKeySize +
 		types.HashSize +
 		crypto.PrivateKeySize +
 		utils.UVarInt64Size(len(b.Uncles)) + len(b.Uncles)*types.HashSize +
 		utils.UVarInt64Size(b.Height) +
 		utils.UVarInt64Size(b.Difficulty.Lo) + utils.UVarInt64Size(b.Difficulty.Hi) +
-		utils.UVarInt64Size(b.CumulativeDifficulty.Lo) + utils.UVarInt64Size(b.CumulativeDifficulty.Hi) +
-		4*4
+		utils.UVarInt64Size(b.CumulativeDifficulty.Lo) + utils.UVarInt64Size(b.CumulativeDifficulty.Hi)
+
+	if version > ShareVersion_V1 {
+		// ExtraBuffer
+		size += 4 * 4
+	}
+	if version > ShareVersion_V2 {
+		// MerkleProof
+		size += utils.UVarInt64Size(len(b.MerkleProof)) + len(b.MerkleProof)*types.HashSize
+	}
+
+	return size
 }
 
 func (b *SideData) MarshalBinary(version ShareVersion) (buf []byte, err error) {
-	return b.AppendBinary(make([]byte, 0, b.BufferLength()), version)
+	return b.AppendBinary(make([]byte, 0, b.BufferLength(version)), version)
 }
 
 func (b *SideData) AppendBinary(preAllocatedBuf []byte, version ShareVersion) (buf []byte, err error) {
@@ -69,6 +84,17 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, version ShareVersion) (b
 	buf = binary.AppendUvarint(buf, b.Difficulty.Hi)
 	buf = binary.AppendUvarint(buf, b.CumulativeDifficulty.Lo)
 	buf = binary.AppendUvarint(buf, b.CumulativeDifficulty.Hi)
+
+	if version > ShareVersion_V2 {
+		if len(b.MerkleProof) > MaxMerkleProofSize {
+			return nil, fmt.Errorf("merkle proof too large: %d > %d", len(b.MerkleProof), MaxMerkleProofSize)
+		}
+		buf = append(buf, uint8(len(b.MerkleProof)))
+		for _, h := range b.MerkleProof {
+			buf = append(buf, h[:]...)
+		}
+	}
+
 	if version > ShareVersion_V1 {
 		buf = binary.LittleEndian.AppendUint32(buf, uint32(b.ExtraBuffer.SoftwareId))
 		buf = binary.LittleEndian.AppendUint32(buf, uint32(b.ExtraBuffer.SoftwareVersion))
@@ -83,6 +109,9 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 	var (
 		uncleCount uint64
 		uncleHash  types.Hash
+
+		merkleProofSize uint8
+		merkleProofHash types.Hash
 	)
 	if _, err = io.ReadFull(reader, b.PublicKey[address.PackedAddressSpend][:]); err != nil {
 		return err
@@ -139,6 +168,24 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 			return err
 		}
 	}
+
+	if version > ShareVersion_V2 {
+		if merkleProofSize, err = reader.ReadByte(); err != nil {
+			return err
+		}
+		if merkleProofSize > MaxMerkleProofSize {
+			return fmt.Errorf("merkle proof too large: %d > %d", len(b.MerkleProof), MaxMerkleProofSize)
+		}
+		b.MerkleProof = make(crypto.MerkleProof, 0, merkleProofSize)
+
+		for i := 0; i < int(merkleProofSize); i++ {
+			if _, err = io.ReadFull(reader, merkleProofHash[:]); err != nil {
+				return err
+			}
+			b.MerkleProof = append(b.MerkleProof, merkleProofHash)
+		}
+	}
+
 	if version > ShareVersion_V1 {
 		if err = binary.Read(reader, binary.LittleEndian, &b.ExtraBuffer.SoftwareId); err != nil {
 			return fmt.Errorf("within extra buffer: %w", err)

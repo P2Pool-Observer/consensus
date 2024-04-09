@@ -160,12 +160,13 @@ func TestSideChainMiniPreFork(t *testing.T) {
 	testSideChain(s, t, f, 2424349, 2696040, block2420028, block2420027)
 }
 
-func benchmarkResetState(tip, parent *PoolBlock, templateId types.Hash, fullId FullId, difficulty types.Difficulty, blocksByHeightKeys []uint64, s *SideChain) {
+func benchmarkResetState(tip, parent *PoolBlock, templateId, merkleRoot types.Hash, fullId FullId, difficulty types.Difficulty, blocksByHeightKeys []uint64, s *SideChain) {
 	//Remove states in maps
 	s.blocksByHeight.Delete(tip.Side.Height)
 	s.blocksByHeightKeys = blocksByHeightKeys
 	s.blocksByHeightKeysSorted = true
 	s.blocksByTemplateId.Delete(templateId)
+	s.blocksByMerkleRoot.Delete(merkleRoot)
 	s.seenBlocks.Delete(fullId)
 
 	// Update tip and depths
@@ -196,7 +197,8 @@ func benchSideChain(b *testing.B, s *SideChain, tipHash types.Hash) {
 			return u == tip.Side.Height
 		})
 		s.blocksByTemplateId.Delete(tip.SideTemplateId(s.Consensus()))
-		s.seenBlocks.Delete(tip.FullId())
+		s.blocksByMerkleRoot.Delete(tip.MergeMiningTag().RootHash)
+		s.seenBlocks.Delete(tip.FullId(s.Consensus()))
 
 		tip = s.GetParent(tip)
 		if tip == nil {
@@ -205,7 +207,8 @@ func benchSideChain(b *testing.B, s *SideChain, tipHash types.Hash) {
 		}
 	}
 	templateId := tip.SideTemplateId(s.Consensus())
-	fullId := tip.FullId()
+	merkleRoot := tip.MergeMiningTag().RootHash
+	fullId := tip.FullId(s.Consensus())
 
 	parent := s.GetParent(tip)
 
@@ -216,14 +219,14 @@ func benchSideChain(b *testing.B, s *SideChain, tipHash types.Hash) {
 		return u == tip.Side.Height
 	})
 
-	benchmarkResetState(tip, parent, templateId, fullId, difficulty, slices.Clone(blocksByHeightKeys), s)
+	benchmarkResetState(tip, parent, templateId, merkleRoot, fullId, difficulty, slices.Clone(blocksByHeightKeys), s)
 
 	var err error
 
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
-		benchmarkResetState(tip, parent, templateId, fullId, difficulty, slices.Clone(blocksByHeightKeys), s)
+		benchmarkResetState(tip, parent, templateId, merkleRoot, fullId, difficulty, slices.Clone(blocksByHeightKeys), s)
 		b.StartTimer()
 		_, err, _ = s.AddPoolBlockExternal(tip)
 		if err != nil {
@@ -333,7 +336,7 @@ func BenchmarkSideChainDefault_SplitReward(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		rewards := SplitReward(preAllocatedRewards, tip.Main.Coinbase.TotalReward, shares)
+		rewards := SplitReward(preAllocatedRewards, tip.Main.Coinbase.AuxiliaryData.TotalReward, shares)
 		if rewards == nil {
 			b.Error("nil rewards")
 			return

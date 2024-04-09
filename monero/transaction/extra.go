@@ -21,6 +21,7 @@ const TxExtraTagMysteriousMinergate = 0xde
 const TxExtraPaddingMaxCount = 255
 const TxExtraNonceMaxCount = 255
 const TxExtraAdditionalPubKeysMaxCount = 4096
+const TxExtraTagMergeMiningMaxCount = types.HashSize + 9
 
 const TxExtraTemplateNonceSize = 4
 
@@ -138,7 +139,14 @@ func (t *ExtraTag) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId b
 		buf = binary.AppendUvarint(buf, t.VarInt)
 	}
 	if zeroTemplateId && t.Tag == TxExtraTagMergeMining {
-		buf = append(buf, make([]byte, len(t.Data))...)
+		// TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
+		// v3 has some extra data included before hash
+		// serialize everything but the last hash size bytes
+		dataLen := max(0, len(t.Data)-types.HashSize)
+		buf = append(buf, t.Data[:dataLen]...)
+
+		// serialize zero hash or remaining data only
+		buf = append(buf, make([]byte, len(t.Data)-dataLen)...)
 	} else if t.Tag == TxExtraTagNonce {
 		b := make([]byte, len(t.Data))
 		//Replace only the first four bytes
@@ -207,7 +215,10 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		if t.VarInt, err = binary.ReadUvarint(reader); err != nil {
 			return err
 		} else {
-			t.Data = make([]byte, types.HashSize)
+			if t.VarInt > TxExtraTagMergeMiningMaxCount {
+				return errors.New("merge mining is too big")
+			}
+			t.Data = make([]byte, t.VarInt)
 			if _, err = io.ReadFull(reader, t.Data); err != nil {
 				return err
 			}
