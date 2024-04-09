@@ -3,6 +3,7 @@ package types
 import (
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	fasthex "github.com/tmthrgd/go-hex"
 	"io"
@@ -249,7 +250,7 @@ func DifficultyFrom64(v uint64) Difficulty {
 	return NewDifficulty(v, 0)
 }
 
-func (d *Difficulty) UnmarshalJSON(b []byte) error {
+func (d *Difficulty) UnmarshalJSON(b []byte) (err error) {
 	if len(b) == 0 {
 		return io.ErrUnexpectedEOF
 	}
@@ -279,8 +280,24 @@ func (d *Difficulty) UnmarshalJSON(b []byte) error {
 		}
 	} else {
 		// Difficulty as uint64
-		var err error
 		if d.Lo, err = utils.ParseUint64(b); err != nil {
+			// Fallback to big int if number is out of range
+			if errors.Is(err, strconv.ErrRange) {
+				var bInt big.Int
+				if err = bInt.UnmarshalText(b); err != nil {
+					return err
+				} else {
+					//recover bigint panics
+					defer func() {
+						if e := recover(); e != nil {
+							if err = e.(error); err == nil {
+								err = fmt.Errorf("panic: %v", e)
+							}
+						}
+					}()
+					*d = Difficulty(uint128.FromBig(&bInt))
+				}
+			}
 			return err
 		} else {
 			d.Hi = 0
