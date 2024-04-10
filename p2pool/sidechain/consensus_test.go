@@ -6,14 +6,23 @@ import (
 )
 
 func TestDefaultConsensusId(t *testing.T) {
-	id := ConsensusMini.CalculateId()
+	id := ConsensusMini.CalculateId(false)
 	if id != ConsensusMini.Id {
 		t.Fatalf("wrong mini sidechain id, expected %s, got %s", ConsensusMini.Id.String(), id.String())
 	}
+	id = ConsensusMini.CalculateId(true)
+	if id != ConsensusMini.MergeMiningId {
+		t.Fatalf("wrong mini merge mining sidechain id, expected %s, got %s", ConsensusMini.MergeMiningId.String(), id.String())
+	}
 
-	id = ConsensusDefault.CalculateId()
+	id = ConsensusDefault.CalculateId(false)
 	if id != ConsensusDefault.Id {
 		t.Fatalf("wrong default sidechain id, expected %s, got %s", ConsensusDefault.Id.String(), id.String())
+	}
+
+	id = ConsensusDefault.CalculateId(true)
+	if id != ConsensusDefault.MergeMiningId {
+		t.Fatalf("wrong default merge mining sidechain id, expected %s, got %s", ConsensusDefault.MergeMiningId.String(), id.String())
 	}
 }
 

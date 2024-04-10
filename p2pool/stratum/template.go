@@ -106,7 +106,11 @@ func (tpl *Template) TemplateId(hasher *sha3.HasherState, preAllocatedBuffer []b
 	buf := tpl.Blob(preAllocatedBuffer, 0, 0, sideRandomNumber, sideExtraNonce, types.ZeroHash)
 
 	_, _ = hasher.Write(buf)
-	_, _ = hasher.Write(consensus.Id[:])
+	if tpl.ShareVersion(consensus) > sidechain.ShareVersion_V2 {
+		_, _ = hasher.Write(consensus.MergeMiningId[:])
+	} else {
+		_, _ = hasher.Write(consensus.Id[:])
+	}
 	crypto.HashFastSum(hasher, (*result)[:])
 	hasher.Reset()
 }
@@ -114,6 +118,10 @@ func (tpl *Template) TemplateId(hasher *sha3.HasherState, preAllocatedBuffer []b
 func (tpl *Template) Timestamp() uint64 {
 	t, _ := binary.Uvarint(tpl.Buffer[2:])
 	return t
+}
+
+func (tpl *Template) ShareVersion(consensus *sidechain.Consensus) sidechain.ShareVersion {
+	return sidechain.P2PoolShareVersion(consensus, tpl.Timestamp())
 }
 
 func (tpl *Template) CoinbaseBufferLength() int {

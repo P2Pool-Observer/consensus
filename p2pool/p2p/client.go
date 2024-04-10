@@ -404,6 +404,7 @@ func (c *Client) OnConnection() {
 			}
 
 			if c.IsIncomingConnection {
+				//TODO: consensus MergeMiningId
 				if hash, ok := CalculateChallengeHash(c.handshakeChallenge, c.Owner.Consensus().Id, solution); !ok {
 					//not enough PoW
 					c.Ban(DefaultBanTime, fmt.Errorf("not enough PoW on HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
@@ -414,6 +415,7 @@ func (c *Client) OnConnection() {
 					return
 				}
 			} else {
+				//TODO: consensus MergeMiningId
 				if hash, _ := CalculateChallengeHash(c.handshakeChallenge, c.Owner.Consensus().Id, solution); hash != challengeHash {
 					//wrong hash
 					c.Ban(DefaultBanTime, fmt.Errorf("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
@@ -885,6 +887,7 @@ func (c *Client) sendHandshakeSolution(challenge HandshakeChallenge) {
 		stop.Store(true)
 	}
 
+	//TODO: consensus MergeMiningId
 	if solution, hash, ok := FindChallengeSolution(challenge, c.Owner.Consensus().Id, stop); ok || c.IsIncomingConnection {
 
 		var buf [HandshakeChallengeSize + types.HashSize]byte
