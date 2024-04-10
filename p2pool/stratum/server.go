@@ -190,6 +190,10 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	if s.newTemplateData.ShareVersion < sidechain.ShareVersion_V2 {
 		return errors.New("unsupported sidechain version")
 	}
+	// no merge mining nor merkle proof support yet
+	if s.newTemplateData.ShareVersion > sidechain.ShareVersion_V2 {
+		return errors.New("unsupported sidechain version")
+	}
 
 	if s.tip != nil {
 		s.newTemplateData.PreviousTemplateId = s.tip.SideTemplateId(s.sidechain.Consensus())
