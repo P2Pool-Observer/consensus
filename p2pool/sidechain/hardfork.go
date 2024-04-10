@@ -52,14 +52,15 @@ const (
 	ShareVersion_V2
 
 	// ShareVersion_V3 Tentative future version with merge mining support.
-	// Fixed Merge Mining Tag with a proper merkle root + proof on side data
+	// Fixed Merge Mining Tag encoding, replace template id with a proper merkle root and other auxiliary data
+	// Merkle proof added on side data
+	// Template Id is now included as part of pruned blocks
 	ShareVersion_V3
 )
 
 // P2PoolShareVersion
-// P2Pool forks to v2 at 2023-03-18 21:00 UTC
 // Different miners can have different timestamps,
-// so a temporary mix of v1 and v2 blocks is allowed
+// so a temporary mix of old and new blocks is allowed
 func P2PoolShareVersion(consensus *Consensus, timestamp uint64) ShareVersion {
 	hardForks := consensus.HardForks
 
