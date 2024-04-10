@@ -240,11 +240,6 @@ func (c *SideChain) BlockSeen(block *PoolBlock) bool {
 		return true
 	}
 
-	if block.ShareVersion() > ShareVersion_V2 {
-		// need to pre-fill to have working SideTemplateId
-		_, _ = c.PreprocessBlock(block)
-	}
-
 	fullId := block.FullId(c.Consensus())
 
 	c.seenBlocksLock.Lock()
@@ -1185,17 +1180,6 @@ func (c *SideChain) GetPoolBlockByMerkleRoot(id types.Hash) *PoolBlock {
 func (c *SideChain) getPoolBlockByMerkleRoot(id types.Hash) *PoolBlock {
 	b, _ := c.blocksByMerkleRoot.Get(id)
 	return b
-}
-
-func (c *SideChain) GetPoolBlockByCoinbaseExtraIdentifier(version ShareVersion, id types.Hash) *PoolBlock {
-	if id == types.ZeroHash {
-		return nil
-	}
-	if version > ShareVersion_V2 {
-		return c.GetPoolBlockByMerkleRoot(id)
-	} else {
-		return c.GetPoolBlockByTemplateId(id)
-	}
 }
 
 func (c *SideChain) GetPoolBlocksByHeight(height uint64) []*PoolBlock {
