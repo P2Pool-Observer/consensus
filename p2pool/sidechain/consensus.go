@@ -94,6 +94,7 @@ type Consensus struct {
 
 	// HardFork optional hardfork information for p2pool
 	// If empty it will be filled with the default hardfork list to the corresponding NetworkType
+	// Note: this is not supported by p2pool itself
 	HardForks []HardFork `json:"hard_forks,omitempty"`
 
 	hasher randomx.Hasher

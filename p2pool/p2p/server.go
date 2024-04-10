@@ -67,6 +67,8 @@ type BanEntry struct {
 type Server struct {
 	p2pool P2PoolInterface
 
+	tempUseMergeMiningIdAsHandshake bool
+
 	peerId             uint64
 	versionInformation p2pooltypes.PeerVersionInformation
 
@@ -120,14 +122,23 @@ func NewServer(p2pool P2PoolInterface, listenAddress string, externalListenPort 
 		return nil, err
 	}
 
+	//TODO: remove this when p2pool has proper hardfork method
+	var tempUseMergeMiningIdAsHandshake bool
+	if useMergeMining := ctx.Value("use_merge_mining_id"); useMergeMining != nil {
+		if v, ok := useMergeMining.(bool); ok {
+			tempUseMergeMiningIdAsHandshake = v
+		}
+	}
+
 	s := &Server{
-		p2pool:             p2pool,
-		listenAddress:      addrPort,
-		externalListenPort: externalListenPort,
-		peerId:             binary.LittleEndian.Uint64(peerId),
-		MaxOutgoingPeers:   min(maxOutgoingPeers, 450),
-		MaxIncomingPeers:   min(maxIncomingPeers, 450),
-		cachedBlocks:       make(map[types.Hash]*sidechain.PoolBlock, p2pool.Consensus().ChainWindowSize*3),
+		p2pool:                          p2pool,
+		tempUseMergeMiningIdAsHandshake: tempUseMergeMiningIdAsHandshake,
+		listenAddress:                   addrPort,
+		externalListenPort:              externalListenPort,
+		peerId:                          binary.LittleEndian.Uint64(peerId),
+		MaxOutgoingPeers:                min(maxOutgoingPeers, 450),
+		MaxIncomingPeers:                min(maxIncomingPeers, 450),
+		cachedBlocks:                    make(map[types.Hash]*sidechain.PoolBlock, p2pool.Consensus().ChainWindowSize*3),
 		versionInformation: p2pooltypes.PeerVersionInformation{
 			SoftwareId:      p2pooltypes.CurrentSoftwareId,
 			SoftwareVersion: p2pooltypes.CurrentSoftwareVersion,
@@ -893,6 +904,14 @@ func (s *Server) Broadcast(block *sidechain.PoolBlock) {
 			}
 		}
 	}()
+}
+
+func (s *Server) HandshakeConsensusId() types.Hash {
+	if s.tempUseMergeMiningIdAsHandshake {
+		return s.p2pool.Consensus().MergeMiningId
+	} else {
+		return s.p2pool.Consensus().Id
+	}
 }
 
 func (s *Server) Consensus() *sidechain.Consensus {
