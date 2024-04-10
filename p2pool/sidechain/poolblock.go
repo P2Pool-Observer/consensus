@@ -37,25 +37,6 @@ const (
 // PoolBlockMaxTemplateSize Max P2P message size (128 KB) minus BLOCK_RESPONSE header (5 bytes)
 const PoolBlockMaxTemplateSize = 128*1024 - (1 + 4)
 
-type ShareVersion uint8
-
-func (v ShareVersion) String() string {
-	switch v {
-	case ShareVersion_None:
-		return "none"
-	default:
-		return fmt.Sprintf("v%d", v)
-	}
-}
-
-const (
-	ShareVersion_None ShareVersion = 0
-	ShareVersion_V1   ShareVersion = 1
-	ShareVersion_V2   ShareVersion = 2
-	// ShareVersion_V3 Tentative future version with merge mining support
-	ShareVersion_V3 ShareVersion = 3
-)
-
 type UniquePoolBlockSlice []*PoolBlock
 
 func (s UniquePoolBlockSlice) Get(consensus *Consensus, id types.Hash) *PoolBlock {
@@ -421,7 +402,7 @@ func (b *PoolBlock) FromCompactReader(consensus *Consensus, derivationCache Deri
 }
 
 func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
-	if expectedMajorVersion := NetworkMajorVersion(consensus, b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
+	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.NetworkType.MustAddressNetwork(), b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
 		return fmt.Errorf("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
 	}
 

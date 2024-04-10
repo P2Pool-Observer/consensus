@@ -15,6 +15,8 @@ func GetBaseReward(alreadyGeneratedCounts uint64) uint64 {
 	return result
 }
 
+// GetBlockReward
+// Taken from https://github.com/monero-project/monero/blob/b0bf49a65a38ceb1acfbc8e17f40e63383ac140d/src/cryptonote_basic/cryptonote_basic_impl.cpp#L83
 func GetBlockReward(medianWeight, currentBlockWeight, alreadyGeneratedCoins uint64, version uint8) (reward uint64) {
 	const DIFFICULTY_TARGET_V1 = 60  // seconds - before first fork
 	const DIFFICULTY_TARGET_V2 = 120 // seconds
@@ -40,6 +42,7 @@ func GetBlockReward(medianWeight, currentBlockWeight, alreadyGeneratedCoins uint
 	}
 
 	fullRewardZone := func(version uint8) uint64 {
+		// From get_min_block_weight()
 		if version < 2 {
 			return CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V1
 		}

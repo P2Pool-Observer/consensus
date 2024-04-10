@@ -56,6 +56,14 @@ func (n NetworkType) AddressNetwork() (uint8, error) {
 	return 0, errors.New("unknown network")
 }
 
+func (n NetworkType) MustAddressNetwork() uint8 {
+	network, err := n.AddressNetwork()
+	if err != nil {
+		panic(err)
+	}
+	return network
+}
+
 func (n NetworkType) MarshalJSON() ([]byte, error) {
 	return []byte("\"" + n.String() + "\""), nil
 }
@@ -98,7 +106,7 @@ type Consensus struct {
 	// HardFork optional hardfork information for p2pool
 	// If empty it will be filled with the default hardfork list to the corresponding NetworkType
 	// Note: this is not supported by p2pool itself
-	HardForks []HardFork `json:"hard_forks,omitempty"`
+	HardForks []monero.HardFork `json:"hard_forks,omitempty"`
 
 	hasher randomx.Hasher
 
