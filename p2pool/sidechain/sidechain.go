@@ -265,7 +265,7 @@ func (c *SideChain) BlockUnsee(block *PoolBlock) {
 	c.seenBlocks.Delete(fullId)
 }
 
-func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []types.Hash, err error, ban bool) {
+func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []types.Hash, err error, ban bool) {
 	defer func() {
 		if e := recover(); e != nil {
 			//recover from panics
@@ -276,7 +276,7 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 				err = fmt.Errorf("panic: %v", e)
 			}
 			ban = true
-			utils.Errorf("SideChain", "add_external_block: panic %v, block %+v", e, block)
+			utils.Errorf("SideChain", "external_block_verify: panic %v, block %+v", e, block)
 		}
 	}()
 
@@ -409,6 +409,45 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 		//TODO warn unknown block, reorg
 	}
 
+	return func() []types.Hash {
+		c.sidechainLock.RLock()
+		defer c.sidechainLock.RUnlock()
+		missing := make([]types.Hash, 0, 4)
+		if block.Side.Parent != types.ZeroHash && c.getPoolBlockByTemplateId(block.Side.Parent) == nil {
+			missing = append(missing, block.Side.Parent)
+		}
+
+		for _, uncleId := range block.Side.Uncles {
+			if uncleId != types.ZeroHash && c.getPoolBlockByTemplateId(uncleId) == nil {
+				missing = append(missing, uncleId)
+			}
+		}
+		return missing
+	}(), nil, false
+}
+
+func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []types.Hash, err error, ban bool) {
+	defer func() {
+		if e := recover(); e != nil {
+			//recover from panics
+			missingBlocks = nil
+			if panicError, ok := e.(error); ok {
+				err = fmt.Errorf("panic: %w", panicError)
+			} else {
+				err = fmt.Errorf("panic: %v", e)
+			}
+			ban = true
+			utils.Errorf("SideChain", "add_external_block: panic %v, block %+v", e, block)
+		}
+	}()
+
+	missingBlocks, err, ban = c.PoolBlockExternalVerify(block)
+	if err != nil || ban {
+		return
+	}
+
+	templateId := block.SideTemplateId(c.Consensus())
+
 	if _, err := block.PowHashWithError(c.Consensus().GetHasher(), c.getSeedByHeightFunc()); err != nil {
 		c.BlockUnsee(block)
 		return nil, err, false
@@ -428,21 +467,7 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 
 	//TODO: block found section
 
-	return func() []types.Hash {
-		c.sidechainLock.RLock()
-		defer c.sidechainLock.RUnlock()
-		missing := make([]types.Hash, 0, 4)
-		if block.Side.Parent != types.ZeroHash && c.getPoolBlockByTemplateId(block.Side.Parent) == nil {
-			missing = append(missing, block.Side.Parent)
-		}
-
-		for _, uncleId := range block.Side.Uncles {
-			if uncleId != types.ZeroHash && c.getPoolBlockByTemplateId(uncleId) == nil {
-				missing = append(missing, uncleId)
-			}
-		}
-		return missing
-	}(), c.AddPoolBlock(block), true
+	return missingBlocks, c.AddPoolBlock(block), true
 }
 
 func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
@@ -1312,6 +1337,10 @@ func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]by
 	})
 
 	for _, b := range blocks {
+		// verify externally first without PoW, then add directly
+		if _, err, _ = c.PoolBlockExternalVerify(b); err != nil {
+			return err
+		}
 		if err = c.AddPoolBlock(b); err != nil {
 			return err
 		}
