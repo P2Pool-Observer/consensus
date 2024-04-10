@@ -315,7 +315,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 
 		//verify template id against merkle proof
 		mmTag := block.MergeMiningTag()
-		auxiliarySlot := merge_mining.GetAuxiliarySlot(c.Consensus().MergeMiningId, mmTag.Nonce, mmTag.NumberAuxiliaryChains)
+		auxiliarySlot := merge_mining.GetAuxiliarySlot(c.Consensus().Id, mmTag.Nonce, mmTag.NumberAuxiliaryChains)
 
 		if !block.Side.MerkleProof.Verify(templateId, int(auxiliarySlot), int(mmTag.NumberAuxiliaryChains), mmTag.RootHash) {
 			return nil, fmt.Errorf("could not verify template id %s merkle proof against merkle tree root hash %s (number of chains = %d, nonce = %d, auxiliary slot = %d)", templateId, mmTag.RootHash, mmTag.NumberAuxiliaryChains, mmTag.Nonce, auxiliarySlot), true
@@ -631,8 +631,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			len(block.Side.Uncles) != 0 ||
 			block.Side.Difficulty.Cmp64(c.Consensus().MinimumDifficulty) != 0 ||
 			block.Side.CumulativeDifficulty.Cmp64(c.Consensus().MinimumDifficulty) != 0 ||
-			(block.ShareVersion() > ShareVersion_V1 && block.ShareVersion() < ShareVersion_V3 && block.Side.CoinbasePrivateKeySeed != c.Consensus().Id) ||
-			(block.ShareVersion() > ShareVersion_V2 && block.Side.CoinbasePrivateKeySeed != c.Consensus().MergeMiningId) {
+			(block.ShareVersion() > ShareVersion_V1 && block.Side.CoinbasePrivateKeySeed != c.Consensus().Id) {
 			return nil, errors.New("genesis block has invalid parameters")
 		}
 		//this does not verify coinbase outputs, but that's fine

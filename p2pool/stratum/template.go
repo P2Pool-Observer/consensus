@@ -106,11 +106,8 @@ func (tpl *Template) TemplateId(hasher *sha3.HasherState, preAllocatedBuffer []b
 	buf := tpl.Blob(preAllocatedBuffer, 0, 0, sideRandomNumber, sideExtraNonce, types.ZeroHash)
 
 	_, _ = hasher.Write(buf)
-	if tpl.ShareVersion(consensus) > sidechain.ShareVersion_V2 {
-		_, _ = hasher.Write(consensus.MergeMiningId[:])
-	} else {
-		_, _ = hasher.Write(consensus.Id[:])
-	}
+	_, _ = hasher.Write(consensus.Id[:])
+
 	crypto.HashFastSum(hasher, (*result)[:])
 	hasher.Reset()
 }

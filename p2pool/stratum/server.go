@@ -218,11 +218,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		s.newTemplateData.Uncles = s.sidechain.GetPossibleUncles(s.tip, s.newTemplateData.SideHeight)
 	} else {
 		s.newTemplateData.PreviousTemplateId = types.ZeroHash
-		if s.newTemplateData.ShareVersion > sidechain.ShareVersion_V2 {
-			s.newTemplateData.TransactionPrivateKeySeed = s.sidechain.Consensus().MergeMiningId
-		} else {
-			s.newTemplateData.TransactionPrivateKeySeed = s.sidechain.Consensus().Id
-		}
+		s.newTemplateData.TransactionPrivateKeySeed = s.sidechain.Consensus().Id
 		s.newTemplateData.Difficulty = types.DifficultyFrom64(s.sidechain.Consensus().MinimumDifficulty)
 		s.newTemplateData.CumulativeDifficulty = types.DifficultyFrom64(s.sidechain.Consensus().MinimumDifficulty)
 	}
