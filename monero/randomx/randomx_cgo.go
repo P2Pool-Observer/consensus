@@ -191,7 +191,7 @@ func (h *hasherState) Hash(input []byte) (output types.Hash) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	outputBuf := h.vm.CalcHash(input)
-	copy(output[:], outputBuf)
+	copy(output[:], outputBuf[:])
 	runtime.KeepAlive(input)
 	return
 }
