@@ -11,8 +11,6 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/rpc"
-	"github.com/sclevine/spec"
-	"github.com/sclevine/spec/report"
 )
 
 func assertError(t *testing.T, err error, msgAndArgs ...any) {
@@ -45,16 +43,24 @@ func assertEqual(t *testing.T, actual, expected any, msgAndArgs ...any) {
 	}
 }
 
+func it(t *testing.T, msg string, f func(t *testing.T)) {
+	t.Run(msg, func(t *testing.T) {
+		f(t)
+	})
+}
+
 // nolint:funlen
 func TestClient(t *testing.T) {
-	spec.Run(t, "JSONRPC", func(t *testing.T, when spec.G, it spec.S) {
+	t.Parallel()
+
+	t.Run("JSONRPC", func(t *testing.T) {
 		var (
 			ctx    = context.Background()
 			client *rpc.Client
 			err    error
 		)
 
-		it("errors when daemon down", func() {
+		it(t, "errors when daemon down", func(t *testing.T) {
 			daemon := httptest.NewServer(http.HandlerFunc(nil))
 			daemon.Close()
 
@@ -68,7 +74,7 @@ func TestClient(t *testing.T) {
 			assertContains(t, err.Error(), "do:")
 		})
 
-		it("errors w/ empty response", func() {
+		it(t, "errors w/ empty response", func(t *testing.T) {
 			handler := func(w http.ResponseWriter, r *http.Request) {}
 
 			daemon := httptest.NewServer(http.HandlerFunc(handler))
@@ -84,7 +90,7 @@ func TestClient(t *testing.T) {
 			assertContains(t, err.Error(), "decode")
 		})
 
-		it("errors w/ non-200 response", func() {
+		it(t, "errors w/ non-200 response", func(t *testing.T) {
 			handler := func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(500)
 			}
@@ -102,7 +108,7 @@ func TestClient(t *testing.T) {
 			assertContains(t, err.Error(), "non-2xx status")
 		})
 
-		it("makes GET request to the jsonrpc endpoint", func() {
+		it(t, "makes GET request to the jsonrpc endpoint", func(t *testing.T) {
 			var (
 				endpoint string
 				method   string
@@ -126,7 +132,7 @@ func TestClient(t *testing.T) {
 			assertEqual(t, method, "GET")
 		})
 
-		it("encodes rpc in request", func() {
+		it(t, "encodes rpc in request", func(t *testing.T) {
 			var (
 				body = &rpc.RequestEnvelope{}
 
@@ -158,7 +164,7 @@ func TestClient(t *testing.T) {
 			assertEqual(t, body.Params, params)
 		})
 
-		it("captures result", func() {
+		it(t, "captures result", func(t *testing.T) {
 			handler := func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, `{"id":"id", "jsonrpc":"jsonrpc", "result": {"foo": "bar"}}`)
 			}
@@ -181,7 +187,7 @@ func TestClient(t *testing.T) {
 			assertEqual(t, result, map[string]string{"foo": "bar"})
 		})
 
-		it("fails if rpc errored", func() {
+		it(t, "fails if rpc errored", func(t *testing.T) {
 			handler := func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintln(w, `{"id":"id", "jsonrpc":"jsonrpc", "error": {"code": -1, "message":"foo"}}`)
 			}
@@ -202,5 +208,5 @@ func TestClient(t *testing.T) {
 			assertContains(t, err.Error(), "foo")
 			assertContains(t, err.Error(), "-1")
 		})
-	}, spec.Report(report.Terminal{}), spec.Parallel(), spec.Random())
+	})
 }

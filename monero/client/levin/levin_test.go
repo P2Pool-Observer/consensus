@@ -7,8 +7,6 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
-	"github.com/sclevine/spec"
-	"github.com/sclevine/spec/report"
 )
 
 func assertNoError(t *testing.T, err error, msgAndArgs ...any) {
@@ -51,9 +49,16 @@ func assertEqual(t *testing.T, actual, expected any, msgAndArgs ...any) {
 	}
 }
 
+func it(t *testing.T, msg string, f func(t *testing.T)) {
+	t.Run(msg, func(t *testing.T) {
+		f(t)
+	})
+}
+
 func TestLevin(t *testing.T) {
-	spec.Run(t, "NewHeaderFromBytes", func(t *testing.T, when spec.G, it spec.S) {
-		it("fails w/ wrong size", func() {
+	t.Parallel()
+	t.Run("NewHeaderFromBytes", func(t *testing.T) {
+		it(t, "fails w/ wrong size", func(t *testing.T) {
 			bytes := []byte{
 				0xff,
 			}
@@ -62,7 +67,7 @@ func TestLevin(t *testing.T) {
 			assertError(t, err)
 		})
 
-		it("fails w/ wrong signature", func() {
+		it(t, "fails w/ wrong signature", func(t *testing.T) {
 			bytes := []byte{
 				0xff, 0xff, 0xff, 0xff, // signature
 				0xff, 0xff, 0xff, 0xff,
@@ -80,7 +85,7 @@ func TestLevin(t *testing.T) {
 			assertContains(t, err.Error(), "signature mismatch")
 		})
 
-		it("fails w/ invalid command", func() {
+		it(t, "fails w/ invalid command", func(t *testing.T) {
 			bytes := []byte{
 				0x01, 0x21, 0x01, 0x01, // signature
 				0x01, 0x01, 0x01, 0x01,
@@ -98,7 +103,7 @@ func TestLevin(t *testing.T) {
 			assertContains(t, err.Error(), "invalid command")
 		})
 
-		it("fails w/ invalid return code", func() {
+		it(t, "fails w/ invalid return code", func(t *testing.T) {
 			bytes := []byte{
 				0x01, 0x21, 0x01, 0x01, // signature
 				0x01, 0x01, 0x01, 0x01,
@@ -116,7 +121,7 @@ func TestLevin(t *testing.T) {
 			assertContains(t, err.Error(), "invalid return code")
 		})
 
-		it("fails w/ invalid version", func() {
+		it(t, "fails w/ invalid version", func(t *testing.T) {
 			bytes := []byte{
 				0x01, 0x21, 0x01, 0x01, // signature
 				0x01, 0x01, 0x01, 0x01,
@@ -134,7 +139,7 @@ func TestLevin(t *testing.T) {
 			assertContains(t, err.Error(), "invalid version")
 		})
 
-		it("assembles properly from pong", func() {
+		it(t, "assembles properly from pong", func(t *testing.T) {
 			bytes := []byte{
 				0x01, 0x21, 0x01, 0x01, // signature
 				0x01, 0x01, 0x01, 0x01,
@@ -156,8 +161,8 @@ func TestLevin(t *testing.T) {
 		})
 	})
 
-	spec.Run(t, "NewRequestHeader", func(t *testing.T, when spec.G, it spec.S) {
-		it("assembles properly w/ ping", func() {
+	t.Run("NewRequestHeader", func(t *testing.T) {
+		it(t, "assembles properly w/ ping", func(t *testing.T) {
 			bytes := levin.NewRequestHeader(levin.CommandPing, 1).Bytes()
 
 			assertEqual(t, bytes, []byte{
@@ -173,7 +178,7 @@ func TestLevin(t *testing.T) {
 			})
 		})
 
-		it("assembles properly w/ handshake", func() {
+		it(t, "assembles properly w/ handshake", func(t *testing.T) {
 			bytes := levin.NewRequestHeader(levin.CommandHandshake, 4).Bytes()
 
 			assertEqual(t, bytes, []byte{
@@ -188,5 +193,5 @@ func TestLevin(t *testing.T) {
 				0x01, 0x00, 0x00, 0x00, // version
 			})
 		})
-	}, spec.Report(report.Log{}), spec.Parallel(), spec.Random())
+	})
 }

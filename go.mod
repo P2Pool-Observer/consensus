@@ -12,7 +12,6 @@ require (
 	github.com/floatdrop/lru v1.3.0
 	github.com/go-zeromq/zmq4 v0.16.1-0.20240124085909-e75c615ba1b3
 	github.com/goccy/go-json v0.10.2
-	github.com/sclevine/spec v1.4.0
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc
 	golang.org/x/sys v0.19.0
 	lukechampine.com/uint128 v1.3.0

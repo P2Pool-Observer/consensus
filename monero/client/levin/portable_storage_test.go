@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
-	"github.com/sclevine/spec"
-	"github.com/sclevine/spec/report"
 )
 
 func TestPortableStorage(t *testing.T) {
-	spec.Run(t, "NewPortableStorageFromBytes", func(t *testing.T, when spec.G, it spec.S) {
-		it("fails w/ wrong sigA", func() {
+	t.Parallel()
+	t.Run("NewPortableStorageFromBytes", func(t *testing.T) {
+		it(t, "fails w/ wrong sigA", func(t *testing.T) {
 			bytes := []byte{
 				0xaa, 0xaa, 0xaa, 0xaa,
 			}
@@ -20,7 +19,7 @@ func TestPortableStorage(t *testing.T) {
 			assertContains(t, err.Error(), "sig-a doesn't match")
 		})
 
-		it("fails w/ wrong sigB", func() {
+		it(t, "fails w/ wrong sigB", func(t *testing.T) {
 			bytes := []byte{
 				0x01, 0x11, 0x01, 0x01,
 				0xaa, 0xaa, 0xaa, 0xaa,
@@ -31,7 +30,7 @@ func TestPortableStorage(t *testing.T) {
 			assertContains(t, err.Error(), "sig-b doesn't match")
 		})
 
-		it("fails w/ wrong format ver", func() {
+		it(t, "fails w/ wrong format ver", func(t *testing.T) {
 			bytes := []byte{
 				0x01, 0x11, 0x01, 0x01,
 				0x01, 0x01, 0x02, 0x01,
@@ -43,7 +42,7 @@ func TestPortableStorage(t *testing.T) {
 			assertContains(t, err.Error(), "version doesn't match")
 		})
 
-		it("reads the contents", func() {
+		it(t, "reads the contents", func(t *testing.T) {
 			bytes := []byte{
 				0x01, 0x11, 0x01, 0x01, // sig a
 				0x01, 0x01, 0x02, 0x01, // sig b
@@ -97,10 +96,10 @@ func TestPortableStorage(t *testing.T) {
 				},
 			})
 		})
-	}, spec.Report(report.Log{}), spec.Parallel(), spec.Random())
+	})
 
-	spec.Run(t, "ReadVarIn", func(t *testing.T, when spec.G, it spec.S) {
-		it("i <= 63", func() {
+	t.Run("ReadVarIn", func(t *testing.T) {
+		it(t, "i <= 63", func(t *testing.T) {
 			b := []byte{0x08}
 			n, v := levin.ReadVarInt(b)
 
@@ -108,23 +107,23 @@ func TestPortableStorage(t *testing.T) {
 			assertEqual(t, v, 2)
 		})
 
-		it("64 <= i <= 16383", func() {
+		it(t, "64 <= i <= 16383", func(t *testing.T) {
 			b := []byte{0x01, 0x02}
 			n, v := levin.ReadVarInt(b)
 			assertEqual(t, n, 2)
 			assertEqual(t, v, 128)
 		})
 
-		it("16384 <= i <= 1073741823", func() {
+		it(t, "16384 <= i <= 1073741823", func(t *testing.T) {
 			b := []byte{0x02, 0x00, 0x01, 0x00}
 			n, v := levin.ReadVarInt(b)
 			assertEqual(t, n, 4)
 			assertEqual(t, v, 16384)
 		})
-	}, spec.Report(report.Log{}), spec.Parallel(), spec.Random())
+	})
 
-	spec.Run(t, "VarrIn", func(t *testing.T, when spec.G, it spec.S) {
-		it("i <= 63", func() {
+	t.Run("VarrIn", func(t *testing.T) {
+		it(t, "i <= 63", func(t *testing.T) {
 			i := 2 // 0b00000010
 
 			b, err := levin.VarIn(i)
@@ -134,7 +133,7 @@ func TestPortableStorage(t *testing.T) {
 			})
 		})
 
-		it("64 <= i <= 16383", func() {
+		it(t, "64 <= i <= 16383", func(t *testing.T) {
 			i := 128 // 0b010000000
 
 			b, err := levin.VarIn(i)
@@ -146,7 +145,7 @@ func TestPortableStorage(t *testing.T) {
 			})
 		})
 
-		it("16384 <= i <= 1073741823", func() {
+		it(t, "16384 <= i <= 1073741823", func(t *testing.T) {
 			i := 16384 // 1 << 14
 
 			b, err := levin.VarIn(i)
@@ -155,10 +154,10 @@ func TestPortableStorage(t *testing.T) {
 				0x02, 0x00, 0x01, 0x00, // (1 << 16) | 2
 			})
 		})
-	}, spec.Report(report.Log{}), spec.Parallel(), spec.Random())
+	})
 
-	spec.Run(t, "PortableStorage", func(t *testing.T, when spec.G, it spec.S) {
-		it("bytes", func() {
+	t.Run("PortableStorage", func(t *testing.T) {
+		it(t, "bytes", func(t *testing.T) {
 			ps := &levin.PortableStorage{
 				Entries: []levin.Entry{
 					{
@@ -219,5 +218,5 @@ func TestPortableStorage(t *testing.T) {
 
 			}, ps.Bytes())
 		})
-	}, spec.Report(report.Log{}), spec.Parallel(), spec.Random())
+	})
 }
