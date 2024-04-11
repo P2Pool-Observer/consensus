@@ -1,12 +1,12 @@
 package utils
 
 import (
+	"golang.org/x/sync/errgroup"
 	"runtime"
-	"sync"
 	"sync/atomic"
 )
 
-func SplitWork(routines int, workSize uint64, do func(workIndex uint64, routineIndex int) error, init func(routines, routineIndex int) error, errorFunc func(routineIndex int, err error)) bool {
+func SplitWork(routines int, workSize uint64, do func(workIndex uint64, routineIndex int) error, init func(routines, routineIndex int) error) error {
 	if routines <= 0 {
 		routines = max(runtime.NumCPU()-routines, 4)
 	}
@@ -17,39 +17,30 @@ func SplitWork(routines int, workSize uint64, do func(workIndex uint64, routineI
 
 	var counter atomic.Uint64
 
-	var wg sync.WaitGroup
-	var failed atomic.Bool
 	for routineIndex := 0; routineIndex < routines; routineIndex++ {
-		if init != nil {
-			if err := init(routines, routineIndex); err != nil {
-				if errorFunc != nil {
-					errorFunc(routineIndex, err)
-				}
-				failed.Store(true)
-				continue
-			}
+		if err := init(routines, routineIndex); err != nil {
+			return err
 		}
-		wg.Add(1)
-		go func(routineIndex int) {
-			defer wg.Done()
+	}
+
+	var eg errgroup.Group
+
+	for routineIndex := 0; routineIndex < routines; routineIndex++ {
+		innerRoutineIndex := routineIndex
+		eg.Go(func() error {
 			var err error
+
 			for {
 				workIndex := counter.Add(1)
 				if workIndex > workSize {
-					return
+					return nil
 				}
 
-				if err = do(workIndex-1, routineIndex); err != nil {
-					if errorFunc != nil {
-						errorFunc(routineIndex, err)
-						failed.Store(true)
-					}
-					return
+				if err = do(workIndex-1, innerRoutineIndex); err != nil {
+					return err
 				}
 			}
-		}(routineIndex)
+		})
 	}
-	wg.Wait()
-
-	return !failed.Load()
+	return eg.Wait()
 }

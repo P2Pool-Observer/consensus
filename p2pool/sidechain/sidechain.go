@@ -805,15 +805,13 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 
 			var hashers []*sha3.HasherState
 
-			var anyErr atomic.Value
-
 			defer func() {
 				for _, h := range hashers {
 					crypto.PutKeccak256Hasher(h)
 				}
 			}()
 
-			if !utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
+			if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
 				out := block.Main.Coinbase.Outputs[workIndex]
 				if rewards[workIndex] != out.Reward {
 					return fmt.Errorf("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
@@ -828,10 +826,8 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			}, func(routines, routineIndex int) error {
 				hashers = append(hashers, crypto.GetKeccak256Hasher())
 				return nil
-			}, func(routineIndex int, err error) {
-				anyErr.Store(err)
-			}) {
-				return nil, anyErr.Load().(error)
+			}); err != nil {
+				return nil, err
 			}
 		}
 

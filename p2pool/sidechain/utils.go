@@ -51,7 +51,7 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 		}
 	}()
 
-	utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
+	err := utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
 		output := transaction.Output{
 			Index: workIndex,
 			Type:  txType,
@@ -65,7 +65,11 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 	}, func(routines, routineIndex int) error {
 		hashers = append(hashers, crypto.GetKeccak256Hasher())
 		return nil
-	}, nil)
+	})
+
+	if err != nil {
+		return nil, 0
+	}
 
 	return outputs, bottomHeight
 }
