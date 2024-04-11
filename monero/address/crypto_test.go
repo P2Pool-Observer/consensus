@@ -45,6 +45,10 @@ func TestDerivePublicKey(t *testing.T) {
 	if results == nil {
 		t.Fatal()
 	}
+
+	hasher := crypto.GetKeccak256Hasher()
+	defer crypto.PutKeccak256Hasher(hasher)
+
 	for e := range results {
 		var expectedDerivedKey types.Hash
 
@@ -64,18 +68,31 @@ func TestDerivePublicKey(t *testing.T) {
 			//expected failure
 			continue
 		} else if point2 == nil {
-			t.Fatalf("invalid point %s / %s", derivation.String(), base.String())
+			t.Errorf("invalid point %s / %s", derivation.String(), base.String())
+			continue
 		}
 
 		sharedData := crypto.GetDerivationSharedDataForOutputIndex(&derivation, outputIndex)
+
+		sharedData2, _ := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivation, outputIndex, hasher)
+
+		if sharedData.AsBytes() != crypto.PrivateKeyFromScalar(&sharedData2).AsBytes() {
+			t.Errorf("derive_public_key differs from no_allocate: %s != %s", sharedData, crypto.PrivateKeyFromScalar(&sharedData2))
+		}
 
 		var addr PackedAddress
 		addr[0] = base
 		derivedKey := GetPublicKeyForSharedData(&addr, sharedData)
 
+		derivedKey2, _ := GetEphemeralPublicKeyAndViewTagNoAllocate(base.AsPoint().Point(), derivation, outputIndex, hasher)
+
+		if derivedKey.AsBytes() != derivedKey2 {
+			t.Errorf("derive_public_key differs from no_allocate: %s != %s", derivedKey, &derivedKey2)
+		}
+
 		if result {
 			if expectedDerivedKey.String() != derivedKey.String() {
-				t.Fatalf("expected %s, got %s", expectedDerivedKey.String(), derivedKey.String())
+				t.Errorf("expected %s, got %s", expectedDerivedKey.String(), derivedKey.String())
 			}
 		}
 	}

@@ -74,7 +74,7 @@ func (d *DerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, txKeyS
 		viewTable := d.getPublicKeyTable(*a.ViewPublicKey())
 		spendPoint := d.getPublicKeyPoint(*a.SpendPublicKey())
 		derivation := d.getDerivation(*a.ViewPublicKey(), txKeySlice, viewTable, txKeyScalar.Scalar())
-		pKB, viewTag := address.GetEphemeralPublicKeyAndViewTagNoAllocate(spendPoint, derivation, txKeyScalar.Scalar(), outputIndex, hasher)
+		pKB, viewTag := address.GetEphemeralPublicKeyAndViewTagNoAllocate(spendPoint, derivation, outputIndex, hasher)
 		d.ephemeralPublicKeyCache.Set(key, ephemeralPublicKeyWithViewTag{PublicKey: pKB, ViewTag: viewTag})
 		return pKB, viewTag
 	}

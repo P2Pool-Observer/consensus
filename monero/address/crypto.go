@@ -51,7 +51,7 @@ func GetEphemeralPublicKeyAndViewTag(a Interface, txKey crypto.PrivateKey, outpu
 }
 
 // GetEphemeralPublicKeyAndViewTagNoAllocate Special version of GetEphemeralPublicKeyAndViewTag
-func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519.Point, derivation crypto.PublicKeyBytes, txKey *edwards25519.Scalar, outputIndex uint64, hasher *sha3.HasherState) (crypto.PublicKeyBytes, uint8) {
+func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519.Point, derivation crypto.PublicKeyBytes, outputIndex uint64, hasher *sha3.HasherState) (crypto.PublicKeyBytes, uint8) {
 	var intermediatePublicKey, ephemeralPublicKey edwards25519.Point
 	derivationSharedData, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivation, outputIndex, hasher)
 

@@ -90,7 +90,7 @@ func BenchmarkCoinbaseDerivationNoAllocate(b *testing.B) {
 		hasher := crypto.GetKeccak256Hasher()
 		defer crypto.PutKeccak256Hasher(hasher)
 		for pb.Next() {
-			GetEphemeralPublicKeyAndViewTagNoAllocate(spendPub, GetDerivationNoAllocate(viewPub, txKey), txKey, i.Add(1), hasher)
+			GetEphemeralPublicKeyAndViewTagNoAllocate(spendPub, GetDerivationNoAllocate(viewPub, txKey), i.Add(1), hasher)
 		}
 	})
 	b.ReportAllocs()

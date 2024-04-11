@@ -79,6 +79,10 @@ func TestDeriveViewTag(t *testing.T) {
 	if results == nil {
 		t.Fatal()
 	}
+
+	hasher := GetKeccak256Hasher()
+	defer PutKeccak256Hasher(hasher)
+
 	for e := range results {
 		derivation := PublicKeyBytes(types.MustHashFromString(e[0]))
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
@@ -86,8 +90,14 @@ func TestDeriveViewTag(t *testing.T) {
 
 		viewTag := GetDerivationViewTagForOutputIndex(&derivation, outputIndex)
 
+		_, viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivation, outputIndex, hasher)
+
+		if viewTag != viewTag2 {
+			t.Errorf("derive_view_tag differs from no_allocate: %d != %d", viewTag, &viewTag2)
+		}
+
 		if result[0] != viewTag {
-			t.Fatalf("expected %s, got %s", fasthex.EncodeToString(result), fasthex.EncodeToString([]byte{viewTag}))
+			t.Errorf("expected %s, got %s", fasthex.EncodeToString(result), fasthex.EncodeToString([]byte{viewTag}))
 		}
 	}
 }
