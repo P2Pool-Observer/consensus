@@ -7,7 +7,7 @@ import (
 	"crypto/subtle"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
-	"git.gammaspectra.live/P2Pool/go-randomx"
+	"git.gammaspectra.live/P2Pool/go-randomx/v2"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -19,14 +19,13 @@ type hasher struct {
 	flags []Flag
 
 	key []byte
-	vm  *randomx.VM
 }
 
 func ConsensusHash(buf []byte) types.Hash {
 	cache := randomx.Randomx_alloc_cache(0)
-	cache.Randomx_init_cache(buf)
+	cache.Init(buf)
 
-	scratchpad := unsafe.Slice((*byte)(unsafe.Pointer(&cache.Blocks[0])), len(cache.Blocks)*len(cache.Blocks[0])*int(unsafe.Sizeof(uint64(0))))
+	scratchpad := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(cache.Blocks))), len(cache.Blocks)*len(cache.Blocks[0])*int(unsafe.Sizeof(uint64(0))))
 	defer runtime.KeepAlive(cache)
 
 	// Intentionally not a power of 2
@@ -63,33 +62,28 @@ func (h *hasher) OptionNumberOfCachedStates(n int) error {
 func NewRandomX(n int, flags ...Flag) (Hasher, error) {
 	return &hasher{
 		flags: flags,
-		cache: randomx.Randomx_alloc_cache(0),
+		cache: randomx.Randomx_alloc_cache(randomx.RANDOMX_FLAG_JIT),
 	}, nil
 }
 
 func (h *hasher) Hash(key []byte, input []byte) (output types.Hash, err error) {
-	h.lock.Lock()
-	defer h.lock.Unlock()
+	vm := func() *randomx.VM {
+		h.lock.Lock()
+		defer h.lock.Unlock()
 
-	if h.key == nil || bytes.Compare(h.key, key) != 0 {
-		h.key = make([]byte, len(key))
-		copy(h.key, key)
+		if h.key == nil || bytes.Compare(h.key, key) != 0 {
+			h.key = make([]byte, len(key))
+			copy(h.key, key)
 
-		h.cache.Randomx_init_cache(h.key)
-
-		gen := randomx.Init_Blake2Generator(h.key, 0)
-		for i := 0; i < 8; i++ {
-			h.cache.Programs[i] = randomx.Build_SuperScalar_Program(gen)
+			h.cache.Init(h.key)
 		}
-		h.vm = h.cache.VM_Initialize()
-	}
+		return h.cache.VM_Initialize()
+	}()
 
-	outputBuf := make([]byte, types.HashSize)
-	h.vm.CalculateHash(input, outputBuf)
-	copy(output[:], outputBuf)
+	vm.CalculateHash(input, (*[32]byte)(&output))
 	return
 }
 
 func (h *hasher) Close() {
-
+	h.cache.Close()
 }

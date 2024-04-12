@@ -55,6 +55,7 @@ func GetAuxiliarySlot(id types.Hash, nonce, numberAuxiliaryChains uint32) (auxil
 		return 0
 	}
 
+	// HashKeyMergeMineSlot HASH_KEY_MM_SLOT
 	const HashKeyMergeMineSlot = 'm'
 
 	var buf [types.HashSize + 4 + 1]byte
