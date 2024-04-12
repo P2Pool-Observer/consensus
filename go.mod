@@ -4,14 +4,14 @@ go 1.22
 
 require (
 	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20240405085108-e2f706cb5c00
-	git.gammaspectra.live/P2Pool/go-randomx/v2 v2.0.0
+	git.gammaspectra.live/P2Pool/go-randomx/v2 v2.1.0
 	git.gammaspectra.live/P2Pool/monero-base58 v1.0.0
 	git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0
 	git.gammaspectra.live/P2Pool/sha3 v0.17.0
 	github.com/dolthub/swiss v0.2.2-0.20240312182618-f4b2babd2bc1
-	github.com/floatdrop/lru v1.3.0
 	github.com/go-zeromq/zmq4 v0.16.1-0.20240124085909-e75c615ba1b3
 	github.com/goccy/go-json v0.10.2
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc
 	golang.org/x/sync v0.7.0
 	golang.org/x/sys v0.19.0
@@ -19,12 +19,10 @@ require (
 )
 
 require (
-	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
-	golang.org/x/text v0.14.0 // indirect
 )
 
 replace github.com/goccy/go-json => github.com/WeebDataHoarder/go-json v0.0.0-20230730135821-d8f6463bb887
 
-replace github.com/go-zeromq/zmq4 => git.gammaspectra.live/P2Pool/zmq4 v0.16.1-0.20240407153747-7f7d531f586e
+replace github.com/go-zeromq/zmq4 => git.gammaspectra.live/P2Pool/zmq4 v0.16.1-0.20240412221749-a35fa84ca9f4

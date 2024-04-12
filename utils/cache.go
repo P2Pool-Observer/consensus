@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/floatdrop/lru"
+	"github.com/hashicorp/golang-lru/v2"
 	"sync"
 	"sync/atomic"
 )
@@ -15,7 +15,7 @@ type Cache[K comparable, T any] interface {
 }
 
 type LRUCache[K comparable, T any] struct {
-	values       atomic.Pointer[lru.LRU[K, T]]
+	values       atomic.Pointer[lru.Cache[K, T]]
 	hits, misses atomic.Uint64
 	size         int
 }
@@ -29,9 +29,9 @@ func NewLRUCache[K comparable, T any](size int) *LRUCache[K, T] {
 }
 
 func (c *LRUCache[K, T]) Get(key K) (value T, ok bool) {
-	if v := c.values.Load().Get(key); v != nil {
+	if value, ok = c.values.Load().Get(key); !ok {
 		c.hits.Add(1)
-		return *v, true
+		return value, true
 	} else {
 		c.misses.Add(1)
 		return value, false
@@ -39,7 +39,7 @@ func (c *LRUCache[K, T]) Get(key K) (value T, ok bool) {
 }
 
 func (c *LRUCache[K, T]) Set(key K, value T) {
-	c.values.Load().Set(key, value)
+	c.values.Load().Add(key, value)
 }
 
 func (c *LRUCache[K, T]) Delete(key K) {
@@ -47,7 +47,11 @@ func (c *LRUCache[K, T]) Delete(key K) {
 }
 
 func (c *LRUCache[K, T]) Clear() {
-	c.values.Store(lru.New[K, T](c.size))
+	cache, err := lru.New[K, T](c.size)
+	if err != nil {
+		panic(err)
+	}
+	c.values.Store(cache)
 }
 
 func (c *LRUCache[K, T]) Stats() (hits, misses uint64) {

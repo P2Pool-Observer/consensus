@@ -9,7 +9,7 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
-	"github.com/floatdrop/lru"
+	"github.com/hashicorp/golang-lru/v2"
 	"io"
 	"net/http"
 	"net/netip"
@@ -24,17 +24,21 @@ type P2PoolApi struct {
 	Client                  *http.Client
 	consensus               atomic.Pointer[sidechain.Consensus]
 	derivationCache         sidechain.DerivationCacheInterface
-	difficultyByHeightCache *lru.LRU[uint64, types.Difficulty]
+	difficultyByHeightCache *lru.Cache[uint64, types.Difficulty]
 }
 
 func NewP2PoolApi(host string) *P2PoolApi {
+	cache, err := lru.New[uint64, types.Difficulty](1024)
+	if err != nil {
+		return nil
+	}
 	return &P2PoolApi{
 		Host: host,
 		Client: &http.Client{
 			Timeout: time.Second * 15,
 		},
 		derivationCache:         sidechain.NewDerivationLRUCache(),
-		difficultyByHeightCache: lru.New[uint64, types.Difficulty](1024),
+		difficultyByHeightCache: cache,
 	}
 }
 

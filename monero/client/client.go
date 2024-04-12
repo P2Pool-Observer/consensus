@@ -9,7 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
-	"github.com/floatdrop/lru"
+	"github.com/hashicorp/golang-lru/v2"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -55,7 +55,7 @@ type Client struct {
 	c *rpc.Client
 	d *daemon.Client
 
-	coinbaseTransactionCache *lru.LRU[types.Hash, *transaction.CoinbaseTransaction]
+	coinbaseTransactionCache *lru.Cache[types.Hash, *transaction.CoinbaseTransaction]
 
 	throttler <-chan time.Time
 }
@@ -65,10 +65,16 @@ func NewClient(address string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	cache, err := lru.New[types.Hash, *transaction.CoinbaseTransaction](1024)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		c:                        c,
 		d:                        daemon.NewClient(c),
-		coinbaseTransactionCache: lru.New[types.Hash, *transaction.CoinbaseTransaction](1024),
+		coinbaseTransactionCache: cache,
 		throttler:                time.Tick(time.Second / 8),
 	}, nil
 }
@@ -126,7 +132,7 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 }
 
 func (c *Client) GetCoinbaseTransaction(txId types.Hash) (*transaction.CoinbaseTransaction, error) {
-	if tx := c.coinbaseTransactionCache.Get(txId); tx == nil {
+	if tx, ok := c.coinbaseTransactionCache.Get(txId); !ok || tx == nil {
 		<-c.throttler
 		if result, err := c.d.GetTransactions(context.Background(), []types.Hash{txId}); err != nil {
 			return nil, err
@@ -144,12 +150,12 @@ func (c *Client) GetCoinbaseTransaction(txId types.Hash) (*transaction.CoinbaseT
 				return nil, fmt.Errorf("expected %s, got %s", txId.String(), tx.CalculateId().String())
 			}
 
-			c.coinbaseTransactionCache.Set(txId, tx)
+			c.coinbaseTransactionCache.Add(txId, tx)
 
 			return tx, nil
 		}
 	} else {
-		return *tx, nil
+		return tx, nil
 	}
 }
 
