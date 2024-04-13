@@ -289,7 +289,7 @@ func (s *Server) CleanupBanList() {
 func (s *Server) UpdateClientConnections() {
 
 	currentTime := uint64(time.Now().Unix())
-	lastUpdated := s.SideChain().LastUpdated()
+	lastUpdated := uint64(s.SideChain().LastUpdated().Unix())
 
 	var hasGoodPeers bool
 	var fastestPeer *Client
