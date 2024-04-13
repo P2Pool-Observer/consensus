@@ -83,7 +83,7 @@ type PoolBlock struct {
 	WantBroadcast atomic.Bool `json:"-"`
 	Broadcasted   atomic.Bool `json:"-"`
 
-	Metadata PoolBlockReceptionMetadata `json:"-"`
+	Metadata PoolBlockReceptionMetadata `json:"metadata"`
 
 	CachedShareVersion ShareVersion `json:"share_version"`
 
