@@ -51,7 +51,7 @@ func (p *PackedAddress) Compare(b Interface) int {
 	return crypto.CompareConsensusPublicKeyBytes(&p[PackedAddressView], b.ViewPublicKey())
 }
 
-func (p PackedAddress) ComparePacked(other *PackedAddress) int {
+func (p *PackedAddress) ComparePacked(other *PackedAddress) int {
 	//compare spend key
 
 	resultSpendKey := crypto.CompareConsensusPublicKeyBytes(&p[PackedAddressSpend], &other[PackedAddressSpend])

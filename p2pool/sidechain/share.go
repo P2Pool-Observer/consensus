@@ -16,19 +16,21 @@ func (s Shares) Index(addr address.PackedAddress) int {
 	})
 }
 
+func fastShareCompare(a *Share, b *Share) int {
+	// Fast tests first. Skips further checks
+	if diff := int(a.Address[address.PackedAddressSpend][crypto.PublicKeySize-1]) - int(b.Address[address.PackedAddressSpend][crypto.PublicKeySize-1]); diff != 0 {
+		return diff
+	}
+	if a.Address == b.Address {
+		return 0
+	}
+
+	return a.Address.ComparePacked(&b.Address)
+}
+
 // Sort Consensus way of sorting Shares
 func (s Shares) Sort() {
-	slices.SortFunc(s, func(a *Share, b *Share) int {
-		// Fast tests first. Skips further checks
-		if diff := int(a.Address[address.PackedAddressSpend][crypto.PublicKeySize-1]) - int(b.Address[address.PackedAddressSpend][crypto.PublicKeySize-1]); diff != 0 {
-			return diff
-		}
-		if a.Address == b.Address {
-			return 0
-		}
-
-		return a.Address.ComparePacked(&b.Address)
-	})
+	slices.SortFunc(s, fastShareCompare)
 }
 
 func (s Shares) Clone() (o Shares) {
