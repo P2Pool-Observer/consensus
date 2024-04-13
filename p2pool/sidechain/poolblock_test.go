@@ -5,9 +5,13 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/randomx"
+	types2 "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	unsafeRandom "math/rand/v2"
+	"net/netip"
 	"os"
 	"testing"
+	"time"
 )
 
 func testPoolBlock(b *PoolBlock, t *testing.T, expectedBufferLength int, majorVersion, minorVersion uint8, sideHeight uint64, nonce uint32, templateId, mainId, expectedPowHash, privateKeySeed, coinbaseId types.Hash, privateKey crypto.PrivateKeyBytes) {
@@ -74,6 +78,31 @@ func testPoolBlock(b *PoolBlock, t *testing.T, expectedBufferLength int, majorVe
 
 	if b.CoinbaseId() != coinbaseId {
 		t.Fatal()
+	}
+}
+
+func TestPoolBlockMetadata(t *testing.T) {
+	meta := PoolBlockReceptionMetadata{
+		LocalTime:       time.Now().UTC(),
+		AddressPort:     netip.AddrPortFrom(netip.AddrFrom4([4]byte{127, 0, 0, 1}), 1234),
+		PeerId:          unsafeRandom.Uint64(),
+		SoftwareId:      uint32(types2.CurrentSoftwareId),
+		SoftwareVersion: uint32(types2.CurrentSoftwareVersion),
+	}
+
+	blob, err := meta.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var meta2 PoolBlockReceptionMetadata
+	err = meta2.UnmarshalBinary(blob)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if meta != meta2 {
+		t.Errorf("different metadata: %v, %v", meta, meta2)
 	}
 }
 

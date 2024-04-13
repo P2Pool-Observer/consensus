@@ -16,6 +16,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	fasthex "github.com/tmthrgd/go-hex"
+	"io"
 	"net/netip"
 	"slices"
 	"sync/atomic"
@@ -100,6 +101,77 @@ type PoolBlockReceptionMetadata struct {
 
 	SoftwareId      uint32 `json:"software_id"`
 	SoftwareVersion uint32 `json:"software_version"`
+}
+
+func (m *PoolBlockReceptionMetadata) UnmarshalBinary(buf []byte) error {
+	r := bytes.NewReader(buf)
+	s, err := binary.ReadUvarint(r)
+	if err != nil {
+		return err
+	}
+	ns, err := binary.ReadUvarint(r)
+	if err != nil {
+		return err
+	}
+
+	m.LocalTime = time.Unix(int64(s), int64(ns)).UTC()
+
+	l, err := binary.ReadUvarint(r)
+	if err != nil {
+		return err
+	}
+	ip := make([]byte, l)
+	_, err = io.ReadFull(r, ip)
+	if err != nil {
+		return err
+	}
+
+	err = m.AddressPort.UnmarshalBinary(ip)
+	if err != nil {
+		return err
+	}
+
+	m.PeerId, err = binary.ReadUvarint(r)
+	if err != nil {
+		return err
+	}
+
+	sId, err := binary.ReadUvarint(r)
+	if err != nil {
+		return err
+	}
+
+	sVer, err := binary.ReadUvarint(r)
+	if err != nil {
+		return err
+	}
+
+	m.SoftwareId = uint32(sId)
+	m.SoftwareVersion = uint32(sVer)
+
+	return nil
+}
+
+func (m *PoolBlockReceptionMetadata) MarshalBinary() ([]byte, error) {
+	s := uint64(m.LocalTime.Unix())
+	ns := uint64(m.LocalTime.Nanosecond())
+
+	ip, _ := m.AddressPort.MarshalBinary()
+	out := make([]byte, 0,
+		utils.UVarInt64Size(s)+utils.UVarInt64Size(ns)+
+			utils.UVarInt64Size(len(ip))+len(ip)+
+			utils.UVarInt64Size(m.PeerId)+
+			utils.UVarInt64Size(uint64(m.SoftwareId))+
+			utils.UVarInt64Size(uint64(m.SoftwareVersion)))
+
+	out = binary.AppendUvarint(out, s)
+	out = binary.AppendUvarint(out, ns)
+	out = binary.AppendUvarint(out, uint64(len(ip)))
+	out = append(out, ip...)
+	out = binary.AppendUvarint(out, m.PeerId)
+	out = binary.AppendUvarint(out, uint64(m.SoftwareId))
+	out = binary.AppendUvarint(out, uint64(m.SoftwareVersion))
+	return out, nil
 }
 
 func (b *PoolBlock) iteratorGetParent(getByTemplateId GetByTemplateIdFunc) *PoolBlock {
