@@ -29,7 +29,7 @@ func NewLRUCache[K comparable, T any](size int) *LRUCache[K, T] {
 }
 
 func (c *LRUCache[K, T]) Get(key K) (value T, ok bool) {
-	if value, ok = c.values.Load().Get(key); !ok {
+	if value, ok = c.values.Load().Get(key); ok {
 		c.hits.Add(1)
 		return value, true
 	} else {
