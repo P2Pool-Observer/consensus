@@ -16,8 +16,10 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	fasthex "github.com/tmthrgd/go-hex"
+	"net/netip"
 	"slices"
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
@@ -80,10 +82,24 @@ type PoolBlock struct {
 	WantBroadcast atomic.Bool `json:"-"`
 	Broadcasted   atomic.Bool `json:"-"`
 
-	LocalTimestamp     uint64       `json:"-"`
+	Metadata PoolBlockReceptionMetadata `json:"-"`
+
 	CachedShareVersion ShareVersion `json:"share_version"`
 
 	iterationCache *IterationCache
+}
+
+type PoolBlockReceptionMetadata struct {
+	// LocalTime Moment the block was received from a source
+	LocalTime time.Time `json:"local_time,omitempty"`
+	// AddressPort The address and port of the peer who broadcasted or sent us this block
+	// If the peer specified a listen port, the port will be that instead of current connection one
+	AddressPort netip.AddrPort `json:"address_port,omitempty"`
+	// PeerId The peer id of the peer who broadcasted or sent us this block
+	PeerId uint64 `json:"peer_id,omitempty"`
+
+	SoftwareId      uint32 `json:"software_id"`
+	SoftwareVersion uint32 `json:"software_version"`
 }
 
 func (b *PoolBlock) iteratorGetParent(getByTemplateId GetByTemplateIdFunc) *PoolBlock {

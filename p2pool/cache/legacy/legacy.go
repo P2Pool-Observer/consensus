@@ -89,7 +89,9 @@ func (c *Cache) LoadAll(l cache.Loadee) {
 			}
 
 			block := &sidechain.PoolBlock{
-				LocalTimestamp: uint64(time.Now().Unix()),
+				Metadata: sidechain.PoolBlockReceptionMetadata{
+					LocalTime: time.Now().UTC(),
+				},
 			}
 
 			if err := block.UnmarshalBinary(c.consensus, &sidechain.NilDerivationCache{}, buf[:blobLength]); err != nil {

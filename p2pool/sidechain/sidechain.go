@@ -995,10 +995,12 @@ func (c *SideChain) pruneOldBlocks() {
 	// Leave 2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
 	pruneDistance := c.Consensus().ChainWindowSize*2 + monero.BlockTime/c.Consensus().TargetBlockTime
 
-	curTime := uint64(time.Now().Unix())
+	curTime := time.Now().UTC()
 
 	// Remove old blocks from alternative unconnected chains after long enough time
-	pruneDelay := c.Consensus().ChainWindowSize * 4 * c.Consensus().TargetBlockTime
+	pruneDelay := time.Duration(c.Consensus().ChainWindowSize*4*c.Consensus().TargetBlockTime) * time.Second
+
+	curTime.Add(-pruneDelay)
 
 	tip := c.GetChainTip()
 	if tip == nil || tip.Side.Height < pruneDistance {
@@ -1025,7 +1027,7 @@ func (c *SideChain) pruneOldBlocks() {
 		// loop backwards for proper deletions
 		for i := len(v) - 1; i >= 0; i-- {
 			block := v[i]
-			if block.Depth.Load() >= pruneDistance || (curTime >= (block.LocalTimestamp + pruneDelay)) {
+			if block.Depth.Load() >= pruneDistance || curTime.Compare(block.Metadata.LocalTime) >= 0 {
 				templateId := block.SideTemplateId(c.Consensus())
 				if c.blocksByTemplateId.Has(templateId) {
 					c.blocksByTemplateId.Delete(templateId)
@@ -1256,11 +1258,11 @@ func (c *SideChain) GetChainTip() *PoolBlock {
 	return c.chainTip.Load()
 }
 
-func (c *SideChain) LastUpdated() uint64 {
+func (c *SideChain) LastUpdated() time.Time {
 	if tip := c.chainTip.Load(); tip != nil {
-		return tip.LocalTimestamp
+		return tip.Metadata.LocalTime
 	}
-	return 0
+	return time.Time{}
 }
 
 func (c *SideChain) IsLongerChain(block, candidate *PoolBlock) (isLonger, isAlternative bool) {

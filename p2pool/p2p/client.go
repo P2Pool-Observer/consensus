@@ -150,6 +150,16 @@ func (c *Client) getNextBlockRequest() (id types.Hash, ok bool) {
 	}
 }
 
+// PreferredAddressPort Return the address and port to which the peer is most probably reachable
+func (c *Client) PreferredAddressPort() netip.AddrPort {
+	if listenPort := c.ListenPort.Load(); listenPort != 0 {
+		return netip.AddrPortFrom(c.AddressPort.Addr(), uint16(listenPort))
+	}
+
+	//take default from consensus
+	return netip.AddrPortFrom(c.AddressPort.Addr(), c.Owner.Consensus().DefaultPort())
+}
+
 func (c *Client) SendListenPort() {
 	c.SendMessage(&ClientMessage{
 		MessageId: MessageListenPort,
@@ -486,7 +496,13 @@ func (c *Client) OnConnection() {
 			c.SendBlockResponse(block)
 		case MessageBlockResponse:
 			block := &sidechain.PoolBlock{
-				LocalTimestamp: uint64(time.Now().Unix()),
+				Metadata: sidechain.PoolBlockReceptionMetadata{
+					LocalTime:       time.Now().UTC(),
+					AddressPort:     c.PreferredAddressPort(),
+					PeerId:          c.PeerId.Load(),
+					SoftwareId:      uint32(c.VersionInformation.SoftwareId),
+					SoftwareVersion: uint32(c.VersionInformation.SoftwareVersion),
+				},
 			}
 
 			expectedBlockId, ok := c.getNextBlockRequest()
@@ -573,7 +589,13 @@ func (c *Client) OnConnection() {
 
 		case MessageBlockBroadcast, MessageBlockBroadcastCompact:
 			block := &sidechain.PoolBlock{
-				LocalTimestamp: uint64(time.Now().Unix()),
+				Metadata: sidechain.PoolBlockReceptionMetadata{
+					LocalTime:       time.Now().UTC(),
+					AddressPort:     c.PreferredAddressPort(),
+					PeerId:          c.PeerId.Load(),
+					SoftwareId:      uint32(c.VersionInformation.SoftwareId),
+					SoftwareVersion: uint32(c.VersionInformation.SoftwareVersion),
+				},
 			}
 			var blockSize uint32
 			if err := binary.Read(c, binary.LittleEndian, &blockSize); err != nil {

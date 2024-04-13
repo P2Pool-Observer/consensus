@@ -255,6 +255,9 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			Difficulty:             s.newTemplateData.Difficulty,
 			CumulativeDifficulty:   s.newTemplateData.CumulativeDifficulty,
 		},
+		Metadata: sidechain.PoolBlockReceptionMetadata{
+			LocalTime: time.Now().UTC(),
+		},
 		CachedShareVersion: s.newTemplateData.ShareVersion,
 	}
 
