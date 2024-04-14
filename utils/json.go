@@ -1,7 +1,7 @@
 package utils
 
 import (
-	gojson "github.com/goccy/go-json"
+	gojson "git.gammaspectra.live/P2Pool/go-json"
 	"io"
 )
 

@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/go-zeromq/zmq4"
+	"git.gammaspectra.live/P2Pool/zmq4"
 )
 
 type Client struct {

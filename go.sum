@@ -1,5 +1,7 @@
 git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20240405085108-e2f706cb5c00 h1:mDQY337iKB+kle5RYWL5CoAz+3DmnkAh/B2XD8B+PFk=
 git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20240405085108-e2f706cb5c00/go.mod h1:FZsrMWGucMP3SZamzrd7m562geIs5zp1O/9MGoiAKH0=
+git.gammaspectra.live/P2Pool/go-json v0.99.0 h1:TbFOEWbbDLFzm1fM/2+WPUhhzSwJ501+otfrQ8jCP84=
+git.gammaspectra.live/P2Pool/go-json v0.99.0/go.mod h1:X9PvT0fmWrU1I+BiDUjMypUWdsWFm24QCW1sWxbzT8w=
 git.gammaspectra.live/P2Pool/go-randomx/v2 v2.1.0 h1:L1fV2XBYFmpFU+JKP/7fsgDm2Lfh9yFlS+800v+3OsM=
 git.gammaspectra.live/P2Pool/go-randomx/v2 v2.1.0/go.mod h1:vNmHlEIRAcU/bA85mxbUKEiBYtrtS4MVwozf29KmoHM=
 git.gammaspectra.live/P2Pool/monero-base58 v1.0.0 h1:s8LZxVNc93YEs2NCCNWZ7CKr8RbEb031y6Wkvhn+TS4=
@@ -8,10 +10,8 @@ git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0 h1:tajr4QFSPrb8NtHmU14Ja
 git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0/go.mod h1:S17NNidG5hxqaVLsSykKqDBg/hTPSzP0KcSwXfH8WIA=
 git.gammaspectra.live/P2Pool/sha3 v0.17.0 h1:CZpB466LPbNVQrUNjQTtQScGDc30xSMkZ6Bmw0W9VuM=
 git.gammaspectra.live/P2Pool/sha3 v0.17.0/go.mod h1:HmrrYa97BZTKklUk2n/wAY+wrY0gHhoSGRd2+lIqXq8=
-git.gammaspectra.live/P2Pool/zmq4 v0.16.1-0.20240412221749-a35fa84ca9f4 h1:K34kPogf+BpaLkUYQJSM1icWU69TL2ISrmx9u977zvw=
-git.gammaspectra.live/P2Pool/zmq4 v0.16.1-0.20240412221749-a35fa84ca9f4/go.mod h1:G/caphb5HAHcnNIIDDgOqJ3HN6r4rnTP14Q621H4rK4=
-github.com/WeebDataHoarder/go-json v0.0.0-20230730135821-d8f6463bb887 h1:P01nqSM+0b6zlPasOFYsqnQSP2dTRVZkanAnY9q/Bcc=
-github.com/WeebDataHoarder/go-json v0.0.0-20230730135821-d8f6463bb887/go.mod h1:6MelG93GURQebXPDq3khkgXZkazVtN9CRI+MGFi0w8I=
+git.gammaspectra.live/P2Pool/zmq4 v0.99.0 h1:DYjOTqZKurPLn+/OvC8wFE0+cMnw9bp6CQnzwqAbrXA=
+git.gammaspectra.live/P2Pool/zmq4 v0.99.0/go.mod h1:VZEQMCQTRVzrvGZl1E225PPKHl9UQ47CEBvrYkqWKZs=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dolthub/maphash v0.1.0 h1:bsQ7JsF4FkkWyrP3oCnFJgrCUAFbFf3kOl4L/QxPDyQ=
