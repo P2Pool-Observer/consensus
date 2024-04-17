@@ -1,4 +1,4 @@
-//go:build !cgo || disable_randomx_library
+//go:build !cgo || disable_randomx_library || purego
 
 package randomx
 

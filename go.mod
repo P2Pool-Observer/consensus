@@ -5,7 +5,7 @@ go 1.22
 require (
 	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20240405085108-e2f706cb5c00
 	git.gammaspectra.live/P2Pool/go-json v0.99.0
-	git.gammaspectra.live/P2Pool/go-randomx/v2 v2.1.0
+	git.gammaspectra.live/P2Pool/go-randomx/v2 v2.2.0
 	git.gammaspectra.live/P2Pool/monero-base58 v1.0.0
 	git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0
 	git.gammaspectra.live/P2Pool/sha3 v0.17.0
@@ -19,6 +19,7 @@ require (
 )
 
 require (
+	git.gammaspectra.live/P2Pool/softfloat64 v1.0.0 // indirect
 	github.com/dolthub/maphash v0.1.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect
 )
