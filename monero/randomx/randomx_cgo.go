@@ -1,12 +1,10 @@
-//go:build cgo && !disable_randomx_library && !purego
+//go:build cgo && enable_randomx_library && !purego
 
 package randomx
 
 import (
 	"bytes"
-	"crypto/subtle"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/randomx-go-bindings"
@@ -104,29 +102,12 @@ func ConsensusHash(buf []byte) types.Hash {
 	defer randomx.ReleaseCache(cache)
 
 	randomx.InitCache(cache, buf)
-	// Intentionally not a power of 2
-	const ScratchpadSize = 1009
 
 	const RandomxArgonMemory = 262144
 	n := RandomxArgonMemory * 1024
 
-	const Vec128Size = 128 / 8
-
-	type Vec128 [Vec128Size]byte
 	scratchpad := unsafe.Slice((*byte)(randomx.GetCacheMemory(cache)), n)
-
-	cachePtr := scratchpad[ScratchpadSize*Vec128Size:]
-	scratchpadTopPtr := scratchpad[:ScratchpadSize*Vec128Size]
-	for i := ScratchpadSize * Vec128Size; i < n; i += ScratchpadSize * Vec128Size {
-		stride := ScratchpadSize * Vec128Size
-		if stride > len(cachePtr) {
-			stride = len(cachePtr)
-		}
-		subtle.XORBytes(scratchpadTopPtr, scratchpadTopPtr, cachePtr[:stride])
-		cachePtr = cachePtr[stride:]
-	}
-
-	return crypto.Keccak256(scratchpadTopPtr)
+	return consensusHash(scratchpad)
 }
 
 func NewRandomX(n int, flags ...Flag) (Hasher, error) {

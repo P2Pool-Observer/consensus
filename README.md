@@ -21,9 +21,9 @@ You can also use the OpenAlias `p2pool.observer` directly on the GUI.
 
 ### Development notes
 
-Requires using CGO when running the main modes where RandomX hashes are used, but can be used with `CGO_ENABLED=0` specifically as a library.
+This library supports both [Golang RandomX library](https://git.gammaspectra.live/P2Pool/go-randomx) and the [C++ RandomX counterpart](https://github.com/tevador/RandomX).
 
-You can install the RandomX dependency via this command:
+By default, the Golang library will be used. You can enable the C++ library if by using CGO and the compile tag `enable_randomx_library` and have it installed via the command below:
 ```bash
 $ git clone --depth 1 --branch master https://github.com/tevador/RandomX.git /tmp/RandomX && cd /tmp/RandomX && \
     mkdir build && cd build && \

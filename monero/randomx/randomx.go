@@ -1,6 +1,8 @@
 package randomx
 
 import (
+	"crypto/subtle"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 )
 
@@ -35,3 +37,26 @@ const (
 	SeedHashEpochLag    = 64
 	SeedHashEpochBlocks = 2048
 )
+
+func consensusHash(scratchpad []byte) types.Hash {
+	// Intentionally not a power of 2
+	const ScratchpadSize = 1009
+
+	const RandomxArgonMemory = 262144
+	n := RandomxArgonMemory * 1024
+
+	const Vec128Size = 128 / 8
+
+	cachePtr := scratchpad[ScratchpadSize*Vec128Size:]
+	scratchpadTopPtr := scratchpad[:ScratchpadSize*Vec128Size]
+	for i := ScratchpadSize * Vec128Size; i < n; i += ScratchpadSize * Vec128Size {
+		stride := ScratchpadSize * Vec128Size
+		if stride > len(cachePtr) {
+			stride = len(cachePtr)
+		}
+		subtle.XORBytes(scratchpadTopPtr, scratchpadTopPtr, cachePtr[:stride])
+		cachePtr = cachePtr[stride:]
+	}
+
+	return crypto.Keccak256(scratchpadTopPtr)
+}

@@ -46,10 +46,11 @@ steps:
         from_secret: MONEROD_RPC_URL
       MONEROD_ZMQ_URL:
         from_secret: MONEROD_ZMQ_URL
+      CGO_ENABLED: "1"
     commands:
       - apk update
       - apk add --no-cache git gcc g++ musl-dev pkgconfig
-      - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -p 1 -failfast -timeout 20m -cover -gcflags=-d=checkptr -v $0 || exit 255'
+      - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -tags enable_randomx_library -p 1 -failfast -timeout 20m -cover -gcflags=-d=checkptr -v $0 || exit 255'
   - name: test-go-asm
     image: golang:1.22-alpine3.19
     depends_on:
@@ -125,10 +126,11 @@ steps:
         from_secret: MONEROD_RPC_URL
       MONEROD_ZMQ_URL:
         from_secret: MONEROD_ZMQ_URL
+      CGO_ENABLED: "1"
     commands:
       - apk update
       - apk add --no-cache git gcc g++ musl-dev pkgconfig
-      - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -p 1 -failfast -timeout 20m -cover -gcflags=-d=checkptr -v $0 || exit 255'
+      - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -tags enable_randomx_library -p 1 -failfast -timeout 20m -cover -gcflags=-d=checkptr -v $0 || exit 255'
   - name: test-go
     image: golang:1.22-alpine3.19
     depends_on:
