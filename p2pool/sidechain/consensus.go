@@ -151,7 +151,15 @@ func (c *Consensus) verify() bool {
 
 	if c.PoolName == "default" {
 		//p2pool changed consensus config to use default instead of original value
-		c.PoolName = ConsensusDefault.PoolName
+		if ConsensusDefault.NetworkType == c.NetworkType &&
+			ConsensusDefault.PoolPassword == c.PoolPassword &&
+			ConsensusDefault.TargetBlockTime == c.TargetBlockTime &&
+			ConsensusDefault.MinimumDifficulty == c.MinimumDifficulty &&
+			ConsensusDefault.ChainWindowSize == c.ChainWindowSize &&
+			ConsensusDefault.UnclePenalty == c.UnclePenalty &&
+			ConsensusDefault.Extra == c.Extra {
+			c.PoolName = ConsensusDefault.PoolName
+		}
 	}
 
 	if len(c.PoolName) > 128 {
