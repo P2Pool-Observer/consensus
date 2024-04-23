@@ -7,6 +7,7 @@ import (
 )
 
 var transactionPrivateKeySeedDomain = append([]byte("tx_key_seed"), 0)
+var transactionPrivateKeyDomain = []byte("tx_secret_key")
 
 func CalculateTransactionPrivateKeySeed(main, side []byte) (result types.Hash) {
 	h := crypto.GetKeccak256Hasher()
@@ -34,7 +35,7 @@ func GetDeterministicTransactionPrivateKey(seed types.Hash, previousMoneroId typ
 	*/
 
 	var entropy [13 + types.HashSize + types.HashSize + (int(unsafe.Sizeof(uint32(0))) /*pre-allocate uint32 for counter*/)]byte
-	copy(entropy[:], []byte("tx_secret_key")) //domain
+	copy(entropy[:], transactionPrivateKeyDomain)
 	copy(entropy[13:], seed[:])
 	copy(entropy[13+types.HashSize:], previousMoneroId[:])
 	return crypto.PrivateKeyFromScalar(crypto.DeterministicScalar(entropy[:13+types.HashSize+types.HashSize]))

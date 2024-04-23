@@ -41,20 +41,13 @@ func (v ShareVersion) String() string {
 const (
 	ShareVersion_None = ShareVersion(iota)
 
-	// ShareVersion_V1 Initial version. Had optional deterministic private keys, and signaling of support of V2 on extra nonce
+	// ShareVersion_V1 Initial version.
 	ShareVersion_V1
 
-	// ShareVersion_V2 Enforced deterministic private keys (and made more efficient)
-	// Removed the private key field as it's implied, replaced with private key seed
-	// Added extra fields to side data with extra nonces and random data, and carries software id and version
-	// PPLNS Window weight is now dynamic up to minimum of mainchain difficulty * 2
-	// Coinbase outputs are shuffled with a deterministic random method to mask output order on Monero
+	// ShareVersion_V2 Introduced in P2Pool v3.0+
 	ShareVersion_V2
 
-	// ShareVersion_V3 Tentative future version with merge mining support.
-	// Fixed Merge Mining Tag encoding, replace template id with a proper merkle root and other auxiliary data
-	// Merkle proof added on side data
-	// Template Id is now included as part of pruned blocks
+	// ShareVersion_V3 Tentative future version with merge mining support
 	ShareVersion_V3
 )
 
