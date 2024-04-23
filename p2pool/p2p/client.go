@@ -736,7 +736,7 @@ func (c *Client) OnConnection() {
 			if lastLen < PeerListResponseMaxPeers {
 				//improvement from normal p2pool: pad response with other peers from peer list, not connected
 				peerList := c.Owner.PeerList()
-				for i := lastLen; i < PeerListResponseMaxPeers; i++ {
+				for i := lastLen; i < PeerListResponseMaxPeers && len(peerList) > 0; i++ {
 					k := unsafeRandom.IntN(len(peerList)) % len(peerList)
 					peer := peerList[k]
 					if !slices.ContainsFunc(entriesToSend, func(addrPort netip.AddrPort) bool {
