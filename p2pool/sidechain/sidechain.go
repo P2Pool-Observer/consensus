@@ -99,6 +99,7 @@ func NewSideChain(server P2PoolInterface) *SideChain {
 		derivationCache:            NewDerivationMapCache(),
 		server:                     server,
 		blocksByTemplateId:         swiss.NewMap[types.Hash, *PoolBlock](uint32(server.Consensus().ChainWindowSize*2 + 300)),
+		blocksByMerkleRoot:         swiss.NewMap[types.Hash, *PoolBlock](uint32(server.Consensus().ChainWindowSize*2 + 300)),
 		blocksByHeight:             swiss.NewMap[uint64, []*PoolBlock](uint32(server.Consensus().ChainWindowSize*2 + 300)),
 		preAllocatedShares:         PreAllocateShares(server.Consensus().ChainWindowSize * 2),
 		preAllocatedRewards:        make([]uint64, 0, server.Consensus().ChainWindowSize*2),
