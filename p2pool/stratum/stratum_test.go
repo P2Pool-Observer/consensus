@@ -14,7 +14,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"slices"
 	"testing"
 	"time"
 	_ "unsafe"
@@ -142,36 +141,6 @@ func TestStratumServer(t *testing.T) {
 	if tpl.SideParent != tip.SideTemplateId(preLoadedMiniSideChain.Consensus()) {
 		t.Fatal()
 	}
-}
-
-func TestShuffleMapping(t *testing.T) {
-	const n = 16
-	const shareVersion = sidechain.ShareVersion_V2
-	var seed = zeroExtraBaseRCTHash
-	mappings := BuildShuffleMapping(n, shareVersion, seed)
-
-	seq := make([]int, n)
-	for i := range seq {
-		seq[i] = i
-	}
-
-	seq1 := slices.Clone(seq)
-
-	sidechain.ShuffleShares(seq1, shareVersion, seed)
-	seq2 := ApplyShuffleMapping(seq, mappings)
-
-	if slices.Compare(seq1, seq2) != 0 {
-		for i := range seq1 {
-			if seq1[i] != seq2[i] {
-				t.Logf("%d %d *** @ %d", seq1[i], seq2[i], i)
-			} else {
-				t.Logf("%d %d @ %d", seq1[i], seq2[i], i)
-			}
-		}
-
-		t.Fatal()
-	}
-
 }
 
 func BenchmarkServer_FillTemplate(b *testing.B) {

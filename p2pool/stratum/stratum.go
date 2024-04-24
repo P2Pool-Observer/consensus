@@ -56,7 +56,7 @@ type NewTemplateData struct {
 	Window                 struct {
 		ReservedShareIndex   int
 		Shares               sidechain.Shares
-		ShuffleMapping       [2][]int
+		ShuffleMapping       ShuffleMapping
 		EphemeralPubKeyCache map[ephemeralPubKeyCacheKey]*ephemeralPubKeyCacheEntry
 	}
 }
@@ -324,7 +324,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 	s.newTemplateData.TotalReward = finalReward
 
-	s.newTemplateData.Window.ShuffleMapping = BuildShuffleMapping(len(s.newTemplateData.Window.Shares), s.newTemplateData.ShareVersion, s.newTemplateData.TransactionPrivateKeySeed)
+	s.newTemplateData.Window.ShuffleMapping = BuildShuffleMapping(len(s.newTemplateData.Window.Shares), s.newTemplateData.ShareVersion, s.newTemplateData.TransactionPrivateKeySeed, s.newTemplateData.Window.ShuffleMapping)
 
 	s.newTemplateData.Window.EphemeralPubKeyCache = make(map[ephemeralPubKeyCacheKey]*ephemeralPubKeyCacheEntry)
 
@@ -334,106 +334,39 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	//TODO: parallelize this
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
-	for i, m := range PossibleIndicesForShuffleMapping(s.newTemplateData.Window.ShuffleMapping) {
-		if i == 0 {
-			// Skip zero key
-			continue
-		}
-		share := s.newTemplateData.Window.Shares[i]
-		var k ephemeralPubKeyCacheKey
-		copy(k[:], share.Address.Bytes())
+	// generate ephemeral pubkeys based on indices
 
-		for _, index := range m {
-			if index == -1 {
-				continue
-			}
-			binary.LittleEndian.PutUint64(k[crypto.PublicKeySize*2:], uint64(index))
-			if e, ok := oldPubKeyCache[k]; ok {
-				s.newTemplateData.Window.EphemeralPubKeyCache[k] = e
-			} else {
-				var e ephemeralPubKeyCacheEntry
-				e.PublicKey, e.ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(&share.Address, txPrivateKeySlice, txPrivateKeyScalar, uint64(index), hasher)
-				s.newTemplateData.Window.EphemeralPubKeyCache[k] = &e
-			}
+	var tempPubKey ephemeralPubKeyCacheKey
+	generateEphPubKeyForIndex := func(index int, addr *address.PackedAddress) {
+		if index == -1 {
+			return
+		}
+		copy(tempPubKey[:], addr.Bytes())
+		binary.LittleEndian.PutUint64(tempPubKey[crypto.PublicKeySize*2:], uint64(index))
+		if e, ok := oldPubKeyCache[tempPubKey]; ok {
+			s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = e
+		} else {
+			var e ephemeralPubKeyCacheEntry
+			e.PublicKey, e.ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr, txPrivateKeySlice, txPrivateKeyScalar, uint64(index), hasher)
+			s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = &e
 		}
 	}
+	s.newTemplateData.Window.ShuffleMapping.RangePossibleIndices(func(i int, ix0, ix1, ix2 int) {
+		if i == ShuffleMappingZeroKeyIndex {
+			// Skip zero key
+			return
+		}
+
+		share := s.newTemplateData.Window.Shares[i]
+		generateEphPubKeyForIndex(ix0, &share.Address)
+		generateEphPubKeyForIndex(ix1, &share.Address)
+		generateEphPubKeyForIndex(ix2, &share.Address)
+	})
 
 	s.newTemplateData.Ready = true
 
 	return nil
 
-}
-
-func BuildShuffleMapping(n int, shareVersion sidechain.ShareVersion, transactionPrivateKeySeed types.Hash) (mappings [2][]int) {
-	if n <= 1 {
-		return [2][]int{{0}, {0}}
-	}
-	shuffleSequence1 := make([]int, n)
-	for i := range shuffleSequence1 {
-		shuffleSequence1[i] = i
-	}
-	shuffleSequence2 := make([]int, n-1)
-	for i := range shuffleSequence2 {
-		shuffleSequence2[i] = i
-	}
-
-	sidechain.ShuffleSequence(shareVersion, transactionPrivateKeySeed, n, func(i, j int) {
-		shuffleSequence1[i], shuffleSequence1[j] = shuffleSequence1[j], shuffleSequence1[i]
-	})
-	sidechain.ShuffleSequence(shareVersion, transactionPrivateKeySeed, n-1, func(i, j int) {
-		shuffleSequence2[i], shuffleSequence2[j] = shuffleSequence2[j], shuffleSequence2[i]
-	})
-
-	mappings[0] = make([]int, n)
-	mappings[1] = make([]int, n-1)
-
-	//Flip
-	for i := range shuffleSequence1 {
-		mappings[0][shuffleSequence1[i]] = i
-	}
-	for i := range shuffleSequence2 {
-		mappings[1][shuffleSequence2[i]] = i
-	}
-
-	return mappings
-}
-
-func ApplyShuffleMapping[T any](v []T, mappings [2][]int) []T {
-	n := len(v)
-
-	result := make([]T, n)
-
-	if n == len(mappings[0]) {
-		for i := range v {
-			result[mappings[0][i]] = v[i]
-		}
-	} else if n == len(mappings[1]) {
-		for i := range v {
-			result[mappings[1][i]] = v[i]
-		}
-	}
-	return result
-}
-
-func PossibleIndicesForShuffleMapping(mappings [2][]int) [][3]int {
-	n := len(mappings[0])
-	result := make([][3]int, n)
-	for i := 0; i < n; i++ {
-		// Count with all + miner
-		result[i][0] = mappings[0][i]
-		if i > 0 {
-			// Count with all + miner shifted to a slot before
-			result[i][1] = mappings[0][i-1]
-
-			// Count with all miners minus one
-			result[i][2] = mappings[1][i-1]
-		} else {
-			result[i][1] = -1
-			result[i][2] = -1
-		}
-	}
-
-	return result
 }
 
 func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool) (tpl *Template, jobCounter uint64, difficultyTarget types.Difficulty, seedHash types.Hash, err error) {
@@ -970,6 +903,8 @@ func (s *Server) Listen(listen string) error {
 						RpcId:   rpcId,
 						Conn:    conn,
 						decoder: utils.NewJSONDecoder(conn),
+
+						// Default to donation address if not specified
 						Address: address.FromBase58(types.DonationAddress).ToPackedAddress(),
 					}
 					// Use deadline
@@ -1025,6 +960,7 @@ func (s *Server) Listen(listen string) error {
 											client.RigId = str
 										}
 										if str, ok := m["login"].(string); ok {
+											//TODO: support merge mining addresses
 											a := address.FromBase58(str)
 											if a != nil && a.Network == addressNetwork {
 												client.Address = a.ToPackedAddress()
