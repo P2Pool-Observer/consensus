@@ -40,6 +40,12 @@ const (
 // PoolBlockMaxTemplateSize Max P2P message size (128 KB) minus BLOCK_RESPONSE header (5 bytes)
 const PoolBlockMaxTemplateSize = 128*1024 - (1 + 4)
 
+// PoolBlockMaxSideChainHeight 1000 years at 1 block/second. It should be enough for any normal use.
+const PoolBlockMaxSideChainHeight = 31556952000
+
+// PoolBlockMaxCumulativeDifficulty 1000 years at 1 TH/s. It should be enough for any normal use.
+var PoolBlockMaxCumulativeDifficulty = types.NewDifficulty(13019633956666736640, 1710)
+
 type UniquePoolBlockSlice []*PoolBlock
 
 func (s UniquePoolBlockSlice) Get(consensus *Consensus, id types.Hash) *PoolBlock {

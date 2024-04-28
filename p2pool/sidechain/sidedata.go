@@ -149,6 +149,10 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		return err
 	}
 
+	if b.Height > PoolBlockMaxSideChainHeight {
+		return fmt.Errorf("side block height too high (%d > %d)", b.Height, PoolBlockMaxSideChainHeight)
+	}
+
 	{
 		if b.Difficulty.Lo, err = binary.ReadUvarint(reader); err != nil {
 			return err
@@ -167,6 +171,10 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		if b.CumulativeDifficulty.Hi, err = binary.ReadUvarint(reader); err != nil {
 			return err
 		}
+	}
+
+	if b.CumulativeDifficulty.Cmp(PoolBlockMaxCumulativeDifficulty) > 0 {
+		return fmt.Errorf("side block cumulative difficulty too large (%s > %s)", b.CumulativeDifficulty.StringNumeric(), PoolBlockMaxCumulativeDifficulty.StringNumeric())
 	}
 
 	if version > ShareVersion_V2 {
