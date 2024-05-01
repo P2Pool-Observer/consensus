@@ -147,7 +147,7 @@ func (c *SideChain) PreprocessBlock(block *PoolBlock) (missingBlocks []types.Has
 }
 
 func (c *SideChain) isWatched(block *PoolBlock) bool {
-	if block.ShareVersion() > ShareVersion_V2 {
+	if block.ShareVersion() >= ShareVersion_V3 {
 		return c.watchBlockPossibleId == block.MergeMiningTag().RootHash
 	} else {
 		return c.watchBlockPossibleId == block.FastSideTemplateId(c.Consensus())
@@ -304,7 +304,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 
 	templateId := block.SideTemplateId(c.Consensus())
 
-	if block.ShareVersion() > ShareVersion_V2 {
+	if block.ShareVersion() >= ShareVersion_V3 {
 		if templateId != block.FastSideTemplateId(c.Consensus()) {
 			return nil, fmt.Errorf("invalid template id %s, expected %s", block.FastSideTemplateId(c.Consensus()), templateId), true
 		}
@@ -499,7 +499,7 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 		c.blocksByHeightKeys = append(c.blocksByHeightKeys, block.Side.Height)
 	}
 
-	if block.ShareVersion() > ShareVersion_V2 {
+	if block.ShareVersion() >= ShareVersion_V3 {
 		c.blocksByMerkleRoot.Put(block.MergeMiningTag().RootHash, block)
 	}
 
@@ -552,7 +552,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 			block.Verified.Store(true)
 			block.Invalid.Store(false)
 
-			if block.ShareVersion() > ShareVersion_V1 {
+			if block.ShareVersion() >= ShareVersion_V2 {
 				utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %s, mainchain height = %d, mined by %s via %s %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), block.Side.ExtraBuffer.SoftwareId, block.Side.ExtraBuffer.SoftwareVersion)
 			} else {
 				if signalingVersion := block.ShareVersionSignaling(); signalingVersion > ShareVersion_None {
@@ -627,7 +627,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			len(block.Side.Uncles) != 0 ||
 			block.Side.Difficulty.Cmp64(c.Consensus().MinimumDifficulty) != 0 ||
 			block.Side.CumulativeDifficulty.Cmp64(c.Consensus().MinimumDifficulty) != 0 ||
-			(block.ShareVersion() > ShareVersion_V1 && block.Side.CoinbasePrivateKeySeed != c.Consensus().Id) {
+			(block.ShareVersion() >= ShareVersion_V2 && block.Side.CoinbasePrivateKeySeed != c.Consensus().Id) {
 			return nil, errors.New("genesis block has invalid parameters")
 		}
 		//this does not verify coinbase outputs, but that's fine
@@ -660,7 +660,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			return nil, errors.New("parent is invalid")
 		}
 
-		if block.ShareVersion() > ShareVersion_V1 {
+		if block.ShareVersion() >= ShareVersion_V2 {
 			expectedSeed := parent.Side.CoinbasePrivateKeySeed
 			if parent.Main.PreviousId != block.Main.PreviousId {
 				expectedSeed = parent.CalculateTransactionPrivateKeySeed()
@@ -1037,7 +1037,7 @@ func (c *SideChain) pruneOldBlocks() {
 					utils.Logf("SideChain", "blocksByHeight and blocksByTemplateId are inconsistent at height = %d, id = %s", height, templateId)
 				}
 
-				if block.ShareVersion() > ShareVersion_V2 {
+				if block.ShareVersion() >= ShareVersion_V3 {
 					rootHash := block.MergeMiningTag().RootHash
 					if c.blocksByMerkleRoot.Has(rootHash) {
 						c.blocksByMerkleRoot.Delete(rootHash)

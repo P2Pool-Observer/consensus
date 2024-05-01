@@ -38,6 +38,7 @@ type CoinbaseTransactionAuxiliaryData struct {
 	// TotalReward amount of reward existing Outputs. Used by p2pool serialized pruned blocks, filled regardless
 	TotalReward uint64 `json:"total_reward"`
 	// TemplateId Required by sidechain.GetOutputs to speed up repeated broadcasts from different peers
+	// This must be filled when preprocessing
 	TemplateId types.Hash `json:"template_id,omitempty"`
 }
 

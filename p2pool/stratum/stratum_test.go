@@ -3,6 +3,7 @@ package stratum
 import (
 	"compress/gzip"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
@@ -22,6 +23,14 @@ import (
 var preLoadedMiniSideChain *sidechain.SideChain
 
 var preLoadedPoolBlock *sidechain.PoolBlock
+
+var submitBlockFunc = func(block *sidechain.PoolBlock) (err error) {
+	if blob, err := block.MarshalBinary(); err == nil {
+		_, err = client.GetDefaultClient().SubmitBlock(blob)
+		return err
+	}
+	return err
+}
 
 func init() {
 	utils.GlobalLogLevel = 0
@@ -59,6 +68,8 @@ func getMinerData() *p2pooltypes.MinerData {
 }
 
 func TestMain(m *testing.M) {
+	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
+
 	if buf, err := os.ReadFile("testdata/block.dat"); err != nil {
 		panic(err)
 	} else {
@@ -69,7 +80,6 @@ func TestMain(m *testing.M) {
 	}
 
 	_ = sidechain.ConsensusMini.InitHasher(2)
-	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
 
 	preLoadedMiniSideChain = sidechain.NewSideChain(sidechain.GetFakeTestServer(sidechain.ConsensusMini))
 
@@ -95,9 +105,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestStratumServer(t *testing.T) {
-	stratumServer := NewServer(preLoadedMiniSideChain, func(block *sidechain.PoolBlock) error {
-		return nil
-	})
+	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc)
 	minerData := getMinerData()
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.HandleMinerData(minerData)
@@ -143,10 +151,85 @@ func TestStratumServer(t *testing.T) {
 	}
 }
 
+func TestStratumServer_GenesisV2(t *testing.T) {
+	consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 10, 1000, 100, 20)
+	consensus.HardForks = []monero.HardFork{
+		{uint8(sidechain.ShareVersion_V2), 0, 0, 0},
+	}
+
+	err := consensus.InitHasher(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer consensus.GetHasher().Close()
+
+	sideChain := sidechain.NewSideChain(sidechain.GetFakeTestServer(consensus))
+
+	stratumServer := NewServer(sideChain, submitBlockFunc)
+	minerData := getMinerData()
+	stratumServer.HandleMinerData(minerData)
+
+	func() {
+		//Process all incoming changes first
+		for {
+			select {
+			case f := <-stratumServer.incomingChanges:
+				if f() {
+					stratumServer.Update()
+				}
+			default:
+				return
+			}
+		}
+	}()
+
+	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(address.FromBase58(types.DonationAddress).ToPackedAddress(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if seedHash != minerData.SeedHash {
+		t.Fatal()
+	}
+
+	if tpl.MainHeight != minerData.Height {
+		t.Fatal()
+	}
+
+	if tpl.MainParent != minerData.PrevId {
+		t.Fatal()
+	}
+
+	// verify genesis parameters
+	if tpl.SideHeight != 0 {
+		t.Fatal()
+	}
+
+	if tpl.SideParent != types.ZeroHash {
+		t.Fatal()
+	}
+
+	sideData, err := tpl.SideData(consensus)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sideData.CoinbasePrivateKeySeed != consensus.Id {
+		t.Fatal()
+	}
+
+	if sideData.CumulativeDifficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+
+	if sideData.Difficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+}
+
 func BenchmarkServer_FillTemplate(b *testing.B) {
-	stratumServer := NewServer(preLoadedMiniSideChain, func(block *sidechain.PoolBlock) error {
-		return nil
-	})
+	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc)
 	minerData := getMinerData()
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.minerData = minerData
@@ -175,9 +258,7 @@ func BenchmarkServer_FillTemplate(b *testing.B) {
 }
 
 func BenchmarkServer_BuildTemplate(b *testing.B) {
-	stratumServer := NewServer(preLoadedMiniSideChain, func(block *sidechain.PoolBlock) error {
-		return nil
-	})
+	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc)
 	minerData := getMinerData()
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.minerData = minerData

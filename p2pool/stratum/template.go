@@ -3,6 +3,7 @@ package stratum
 import (
 	"encoding/binary"
 	"errors"
+	mainblock "git.gammaspectra.live/P2Pool/consensus/v3/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/sidechain"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
@@ -28,6 +29,9 @@ type Template struct {
 	// TransactionsOffset Start of transactions section
 	TransactionsOffset int
 
+	// TemplateSideDataOffset Start of side data section
+	TemplateSideDataOffset int
+
 	// TemplateExtraBufferOffset offset of 4*uint32
 	TemplateExtraBufferOffset int
 
@@ -44,6 +48,7 @@ type Template struct {
 func (tpl *Template) Write(writer io.Writer, nonce, extraNonce, sideRandomNumber, sideExtraNonce uint32, templateId types.Hash) error {
 	var uint32Buf [4]byte
 
+	// write main data just before nonce
 	if _, err := writer.Write(tpl.Buffer[:tpl.NonceOffset]); err != nil {
 		return err
 	}
@@ -53,6 +58,7 @@ func (tpl *Template) Write(writer io.Writer, nonce, extraNonce, sideRandomNumber
 		return err
 	}
 
+	// write main data just before extra nonce in coinbase
 	if _, err := writer.Write(tpl.Buffer[tpl.NonceOffset+4 : tpl.ExtraNonceOffset]); err != nil {
 		return err
 	}
@@ -62,12 +68,17 @@ func (tpl *Template) Write(writer io.Writer, nonce, extraNonce, sideRandomNumber
 		return err
 	}
 
+	// write remaining main data, then write side data just before merge mining tag in coinbase
 	if _, err := writer.Write(tpl.Buffer[tpl.ExtraNonceOffset+4 : tpl.TemplateIdOffset]); err != nil {
 		return err
 	}
+
+	//todo: support merge mining merkle root hash
 	if _, err := writer.Write(templateId[:]); err != nil {
 		return err
 	}
+
+	// write main data and side data up to the end of side data extra
 	if _, err := writer.Write(tpl.Buffer[tpl.TemplateIdOffset+types.HashSize : tpl.TemplateExtraBufferOffset+4*2]); err != nil {
 		return err
 	}
@@ -110,6 +121,22 @@ func (tpl *Template) TemplateId(hasher *sha3.HasherState, preAllocatedBuffer []b
 
 	crypto.HashFastSum(hasher, (*result)[:])
 	hasher.Reset()
+}
+
+func (tpl *Template) MainBlock() (b mainblock.Block, err error) {
+	err = b.UnmarshalBinary(tpl.Buffer, false, nil)
+	if err != nil {
+		return b, err
+	}
+	return b, nil
+}
+
+func (tpl *Template) SideData(consensus *sidechain.Consensus) (d sidechain.SideData, err error) {
+	err = d.UnmarshalBinary(tpl.Buffer[tpl.TemplateSideDataOffset:], tpl.ShareVersion(consensus))
+	if err != nil {
+		return d, err
+	}
+	return d, nil
 }
 
 func (tpl *Template) Timestamp() uint64 {
@@ -240,6 +267,7 @@ func TemplateFromPoolBlock(b *sidechain.PoolBlock) (tpl *Template, err error) {
 	tpl.ExtraNonceOffset = tpl.NonceOffset + 4 + (coinbaseLength - (b.Main.Coinbase.Extra[1].BufferLength() + b.Main.Coinbase.Extra[2].BufferLength() + 1)) + 1 + utils.UVarInt64Size(b.Main.Coinbase.Extra[1].VarInt)
 
 	tpl.TemplateIdOffset = tpl.NonceOffset + 4 + (coinbaseLength - (b.Main.Coinbase.Extra[2].BufferLength() + 1)) + 1 + utils.UVarInt64Size(b.Main.Coinbase.Extra[2].VarInt)
+	tpl.TemplateSideDataOffset = mainBufferLength
 	tpl.TemplateExtraBufferOffset = totalLen - 4*4
 
 	// Set places to zeroes where necessary

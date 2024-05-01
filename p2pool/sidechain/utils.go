@@ -104,7 +104,7 @@ func IterateBlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficulty
 
 	maxPplnsWeight := types.MaxDifficulty
 
-	if sidechainVersion > ShareVersion_V1 {
+	if sidechainVersion >= ShareVersion_V2 {
 		maxPplnsWeight = mainchainDiff.Mul64(2)
 	}
 
@@ -201,7 +201,7 @@ func BlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficultyByHeigh
 
 	maxPplnsWeight := types.MaxDifficulty
 
-	if sidechainVersion > ShareVersion_V1 {
+	if sidechainVersion >= ShareVersion_V2 {
 		maxPplnsWeight = mainchainDiff.Mul64(2)
 	}
 
@@ -318,7 +318,7 @@ func ShuffleShares[T any](shares []T, shareVersion ShareVersion, privateKeySeed 
 // ShuffleSequence Iterates through a swap sequence according to consensus parameters.
 func ShuffleSequence(shareVersion ShareVersion, privateKeySeed types.Hash, items int, swap func(i, j int)) {
 	n := uint64(items)
-	if shareVersion > ShareVersion_V1 && n > 1 {
+	if shareVersion >= ShareVersion_V2 && n > 1 {
 		seed := crypto.PooledKeccak256(privateKeySeed[:]).Uint64()
 
 		if seed == 0 {

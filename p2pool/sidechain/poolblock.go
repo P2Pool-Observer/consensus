@@ -262,6 +262,7 @@ func (b *PoolBlock) ShareVersion() ShareVersion {
 }
 
 func (b *PoolBlock) ShareVersionSignaling() ShareVersion {
+	// Signaling before V2 hardfork
 	if b.ShareVersion() == ShareVersion_V1 && (b.ExtraNonce()&0xFF000000 == 0xFF000000) {
 		return ShareVersion_V2
 	}
@@ -278,7 +279,7 @@ func (b *PoolBlock) ExtraNonce() uint32 {
 
 // FastSideTemplateId Returns SideTemplateId from either coinbase extra tags or pruned data, or main block if not pruned
 func (b *PoolBlock) FastSideTemplateId(consensus *Consensus) types.Hash {
-	if b.ShareVersion() > ShareVersion_V2 {
+	if b.ShareVersion() >= ShareVersion_V3 {
 		if b.Main.Coinbase.AuxiliaryData.WasPruned {
 			return b.Main.Coinbase.AuxiliaryData.TemplateId
 		} else {
@@ -301,7 +302,8 @@ func (b *PoolBlock) CoinbaseExtra(tag CoinbaseExtraTag) []byte {
 		}
 	case SideIdentifierHash:
 		if t := b.Main.Coinbase.Extra.GetTag(uint8(tag)); t != nil {
-			if b.ShareVersion() > ShareVersion_V2 {
+			if b.ShareVersion() >= ShareVersion_V3 {
+				// new merge mining tag
 				mergeMineReader := bytes.NewReader(t.Data)
 				var mergeMiningTag merge_mining.Tag
 				if err := mergeMiningTag.FromReader(mergeMineReader); err != nil || mergeMineReader.Len() != 0 {
@@ -462,7 +464,7 @@ func (b *PoolBlock) MarshalBinaryFlags(pruned, compact bool) ([]byte, error) {
 func (b *PoolBlock) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bool) (buf []byte, err error) {
 	buf = preAllocatedBuf
 
-	if buf, err = b.Main.AppendBinaryFlags(buf, compact, pruned, b.ShareVersion() > ShareVersion_V2); err != nil {
+	if buf, err = b.Main.AppendBinaryFlags(buf, compact, pruned, b.ShareVersion() >= ShareVersion_V3); err != nil {
 		return nil, err
 	} else if buf, err = b.Side.AppendBinary(buf, b.ShareVersion()); err != nil {
 		return nil, err
@@ -476,7 +478,7 @@ func (b *PoolBlock) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bo
 
 func (b *PoolBlock) FromReader(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
 	if err = b.Main.FromReader(reader, true, func() (containsAuxiliaryTemplateId bool) {
-		return b.CalculateShareVersion(consensus) > ShareVersion_V2
+		return b.CalculateShareVersion(consensus) >= ShareVersion_V3
 	}); err != nil {
 		return err
 	}
@@ -487,7 +489,7 @@ func (b *PoolBlock) FromReader(consensus *Consensus, derivationCache DerivationC
 // FromCompactReader used in Protocol 1.1 and above
 func (b *PoolBlock) FromCompactReader(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
 	if err = b.Main.FromCompactReader(reader, true, func() (containsAuxiliaryTemplateId bool) {
-		return b.CalculateShareVersion(consensus) > ShareVersion_V2
+		return b.CalculateShareVersion(consensus) >= ShareVersion_V3
 	}); err != nil {
 		return err
 	}
@@ -609,6 +611,12 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 		}
 	}
 
+	if b.ShareVersion() >= ShareVersion_V3 && b.Main.Coinbase.AuxiliaryData.WasPruned && b.Main.Coinbase.AuxiliaryData.TemplateId == types.ZeroHash {
+		// Fill template id for pruned broadcasts
+		templateId := b.SideTemplateId(consensus)
+		b.Main.Coinbase.AuxiliaryData.TemplateId = templateId
+	}
+
 	return nil, nil
 }
 
@@ -617,7 +625,7 @@ func (b *PoolBlock) NeedsPreProcess() bool {
 }
 
 func (b *PoolBlock) FillPrivateKeys(derivationCache DerivationCacheInterface) {
-	if b.ShareVersion() > ShareVersion_V1 {
+	if b.ShareVersion() >= ShareVersion_V2 {
 		if b.Side.CoinbasePrivateKey == crypto.ZeroPrivateKeyBytes {
 			//Fill Private Key
 			kP := derivationCache.GetDeterministicTransactionKey(b.GetPrivateKeySeed(), b.Main.PreviousId)
@@ -657,7 +665,7 @@ func (b *PoolBlock) IsProofHigherThanDifficultyWithError(hasher randomx.Hasher, 
 }
 
 func (b *PoolBlock) GetPrivateKeySeed() types.Hash {
-	if b.ShareVersion() > ShareVersion_V1 {
+	if b.ShareVersion() >= ShareVersion_V2 {
 		return b.Side.CoinbasePrivateKeySeed
 	}
 
@@ -670,7 +678,7 @@ func (b *PoolBlock) GetPrivateKeySeed() types.Hash {
 }
 
 func (b *PoolBlock) CalculateTransactionPrivateKeySeed() types.Hash {
-	if b.ShareVersion() > ShareVersion_V1 {
+	if b.ShareVersion() >= ShareVersion_V2 {
 		preAllocatedMainData := make([]byte, 0, b.Main.BufferLength())
 		preAllocatedSideData := make([]byte, 0, b.Side.BufferLength(b.ShareVersion()))
 		mainData, _ := b.Main.SideChainHashingBlob(preAllocatedMainData, false)

@@ -18,12 +18,14 @@ type SideData struct {
 	PublicKey              address.PackedAddress `json:"public_key"`
 	CoinbasePrivateKeySeed types.Hash            `json:"coinbase_private_key_seed,omitempty"`
 	// CoinbasePrivateKey filled or calculated on decoding
-	CoinbasePrivateKey   crypto.PrivateKeyBytes `json:"coinbase_private_key"`
-	Parent               types.Hash             `json:"parent"`
-	Uncles               []types.Hash           `json:"uncles,omitempty"`
-	Height               uint64                 `json:"height"`
-	Difficulty           types.Difficulty       `json:"difficulty"`
-	CumulativeDifficulty types.Difficulty       `json:"cumulative_difficulty"`
+	CoinbasePrivateKey crypto.PrivateKeyBytes `json:"coinbase_private_key"`
+	// Parent Template Id of the parent of this share, or zero if genesis
+	Parent types.Hash `json:"parent"`
+	// Uncles List of Template Ids of the uncles this share contains
+	Uncles               []types.Hash     `json:"uncles,omitempty"`
+	Height               uint64           `json:"height"`
+	Difficulty           types.Difficulty `json:"difficulty"`
+	CumulativeDifficulty types.Difficulty `json:"cumulative_difficulty"`
 
 	// MerkleProof Merkle proof for merge mining, available in ShareVersion ShareVersion_V3 and above
 	MerkleProof crypto.MerkleProof `json:"merkle_proof,omitempty"`
@@ -49,11 +51,11 @@ func (b *SideData) BufferLength(version ShareVersion) (size int) {
 		utils.UVarInt64Size(b.Difficulty.Lo) + utils.UVarInt64Size(b.Difficulty.Hi) +
 		utils.UVarInt64Size(b.CumulativeDifficulty.Lo) + utils.UVarInt64Size(b.CumulativeDifficulty.Hi)
 
-	if version > ShareVersion_V1 {
+	if version >= ShareVersion_V2 {
 		// ExtraBuffer
 		size += 4 * 4
 	}
-	if version > ShareVersion_V2 {
+	if version >= ShareVersion_V3 {
 		// MerkleProof
 		size += utils.UVarInt64Size(len(b.MerkleProof)) + len(b.MerkleProof)*types.HashSize
 	}
@@ -69,7 +71,7 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, version ShareVersion) (b
 	buf = preAllocatedBuf
 	buf = append(buf, b.PublicKey[address.PackedAddressSpend][:]...)
 	buf = append(buf, b.PublicKey[address.PackedAddressView][:]...)
-	if version > ShareVersion_V1 {
+	if version >= ShareVersion_V2 {
 		buf = append(buf, b.CoinbasePrivateKeySeed[:]...)
 	} else {
 		buf = append(buf, b.CoinbasePrivateKey[:]...)
@@ -85,7 +87,7 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, version ShareVersion) (b
 	buf = binary.AppendUvarint(buf, b.CumulativeDifficulty.Lo)
 	buf = binary.AppendUvarint(buf, b.CumulativeDifficulty.Hi)
 
-	if version > ShareVersion_V2 {
+	if version >= ShareVersion_V3 {
 		if len(b.MerkleProof) > MaxMerkleProofSize {
 			return nil, fmt.Errorf("merkle proof too large: %d > %d", len(b.MerkleProof), MaxMerkleProofSize)
 		}
@@ -95,7 +97,7 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, version ShareVersion) (b
 		}
 	}
 
-	if version > ShareVersion_V1 {
+	if version >= ShareVersion_V2 {
 		buf = binary.LittleEndian.AppendUint32(buf, uint32(b.ExtraBuffer.SoftwareId))
 		buf = binary.LittleEndian.AppendUint32(buf, uint32(b.ExtraBuffer.SoftwareVersion))
 		buf = binary.LittleEndian.AppendUint32(buf, b.ExtraBuffer.RandomNumber)
@@ -113,6 +115,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		merkleProofSize uint8
 		merkleProofHash types.Hash
 	)
+
 	if _, err = io.ReadFull(reader, b.PublicKey[address.PackedAddressSpend][:]); err != nil {
 		return err
 	}
@@ -120,8 +123,9 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		return err
 	}
 
-	if version > ShareVersion_V1 {
-		//needs preprocessing
+	if version >= ShareVersion_V2 {
+		// Read private key seed instead of private key. Only on ShareVersion_V2 and above
+		// needs preprocessing
 		if _, err = io.ReadFull(reader, b.CoinbasePrivateKeySeed[:]); err != nil {
 			return err
 		}
@@ -130,19 +134,23 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 			return err
 		}
 	}
+
 	if _, err = io.ReadFull(reader, b.Parent[:]); err != nil {
 		return err
 	}
+
 	if uncleCount, err = binary.ReadUvarint(reader); err != nil {
 		return err
-	}
+	} else if uncleCount > 0 {
+		// preallocate
+		b.Uncles = make([]types.Hash, 0, min(8, uncleCount))
 
-	for i := 0; i < int(uncleCount); i++ {
-		if _, err = io.ReadFull(reader, uncleHash[:]); err != nil {
-			return err
+		for i := 0; i < int(uncleCount); i++ {
+			if _, err = io.ReadFull(reader, uncleHash[:]); err != nil {
+				return err
+			}
+			b.Uncles = append(b.Uncles, uncleHash)
 		}
-		//TODO: check if copy is needed
-		b.Uncles = append(b.Uncles, uncleHash)
 	}
 
 	if b.Height, err = binary.ReadUvarint(reader); err != nil {
@@ -177,24 +185,26 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		return fmt.Errorf("side block cumulative difficulty too large (%s > %s)", b.CumulativeDifficulty.StringNumeric(), PoolBlockMaxCumulativeDifficulty.StringNumeric())
 	}
 
-	if version > ShareVersion_V2 {
+	// Read merkle proof list of hashes. Only on ShareVersion_V3 and above
+	if version >= ShareVersion_V3 {
 		if merkleProofSize, err = reader.ReadByte(); err != nil {
 			return err
-		}
-		if merkleProofSize > MaxMerkleProofSize {
+		} else if merkleProofSize > MaxMerkleProofSize {
 			return fmt.Errorf("merkle proof too large: %d > %d", len(b.MerkleProof), MaxMerkleProofSize)
-		}
-		b.MerkleProof = make(crypto.MerkleProof, 0, merkleProofSize)
+		} else if merkleProofSize > 0 {
+			b.MerkleProof = make(crypto.MerkleProof, 0, merkleProofSize)
 
-		for i := 0; i < int(merkleProofSize); i++ {
-			if _, err = io.ReadFull(reader, merkleProofHash[:]); err != nil {
-				return err
+			for i := 0; i < int(merkleProofSize); i++ {
+				if _, err = io.ReadFull(reader, merkleProofHash[:]); err != nil {
+					return err
+				}
+				b.MerkleProof = append(b.MerkleProof, merkleProofHash)
 			}
-			b.MerkleProof = append(b.MerkleProof, merkleProofHash)
 		}
 	}
 
-	if version > ShareVersion_V1 {
+	// Read share extra buffer. Only on ShareVersion_V2 and above
+	if version >= ShareVersion_V2 {
 		if err = binary.Read(reader, binary.LittleEndian, &b.ExtraBuffer.SoftwareId); err != nil {
 			return fmt.Errorf("within extra buffer: %w", err)
 		}
