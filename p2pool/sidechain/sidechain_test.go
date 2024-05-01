@@ -250,13 +250,19 @@ func TestMain(m *testing.M) {
 	if isBenchmark {
 		benchLoadedSideChain = NewSideChain(GetFakeTestServer(ConsensusDefault))
 
-		f, err := os.Open("testdata/sidechain_dump.dat")
+		f, err := os.Open("testdata/sidechain_dump.dat.gz")
 		if err != nil {
 			panic(err)
 		}
 		defer f.Close()
 
-		testSideChain(benchLoadedSideChain, nil, f, 4957203, 2870010)
+		r, err := gzip.NewReader(f)
+		if err != nil {
+			panic(err)
+		}
+		defer r.Close()
+
+		testSideChain(benchLoadedSideChain, nil, r, 4957203, 2870010)
 
 		tip := benchLoadedSideChain.GetChainTip()
 
