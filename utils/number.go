@@ -11,11 +11,11 @@ func PreviousPowerOfTwo(x uint64) int {
 	if x == 0 {
 		return 0
 	}
-	return 1 << (64 - bits.LeadingZeros64(x) - 1)
+	return 1 << (bits.Len64(x) - 1)
 }
 
 const (
-	VarIntLen1 uint64 = 1 << ((iota + 1) * 7)
+	VarIntLen1 = uint64(1 << ((iota + 1) * 7))
 	VarIntLen2
 	VarIntLen3
 	VarIntLen4
@@ -57,7 +57,7 @@ func UVarInt64SliceSize[T uint64 | int](v []T) (n int) {
 	return
 }
 
-func UVarInt64Size[T uint64 | int](v T) (n int) {
+func UVarInt64Size[T uint64 | int | uint8](v T) (n int) {
 	x := uint64(v)
 
 	if x < VarIntLen1 {

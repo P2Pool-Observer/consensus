@@ -10,7 +10,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
-	"math"
 	"math/bits"
 	"slices"
 )
@@ -428,17 +427,18 @@ func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []
 		deltaTimestamp = timestampUpperBound - timestampLowerBound
 	}
 
-	var minDifficulty = types.Difficulty{Hi: math.MaxUint64, Lo: math.MaxUint64}
-	var maxDifficulty types.Difficulty
+	minDifficulty := types.MaxDifficulty
+	maxDifficulty := types.ZeroDifficulty
 
 	for i := range difficultyData {
+		dd := &difficultyData[i]
 		// Pick only the cumulative difficulty from specifically the entries that are within the timestamp upper and low bounds
-		if timestampLowerBound <= difficultyData[i].timestamp && difficultyData[i].timestamp <= timestampUpperBound {
-			if minDifficulty.Cmp(difficultyData[i].cumulativeDifficulty) > 0 {
-				minDifficulty = difficultyData[i].cumulativeDifficulty
+		if timestampLowerBound <= dd.timestamp && dd.timestamp <= timestampUpperBound {
+			if minDifficulty.Cmp(dd.cumulativeDifficulty) > 0 {
+				minDifficulty = dd.cumulativeDifficulty
 			}
-			if maxDifficulty.Cmp(difficultyData[i].cumulativeDifficulty) < 0 {
-				maxDifficulty = difficultyData[i].cumulativeDifficulty
+			if maxDifficulty.Cmp(dd.cumulativeDifficulty) < 0 {
+				maxDifficulty = dd.cumulativeDifficulty
 			}
 		}
 	}
@@ -472,6 +472,7 @@ func SplitRewardAllocate(reward uint64, shares Shares) (rewards []uint64) {
 
 func SplitReward(preAllocatedRewards []uint64, reward uint64, shares Shares) (rewards []uint64) {
 	var totalWeight types.Difficulty
+
 	for i := range shares {
 		totalWeight = totalWeight.Add(shares[i].Weight)
 	}
@@ -481,16 +482,29 @@ func SplitReward(preAllocatedRewards []uint64, reward uint64, shares Shares) (re
 		return nil
 	}
 
-	rewards = preAllocatedRewards[:0]
-
-	var w types.Difficulty
 	var rewardGiven uint64
 
-	for _, share := range shares {
-		w = w.Add(share.Weight)
-		nextValue := w.Mul64(reward).Div(totalWeight)
-		rewards = append(rewards, nextValue.Lo-rewardGiven)
-		rewardGiven = nextValue.Lo
+	rewards = slices.Grow(preAllocatedRewards, len(shares))[:len(shares)]
+
+	if totalWeight.Hi == 0 {
+		//fast path for 64-bit ops
+		var w, hi, lo uint64
+		for i, share := range shares {
+			w += share.Weight.Lo
+			hi, lo = bits.Mul64(w, reward)
+			//nextValue
+			_, lo = utils.Div128(hi, lo, totalWeight.Lo)
+			rewards[i] = lo - rewardGiven
+			rewardGiven = lo
+		}
+	} else {
+		var w types.Difficulty
+		for i, share := range shares {
+			w = w.Add(share.Weight)
+			nextValue := w.Mul64(reward).Div(totalWeight)
+			rewards[i] = nextValue.Lo - rewardGiven
+			rewardGiven = nextValue.Lo
+		}
 	}
 
 	// Double check that we gave out the exact amount

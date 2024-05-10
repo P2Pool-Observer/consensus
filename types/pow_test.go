@@ -53,6 +53,39 @@ func TestDifficulty_CheckPoW(t *testing.T) {
 	}
 }
 
+func TestDifficulty_CheckPoW_Native(t *testing.T) {
+
+	if !moneroDifficulty.CheckPoW_Native(powHash) {
+		t.Errorf("%s does not pass PoW %s", powHash, moneroDifficulty)
+	}
+
+	if !sidechainDifficulty.CheckPoW_Native(powHash) {
+		t.Errorf("%s does not pass PoW %s", powHash, sidechainDifficulty)
+	}
+
+	if !powDifficulty.CheckPoW_Native(powHash) {
+		t.Errorf("%s does not pass PoW %s", powHash, powDifficulty)
+	}
+
+	powHash2 := powHash
+	powHash2[len(powHash2)-1]++
+
+	if moneroDifficulty.CheckPoW_Native(powHash2) {
+		t.Errorf("%s does pass PoW %s incorrectly", powHash2, moneroDifficulty)
+	}
+
+	if sidechainDifficulty.CheckPoW_Native(powHash2) {
+		t.Errorf("%s does pass PoW %s incorrectly", powHash2, sidechainDifficulty)
+	}
+
+	powHash3 := powHash
+	powHash3[len(powHash2)-9]++
+
+	if powDifficulty.CheckPoW_Native(powHash3) {
+		t.Errorf("%s does pass PoW %s incorrectly", powHash3, powDifficulty)
+	}
+}
+
 func BenchmarkDifficulty_CheckPoW(b *testing.B) {
 	b.ReportAllocs()
 

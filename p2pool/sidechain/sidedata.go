@@ -10,9 +10,13 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"io"
+	"math"
 )
 
+// MaxMerkleProofSize Maximum number of proofs in field
+// TODO: generate this from merkle proof parameters and slots?
 const MaxMerkleProofSize = 7
+const MaxUncleCount = uint64(math.MaxUint64) / types.HashSize
 
 type SideData struct {
 	PublicKey              address.PackedAddress `json:"public_key"`
@@ -42,8 +46,7 @@ type SideDataExtraBuffer struct {
 }
 
 func (b *SideData) BufferLength(version ShareVersion) (size int) {
-	size = crypto.PublicKeySize +
-		crypto.PublicKeySize +
+	size = crypto.PublicKeySize*2 +
 		types.HashSize +
 		crypto.PrivateKeySize +
 		utils.UVarInt64Size(len(b.Uncles)) + len(b.Uncles)*types.HashSize +
@@ -113,7 +116,6 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		uncleHash  types.Hash
 
 		merkleProofSize uint8
-		merkleProofHash types.Hash
 	)
 
 	if _, err = io.ReadFull(reader, b.PublicKey[address.PackedAddressSpend][:]); err != nil {
@@ -141,9 +143,11 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 
 	if uncleCount, err = binary.ReadUvarint(reader); err != nil {
 		return err
+	} else if uncleCount > MaxUncleCount {
+		return fmt.Errorf("uncle count too large: %d > %d", uncleCount, MaxUncleCount)
 	} else if uncleCount > 0 {
-		// preallocate
-		b.Uncles = make([]types.Hash, 0, min(8, uncleCount))
+		// preallocate for append, with 64 as soft limit
+		b.Uncles = make([]types.Hash, 0, min(64, uncleCount))
 
 		for i := 0; i < int(uncleCount); i++ {
 			if _, err = io.ReadFull(reader, uncleHash[:]); err != nil {
@@ -190,15 +194,15 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		if merkleProofSize, err = reader.ReadByte(); err != nil {
 			return err
 		} else if merkleProofSize > MaxMerkleProofSize {
-			return fmt.Errorf("merkle proof too large: %d > %d", len(b.MerkleProof), MaxMerkleProofSize)
+			return fmt.Errorf("merkle proof too large: %d > %d", merkleProofSize, MaxMerkleProofSize)
 		} else if merkleProofSize > 0 {
-			b.MerkleProof = make(crypto.MerkleProof, 0, merkleProofSize)
+			// preallocate
+			b.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
 
 			for i := 0; i < int(merkleProofSize); i++ {
-				if _, err = io.ReadFull(reader, merkleProofHash[:]); err != nil {
+				if _, err = io.ReadFull(reader, b.MerkleProof[i][:]); err != nil {
 					return err
 				}
-				b.MerkleProof = append(b.MerkleProof, merkleProofHash)
 			}
 		}
 	}

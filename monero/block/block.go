@@ -12,7 +12,10 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	"io"
+	"math"
 )
+
+const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize
 
 type Block struct {
 	MajorVersion uint8 `json:"major_version"`
@@ -51,7 +54,8 @@ func (b *Block) MarshalBinary() (buf []byte, err error) {
 }
 
 func (b *Block) BufferLength() int {
-	return 1 + 1 +
+	return utils.UVarInt64Size(b.MajorVersion) +
+		utils.UVarInt64Size(b.MinorVersion) +
 		utils.UVarInt64Size(b.Timestamp) +
 		types.HashSize +
 		4 +
@@ -65,14 +69,18 @@ func (b *Block) MarshalBinaryFlags(compact, pruned, containsAuxiliaryTemplateId 
 
 func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, containsAuxiliaryTemplateId bool) (buf []byte, err error) {
 	buf = preAllocatedBuf
-	buf = append(buf, b.MajorVersion)
+
 	if b.MajorVersion > monero.HardForkSupportedVersion {
 		return nil, fmt.Errorf("unsupported version %d", b.MajorVersion)
 	}
-	buf = append(buf, b.MinorVersion)
+
 	if b.MinorVersion < b.MajorVersion {
 		return nil, fmt.Errorf("minor version %d smaller than major %d", b.MinorVersion, b.MajorVersion)
 	}
+
+	buf = binary.AppendUvarint(buf, uint64(b.MajorVersion))
+	buf = binary.AppendUvarint(buf, uint64(b.MinorVersion))
+
 	buf = binary.AppendUvarint(buf, b.Timestamp)
 	buf = append(buf, b.PreviousId[:]...)
 	buf = binary.LittleEndian.AppendUint32(buf, b.Nonce)
@@ -117,16 +125,37 @@ func (b *Block) UnmarshalBinary(data []byte, canBePruned bool, f PrunedFlagsFunc
 
 func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBePruned bool, f PrunedFlagsFunc) (err error) {
 	var (
-		txCount         uint64
-		transactionHash types.Hash
+		txCount                    uint64
+		majorVersion, minorVersion uint64
+		transactionHash            types.Hash
 	)
 
-	if b.MajorVersion, err = reader.ReadByte(); err != nil {
+	if majorVersion, err = binary.ReadUvarint(reader); err != nil {
 		return err
 	}
-	if b.MinorVersion, err = reader.ReadByte(); err != nil {
+
+	if majorVersion > monero.HardForkSupportedVersion {
+		return fmt.Errorf("unsupported version %d", majorVersion)
+	}
+
+	if minorVersion, err = binary.ReadUvarint(reader); err != nil {
 		return err
 	}
+
+	if minorVersion < majorVersion {
+		return fmt.Errorf("minor version %d smaller than major version %d", minorVersion, majorVersion)
+	}
+
+	if majorVersion > math.MaxUint8 {
+		return fmt.Errorf("unsupported major version %d", majorVersion)
+	}
+
+	if minorVersion > math.MaxUint8 {
+		return fmt.Errorf("unsupported minor version %d", minorVersion)
+	}
+
+	b.MajorVersion = uint8(majorVersion)
+	b.MinorVersion = uint8(majorVersion)
 
 	if b.Timestamp, err = binary.ReadUvarint(reader); err != nil {
 		return err
@@ -157,43 +186,43 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 
 	if txCount, err = binary.ReadUvarint(reader); err != nil {
 		return err
-	}
+	} else if txCount > MaxTransactionCount {
+		return fmt.Errorf("transaction count count too large: %d > %d", txCount, MaxTransactionCount)
+	} else if txCount > 0 {
+		if compact {
+			// preallocate with soft cap
+			b.Transactions = make([]types.Hash, 0, min(8192, txCount))
+			b.TransactionParentIndices = make([]uint64, 0, min(8192, txCount))
 
-	if compact {
-		if txCount < 8192 {
-			b.Transactions = make([]types.Hash, 0, txCount)
-			b.TransactionParentIndices = make([]uint64, 0, txCount)
-		}
-
-		var parentIndex uint64
-		for i := 0; i < int(txCount); i++ {
-			if parentIndex, err = binary.ReadUvarint(reader); err != nil {
-				return err
-			}
-
-			if parentIndex == 0 {
-				//not in lookup
-				if _, err = io.ReadFull(reader, transactionHash[:]); err != nil {
+			var parentIndex uint64
+			for i := 0; i < int(txCount); i++ {
+				if parentIndex, err = binary.ReadUvarint(reader); err != nil {
 					return err
 				}
 
+				if parentIndex == 0 {
+					//not in lookup
+					if _, err = io.ReadFull(reader, transactionHash[:]); err != nil {
+						return err
+					}
+
+					b.Transactions = append(b.Transactions, transactionHash)
+				} else {
+					b.Transactions = append(b.Transactions, types.ZeroHash)
+				}
+
+				b.TransactionParentIndices = append(b.TransactionParentIndices, parentIndex)
+			}
+		} else {
+			// preallocate with soft cap
+			b.Transactions = make([]types.Hash, 0, min(8192, txCount))
+
+			for i := 0; i < int(txCount); i++ {
+				if _, err = io.ReadFull(reader, transactionHash[:]); err != nil {
+					return err
+				}
 				b.Transactions = append(b.Transactions, transactionHash)
-			} else {
-				b.Transactions = append(b.Transactions, types.ZeroHash)
 			}
-
-			b.TransactionParentIndices = append(b.TransactionParentIndices, parentIndex)
-		}
-	} else {
-		if txCount < 8192 {
-			b.Transactions = make([]types.Hash, 0, txCount)
-		}
-
-		for i := 0; i < int(txCount); i++ {
-			if _, err = io.ReadFull(reader, transactionHash[:]); err != nil {
-				return err
-			}
-			b.Transactions = append(b.Transactions, transactionHash)
 		}
 	}
 
