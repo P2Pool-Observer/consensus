@@ -543,7 +543,8 @@ func (s *Server) Listen() (err error) {
 
 		for !s.close.Load() {
 			if conn, err := s.listener.AcceptTCP(); err != nil {
-				return err
+				utils.Errorf("P2PServer", "Connection accept failed %s", err.Error())
+				continue
 			} else {
 				if err = func() error {
 					if uint32(s.NumIncomingConnections.Load()) > s.MaxIncomingPeers {
@@ -573,7 +574,7 @@ func (s *Server) Listen() (err error) {
 				}(); err != nil {
 					go func() {
 						defer conn.Close()
-						utils.Logf("P2PServer", "Connection from %s rejected (%s)", conn.RemoteAddr().String(), err.Error())
+						utils.Errorf("P2PServer", "Connection from %s rejected (%s)", conn.RemoteAddr().String(), err.Error())
 					}()
 					continue
 				}
