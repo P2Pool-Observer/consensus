@@ -17,6 +17,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	fasthex "github.com/tmthrgd/go-hex"
 	"io"
+	"math"
 	"net/netip"
 	"slices"
 	"sync/atomic"
@@ -506,13 +507,19 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 		b.CachedShareVersion = b.CalculateShareVersion(consensus)
 	}
 
+	if b.ShareVersion() >= ShareVersion_V3 {
+		if b.Main.MajorVersion > math.MaxInt8 || b.Main.MinorVersion > math.MaxInt8 {
+			return errors.New("version exceeds allowed values")
+		}
+	}
+
 	mergeMineTag := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining)
 
 	if mergeMineTag == nil {
 		return errors.New("missing merge mining tag")
 	}
 
-	if b.ShareVersion() < ShareVersion_V3 {
+	if b.ShareVersion() <= ShareVersion_V2 {
 		//TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
 		if mergeMineTag.VarInt != types.HashSize {
 			return errors.New("wrong merge mining tag depth")

@@ -125,37 +125,25 @@ func (b *Block) UnmarshalBinary(data []byte, canBePruned bool, f PrunedFlagsFunc
 
 func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBePruned bool, f PrunedFlagsFunc) (err error) {
 	var (
-		txCount                    uint64
-		majorVersion, minorVersion uint64
-		transactionHash            types.Hash
+		txCount         uint64
+		transactionHash types.Hash
 	)
 
-	if majorVersion, err = binary.ReadUvarint(reader); err != nil {
+	if b.MajorVersion, err = reader.ReadByte(); err != nil {
 		return err
 	}
 
-	if majorVersion > monero.HardForkSupportedVersion {
+	if b.MajorVersion > monero.HardForkSupportedVersion {
 		return fmt.Errorf("unsupported version %d", majorVersion)
 	}
 
-	if minorVersion, err = binary.ReadUvarint(reader); err != nil {
+	if b.MinorVersion, err = reader.ReadByte(); err != nil {
 		return err
 	}
 
-	if minorVersion < majorVersion {
+	if b.MinorVersion < b.MajorVersion {
 		return fmt.Errorf("minor version %d smaller than major version %d", minorVersion, majorVersion)
 	}
-
-	if majorVersion > math.MaxUint8 {
-		return fmt.Errorf("unsupported major version %d", majorVersion)
-	}
-
-	if minorVersion > math.MaxUint8 {
-		return fmt.Errorf("unsupported minor version %d", minorVersion)
-	}
-
-	b.MajorVersion = uint8(majorVersion)
-	b.MinorVersion = uint8(majorVersion)
 
 	if b.Timestamp, err = binary.ReadUvarint(reader); err != nil {
 		return err

@@ -261,7 +261,7 @@ func (c *MainChain) HandleMainBlock(b *mainblock.Block) {
 
 	shareVersion := sidechain.P2PoolShareVersion(c.sidechain.Consensus(), mainData.Timestamp)
 
-	if shareVersion < sidechain.ShareVersion_V3 {
+	if shareVersion <= sidechain.ShareVersion_V2 {
 		//TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
 		if mergeMineTag.VarInt != types.HashSize {
 			return
