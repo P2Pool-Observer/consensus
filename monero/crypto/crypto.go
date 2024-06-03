@@ -38,7 +38,7 @@ func CompareConsensusPublicKeyBytes(a, b *PublicKeyBytes) int {
 		return 1
 	}
 
-	//golang might free other otherwise
+	//golang might free a/b otherwise
 	runtime.KeepAlive(aUint64)
 	runtime.KeepAlive(bUint64)
 	return 0

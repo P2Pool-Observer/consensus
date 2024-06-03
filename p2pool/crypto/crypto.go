@@ -3,7 +3,6 @@ package crypto
 import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
-	"unsafe"
 )
 
 var transactionPrivateKeySeedDomain = append([]byte("tx_key_seed"), 0)
@@ -34,7 +33,7 @@ func GetDeterministicTransactionPrivateKey(seed types.Hash, previousMoneroId typ
 
 	*/
 
-	var entropy [13 + types.HashSize + types.HashSize + (int(unsafe.Sizeof(uint32(0))) /*pre-allocate uint32 for counter*/)]byte
+	var entropy [13 + types.HashSize + types.HashSize + (4 /*pre-allocate uint32 for counter*/)]byte
 	copy(entropy[:], transactionPrivateKeyDomain)
 	copy(entropy[13:], seed[:])
 	copy(entropy[13+types.HashSize:], previousMoneroId[:])
