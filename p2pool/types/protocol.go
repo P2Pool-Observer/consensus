@@ -58,7 +58,7 @@ func (i *PeerVersionInformation) String() string {
 		return "Unknown"
 	}
 
-	return fmt.Sprintf("%s %s (protocol %s)", i.SoftwareId.String(), i.SoftwareVersion.String(), i.Protocol.String())
+	return fmt.Sprintf("%s %s (protocol %s)", i.SoftwareId.String(), i.SoftwareVersion.SoftwareAwareString(i.SoftwareId), i.Protocol.String())
 }
 
 func (i *PeerVersionInformation) ToAddrPort() netip.AddrPort {
@@ -78,7 +78,7 @@ func (v ProtocolVersion) Major() uint16 {
 	return SemanticVersion(v).Major()
 }
 func (v ProtocolVersion) Minor() uint16 {
-	return SemanticVersion(v).Minor()
+	return SemanticVersion(v).MinorPatch()
 }
 
 func (v ProtocolVersion) String() string {
@@ -97,20 +97,37 @@ type SoftwareVersion SemanticVersion
 func (v SoftwareVersion) Major() uint16 {
 	return SemanticVersion(v).Major()
 }
+func (v SoftwareVersion) MinorPatch() uint16 {
+	return SemanticVersion(v).MinorPatch()
+}
 func (v SoftwareVersion) Minor() uint16 {
 	return SemanticVersion(v).Minor()
+}
+func (v SoftwareVersion) Patch() uint16 {
+	return SemanticVersion(v).Patch()
 }
 
 func (v SoftwareVersion) String() string {
 	return SemanticVersion(v).String()
 }
 
+func (v SoftwareVersion) SoftwareAwareString(id SoftwareId) string {
+	switch id {
+	case SoftwareIdP2Pool, SoftwareIdGoObserver:
+		if v.Major() < 3 || (v.Major() == 3 && v.MinorPatch() <= 10) {
+			return fmt.Sprintf("v%d.%d", v.Major(), v.MinorPatch())
+		}
+	}
+	return SemanticVersion(v).String()
+}
+
 const SupportedProtocolVersion = ProtocolVersion_1_2
 
 const CurrentSoftwareVersionMajor = 3 & 0xFFFF
-const CurrentSoftwareVersionMinor = 8 & 0xFFFF
+const CurrentSoftwareVersionMinor = 11 & 0xFFFF
+const CurrentSoftwareVersionPatch = 0 & 0xFFFF
 
-const CurrentSoftwareVersion SoftwareVersion = (CurrentSoftwareVersionMajor << 16) | CurrentSoftwareVersionMinor
+const CurrentSoftwareVersion SoftwareVersion = (CurrentSoftwareVersionMajor << 16) | (CurrentSoftwareVersionMinor << 8) | CurrentSoftwareVersionPatch
 const CurrentSoftwareId = SoftwareIdGoObserver
 
 type SoftwareId uint32

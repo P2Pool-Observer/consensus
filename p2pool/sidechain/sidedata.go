@@ -15,7 +15,7 @@ import (
 
 // MaxMerkleProofSize Maximum number of proofs in field
 // TODO: generate this from merkle proof parameters and slots?
-const MaxMerkleProofSize = 7
+const MaxMerkleProofSize = 8
 const MaxUncleCount = uint64(math.MaxUint64) / types.HashSize
 
 type SideData struct {

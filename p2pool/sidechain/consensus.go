@@ -113,7 +113,7 @@ type Consensus struct {
 	Id types.Hash `json:"id"`
 }
 
-const SmallestMinimumDifficulty = 1000
+const SmallestMinimumDifficulty = 100000
 const LargestMinimumDifficulty = 1000000000
 
 func NewConsensus(networkType NetworkType, poolName, poolPassword, extra string, targetBlockTime, minimumDifficulty, chainWindowSize, unclePenalty uint64) *Consensus {
