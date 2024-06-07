@@ -463,6 +463,18 @@ func (s *Server) GetCachedBlock(hash types.Hash) *sidechain.PoolBlock {
 	return s.cachedBlocks[hash]
 }
 
+func (s *Server) GetCachedBlocksTip() (tip *sidechain.PoolBlock) {
+	s.cachedBlocksLock.RLock()
+	defer s.cachedBlocksLock.RUnlock()
+
+	for _, b := range s.cachedBlocks {
+		if tip == nil || tip.Side.Height > b.Side.Height {
+			tip = b
+		}
+	}
+	return tip
+}
+
 func (s *Server) DownloadMissingBlocks() {
 	clientList := s.Clients()
 
