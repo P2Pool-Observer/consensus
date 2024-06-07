@@ -134,7 +134,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 	}
 
 	if b.MajorVersion > monero.HardForkSupportedVersion {
-		return fmt.Errorf("unsupported version %d", majorVersion)
+		return fmt.Errorf("unsupported version %d", b.MajorVersion)
 	}
 
 	if b.MinorVersion, err = reader.ReadByte(); err != nil {
@@ -142,7 +142,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 	}
 
 	if b.MinorVersion < b.MajorVersion {
-		return fmt.Errorf("minor version %d smaller than major version %d", minorVersion, majorVersion)
+		return fmt.Errorf("minor version %d smaller than major version %d", b.MinorVersion, b.MajorVersion)
 	}
 
 	if b.Timestamp, err = binary.ReadUvarint(reader); err != nil {

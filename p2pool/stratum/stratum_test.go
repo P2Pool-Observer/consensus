@@ -152,7 +152,7 @@ func TestStratumServer(t *testing.T) {
 }
 
 func TestStratumServer_GenesisV2(t *testing.T) {
-	consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 10, 1000, 100, 20)
+	consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 10, 100000, 100, 20)
 	consensus.HardForks = []monero.HardFork{
 		{uint8(sidechain.ShareVersion_V2), 0, 0, 0},
 	}
