@@ -256,7 +256,7 @@ func (d *Difficulty) UnmarshalJSON(b []byte) (err error) {
 	}
 
 	if b[0] == '"' {
-		if len(b) < 2 || (len(b)%2) != 0 || b[len(b)-1] != '"' {
+		if len(b) < 2 || b[len(b)-1] != '"' {
 			return errors.New("invalid bytes")
 		}
 
