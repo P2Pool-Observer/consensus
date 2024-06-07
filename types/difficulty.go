@@ -217,7 +217,11 @@ func MustDifficultyFromString(s string) Difficulty {
 
 func DifficultyFromString(s string) (Difficulty, error) {
 	if strings.HasPrefix(s, "0x") {
-		if buf, err := fasthex.DecodeString(s[2:]); err != nil {
+		strIn := s[2:]
+		if len(strIn)%2 != 0 {
+			strIn = "0" + strIn
+		}
+		if buf, err := fasthex.DecodeString(strIn); err != nil {
 			return ZeroDifficulty, err
 		} else {
 			//TODO: check this
