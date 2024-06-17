@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/types"
@@ -13,9 +14,6 @@ import (
 	"math"
 )
 
-// MaxMerkleProofSize Maximum number of proofs in field
-// TODO: generate this from merkle proof parameters and slots?
-const MaxMerkleProofSize = 8
 const MaxUncleCount = uint64(math.MaxUint64) / types.HashSize
 
 type SideData struct {
@@ -34,8 +32,30 @@ type SideData struct {
 	// MerkleProof Merkle proof for merge mining, available in ShareVersion ShareVersion_V3 and above
 	MerkleProof crypto.MerkleProof `json:"merkle_proof,omitempty"`
 
+	// MergeMiningExtra vector of (chain ID, chain data) pairs
+	// Chain data format is arbitrary and depends on the merge mined chain's requirements
+	MergeMiningExtra MergeMiningExtra `json:"merge_mining_extra,omitempty"`
+
 	// ExtraBuffer Arbitrary extra data, available in ShareVersion ShareVersion_V2 and above
 	ExtraBuffer SideDataExtraBuffer `json:"extra_buffer,omitempty"`
+}
+
+type MergeMiningExtra []MergeMiningExtraData
+
+func (d MergeMiningExtra) BufferLength(version ShareVersion) (size int) {
+	for i := range d {
+		size += d[i].BufferLength(version)
+	}
+	return size + utils.UVarInt64Size(len(d))
+}
+
+type MergeMiningExtraData struct {
+	ChainId types.Hash  `json:"chain_id"`
+	Data    types.Bytes `json:"data,omitempty"`
+}
+
+func (d MergeMiningExtraData) BufferLength(version ShareVersion) (size int) {
+	return types.HashSize + utils.UVarInt64Size(len(d.Data)) + len(d.Data)
 }
 
 type SideDataExtraBuffer struct {
@@ -59,8 +79,8 @@ func (b *SideData) BufferLength(version ShareVersion) (size int) {
 		size += 4 * 4
 	}
 	if version >= ShareVersion_V3 {
-		// MerkleProof
-		size += utils.UVarInt64Size(len(b.MerkleProof)) + len(b.MerkleProof)*types.HashSize
+		// MerkleProof + MergeMiningExtra
+		size += utils.UVarInt64Size(len(b.MerkleProof)) + len(b.MerkleProof)*types.HashSize + b.MergeMiningExtra.BufferLength(version)
 	}
 
 	return size
@@ -91,12 +111,24 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, version ShareVersion) (b
 	buf = binary.AppendUvarint(buf, b.CumulativeDifficulty.Hi)
 
 	if version >= ShareVersion_V3 {
-		if len(b.MerkleProof) > MaxMerkleProofSize {
-			return nil, fmt.Errorf("merkle proof too large: %d > %d", len(b.MerkleProof), MaxMerkleProofSize)
+		// merkle proof
+		if len(b.MerkleProof) > merge_mining.MaxChainsLog2 {
+			return nil, fmt.Errorf("merkle proof too large: %d > %d", len(b.MerkleProof), merge_mining.MaxChainsLog2)
 		}
 		buf = append(buf, uint8(len(b.MerkleProof)))
 		for _, h := range b.MerkleProof {
 			buf = append(buf, h[:]...)
+		}
+
+		// merge mining extra
+		if len(b.MergeMiningExtra) > merge_mining.MaxChains {
+			return nil, fmt.Errorf("merge mining extra size too big: %d > %d", len(b.MergeMiningExtra), merge_mining.MaxChains)
+		}
+		buf = binary.AppendUvarint(buf, uint64(len(b.MergeMiningExtra)))
+		for i := range b.MergeMiningExtra {
+			buf = append(buf, b.MergeMiningExtra[i].ChainId[:]...)
+			buf = binary.AppendUvarint(buf, uint64(len(b.MergeMiningExtra[i].Data)))
+			buf = append(buf, b.MergeMiningExtra[i].Data...)
 		}
 	}
 
@@ -115,7 +147,9 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		uncleCount uint64
 		uncleHash  types.Hash
 
-		merkleProofSize uint8
+		merkleProofSize          uint8
+		mergeMiningExtraSize     uint64
+		mergeMiningExtraDataSize uint64
 	)
 
 	if _, err = io.ReadFull(reader, b.PublicKey[address.PackedAddressSpend][:]); err != nil {
@@ -193,8 +227,8 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 	if version >= ShareVersion_V3 {
 		if merkleProofSize, err = reader.ReadByte(); err != nil {
 			return err
-		} else if merkleProofSize > MaxMerkleProofSize {
-			return fmt.Errorf("merkle proof too large: %d > %d", merkleProofSize, MaxMerkleProofSize)
+		} else if merkleProofSize > merge_mining.MaxChainsLog2 {
+			return fmt.Errorf("merkle proof too large: %d > %d", merkleProofSize, merge_mining.MaxChainsLog2)
 		} else if merkleProofSize > 0 {
 			// preallocate
 			b.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
@@ -202,6 +236,31 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 			for i := 0; i < int(merkleProofSize); i++ {
 				if _, err = io.ReadFull(reader, b.MerkleProof[i][:]); err != nil {
 					return err
+				}
+			}
+		}
+
+		if mergeMiningExtraSize, err = binary.ReadUvarint(reader); err != nil {
+			return err
+		} else if mergeMiningExtraSize > merge_mining.MaxChains {
+			return fmt.Errorf("merge mining data too big: %d > %d", mergeMiningExtraSize, merge_mining.MaxChains)
+		} else if mergeMiningExtraSize > 0 {
+			// preallocate
+			b.MergeMiningExtra = make(MergeMiningExtra, mergeMiningExtraSize)
+
+			for i := 0; i < int(mergeMiningExtraSize); i++ {
+				if _, err = io.ReadFull(reader, b.MergeMiningExtra[i].ChainId[:]); err != nil {
+					return err
+				} else if i > 0 && b.MergeMiningExtra[i-1].ChainId.Compare(b.MergeMiningExtra[i].ChainId) >= 0 {
+					// IDs must be ordered to avoid duplicates
+					return fmt.Errorf("duplicate or not ordered merge mining data chain id: %s > %s", b.MergeMiningExtra[i-1].ChainId, b.MergeMiningExtra[i].ChainId)
+				} else if mergeMiningExtraDataSize, err = binary.ReadUvarint(reader); err != nil {
+					return err
+				} else if mergeMiningExtraDataSize > 0 {
+					b.MergeMiningExtra[i].Data = make(types.Bytes, mergeMiningExtraDataSize)
+					if _, err = io.ReadFull(reader, b.MergeMiningExtra[i].Data); err != nil {
+						return err
+					}
 				}
 			}
 		}

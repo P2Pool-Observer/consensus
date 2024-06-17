@@ -450,6 +450,7 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 				Difficulty:             s.newTemplateData.Difficulty,
 				CumulativeDifficulty:   s.newTemplateData.CumulativeDifficulty,
 				MerkleProof:            nil,
+				MergeMiningExtra:       nil,
 				ExtraBuffer: sidechain.SideDataExtraBuffer{
 					SoftwareId:          p2pooltypes.CurrentSoftwareId,
 					SoftwareVersion:     p2pooltypes.CurrentSoftwareVersion,
