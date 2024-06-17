@@ -22,8 +22,11 @@ var p2poolTestNetHardForks = []monero.HardFork{
 	{uint8(ShareVersion_V2), 0, 0, 1674507600},
 	//alternate hardfork at 2023-03-07 20:00 UTC 1678219200
 	//{uint8(ShareVersion_V2), 0, 0, 1678219200},
-	// Jun 09 2024 20:00:00 GMT+0000
-	{uint8(ShareVersion_V3), 0, 0, 1717963200},
+
+	// first fork mm_test Jun 09 2024 20:00:00 GMT+0000
+	// {uint8(ShareVersion_V3), 0, 0, 1717963200},
+	// second fork mm_test2 Jun 18 2024 20:00:00 GMT+0000
+	{uint8(ShareVersion_V3), 0, 0, 1718740800},
 }
 
 var p2poolStageNetHardForks = []monero.HardFork{
