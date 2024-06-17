@@ -34,13 +34,19 @@ func (t *Tag) FromReader(reader utils.ReaderAndByteReader) error {
 	return nil
 }
 
-func (t *Tag) MarshalBinary() (buf []byte, err error) {
+func (t *Tag) MarshalTreeData() uint64 {
 	nBits := uint32(1)
 
 	for (1<<nBits) >= t.NumberAuxiliaryChains && nBits < 8 {
 		nBits++
 	}
 	merkleTreeData := (uint64(nBits) - 1) | (uint64(t.NumberAuxiliaryChains-1) << 3) | (uint64(t.Nonce) << (3 + nBits))
+
+	return merkleTreeData
+}
+
+func (t *Tag) MarshalBinary() (buf []byte, err error) {
+	merkleTreeData := t.MarshalTreeData()
 
 	buf = make([]byte, utils.UVarInt64Size(merkleTreeData)+types.HashSize)
 	n := binary.PutUvarint(buf, merkleTreeData)

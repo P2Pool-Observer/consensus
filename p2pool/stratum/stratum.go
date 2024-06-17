@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v3/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/block"
@@ -190,8 +191,8 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	if s.newTemplateData.ShareVersion < sidechain.ShareVersion_V2 {
 		return errors.New("unsupported sidechain version")
 	}
-	// no merge mining nor merkle proof support yet
-	if s.newTemplateData.ShareVersion > sidechain.ShareVersion_V2 {
+
+	if s.newTemplateData.ShareVersion > sidechain.ShareVersion_V3 {
 		return errors.New("unsupported sidechain version")
 	}
 
@@ -207,7 +208,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		}
 
 		//TODO: check this
-		if s.newTemplateData.TransactionPrivateKeySeed != oldSeed {
+		if s.newTemplateData.TransactionPrivateKeySeed != oldSeed || s.tip.Side.CoinbasePrivateKeySeed != oldSeed {
 			oldPubKeyCache = nil
 		}
 
@@ -291,7 +292,17 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 	s.newTemplateData.MaxRewardAmountsWeight = uint64(utils.UVarInt64SliceSize(rewards))
 
-	tx, err := s.createCoinbaseTransaction(fakeTemplateTipBlock.GetTransactionOutputType(), s.newTemplateData.Window.Shares, rewards, s.newTemplateData.MaxRewardAmountsWeight, false)
+	//TODO efficient, move elsewhere
+	nonce, ok := merge_mining.FindAuxiliaryNonce([]types.Hash{s.sidechain.Consensus().Id}, math.MaxUint32)
+	if !ok {
+		return errors.New("could not find nonce")
+	}
+	tag := merge_mining.Tag{
+		NumberAuxiliaryChains: 1,
+		Nonce:                 nonce,
+	}
+
+	tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), s.newTemplateData.Window.Shares, rewards, s.newTemplateData.MaxRewardAmountsWeight, false)
 	if err != nil {
 		return err
 	}
@@ -438,6 +449,7 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 				Height:                 s.newTemplateData.SideHeight,
 				Difficulty:             s.newTemplateData.Difficulty,
 				CumulativeDifficulty:   s.newTemplateData.CumulativeDifficulty,
+				MerkleProof:            nil,
 				ExtraBuffer: sidechain.SideDataExtraBuffer{
 					SoftwareId:          p2pooltypes.CurrentSoftwareId,
 					SoftwareVersion:     p2pooltypes.CurrentSoftwareVersion,
@@ -481,7 +493,17 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("could not calculate rewards")
 			}
 
-			if blockTemplate.Main.Coinbase, err = s.createCoinbaseTransaction(blockTemplate.GetTransactionOutputType(), shares, rewards, s.newTemplateData.MaxRewardAmountsWeight, true); err != nil {
+			//TODO efficient, move elsewhere
+			nonce, ok := merge_mining.FindAuxiliaryNonce([]types.Hash{s.sidechain.Consensus().Id}, math.MaxUint32)
+			if !ok {
+				return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("could not find nonce")
+			}
+			tag := merge_mining.Tag{
+				NumberAuxiliaryChains: 1,
+				Nonce:                 nonce,
+			}
+
+			if blockTemplate.Main.Coinbase, err = s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), blockTemplate.GetTransactionOutputType(), shares, rewards, s.newTemplateData.MaxRewardAmountsWeight, true); err != nil {
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, err
 			}
 		}
@@ -537,10 +559,31 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 	}
 }
 
-func (s *Server) createCoinbaseTransaction(txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (tx transaction.CoinbaseTransaction, err error) {
+func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, mergeMiningTreeData uint64, txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (tx transaction.CoinbaseTransaction, err error) {
 
-	//TODO: v3
-	mergeMineTag := slices.Clone(types.ZeroHash[:])
+	var mergeMineTag transaction.ExtraTag
+	if shareVersion <= sidechain.ShareVersion_V2 {
+		sidechainId := slices.Clone(types.ZeroHash[:])
+		mergeMineTag = transaction.ExtraTag{
+			Tag:       transaction.TxExtraTagMergeMining,
+			VarInt:    uint64(len(sidechainId)),
+			HasVarInt: true,
+			Data:      sidechainId,
+		}
+	} else if shareVersion == sidechain.ShareVersion_V3 {
+
+		data := make([]byte, utils.UVarInt64Size(mergeMiningTreeData)+types.HashSize)
+		binary.PutUvarint(data, mergeMiningTreeData)
+
+		mergeMineTag = transaction.ExtraTag{
+			Tag:       transaction.TxExtraTagMergeMining,
+			VarInt:    uint64(len(data)),
+			HasVarInt: true,
+			Data:      data,
+		}
+	} else {
+		return transaction.CoinbaseTransaction{}, errors.New("unsupported share version")
+	}
 
 	tx = transaction.CoinbaseTransaction{
 		Version:    2,
@@ -568,13 +611,7 @@ func (s *Server) createCoinbaseTransaction(txType uint8, shares sidechain.Shares
 				HasVarInt: true,
 				Data:      make(types.Bytes, sidechain.SideExtraNonceSize),
 			},
-			transaction.ExtraTag{
-				//TODO: fix this for V3
-				Tag:       transaction.TxExtraTagMergeMining,
-				VarInt:    uint64(len(mergeMineTag)),
-				HasVarInt: true,
-				Data:      mergeMineTag,
-			},
+			mergeMineTag,
 		},
 		ExtraBaseRCT: 0,
 	}
@@ -696,6 +733,7 @@ func (s *Server) HandleTip(tip *sidechain.PoolBlock) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 
+		//TODO: what if tip is lower???
 		if s.tip == nil || s.tip.Side.Height <= tip.Side.Height {
 			s.tip = tip
 			s.lastMempoolRefresh = time.Now()

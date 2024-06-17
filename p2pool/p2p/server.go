@@ -468,7 +468,7 @@ func (s *Server) GetCachedBlocksTip() (tip *sidechain.PoolBlock) {
 	defer s.cachedBlocksLock.RUnlock()
 
 	for _, b := range s.cachedBlocks {
-		if tip == nil || tip.Side.Height > b.Side.Height {
+		if tip == nil || tip.Side.Height < b.Side.Height || (tip.Side.Height == b.Side.Height && len(b.Side.Uncles) > len(tip.Side.Uncles)) {
 			tip = b
 		}
 	}

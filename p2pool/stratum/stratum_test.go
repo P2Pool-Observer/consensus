@@ -226,6 +226,113 @@ func TestStratumServer_GenesisV2(t *testing.T) {
 	if sideData.Difficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
 		t.Fatal()
 	}
+
+	hasher := crypto.GetKeccak256Hasher()
+	defer crypto.PutKeccak256Hasher(hasher)
+
+	var templateId types.Hash
+	tpl.TemplateId(hasher, nil, consensus, 0, 0, &templateId)
+	blockData := tpl.Blob(nil, 0, 0, 0, 0, templateId)
+	var b sidechain.PoolBlock
+	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.SideTemplateId(consensus) != templateId {
+		t.Fatalf("mismatched template id, got %s expected %s", b.SideTemplateId(consensus), templateId)
+	}
+}
+
+func TestStratumServer_GenesisV3(t *testing.T) {
+	consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 10, 100000, 100, 20)
+	consensus.HardForks = []monero.HardFork{
+		{uint8(sidechain.ShareVersion_V3), 0, 0, 0},
+	}
+
+	err := consensus.InitHasher(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer consensus.GetHasher().Close()
+
+	sideChain := sidechain.NewSideChain(sidechain.GetFakeTestServer(consensus))
+
+	stratumServer := NewServer(sideChain, submitBlockFunc)
+	minerData := getMinerData()
+	stratumServer.HandleMinerData(minerData)
+
+	func() {
+		//Process all incoming changes first
+		for {
+			select {
+			case f := <-stratumServer.incomingChanges:
+				if f() {
+					stratumServer.Update()
+				}
+			default:
+				return
+			}
+		}
+	}()
+
+	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(address.FromBase58(types.DonationAddress).ToPackedAddress(), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if seedHash != minerData.SeedHash {
+		t.Fatal()
+	}
+
+	if tpl.MainHeight != minerData.Height {
+		t.Fatal()
+	}
+
+	if tpl.MainParent != minerData.PrevId {
+		t.Fatal()
+	}
+
+	// verify genesis parameters
+	if tpl.SideHeight != 0 {
+		t.Fatal()
+	}
+
+	if tpl.SideParent != types.ZeroHash {
+		t.Fatal()
+	}
+
+	sideData, err := tpl.SideData(consensus)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sideData.CoinbasePrivateKeySeed != consensus.Id {
+		t.Fatal()
+	}
+
+	if sideData.CumulativeDifficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+
+	if sideData.Difficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+
+	hasher := crypto.GetKeccak256Hasher()
+	defer crypto.PutKeccak256Hasher(hasher)
+
+	var templateId types.Hash
+	tpl.TemplateId(hasher, nil, consensus, 0, 0, &templateId)
+	blockData := tpl.Blob(nil, 0, 0, 0, 0, templateId)
+	var b sidechain.PoolBlock
+	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.SideTemplateId(consensus) != templateId {
+		t.Fatalf("mismatched template id, got %s expected %s", b.SideTemplateId(consensus), templateId)
+	}
 }
 
 func BenchmarkServer_FillTemplate(b *testing.B) {

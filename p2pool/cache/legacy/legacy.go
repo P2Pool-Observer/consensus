@@ -73,8 +73,11 @@ func (c *Cache) LoadAll(l cache.Loadee) {
 		buf := make([]byte, 0, blockSize)
 
 		var blocksLoaded int
+		var highest uint64
+		var highestIndex int
+
 		for i := 0; i < NumBlocks; i++ {
-			storeIndex := (c.storeIndex.Add(1) % NumBlocks) * blockSize
+			storeIndex := i * blockSize
 
 			if _, err := c.f.ReadAt(blobLen[:], int64(storeIndex)); err != nil {
 				return
@@ -100,8 +103,15 @@ func (c *Cache) LoadAll(l cache.Loadee) {
 
 			l.AddCachedBlock(block)
 
+			if block.Side.Height > highest {
+				highest = block.Side.Height
+				highestIndex = i
+			}
+
 			blocksLoaded++
 		}
+
+		c.storeIndex.Store(uint32(highestIndex + 1))
 
 		utils.Logf("Cache", "Loaded %d cached blocks", blocksLoaded)
 	})

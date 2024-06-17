@@ -23,8 +23,8 @@ type Template struct {
 	// ExtraNonceOffset offset of an uint32
 	ExtraNonceOffset int
 
-	// TemplateIdOffset offset of a types.Hash
-	TemplateIdOffset int
+	// SidechainIdOffset offset of a types.Hash
+	SidechainIdOffset int
 
 	// TransactionsOffset Start of transactions section
 	TransactionsOffset int
@@ -69,7 +69,7 @@ func (tpl *Template) Write(writer io.Writer, nonce, extraNonce, sideRandomNumber
 	}
 
 	// write remaining main data, then write side data just before merge mining tag in coinbase
-	if _, err := writer.Write(tpl.Buffer[tpl.ExtraNonceOffset+4 : tpl.TemplateIdOffset]); err != nil {
+	if _, err := writer.Write(tpl.Buffer[tpl.ExtraNonceOffset+4 : tpl.SidechainIdOffset]); err != nil {
 		return err
 	}
 
@@ -79,7 +79,7 @@ func (tpl *Template) Write(writer io.Writer, nonce, extraNonce, sideRandomNumber
 	}
 
 	// write main data and side data up to the end of side data extra
-	if _, err := writer.Write(tpl.Buffer[tpl.TemplateIdOffset+types.HashSize : tpl.TemplateExtraBufferOffset+4*2]); err != nil {
+	if _, err := writer.Write(tpl.Buffer[tpl.SidechainIdOffset+types.HashSize : tpl.TemplateExtraBufferOffset+4*2]); err != nil {
 		return err
 	}
 
@@ -104,7 +104,7 @@ func (tpl *Template) Blob(preAllocatedBuffer []byte, nonce, extraNonce, sideRand
 	// Overwrite extra nonce
 	binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset:], extraNonce)
 	// Overwrite template id
-	copy(buf[tpl.TemplateIdOffset:], templateId[:])
+	copy(buf[tpl.SidechainIdOffset:], templateId[:])
 	// Overwrite sidechain random number
 	binary.LittleEndian.PutUint32(buf[tpl.TemplateExtraBufferOffset+4*2:], sideRandomNumber)
 	// Overwrite sidechain extra nonce number
@@ -158,7 +158,7 @@ func (tpl *Template) CoinbaseBlob(preAllocatedBuffer []byte, extraNonce uint32, 
 	// Overwrite extra nonce
 	binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset-tpl.CoinbaseOffset:], extraNonce)
 	// Overwrite template id
-	copy(buf[tpl.TemplateIdOffset-tpl.CoinbaseOffset:], templateId[:])
+	copy(buf[tpl.SidechainIdOffset-tpl.CoinbaseOffset:], templateId[:])
 
 	return buf
 }
@@ -182,11 +182,11 @@ func (tpl *Template) CoinbaseId(hasher *sha3.HasherState, extraNonce uint32, tem
 	binary.LittleEndian.PutUint32(extraNonceBuf[:], extraNonce)
 	_, _ = hasher.Write(extraNonceBuf[:])
 
-	_, _ = hasher.Write(tpl.Buffer[tpl.ExtraNonceOffset+4 : tpl.TemplateIdOffset])
+	_, _ = hasher.Write(tpl.Buffer[tpl.ExtraNonceOffset+4 : tpl.SidechainIdOffset])
 	// template id
 	_, _ = hasher.Write(templateId[:])
 
-	_, _ = hasher.Write(tpl.Buffer[tpl.TemplateIdOffset+types.HashSize : tpl.TransactionsOffset-1])
+	_, _ = hasher.Write(tpl.Buffer[tpl.SidechainIdOffset+types.HashSize : tpl.TransactionsOffset-1])
 
 	crypto.HashFastSum(hasher, (*result)[:])
 	hasher.Reset()
@@ -243,7 +243,7 @@ func (tpl *Template) HashingBlob(hasher *sha3.HasherState, preAllocatedBuffer []
 }
 
 func TemplateFromPoolBlock(b *sidechain.PoolBlock) (tpl *Template, err error) {
-	if b.ShareVersion() < sidechain.ShareVersion_V1 || b.ShareVersion() > sidechain.ShareVersion_V2 {
+	if b.ShareVersion() < sidechain.ShareVersion_V1 || b.ShareVersion() > sidechain.ShareVersion_V3 {
 		return nil, errors.New("unsupported share version")
 	}
 	totalLen := b.BufferLength()
@@ -256,6 +256,11 @@ func TemplateFromPoolBlock(b *sidechain.PoolBlock) (tpl *Template, err error) {
 		Buffer: buf,
 	}
 
+	const (
+		CoinbaseExtraNonceIndex       = 1
+		CoinbaseExtraMergeMiningIndex = 2
+	)
+
 	mainBufferLength := b.Main.BufferLength()
 	coinbaseLength := b.Main.Coinbase.BufferLength()
 	tpl.NonceOffset = mainBufferLength - (4 + coinbaseLength + utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions))
@@ -264,9 +269,14 @@ func TemplateFromPoolBlock(b *sidechain.PoolBlock) (tpl *Template, err error) {
 
 	tpl.TransactionsOffset = mainBufferLength - (utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions))
 
-	tpl.ExtraNonceOffset = tpl.NonceOffset + 4 + (coinbaseLength - (b.Main.Coinbase.Extra[1].BufferLength() + b.Main.Coinbase.Extra[2].BufferLength() + 1)) + 1 + utils.UVarInt64Size(b.Main.Coinbase.Extra[1].VarInt)
+	tpl.ExtraNonceOffset = tpl.NonceOffset + 4 + (coinbaseLength - (b.Main.Coinbase.Extra[CoinbaseExtraNonceIndex].BufferLength() + b.Main.Coinbase.Extra[CoinbaseExtraMergeMiningIndex].BufferLength() + 1)) + 1 + utils.UVarInt64Size(b.Main.Coinbase.Extra[CoinbaseExtraNonceIndex].VarInt)
 
-	tpl.TemplateIdOffset = tpl.NonceOffset + 4 + (coinbaseLength - (b.Main.Coinbase.Extra[2].BufferLength() + 1)) + 1 + utils.UVarInt64Size(b.Main.Coinbase.Extra[2].VarInt)
+	if b.ShareVersion() >= sidechain.ShareVersion_V3 {
+		tpl.SidechainIdOffset = tpl.NonceOffset + 4 + (coinbaseLength - 1 /*extra base rct*/ - types.HashSize)
+	} else {
+		tpl.SidechainIdOffset = tpl.NonceOffset + 4 + (coinbaseLength - (b.Main.Coinbase.Extra[CoinbaseExtraMergeMiningIndex].BufferLength() + 1)) + 1 + utils.UVarInt64Size(b.Main.Coinbase.Extra[CoinbaseExtraMergeMiningIndex].VarInt)
+	}
+
 	tpl.TemplateSideDataOffset = mainBufferLength
 	tpl.TemplateExtraBufferOffset = totalLen - 4*4
 
