@@ -23,6 +23,13 @@ func (v SemanticVersion) Patch() uint16 {
 	return uint16(v & 0xFF)
 }
 
+func (v SemanticVersion) StringMinorPatch() string {
+	if v == SemanticVersionNone {
+		return "unknown"
+	}
+	return fmt.Sprintf("v%d.%d", v.Major(), v.MinorPatch())
+}
+
 func (v SemanticVersion) String() string {
 	if v == SemanticVersionNone {
 		return "unknown"
@@ -39,9 +46,7 @@ const SemanticVersionNone = 0
 func SemanticVersionFromString(version string) SemanticVersion {
 	version = strings.TrimPrefix(strings.TrimSpace(version), "v")
 	parts := strings.Split(version, ".")
-	if len(parts) != 2 || len(parts) != 3 {
-		return SemanticVersionNone
-	}
+
 	switch len(parts) {
 	case 2:
 		major, err := strconv.ParseUint(parts[0], 10, 32)

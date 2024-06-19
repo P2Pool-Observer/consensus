@@ -256,6 +256,8 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 					return fmt.Errorf("duplicate or not ordered merge mining data chain id: %s > %s", b.MergeMiningExtra[i-1].ChainId, b.MergeMiningExtra[i].ChainId)
 				} else if mergeMiningExtraDataSize, err = binary.ReadUvarint(reader); err != nil {
 					return err
+				} else if mergeMiningExtraDataSize > PoolBlockMaxTemplateSize {
+					return fmt.Errorf("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, PoolBlockMaxTemplateSize)
 				} else if mergeMiningExtraDataSize > 0 {
 					b.MergeMiningExtra[i].Data = make(types.Bytes, mergeMiningExtraDataSize)
 					if _, err = io.ReadFull(reader, b.MergeMiningExtra[i].Data); err != nil {

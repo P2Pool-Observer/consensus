@@ -82,7 +82,7 @@ func (v ProtocolVersion) Minor() uint16 {
 }
 
 func (v ProtocolVersion) String() string {
-	return SemanticVersion(v).String()
+	return SemanticVersion(v).StringMinorPatch()
 }
 
 const (
@@ -115,7 +115,7 @@ func (v SoftwareVersion) SoftwareAwareString(id SoftwareId) string {
 	switch id {
 	case SoftwareIdP2Pool, SoftwareIdGoObserver:
 		if v.Major() < 3 || (v.Major() == 3 && v.MinorPatch() <= 10) {
-			return fmt.Sprintf("v%d.%d", v.Major(), v.MinorPatch())
+			return SemanticVersion(v).StringMinorPatch()
 		}
 	}
 	return SemanticVersion(v).String()

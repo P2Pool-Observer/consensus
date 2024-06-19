@@ -13,6 +13,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v3/monero/transaction"
 	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/crypto"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/types"
 	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -267,6 +268,14 @@ func (b *PoolBlock) ShareVersionSignaling() ShareVersion {
 	if b.ShareVersion() == ShareVersion_V1 && (b.ExtraNonce()&0xFF000000 == 0xFF000000) {
 		return ShareVersion_V2
 	}
+
+	// Implicit signaling based on share software id and version
+	if b.ShareVersion() == ShareVersion_V2 &&
+		((b.Side.ExtraBuffer.SoftwareId == p2pooltypes.SoftwareIdP2Pool && b.Side.ExtraBuffer.SoftwareVersion.Major() >= 4) ||
+			(b.Side.ExtraBuffer.SoftwareId == p2pooltypes.SoftwareIdGoObserver && b.Side.ExtraBuffer.SoftwareVersion.Major() >= 4)) {
+		return ShareVersion_V3
+	}
+
 	return ShareVersion_None
 }
 
