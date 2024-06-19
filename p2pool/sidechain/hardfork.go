@@ -2,7 +2,7 @@ package sidechain
 
 import (
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 )
 
 // List of historical hardforks that p2pool networks went through

@@ -1,6 +1,6 @@
 package stratum
 
-import "git.gammaspectra.live/P2Pool/consensus/v3/types"
+import "git.gammaspectra.live/P2Pool/consensus/v4/types"
 
 type JsonRpcMessage struct {
 	// Id set by client

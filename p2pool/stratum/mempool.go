@@ -1,8 +1,8 @@
 package stratum
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"github.com/dolthub/swiss"
 	"time"
 )

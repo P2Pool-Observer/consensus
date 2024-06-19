@@ -5,10 +5,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
-	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"io"
 )
 

@@ -3,8 +3,8 @@ package address
 import (
 	"bytes"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 	"slices"
 )

@@ -1,7 +1,7 @@
 package crypto
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	fasthex "github.com/tmthrgd/go-hex"
 	"os"
 	"path"

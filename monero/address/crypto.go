@@ -2,9 +2,9 @@ package address
 
 import (
 	"encoding/binary"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
-	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v3/p2pool/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 	"git.gammaspectra.live/P2Pool/sha3"

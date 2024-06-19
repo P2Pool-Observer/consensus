@@ -5,8 +5,8 @@ package randomx
 import (
 	"bytes"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
-	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/go-randomx/v3"
 	fasthex "github.com/tmthrgd/go-hex"
 	"runtime"

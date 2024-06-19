@@ -2,9 +2,9 @@ package legacy
 
 import (
 	"encoding/binary"
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/cache"
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/sidechain"
-	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/cache"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"io"
 	"os"
 	"sync"

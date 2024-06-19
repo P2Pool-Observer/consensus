@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	fasthex "github.com/tmthrgd/go-hex"
 	"io"
 	"lukechampine.com/uint128"

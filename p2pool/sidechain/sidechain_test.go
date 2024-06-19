@@ -2,9 +2,9 @@ package sidechain
 
 import (
 	"compress/gzip"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
-	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"io"
 	"os"
 	"path"

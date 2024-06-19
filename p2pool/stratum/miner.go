@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	fasthex "github.com/tmthrgd/go-hex"
 	"sync"
 	"sync/atomic"

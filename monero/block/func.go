@@ -1,7 +1,7 @@
 package block
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 )
 
 type GetDifficultyByHeightFunc func(height uint64) types.Difficulty

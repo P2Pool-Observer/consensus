@@ -2,9 +2,9 @@ package stratum
 
 import (
 	"bytes"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/sidechain"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	fasthex "github.com/tmthrgd/go-hex"
 	unsafeRandom "math/rand/v2"
 	"testing"

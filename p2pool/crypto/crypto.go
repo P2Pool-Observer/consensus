@@ -1,8 +1,8 @@
 package crypto
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 )
 
 var transactionPrivateKeySeedDomain = append([]byte("tx_key_seed"), 0)

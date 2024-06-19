@@ -1,7 +1,7 @@
 package stratum
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/sidechain"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	"slices"
 	"testing"
 )

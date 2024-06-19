@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/rpc"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/rpc/daemon"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/rpc"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/rpc/daemon"
 )
 
 // nolint

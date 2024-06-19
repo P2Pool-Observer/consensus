@@ -3,14 +3,14 @@ package rpc_test
 import (
 	"context"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/rpc"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/rpc"
 )
 
 func assertError(t *testing.T, err error, msgAndArgs ...any) {

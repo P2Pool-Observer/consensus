@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
-	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"slices"
 	"strings"
 

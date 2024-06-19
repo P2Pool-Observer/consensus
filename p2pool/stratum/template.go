@@ -3,11 +3,11 @@ package stratum
 import (
 	"encoding/binary"
 	"errors"
-	mainblock "git.gammaspectra.live/P2Pool/consensus/v3/monero/block"
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/sidechain"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
-	"git.gammaspectra.live/P2Pool/consensus/v3/utils"
+	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
 	"io"
 )

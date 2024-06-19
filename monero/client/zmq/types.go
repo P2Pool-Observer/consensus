@@ -1,9 +1,9 @@
 package zmq
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 )
 
 type Topic string

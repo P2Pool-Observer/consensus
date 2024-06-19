@@ -1,8 +1,8 @@
 package daemon
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v3/p2pool/mempool"
-	"git.gammaspectra.live/P2Pool/consensus/v3/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 )
 
 // RPCResultFooter contains the set of fields that every RPC result message

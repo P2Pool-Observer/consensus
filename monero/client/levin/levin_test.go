@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"git.gammaspectra.live/P2Pool/consensus/v3/monero/client/levin"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/levin"
 )
 
 func assertNoError(t *testing.T, err error, msgAndArgs ...any) {
