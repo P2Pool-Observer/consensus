@@ -12,8 +12,8 @@ var p2poolMainNetHardForks = []monero.HardFork{
 	{uint8(ShareVersion_V1), 0, 0, 0},
 	// p2pool hardforks at 2023-03-18 21:00 UTC
 	{uint8(ShareVersion_V2), 0, 0, 1679173200},
-	// tentative Jul 01 2024 00:00:00 GMT+0000
-	//{uint8(ShareVersion_V3), 0, 0, 1719792000},
+	// Oct 12 2024 20:00:00 GMT+0000
+	{uint8(ShareVersion_V3), 0, 0, 1728763200},
 }
 
 var p2poolTestNetHardForks = []monero.HardFork{
@@ -54,7 +54,7 @@ const (
 	// ShareVersion_V2 Introduced in P2Pool v3.0+
 	ShareVersion_V2
 
-	// ShareVersion_V3 Tentative future version with merge mining support
+	// ShareVersion_V3 Introduced in P2Pool v4.0+ with merge mining support
 	ShareVersion_V3
 )
 
