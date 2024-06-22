@@ -96,11 +96,14 @@ P2Pool could fail to sync if uncles of depth 3 were present at a certain depth i
 
 
 
-## (Future) P2Pool vX.X (merge-mining branch)
+## P2Pool v4.0+
 
-Version v3.0 implemented hard fork changes to allow merge mining via P2Pool.
+Version v4.0 implemented hard fork changes to allow merge mining via P2Pool.
 
 * Merge mining tag was [previously encoded wrongly](https://github.com/SChernykh/p2pool/issues/249). This has now been fixed.
 * Merge mining tag now includes the root hash of the merge mining tree.
 * Side data contains the merkle proof to verify the template id is included under the root hash of the tree.
+* Side data also has a vector of chain id and arbitrary data pairs for any necessary data to be included for other chains in-template, for future proofing.
 * On pruned blocks, template id is included within the coinbase transaction pruned data.
+* The Monero block major/minor version is encoded as a varint, but their values cannot exceed 256. P2Pool encoded these always as bytes. A check was added now to prevent any minor versions greater than 128 being encoded. 
+* Side difficulty and side height now have limits to prevent overflows.
