@@ -8,7 +8,7 @@ import (
 )
 
 func (p PackedAddress) String() string {
-	return p.ToBase58(PackedAddressGlobalNetwork)
+	return string(p.ToBase58(PackedAddressGlobalNetwork))
 }
 
 func (p PackedAddress) MarshalJSON() ([]byte, error) {
