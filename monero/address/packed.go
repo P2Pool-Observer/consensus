@@ -1,10 +1,13 @@
 package address
 
 import (
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 	"unsafe"
 )
+
+var PackedAddressGlobalNetwork uint8 = monero.MainNetwork
 
 const PackedAddressSpend = 0
 const PackedAddressView = 1
