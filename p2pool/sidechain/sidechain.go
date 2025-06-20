@@ -864,7 +864,7 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 				}
 			}
 
-			if ix := slices.Index(child.Side.Uncles, block.SideTemplateId(c.Consensus())); ix != 1 {
+			if slices.Contains(child.Side.Uncles, block.SideTemplateId(c.Consensus())) {
 				updateDepth(block, child.Depth.Load()+1)
 			}
 		}
