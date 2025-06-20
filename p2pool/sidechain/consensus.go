@@ -246,8 +246,14 @@ func (c *Consensus) IsMini() bool {
 	return c.Id == ConsensusMini.Id
 }
 
+func (c *Consensus) IsNano() bool {
+	return c.Id == ConsensusNano.Id
+}
+
 func (c *Consensus) DefaultPort() uint16 {
-	if c.IsMini() {
+	if c.IsNano() {
+		return 37890
+	} else if c.IsMini() {
 		return 37888
 	}
 	return 37889
@@ -261,10 +267,12 @@ func (c *Consensus) SeedNode() string {
 }
 
 func (c *Consensus) SeedNodes() []string {
-	if c.IsMini() {
-		return []string{"seeds-mini.p2pool.io", "main.p2poolpeers.net", "main.gupax.io"}
+	if c.IsNano() {
+		return []string{"seeds-nano.p2pool.io", "nano.p2poolpeers.net", "nano.gupax.io"}
+	} else if c.IsMini() {
+		return []string{"seeds-mini.p2pool.io", "mini.p2poolpeers.net", "mini.gupax.io"}
 	} else if c.IsDefault() {
-		return []string{"seeds.p2pool.io", "mini.p2poolpeers.net", "mini.gupax.io"}
+		return []string{"seeds.p2pool.io", "main.p2poolpeers.net", "main.gupax.io"}
 	}
 	return nil
 }
@@ -339,4 +347,15 @@ var ConsensusMini = &Consensus{
 	UnclePenalty:      20,
 	HardForks:         p2poolMainNetHardForks,
 	Id:                types.Hash{57, 130, 201, 26, 149, 174, 199, 250, 66, 80, 189, 18, 108, 216, 194, 220, 136, 23, 63, 24, 64, 113, 221, 44, 219, 86, 39, 163, 53, 24, 126, 196},
+}
+
+var ConsensusNano = &Consensus{
+	NetworkType:       NetworkMainnet,
+	PoolName:          "nano",
+	TargetBlockTime:   30,
+	MinimumDifficulty: 100000,
+	ChainWindowSize:   2160,
+	UnclePenalty:      10,
+	HardForks:         p2poolMainNetHardForks,
+	Id:                types.Hash{171, 248, 206, 148, 210, 226, 114, 99, 250, 145, 221, 96, 13, 216, 23, 63, 104, 53, 129, 168, 244, 80, 141, 138, 157, 250, 50, 54, 37, 189, 5, 89},
 }

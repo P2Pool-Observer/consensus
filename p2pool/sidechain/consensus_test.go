@@ -6,7 +6,12 @@ import (
 )
 
 func TestDefaultConsensusId(t *testing.T) {
-	id := ConsensusMini.CalculateId()
+	id := ConsensusNano.CalculateId()
+	if id != ConsensusNano.Id {
+		t.Fatalf("wrong nano sidechain id, expected %s, got %s", ConsensusNano.Id.String(), id.String())
+	}
+
+	id = ConsensusMini.CalculateId()
 	if id != ConsensusMini.Id {
 		t.Fatalf("wrong mini sidechain id, expected %s, got %s", ConsensusMini.Id.String(), id.String())
 	}

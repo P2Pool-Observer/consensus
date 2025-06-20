@@ -45,6 +45,7 @@ func init() {
 
 	_ = sidechain.ConsensusDefault.InitHasher(2)
 	_ = sidechain.ConsensusMini.InitHasher(2)
+	_ = sidechain.ConsensusNano.InitHasher(2)
 	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
 }
 
