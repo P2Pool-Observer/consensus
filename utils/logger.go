@@ -74,6 +74,10 @@ func Noticef(prefix, format string, v ...any) {
 	innerPrint(prefix, "NOTICE", fmt.Sprintf(format, v...))
 }
 
+func IsLogLevelDebug() bool {
+	return GlobalLogLevel&LogLevelDebug > 0
+}
+
 func Debugf(prefix, format string, v ...any) {
 	if GlobalLogLevel&LogLevelDebug == 0 {
 		return

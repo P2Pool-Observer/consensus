@@ -46,6 +46,7 @@ func testSideChain(s *SideChain, t *testing.T, reader io.Reader, sideHeight, mai
 	tip := s.GetChainTip()
 
 	if tip == nil {
+		s.GetPoolBlockByTemplateId(types.MustHashFromString("2fd0b1cdd9735f8c908b18ae77ce0228feacce280dfbd9b92ed0c06790e39b63"))
 		t.Fatal()
 	}
 

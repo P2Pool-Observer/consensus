@@ -545,7 +545,10 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 				err = invalid
 			}
 		} else if verification != nil {
-			//utils.Logf("SideChain", "can't verify block at height = %d, id = %s, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideIdentifierHash(c.Consensus()), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(), verification.Error())
+			// specific check here to prevent format calls
+			if utils.IsLogLevelDebug() {
+				utils.Debugf("SideChain", "can't verify block at height = %d, id = %s, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideTemplateId(c.Consensus()), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), verification.Error())
+			}
 			block.Verified.Store(false)
 			block.Invalid.Store(false)
 		} else {
@@ -852,9 +855,9 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 		}
 	}
 
+	// Walk blocks upward from current block to find parent/tip for this block to set depth
 	for i := uint64(1); i <= UncleBlockDepth; i++ {
-		blocksAtHeight, _ := c.blocksByHeight.Get(block.Side.Height + i)
-		for _, child := range blocksAtHeight {
+		for _, child := range c.getPoolBlocksByHeight(block.Side.Height + i) {
 			if child.Side.Parent == block.SideTemplateId(c.Consensus()) {
 				if i != 1 {
 					utils.Logf("SideChain", "Block %s side height %d is inconsistent with child's side_height %d", block.SideTemplateId(c.Consensus()), block.Side.Height, child.Side.Height)
@@ -874,16 +877,16 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 	blocksToUpdate[0] = block
 
 	for len(blocksToUpdate) != 0 {
+		// take last element
 		block = blocksToUpdate[len(blocksToUpdate)-1]
 		blocksToUpdate = blocksToUpdate[:len(blocksToUpdate)-1]
 
-		blockDepth := block.Depth.Load()
-
 		// Verify this block and possibly other blocks on top of it when we're sure it will get verified
-		if !block.Verified.Load() && (blockDepth > ((c.Consensus().ChainWindowSize-1)*2+UncleBlockDepth) || block.Side.Height == 0) {
+		if !block.Verified.Load() && (block.Depth.Load() > ((c.Consensus().ChainWindowSize-1)*2+UncleBlockDepth) || block.Side.Height == 0) {
 			_ = c.verifyLoop(block)
 		}
 
+		// Walk blocks upward from current block to update children
 		for i := uint64(1); i <= UncleBlockDepth; i++ {
 			for _, child := range c.getPoolBlocksByHeight(block.Side.Height + i) {
 				oldDepth := child.Depth.Load()
@@ -892,14 +895,14 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 					if i != 1 {
 						utils.Logf("SideChain", "Block %s side height %d is inconsistent with child's side_height %d", block.SideTemplateId(c.Consensus()), block.Side.Height, child.Side.Height)
 						return
-					} else if blockDepth > 0 {
-						updateDepth(child, blockDepth-1)
+					} else if block.Depth.Load() > 0 {
+						updateDepth(child, block.Depth.Load()-1)
 					}
 				}
 
 				if slices.Contains(child.Side.Uncles, block.SideTemplateId(c.Consensus())) {
-					if blockDepth > i {
-						updateDepth(child, blockDepth-i)
+					if block.Depth.Load() > i {
+						updateDepth(child, block.Depth.Load()-i)
 					}
 				}
 
@@ -909,14 +912,15 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 			}
 		}
 
+		// walk backwards to parent
 		if parent := block.iteratorGetParent(c.getPoolBlockByTemplateId); parent != nil {
 			if parent.Side.Height+1 != block.Side.Height {
 				utils.Logf("SideChain", "Block %s side height %d is inconsistent with parent's side_height %d", block.SideTemplateId(c.Consensus()), block.Side.Height, parent.Side.Height)
 				return
 			}
 
-			if parent.Depth.Load() < blockDepth+1 {
-				updateDepth(parent, blockDepth+1)
+			if parent.Depth.Load() < block.Depth.Load()+1 {
+				updateDepth(parent, block.Depth.Load()+1)
 				blocksToUpdate = append(blocksToUpdate, parent)
 			}
 		}
@@ -931,8 +935,8 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 			}
 
 			d := block.Side.Height - uncle.Side.Height
-			if uncle.Depth.Load() < blockDepth+d {
-				updateDepth(uncle, blockDepth+d)
+			if uncle.Depth.Load() < block.Depth.Load()+d {
+				updateDepth(uncle, block.Depth.Load()+d)
 				blocksToUpdate = append(blocksToUpdate, uncle)
 			}
 		})

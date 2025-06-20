@@ -107,3 +107,7 @@ Version v4.0 implemented hard fork changes to allow merge mining via P2Pool.
 * On pruned blocks, template id is included within the coinbase transaction pruned data.
 * The Monero block major/minor version is encoded as a varint, but their values cannot exceed 256. P2Pool encoded these always as bytes. A check was added now to prevent any minor versions greater than 128 being encoded. 
 * Side difficulty and side height now have limits to prevent overflows.
+
+### P2Pool v4.9+
+
+P2Pool could fail to sync if a certain order of blocks was received. Fixed in [b49808 SideChain: fixed a synchronization blocker bug](https://github.com/SChernykh/p2pool/commit/c421324b7362f118be17e4688922f7fc472f35af)

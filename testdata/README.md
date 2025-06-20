@@ -20,10 +20,13 @@ Due to a bug before commit on [P2Pool b498084388](https://github.com/SChernykh/p
 
 These blocks are included as `old_sidechain_dump_mini_2420027.dat` and `old_sidechain_dump_mini_2420028.dat` as obtained from Observer, and are required to do proper sync.
 
-### _v2_mainnet_test2_block.dat_
+### _v1_mainnet_test2_block.dat_
 Dump of the block height [53450](https://p2pool.observer/share/53450) from P2Pool Main.
 
 This was done before P2Pool v2 hardfork.
+
+### _v2_crypto_tests.txt_
+Several cryptography tests to verify derivations and transaction key generation
 
 ### _v2_sidechain_dump.dat.gz_
 Dump of the blocks from P2Pool Main, including heights [4952872](https://p2pool.observer/share/4952872) to [4957203](https://p2pool.observer/share/4957203).
@@ -40,5 +43,20 @@ Dump of the block height [4674483](https://p2pool.observer/share/4674483) from P
 
 This was done after P2Pool v2 hardfork.
 
-### _v2_crypto_tests.txt_
-Several cryptography tests to verify derivations and transaction key generation
+### _v4_sidechain_dump.dat.gz_
+Dump of the blocks from P2Pool Main, including heights [-](https://p2pool.observer/share/-) to [9443762](https://p2pool.observer/share/9443762).
+
+This was done after P2Pool v4 hardfork and is compressed.
+
+### _v4_sidechain_dump_mini.dat.gz_
+Dump of the blocks from P2Pool Mini, including heights [-](https://mini.p2pool.observer/share/-) to [8912067](https://mini.p2pool.observer/share/8912067).
+
+This was done after P2Pool v4 hardfork and is compressed.
+
+### _v4_sidechain_dump_nano.dat.gz_
+Dump of the blocks from P2Pool Nano, including heights [-](https://mini.p2pool.observer/share/-) to [116651](https://nano.p2pool.observer/share/116651).
+
+### _v4_block.dat_
+Dump of the block height [9443384](https://p2pool.observer/share/9443384) from P2Pool Main.
+
+This was done after P2Pool v4 hardfork.
