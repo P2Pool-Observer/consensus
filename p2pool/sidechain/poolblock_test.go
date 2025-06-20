@@ -41,6 +41,7 @@ func testPoolBlock(b *PoolBlock, t *testing.T, expectedBufferLength int, majorVe
 	}
 
 	if b.SideTemplateId(ConsensusDefault) != templateId {
+		t.Logf("%s != %s", b.SideTemplateId(ConsensusDefault), templateId)
 		t.Fatal()
 	}
 
@@ -50,6 +51,7 @@ func testPoolBlock(b *PoolBlock, t *testing.T, expectedBufferLength int, majorVe
 	}
 
 	if b.MainId() != mainId {
+		t.Logf("%s != %s", b.MainId(), mainId)
 		t.Fatal()
 	}
 
@@ -106,9 +108,35 @@ func TestPoolBlockMetadata(t *testing.T) {
 	}
 }
 
-func TestPoolBlockDecode(t *testing.T) {
+func TestPoolBlockDecodeV4(t *testing.T) {
 
-	if buf, err := os.ReadFile("testdata/block.dat"); err != nil {
+	if buf, err := os.ReadFile("testdata/v4_block.dat"); err != nil {
+		t.Fatal(err)
+	} else {
+		b := &PoolBlock{}
+		if err = b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
+			t.Fatal(err)
+		}
+
+		testPoolBlock(b, t,
+			1829,
+			16,
+			16,
+			9443384,
+			352454720,
+			types.MustHashFromString("53041164e1b220246b06037a25ee200f35d6c8d1f4086a8f04f558b16e23c5aa"),
+			types.MustHashFromString("d2d9fe65331cc2194f486f77bec9a898564fbd1522e6f8bc0254d6bcc578b7ea"),
+			types.MustHashFromString("0906c001cc0900098fe1b62593f8ba52bd1ae2a0806096aa361a9f1702000000"),
+			types.MustHashFromString("3351277ffdfc4ed2321f148b061d27013ea696c4bff9742dd2c6268aa24ec79f"),
+			types.MustHashFromString("60d8a8ecc49d9801dde848e74b4089c3f1fbb57c043fd8083aae357ac6868eae"),
+			crypto.PrivateKeyBytes(types.MustHashFromString("aa2d1b60be7daafd95985c0a6c859f5dd1c7dbe8540dd56d015d2aec9d4f6f0c")),
+		)
+	}
+}
+
+func TestPoolBlockDecodeV2(t *testing.T) {
+
+	if buf, err := os.ReadFile("testdata/v2_block.dat"); err != nil {
 		t.Fatal(err)
 	} else {
 		b := &PoolBlock{}
@@ -132,9 +160,9 @@ func TestPoolBlockDecode(t *testing.T) {
 	}
 }
 
-func TestPoolBlockDecodePreFork(t *testing.T) {
+func TestPoolBlockDecodeV1(t *testing.T) {
 
-	if buf, err := os.ReadFile("testdata/old_mainnet_test2_block.dat"); err != nil {
+	if buf, err := os.ReadFile("testdata/v1_mainnet_test2_block.dat"); err != nil {
 		t.Fatal(err)
 	} else {
 		b := &PoolBlock{}

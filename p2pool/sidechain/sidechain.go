@@ -309,7 +309,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 			return nil, fmt.Errorf("invalid template id %s, expected %s", block.FastSideTemplateId(c.Consensus()), templateId), true
 		}
 
-		//verify template id against merkle proof
+		// verify template id against merkle proof
 		mmTag := block.MergeMiningTag()
 		auxiliarySlot := merge_mining.GetAuxiliarySlot(c.Consensus().Id, mmTag.Nonce, mmTag.NumberAuxiliaryChains)
 

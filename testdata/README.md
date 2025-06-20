@@ -6,12 +6,12 @@ File checksums generated via `$ sha256sum --check *.dat *.gz *.txt` are stored u
 
 ## Sidechain dumps
 
-### _old_sidechain_dump.dat_
+### _v1_sidechain_dump.dat_
 Dump of the blocks from P2Pool Main, including heights [4952872](https://p2pool.observer/share/4952872) to [522805](https://p2pool.observer/share/522805).
 
 This was done before P2Pool v2 hardfork and is not compressed.
 
-### _old_sidechain_dump_mini.dat_
+### _v1_sidechain_dump_mini.dat_
 Dump of the blocks from P2Pool Mini, including heights [2420029](https://mini.p2pool.observer/share/2420029) to [2424349](https://mini.p2pool.observer/share/2424349).
 
 This was done before P2Pool v2 hardfork and is not compressed.
@@ -20,25 +20,25 @@ Due to a bug before commit on [P2Pool b498084388](https://github.com/SChernykh/p
 
 These blocks are included as `old_sidechain_dump_mini_2420027.dat` and `old_sidechain_dump_mini_2420028.dat` as obtained from Observer, and are required to do proper sync.
 
-### _sidechain_dump.dat.gz_
-Dump of the blocks from P2Pool Main, including heights [4952872](https://p2pool.observer/share/4952872) to [4957203](https://p2pool.observer/share/4957203).
-
-This was done after P2Pool v2 hardfork and is compressed.
-
-### _sidechain_dump_mini.dat.gz_
-Dump of the blocks from P2Pool Mini, including heights [4410115](https://mini.p2pool.observer/share/4410115) to [4414446](https://mini.p2pool.observer/share/4414446).
-
-This was done after P2Pool v2 hardfork and is compressed.
-
-### _block.dat_
-Dump of the block height [4674483](https://p2pool.observer/share/4674483) from P2Pool Main.
-
-This was done after P2Pool v2 hardfork.
-
-### _mainnet_test2_block.dat_
+### _v2_mainnet_test2_block.dat_
 Dump of the block height [53450](https://p2pool.observer/share/53450) from P2Pool Main.
 
 This was done before P2Pool v2 hardfork.
 
-### _crypto_tests.txt_
+### _v2_sidechain_dump.dat.gz_
+Dump of the blocks from P2Pool Main, including heights [4952872](https://p2pool.observer/share/4952872) to [4957203](https://p2pool.observer/share/4957203).
+
+This was done after P2Pool v2 hardfork and is compressed.
+
+### _v2_sidechain_dump_mini.dat.gz_
+Dump of the blocks from P2Pool Mini, including heights [4410115](https://mini.p2pool.observer/share/4410115) to [4414446](https://mini.p2pool.observer/share/4414446).
+
+This was done after P2Pool v2 hardfork and is compressed.
+
+### _v2_block.dat_
+Dump of the block height [4674483](https://p2pool.observer/share/4674483) from P2Pool Main.
+
+This was done after P2Pool v2 hardfork.
+
+### _v2_crypto_tests.txt_
 Several cryptography tests to verify derivations and transaction key generation

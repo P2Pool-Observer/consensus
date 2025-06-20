@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	utils.GlobalLogLevel = 0
+	utils.GlobalLogLevel = utils.LogLevelInfo | utils.LogLevelError | utils.LogLevelNotice
 
 	_, filename, _, _ := runtime.Caller(0)
 	// The ".." may change depending on you folder structure
@@ -26,6 +26,7 @@ func init() {
 
 	_ = ConsensusDefault.InitHasher(2)
 	_ = ConsensusMini.InitHasher(2)
+	_ = ConsensusNano.InitHasher(2)
 	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
 }
 
@@ -85,11 +86,30 @@ func testSideChain(s *SideChain, t *testing.T, reader io.Reader, sideHeight, mai
 	t.Logf("PubKeyToPoint Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
 }
 
-func TestSideChainDefault(t *testing.T) {
+func TestSideChainDefaultV4(t *testing.T) {
 
 	s := NewSideChain(GetFakeTestServer(ConsensusDefault))
 
-	f, err := os.Open("testdata/sidechain_dump.dat.gz")
+	f, err := os.Open("testdata/v4_sidechain_dump.dat.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	r, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	testSideChain(s, t, r, 9443762, 3258121)
+}
+
+func TestSideChainDefaultV2(t *testing.T) {
+
+	s := NewSideChain(GetFakeTestServer(ConsensusDefault))
+
+	f, err := os.Open("testdata/v2_sidechain_dump.dat.gz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,11 +124,11 @@ func TestSideChainDefault(t *testing.T) {
 	testSideChain(s, t, r, 4957203, 2870010)
 }
 
-func TestSideChainDefaultPreFork(t *testing.T) {
+func TestSideChainDefaultV1(t *testing.T) {
 
 	s := NewSideChain(GetFakeTestServer(ConsensusDefault))
 
-	f, err := os.Open("testdata/old_sidechain_dump.dat")
+	f, err := os.Open("testdata/v1_sidechain_dump.dat")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,11 +137,30 @@ func TestSideChainDefaultPreFork(t *testing.T) {
 	testSideChain(s, t, f, 522805, 2483901)
 }
 
-func TestSideChainMini(t *testing.T) {
+func TestSideChainMiniV4(t *testing.T) {
 
 	s := NewSideChain(GetFakeTestServer(ConsensusMini))
 
-	f, err := os.Open("testdata/sidechain_dump_mini.dat.gz")
+	f, err := os.Open("testdata/v4_sidechain_dump_mini.dat.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	r, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	testSideChain(s, t, r, 8912067, 3258121)
+}
+
+func TestSideChainMiniV2(t *testing.T) {
+
+	s := NewSideChain(GetFakeTestServer(ConsensusMini))
+
+	f, err := os.Open("testdata/v2_sidechain_dump_mini.dat.gz")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,28 +175,47 @@ func TestSideChainMini(t *testing.T) {
 	testSideChain(s, t, r, 4414446, 2870010)
 }
 
-func TestSideChainMiniPreFork(t *testing.T) {
+func TestSideChainMiniV1(t *testing.T) {
 
 	s := NewSideChain(GetFakeTestServer(ConsensusMini))
 
-	f, err := os.Open("testdata/old_sidechain_dump_mini.dat")
+	f, err := os.Open("testdata/v1_sidechain_dump_mini.dat")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer f.Close()
 
 	//patch in missing blocks that are needed to newer reach sync range
-	block2420028, err := os.ReadFile("testdata/old_sidechain_dump_mini_2420028.dat")
+	block2420028, err := os.ReadFile("testdata/v1_sidechain_dump_mini_2420028.dat")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	block2420027, err := os.ReadFile("testdata/old_sidechain_dump_mini_2420027.dat")
+	block2420027, err := os.ReadFile("testdata/v1_sidechain_dump_mini_2420027.dat")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	testSideChain(s, t, f, 2424349, 2696040, block2420028, block2420027)
+}
+
+func TestSideChainNanoV4(t *testing.T) {
+
+	s := NewSideChain(GetFakeTestServer(ConsensusNano))
+
+	f, err := os.Open("testdata/v4_sidechain_dump_nano.dat.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	r, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+
+	testSideChain(s, t, r, 116651, 3438036)
 }
 
 func benchmarkResetState(tip, parent *PoolBlock, templateId, merkleRoot types.Hash, fullId FullId, difficulty types.Difficulty, blocksByHeightKeys []uint64, s *SideChain) {

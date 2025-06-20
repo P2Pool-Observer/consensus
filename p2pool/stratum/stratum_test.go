@@ -71,7 +71,7 @@ func getMinerData() *p2pooltypes.MinerData {
 func TestMain(m *testing.M) {
 	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
 
-	if buf, err := os.ReadFile("testdata/block.dat"); err != nil {
+	if buf, err := os.ReadFile("testdata/v4_block.dat"); err != nil {
 		panic(err)
 	} else {
 		preLoadedPoolBlock = &sidechain.PoolBlock{}
@@ -84,7 +84,7 @@ func TestMain(m *testing.M) {
 
 	preLoadedMiniSideChain = sidechain.NewSideChain(sidechain.GetFakeTestServer(sidechain.ConsensusMini))
 
-	f, err := os.Open("testdata/sidechain_dump_mini.dat.gz")
+	f, err := os.Open("testdata/v4_sidechain_dump_mini.dat.gz")
 	if err != nil {
 		panic(err)
 	}
