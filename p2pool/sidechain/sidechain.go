@@ -610,8 +610,26 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 
 			// Try to verify blocks on top of this one
 			for i := uint64(1); i <= UncleBlockDepth; i++ {
-				blocksAtHeight, _ := c.blocksByHeight.Get(block.Side.Height + i)
-				blocksToVerify = append(blocksToVerify, blocksAtHeight...)
+				for _, b := range c.getPoolBlocksByHeight(block.Side.Height + i) {
+					if i == 1 && b.Side.Parent == block.SideTemplateId(c.Consensus()) {
+						// Update depth if needed
+						if b.Depth.Load()+1 < block.Depth.Load() {
+							b.Depth.Store(block.Depth.Load() - 1)
+						}
+						blocksToVerify = append(blocksToVerify, b)
+					} else {
+						for _, uncleHash := range b.Side.Uncles {
+							if uncleHash == block.SideTemplateId(c.Consensus()) {
+								// Update depth if needed
+								if b.Depth.Load()+i < block.Depth.Load() {
+									b.Depth.Store(block.Depth.Load() - i)
+								}
+								blocksToVerify = append(blocksToVerify, b)
+								break
+							}
+						}
+					}
+				}
 			}
 		}
 	}
