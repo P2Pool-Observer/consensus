@@ -309,7 +309,7 @@ func TestMain(m *testing.M) {
 	if isBenchmark {
 		benchLoadedSideChain = NewSideChain(GetFakeTestServer(ConsensusDefault))
 
-		f, err := os.Open("testdata/sidechain_dump.dat.gz")
+		f, err := os.Open("testdata/v2_sidechain_dump.dat.gz")
 		if err != nil {
 			panic(err)
 		}

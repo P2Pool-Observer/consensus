@@ -38,7 +38,7 @@ func init() {
 }
 
 func GetTestEntries(name string, n int) chan []string {
-	buf, err := os.ReadFile("testdata/crypto_tests.txt")
+	buf, err := os.ReadFile("testdata/v2_crypto_tests.txt")
 	if err != nil {
 		return nil
 	}
