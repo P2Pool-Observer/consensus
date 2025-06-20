@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	utils.GlobalLogLevel = utils.LogLevelInfo | utils.LogLevelError | utils.LogLevelNotice
+	utils.GlobalLogLevel = 0
 
 	_, filename, _, _ := runtime.Caller(0)
 	// The ".." may change depending on you folder structure
