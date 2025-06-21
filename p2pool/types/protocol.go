@@ -27,6 +27,7 @@ const (
 	FeaturePrunedBroadcast
 	FeatureCompactBroadcast
 	FeatureBlockNotify
+	FeatureAuxJobDonation
 )
 
 type PeerVersionInformation struct {
@@ -47,6 +48,8 @@ func (i *PeerVersionInformation) SupportsFeature(feature ProtocolFeature) bool {
 		return i.Protocol >= ProtocolVersion_1_1
 	case FeatureBlockNotify:
 		return i.Protocol >= ProtocolVersion_1_2
+	case FeatureAuxJobDonation:
+		return i.Protocol >= ProtocolVersion_1_3
 	default:
 		return false
 	}
@@ -90,6 +93,7 @@ const (
 	ProtocolVersion_1_0 ProtocolVersion = (1 << 16) | 0
 	ProtocolVersion_1_1 ProtocolVersion = (1 << 16) | 1
 	ProtocolVersion_1_2 ProtocolVersion = (1 << 16) | 2
+	ProtocolVersion_1_3 ProtocolVersion = (1 << 16) | 3
 )
 
 type SoftwareVersion SemanticVersion
@@ -121,7 +125,7 @@ func (v SoftwareVersion) SoftwareAwareString(id SoftwareId) string {
 	return SemanticVersion(v).String()
 }
 
-const SupportedProtocolVersion = ProtocolVersion_1_2
+const SupportedProtocolVersion = ProtocolVersion_1_3
 
 const CurrentSoftwareVersionMajor = 4 & 0xFFFF
 const CurrentSoftwareVersionMinor = 0 & 0xFFFF

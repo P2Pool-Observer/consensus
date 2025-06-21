@@ -811,7 +811,12 @@ func (s *Server) MainChain() *mainchain.MainChain {
 
 func (s *Server) Broadcast(block *sidechain.PoolBlock) {
 	var message, prunedMessage, compactMessage *ClientMessage
+
+	var blockTemplateId types.Hash
+
 	if block != nil {
+		blockTemplateId = block.SideTemplateId(s.Consensus())
+
 		// Full block broadcast
 		buffer := make([]byte, 4, block.BufferLength()+4)
 		blockData, err := block.AppendBinaryFlags(buffer, false, false)
@@ -864,8 +869,6 @@ func (s *Server) Broadcast(block *sidechain.PoolBlock) {
 	}
 
 	supportsNotify := s.versionInformation.SupportsFeature(p2pooltypes.FeatureBlockNotify)
-
-	blockTemplateId := block.SideTemplateId(s.Consensus())
 
 	go func() {
 		for _, c := range s.Clients() {

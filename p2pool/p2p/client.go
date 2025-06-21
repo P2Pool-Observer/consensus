@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
@@ -851,6 +852,75 @@ func (c *Client) OnConnection() {
 					c.LastKnownTip.Store(tip)
 				}
 			}
+		case MessageAuxJobDonation:
+			var dataSize uint32
+			if err := binary.Read(c, binary.LittleEndian, &dataSize); err != nil {
+				//TODO warn
+				c.Ban(DefaultBanTime, err)
+				return
+			} else if dataSize == 0 {
+				break
+			}
+
+			r := bufio.NewReaderSize(io.LimitReader(c, int64(dataSize)), int(dataSize))
+			var job merge_mining.AuxiliaryJobDonation
+
+			if _, err := r.Read(job.SecondaryPublicKey[:]); err != nil {
+				c.Ban(DefaultBanTime, err)
+				return
+			}
+			if err := binary.Read(c, binary.LittleEndian, &job.SecondaryPublicKeyExpiration); err != nil {
+				c.Ban(DefaultBanTime, err)
+				return
+			}
+
+			if _, err := r.Read(job.SecondarySignature[:]); err != nil {
+				c.Ban(DefaultBanTime, err)
+				return
+			}
+			if err := binary.Read(c, binary.LittleEndian, &job.Timestamp); err != nil {
+				c.Ban(DefaultBanTime, err)
+				return
+			}
+			for {
+				var dataEntry merge_mining.AuxiliaryJobDonationDataEntry
+				_, err := r.Peek(dataEntry.BufferLength())
+				if err != nil {
+					break
+				}
+				_, err = r.Read(dataEntry.AuxId[:])
+				if err != nil {
+					c.Ban(DefaultBanTime, err)
+					return
+				}
+				_, err = r.Read(dataEntry.AuxHash[:])
+				if err != nil {
+					c.Ban(DefaultBanTime, err)
+					return
+				}
+				// TODO: check order of Lo/Hi
+				if err = binary.Read(c, binary.LittleEndian, &dataEntry.AuxDifficulty.Lo); err != nil {
+					c.Ban(DefaultBanTime, err)
+					return
+				}
+				if err = binary.Read(c, binary.LittleEndian, &dataEntry.AuxDifficulty.Hi); err != nil {
+					c.Ban(DefaultBanTime, err)
+					return
+				}
+				job.Entries = append(job.Entries, dataEntry)
+			}
+
+			if _, err := r.Read(job.DataSignature[:]); err != nil {
+				c.Ban(DefaultBanTime, err)
+				return
+			}
+
+			if _, err := job.Verify(time.Now()); err != nil {
+				c.Ban(DefaultBanTime, err)
+				return
+			}
+
+			//TODO: broadcast/save data signatures
 
 		case MessageInternal:
 			internalMessageId, err := binary.ReadUvarint(c)

@@ -16,6 +16,8 @@ const (
 	MessageBlockBroadcastCompact
 	// MessageBlockNotify Protocol 1.2
 	MessageBlockNotify
+	// MessageAuxJobDonation Protocol 1.3
+	MessageAuxJobDonation
 
 	MessageInternal = 0xff
 )
