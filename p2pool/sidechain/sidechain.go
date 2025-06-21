@@ -17,7 +17,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
-	"github.com/dolthub/swiss"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"slices"
@@ -65,16 +64,16 @@ type SideChain struct {
 	server          P2PoolInterface
 
 	seenBlocksLock sync.Mutex
-	seenBlocks     *swiss.Map[FullId, struct{}]
+	seenBlocks     map[FullId]struct{}
 
 	sidechainLock sync.RWMutex
 
 	watchBlock           *ChainMain
 	watchBlockPossibleId types.Hash
 
-	blocksByTemplateId       *swiss.Map[types.Hash, *PoolBlock]
-	blocksByMerkleRoot       *swiss.Map[types.Hash, *PoolBlock]
-	blocksByHeight           *swiss.Map[uint64, []*PoolBlock]
+	blocksByTemplateId       map[types.Hash]*PoolBlock
+	blocksByMerkleRoot       map[types.Hash]*PoolBlock
+	blocksByHeight           map[uint64][]*PoolBlock
 	blocksByHeightKeysSorted bool
 	blocksByHeightKeys       []uint64
 
@@ -98,9 +97,9 @@ func NewSideChain(server P2PoolInterface) *SideChain {
 	s := &SideChain{
 		derivationCache:            NewDerivationMapCache(),
 		server:                     server,
-		blocksByTemplateId:         swiss.NewMap[types.Hash, *PoolBlock](uint32(server.Consensus().ChainWindowSize*2 + 300)),
-		blocksByMerkleRoot:         swiss.NewMap[types.Hash, *PoolBlock](uint32(server.Consensus().ChainWindowSize*2 + 300)),
-		blocksByHeight:             swiss.NewMap[uint64, []*PoolBlock](uint32(server.Consensus().ChainWindowSize*2 + 300)),
+		blocksByTemplateId:         make(map[types.Hash]*PoolBlock, uint32(server.Consensus().ChainWindowSize*2+300)),
+		blocksByMerkleRoot:         make(map[types.Hash]*PoolBlock, uint32(server.Consensus().ChainWindowSize*2+300)),
+		blocksByHeight:             make(map[uint64][]*PoolBlock, uint32(server.Consensus().ChainWindowSize*2+300)),
 		preAllocatedShares:         PreAllocateShares(server.Consensus().ChainWindowSize * 2),
 		preAllocatedRewards:        make([]uint64, 0, server.Consensus().ChainWindowSize*2),
 		preAllocatedDifficultyData: make([]DifficultyData, 0, server.Consensus().ChainWindowSize*2),
@@ -108,7 +107,7 @@ func NewSideChain(server P2PoolInterface) *SideChain {
 		preAllocatedSharesPool:     NewPreAllocatedSharesPool(server.Consensus().ChainWindowSize * 2),
 		preAllocatedBuffer:         make([]byte, 0, PoolBlockMaxTemplateSize),
 		preAllocatedMinedBlocks:    make([]types.Hash, 0, 6*UncleBlockDepth*2+1),
-		seenBlocks:                 swiss.NewMap[FullId, struct{}](uint32(server.Consensus().ChainWindowSize*2 + 300)),
+		seenBlocks:                 make(map[FullId]struct{}, uint32(server.Consensus().ChainWindowSize*2+300)),
 	}
 	minDiff := types.DifficultyFrom64(server.Consensus().MinimumDifficulty)
 	s.currentDifficulty.Store(&minDiff)
@@ -245,10 +244,10 @@ func (c *SideChain) BlockSeen(block *PoolBlock) bool {
 
 	c.seenBlocksLock.Lock()
 	defer c.seenBlocksLock.Unlock()
-	if c.seenBlocks.Has(fullId) {
+	if _, ok := c.seenBlocks[fullId]; ok {
 		return true
 	} else {
-		c.seenBlocks.Put(fullId, struct{}{})
+		c.seenBlocks[fullId] = struct{}{}
 		return false
 	}
 }
@@ -258,7 +257,7 @@ func (c *SideChain) BlockUnsee(block *PoolBlock) {
 
 	c.seenBlocksLock.Lock()
 	defer c.seenBlocksLock.Unlock()
-	c.seenBlocks.Delete(fullId)
+	delete(c.seenBlocks, fullId)
 }
 
 func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []types.Hash, err error, ban bool) {
@@ -358,7 +357,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 					c.sidechainLock.Lock()
 					defer c.sidechainLock.Unlock()
 
-					utils.Logf("SideChain", "add_external_block: ALTERNATE height = %d, id = %s, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()), block.Main.Coinbase.GenHeight, block.Verified.Load(), c.blocksByTemplateId.Count())
+					utils.Logf("SideChain", "add_external_block: ALTERNATE height = %d, id = %s, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()), block.Main.Coinbase.GenHeight, block.Verified.Load(), len(c.blocksByTemplateId))
 
 					block.Verified.Store(true)
 					block.Invalid.Store(false)
@@ -470,7 +469,7 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 
 	c.sidechainLock.Lock()
 	defer c.sidechainLock.Unlock()
-	if c.blocksByTemplateId.Has(block.SideTemplateId(c.Consensus())) {
+	if _, ok := c.blocksByTemplateId[block.SideTemplateId(c.Consensus())]; ok {
 		//already inserted
 		//TODO WARN
 		return nil
@@ -480,19 +479,20 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 		return fmt.Errorf("encoding block error: %w", err)
 	}
 
-	c.blocksByTemplateId.Put(block.SideTemplateId(c.Consensus()), block)
+	c.blocksByTemplateId[block.SideTemplateId(c.Consensus())] = block
 
-	utils.Logf("SideChain", "add_block: height = %d, id = %s, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()), block.Main.Coinbase.GenHeight, block.Verified.Load(), c.blocksByTemplateId.Count())
+	utils.Logf("SideChain", "add_block: height = %d, id = %s, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()), block.Main.Coinbase.GenHeight, block.Verified.Load(), len(c.blocksByTemplateId))
 
 	if c.isWatched(block) {
 		c.server.UpdateBlockFound(c.watchBlock, block)
 		c.watchBlockPossibleId = types.ZeroHash
 	}
 
-	if l, ok := c.blocksByHeight.Get(block.Side.Height); ok {
-		c.blocksByHeight.Put(block.Side.Height, append(l, block))
+	if l, ok := c.blocksByHeight[block.Side.Height]; ok {
+		c.blocksByHeight[block.Side.Height] = append(l, block)
 	} else {
-		c.blocksByHeight.Put(block.Side.Height, []*PoolBlock{block})
+		// this optimizes for single blocks in each height
+		c.blocksByHeight[block.Side.Height] = []*PoolBlock{block}
 		if !(c.blocksByHeightKeysSorted && len(c.blocksByHeightKeys) > 0 && c.blocksByHeightKeys[len(c.blocksByHeightKeys)-1]+1 == block.Side.Height) {
 			c.blocksByHeightKeysSorted = false
 		}
@@ -500,7 +500,7 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 	}
 
 	if block.ShareVersion() >= ShareVersion_V3 {
-		c.blocksByMerkleRoot.Put(block.MergeMiningTag().RootHash, block)
+		c.blocksByMerkleRoot[block.MergeMiningTag().RootHash] = block
 	}
 
 	c.updateDepths(block)
@@ -1045,15 +1045,15 @@ func (c *SideChain) pruneOldBlocks() {
 			break
 		}
 
-		v, _ := c.blocksByHeight.Get(height)
+		v := c.getPoolBlocksByHeight(height)
 
 		// loop backwards for proper deletions
 		for i := len(v) - 1; i >= 0; i-- {
 			block := v[i]
 			if block.Depth.Load() >= pruneDistance || curTime.Compare(block.Metadata.LocalTime) >= 0 {
 				templateId := block.SideTemplateId(c.Consensus())
-				if c.blocksByTemplateId.Has(templateId) {
-					c.blocksByTemplateId.Delete(templateId)
+				if _, ok := c.blocksByTemplateId[templateId]; ok {
+					delete(c.blocksByTemplateId, templateId)
 					numBlocksPruned++
 				} else {
 					utils.Logf("SideChain", "blocksByHeight and blocksByTemplateId are inconsistent at height = %d, id = %s", height, templateId)
@@ -1061,8 +1061,8 @@ func (c *SideChain) pruneOldBlocks() {
 
 				if block.ShareVersion() >= ShareVersion_V3 {
 					rootHash := block.MergeMiningTag().RootHash
-					if c.blocksByMerkleRoot.Has(rootHash) {
-						c.blocksByMerkleRoot.Delete(rootHash)
+					if _, ok := c.blocksByMerkleRoot[rootHash]; ok {
+						delete(c.blocksByMerkleRoot, rootHash)
 					} else {
 						utils.Logf("SideChain", "blocksByHeight and m_blocksByMerkleRoot are inconsistent at height = %d, id = %s", height, rootHash)
 					}
@@ -1076,10 +1076,10 @@ func (c *SideChain) pruneOldBlocks() {
 		}
 
 		if len(v) == 0 {
-			c.blocksByHeight.Delete(height)
+			delete(c.blocksByHeight, height)
 			c.blocksByHeightKeys = slices.Delete(c.blocksByHeightKeys, keyIndex, keyIndex+1)
 		} else {
-			c.blocksByHeight.Put(height, v)
+			c.blocksByHeight[height] = v
 		}
 	}
 
@@ -1100,13 +1100,12 @@ func (c *SideChain) cleanupSeenBlocks() (cleaned int) {
 	c.seenBlocksLock.Lock()
 	defer c.seenBlocksLock.Unlock()
 
-	c.seenBlocks.Iter(func(k FullId, _ struct{}) (stop bool) {
+	for k := range c.seenBlocks {
 		if c.getPoolBlockByTemplateId(k.TemplateId()) == nil {
-			c.seenBlocks.Delete(k)
+			delete(c.seenBlocks, k)
 			cleaned++
 		}
-		return false
-	})
+	}
 	return cleaned
 }
 
@@ -1116,9 +1115,9 @@ func (c *SideChain) GetMissingBlocks() []types.Hash {
 
 	missingBlocks := make([]types.Hash, 0)
 
-	c.blocksByTemplateId.Iter(func(_ types.Hash, b *PoolBlock) (stop bool) {
+	for _, b := range c.blocksByTemplateId {
 		if b.Verified.Load() {
-			return false
+			continue
 		}
 
 		if b.Side.Parent != types.ZeroHash && c.getPoolBlockByTemplateId(b.Side.Parent) == nil {
@@ -1135,12 +1134,11 @@ func (c *SideChain) GetMissingBlocks() []types.Hash {
 				// Get no more than 2 first missing uncles at a time from each block
 				// Blocks with more than 2 uncles are very rare and they will be processed in several steps
 				if missingUncles >= 2 {
-					return true
+					return missingBlocks
 				}
 			}
 		}
-		return false
-	})
+	}
 
 	return missingBlocks
 }
@@ -1188,8 +1186,7 @@ func (c *SideChain) GetPoolBlockByTemplateId(id types.Hash) *PoolBlock {
 }
 
 func (c *SideChain) getPoolBlockByTemplateId(id types.Hash) *PoolBlock {
-	b, _ := c.blocksByTemplateId.Get(id)
-	return b
+	return c.blocksByTemplateId[id]
 }
 
 func (c *SideChain) GetPoolBlockByMerkleRoot(id types.Hash) *PoolBlock {
@@ -1199,8 +1196,7 @@ func (c *SideChain) GetPoolBlockByMerkleRoot(id types.Hash) *PoolBlock {
 }
 
 func (c *SideChain) getPoolBlockByMerkleRoot(id types.Hash) *PoolBlock {
-	b, _ := c.blocksByMerkleRoot.Get(id)
-	return b
+	return c.blocksByMerkleRoot[id]
 }
 
 func (c *SideChain) GetPoolBlocksByHeight(height uint64) []*PoolBlock {
@@ -1210,8 +1206,7 @@ func (c *SideChain) GetPoolBlocksByHeight(height uint64) []*PoolBlock {
 }
 
 func (c *SideChain) getPoolBlocksByHeight(height uint64) []*PoolBlock {
-	b, _ := c.blocksByHeight.Get(height)
-	return b
+	return c.blocksByHeight[height]
 }
 
 func (c *SideChain) GetPoolBlocksFromTip(id types.Hash) (chain, uncles UniquePoolBlockSlice) {
@@ -1259,7 +1254,7 @@ func (c *SideChain) GetPoolBlocksFromTipWithDepth(id types.Hash, depth uint64) (
 func (c *SideChain) GetPoolBlockCount() int {
 	c.sidechainLock.RLock()
 	defer c.sidechainLock.RUnlock()
-	return c.blocksByTemplateId.Count()
+	return len(c.blocksByTemplateId)
 }
 
 func (c *SideChain) WatchMainChainBlock(mainData *ChainMain, possibleId types.Hash) {

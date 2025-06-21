@@ -221,12 +221,12 @@ func TestSideChainNanoV4(t *testing.T) {
 
 func benchmarkResetState(tip, parent *PoolBlock, templateId, merkleRoot types.Hash, fullId FullId, difficulty types.Difficulty, blocksByHeightKeys []uint64, s *SideChain) {
 	//Remove states in maps
-	s.blocksByHeight.Delete(tip.Side.Height)
+	delete(s.blocksByHeight, tip.Side.Height)
 	s.blocksByHeightKeys = blocksByHeightKeys
 	s.blocksByHeightKeysSorted = true
-	s.blocksByTemplateId.Delete(templateId)
-	s.blocksByMerkleRoot.Delete(merkleRoot)
-	s.seenBlocks.Delete(fullId)
+	delete(s.blocksByTemplateId, templateId)
+	delete(s.blocksByMerkleRoot, merkleRoot)
+	delete(s.seenBlocks, fullId)
 
 	// Update tip and depths
 	tip.Depth.Store(0)
@@ -251,13 +251,13 @@ func benchSideChain(b *testing.B, s *SideChain, tipHash types.Hash) {
 	tip := s.GetChainTip()
 
 	for tip.SideTemplateId(s.Consensus()) != tipHash {
-		s.blocksByHeight.Delete(tip.Side.Height)
+		delete(s.blocksByHeight, tip.Side.Height)
 		s.blocksByHeightKeys = slices.DeleteFunc(s.blocksByHeightKeys, func(u uint64) bool {
 			return u == tip.Side.Height
 		})
-		s.blocksByTemplateId.Delete(tip.SideTemplateId(s.Consensus()))
-		s.blocksByMerkleRoot.Delete(tip.MergeMiningTag().RootHash)
-		s.seenBlocks.Delete(tip.FullId(s.Consensus()))
+		delete(s.blocksByTemplateId, tip.SideTemplateId(s.Consensus()))
+		delete(s.blocksByMerkleRoot, tip.MergeMiningTag().RootHash)
+		delete(s.seenBlocks, tip.FullId(s.Consensus()))
 
 		tip = s.GetParent(tip)
 		if tip == nil {

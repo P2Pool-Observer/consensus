@@ -16,7 +16,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	gojson "git.gammaspectra.live/P2Pool/go-json"
-	"github.com/dolthub/swiss"
 	fasthex "github.com/tmthrgd/go-hex"
 	"math"
 	unsafeRandom "math/rand/v2"
@@ -73,7 +72,7 @@ type Server struct {
 	lock            sync.RWMutex
 	sidechain       *sidechain.SideChain
 
-	mempool            *MiningMempool
+	mempool            MiningMempool
 	lastMempoolRefresh time.Time
 
 	preAllocatedDifficultyData        []sidechain.DifficultyData
@@ -125,7 +124,7 @@ func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBloc
 		preAllocatedSharesPool:            sidechain.NewPreAllocatedSharesPool(s.Consensus().ChainWindowSize * 2),
 		preAllocatedBuffer:                make([]byte, 0, sidechain.PoolBlockMaxTemplateSize),
 		miners:                            make(map[address.PackedAddress]*MinerTrackingEntry),
-		mempool:                           (*MiningMempool)(swiss.NewMap[types.Hash, *mempool.Entry](512)),
+		mempool:                           (MiningMempool)(make(map[types.Hash]*mempool.Entry, 512)),
 		// buffer 4 at a time for non-blocking source
 		incomingChanges: make(chan func() bool, 4),
 
