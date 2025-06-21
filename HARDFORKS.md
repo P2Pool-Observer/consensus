@@ -110,4 +110,4 @@ Version v4.0 implemented hard fork changes to allow merge mining via P2Pool.
 
 ### P2Pool v4.9+
 
-P2Pool could fail to sync if a certain order of blocks was received. Fixed in [b49808 SideChain: fixed a synchronization blocker bug](https://github.com/SChernykh/p2pool/commit/c421324b7362f118be17e4688922f7fc472f35af)
+P2Pool could fail to sync if a certain order of blocks was received. Fixed in [c42132 SideChain: fixed a synchronization blocker bug](https://github.com/SChernykh/p2pool/commit/c421324b7362f118be17e4688922f7fc472f35af)
