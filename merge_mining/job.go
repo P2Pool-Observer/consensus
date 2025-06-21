@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"io"
 	"time"
 )
 
@@ -95,6 +97,46 @@ func (j *AuxiliaryJobDonation) AppendBinary(preAllocatedBuf []byte) (data []byte
 	return data, nil
 }
 
+func (j *AuxiliaryJobDonation) FromReader(reader utils.ReaderAndByteReader) (err error) {
+
+	if _, err := reader.Read(j.SecondaryPublicKey[:]); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &j.SecondaryPublicKeyExpiration); err != nil {
+		return err
+	}
+
+	if _, err := reader.Read(j.SecondarySignature[:]); err != nil {
+		return err
+	}
+	if err := binary.Read(reader, binary.LittleEndian, &j.Timestamp); err != nil {
+		return err
+	}
+
+	buf := make([]byte, (&AuxiliaryJobDonationDataEntry{}).BufferLength())
+
+	for {
+		var dataEntry AuxiliaryJobDonationDataEntry
+		_, err = io.ReadFull(reader, buf)
+		if err != nil {
+			if errors.Is(err, io.ErrUnexpectedEOF) {
+				break
+			}
+			return err
+		}
+		copy(dataEntry.AuxId[:], buf)
+		copy(dataEntry.AuxHash[:], buf[types.HashSize:])
+		dataEntry.AuxDifficulty.Lo = binary.LittleEndian.Uint64(buf[types.HashSize*2:])
+		dataEntry.AuxDifficulty.Hi = binary.LittleEndian.Uint64(buf[types.HashSize*2+8:])
+		j.Entries = append(j.Entries, dataEntry)
+	}
+
+	// read remainder
+	copy(j.DataSignature[:], buf)
+
+	return nil
+}
+
 type AuxiliaryJobDonationDataEntry struct {
 	AuxId         types.Hash
 	AuxHash       types.Hash
@@ -113,7 +155,6 @@ func (e *AuxiliaryJobDonationDataEntry) AppendBinary(preAllocatedBuf []byte) (da
 	data = preAllocatedBuf
 	data = append(data, e.AuxId[:]...)
 	data = append(data, e.AuxHash[:]...)
-	// TODO: check order of Lo/Hi
 	data = binary.LittleEndian.AppendUint64(data, e.AuxDifficulty.Lo)
 	data = binary.LittleEndian.AppendUint64(data, e.AuxDifficulty.Hi)
 	return data, nil

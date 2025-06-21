@@ -865,52 +865,8 @@ func (c *Client) OnConnection() {
 			r := bufio.NewReaderSize(io.LimitReader(c, int64(dataSize)), int(dataSize))
 			var job merge_mining.AuxiliaryJobDonation
 
-			if _, err := r.Read(job.SecondaryPublicKey[:]); err != nil {
-				c.Ban(DefaultBanTime, err)
-				return
-			}
-			if err := binary.Read(c, binary.LittleEndian, &job.SecondaryPublicKeyExpiration); err != nil {
-				c.Ban(DefaultBanTime, err)
-				return
-			}
-
-			if _, err := r.Read(job.SecondarySignature[:]); err != nil {
-				c.Ban(DefaultBanTime, err)
-				return
-			}
-			if err := binary.Read(c, binary.LittleEndian, &job.Timestamp); err != nil {
-				c.Ban(DefaultBanTime, err)
-				return
-			}
-			for {
-				var dataEntry merge_mining.AuxiliaryJobDonationDataEntry
-				_, err := r.Peek(dataEntry.BufferLength())
-				if err != nil {
-					break
-				}
-				_, err = r.Read(dataEntry.AuxId[:])
-				if err != nil {
-					c.Ban(DefaultBanTime, err)
-					return
-				}
-				_, err = r.Read(dataEntry.AuxHash[:])
-				if err != nil {
-					c.Ban(DefaultBanTime, err)
-					return
-				}
-				// TODO: check order of Lo/Hi
-				if err = binary.Read(c, binary.LittleEndian, &dataEntry.AuxDifficulty.Lo); err != nil {
-					c.Ban(DefaultBanTime, err)
-					return
-				}
-				if err = binary.Read(c, binary.LittleEndian, &dataEntry.AuxDifficulty.Hi); err != nil {
-					c.Ban(DefaultBanTime, err)
-					return
-				}
-				job.Entries = append(job.Entries, dataEntry)
-			}
-
-			if _, err := r.Read(job.DataSignature[:]); err != nil {
+			err := job.FromReader(r)
+			if err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
