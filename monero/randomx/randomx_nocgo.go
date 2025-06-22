@@ -139,21 +139,23 @@ func newRandomXState(flags ...Flag) (*hasherState, error) {
 		flags: applyFlags,
 	}
 	var err error
+
 	h.cache, err = randomx.NewCache(h.flags)
 	if err != nil {
 		return nil, err
 	}
 
-	if dataset, err := randomx.NewDataset(h.flags); err != nil {
-		h.cache.Close()
-		return nil, fmt.Errorf("couldn't initialize dataset: %w", err)
-	} else {
-		h.dataset = dataset
+	if slices.Contains(flags, FlagLargePages) {
+		if dataset, err := randomx.NewDataset(h.flags); err != nil {
+			h.Close()
+			return nil, fmt.Errorf("couldn't initialize dataset: %w", err)
+		} else {
+			h.dataset = dataset
+		}
 	}
 
 	if vm, err := randomx.NewVM(h.flags, h.cache, h.dataset); err != nil {
-		h.dataset.Close()
-		h.cache.Close()
+		h.Close()
 		return nil, fmt.Errorf("couldn't initialize dataset: %w", err)
 	} else {
 		h.vm = vm
@@ -169,8 +171,12 @@ func (h *hasherState) Init(key []byte) (err error) {
 	copy(h.key, key)
 
 	utils.Logf("RandomX", "Initializing to seed %s", fasthex.EncodeToString(h.key))
-	h.cache.Init(h.key)
-	h.dataset.InitDatasetParallel(h.cache, runtime.NumCPU())
+	if h.cache != nil {
+		h.cache.Init(h.key)
+	}
+	if h.dataset != nil {
+		h.dataset.InitDatasetParallel(h.cache, runtime.NumCPU())
+	}
 
 	utils.Logf("RandomX", "Initialized to seed %s", fasthex.EncodeToString(h.key))
 
@@ -188,6 +194,13 @@ func (h *hasherState) Hash(input []byte) (output types.Hash) {
 func (h *hasherState) Close() {
 	h.lock.Lock()
 	defer h.lock.Unlock()
-	h.vm.Close()
-	h.cache.Close()
+	if h.vm != nil {
+		h.vm.Close()
+	}
+	if h.dataset != nil {
+		h.dataset.Close()
+	}
+	if h.cache != nil {
+		h.cache.Close()
+	}
 }
