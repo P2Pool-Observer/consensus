@@ -5,9 +5,10 @@ package randomx
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"git.gammaspectra.live/P2Pool/go-randomx/v3"
+	"git.gammaspectra.live/P2Pool/go-randomx/v4"
 	fasthex "github.com/tmthrgd/go-hex"
 	"runtime"
 	"slices"
@@ -89,19 +90,23 @@ func (h *hasherCollection) Close() {
 type hasherState struct {
 	lock    sync.Mutex
 	cache   *randomx.Cache
-	dataset randomx.Dataset
+	dataset *randomx.Dataset
 	vm      *randomx.VM
-	flags   uint64
+	flags   randomx.Flags
 	key     []byte
 }
 
 func ConsensusHash(buf []byte) types.Hash {
-	cache := randomx.NewCache(0)
+	cache, err := randomx.NewCache(0)
+	if err != nil {
+		panic(err)
+	}
 	defer cache.Close()
 
 	cache.Init(buf)
 
-	scratchpad := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(cache.Blocks))), len(cache.Blocks)*len(cache.Blocks[0])*int(unsafe.Sizeof(uint64(0))))
+	memory := cache.GetMemory()
+	scratchpad := unsafe.Slice((*byte)(unsafe.Pointer(memory)), len(memory)*len(memory[0])*int(unsafe.Sizeof(uint64(0))))
 	defer runtime.KeepAlive(cache)
 
 	return consensusHash(scratchpad)
@@ -133,18 +138,23 @@ func newRandomXState(flags ...Flag) (*hasherState, error) {
 	h := &hasherState{
 		flags: applyFlags,
 	}
-	h.cache = randomx.NewCache(h.flags)
+	var err error
+	h.cache, err = randomx.NewCache(h.flags)
+	if err != nil {
+		return nil, err
+	}
 
-	if dataset := randomx.NewDataset(h.cache); dataset == nil {
+	if dataset, err := randomx.NewDataset(h.flags); err != nil {
 		h.cache.Close()
-		return nil, errors.New("couldn't initialize dataset")
+		return nil, fmt.Errorf("couldn't initialize dataset: %w", err)
 	} else {
 		h.dataset = dataset
 	}
 
-	if vm := randomx.NewVM(h.dataset); vm == nil {
+	if vm, err := randomx.NewVM(h.flags, h.cache, h.dataset); err != nil {
+		h.dataset.Close()
 		h.cache.Close()
-		return nil, errors.New("couldn't initialize dataset")
+		return nil, fmt.Errorf("couldn't initialize dataset: %w", err)
 	} else {
 		h.vm = vm
 	}
@@ -160,7 +170,7 @@ func (h *hasherState) Init(key []byte) (err error) {
 
 	utils.Logf("RandomX", "Initializing to seed %s", fasthex.EncodeToString(h.key))
 	h.cache.Init(h.key)
-	randomx.InitDatasetParallel(h.dataset, runtime.NumCPU())
+	h.dataset.InitDatasetParallel(h.cache, runtime.NumCPU())
 
 	utils.Logf("RandomX", "Initialized to seed %s", fasthex.EncodeToString(h.key))
 
