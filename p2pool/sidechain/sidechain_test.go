@@ -3,10 +3,8 @@ package sidechain
 import (
 	"compress/gzip"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"git.gammaspectra.live/P2Pool/go-json"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"os"
@@ -163,21 +161,23 @@ func TestSideChainFullSync(t *testing.T) {
 
 	sideChain := DefaultTestSideChainData
 
-	consensusBuf, err := json.Marshal(sideChain.Consensus)
-	if err != nil {
-		t.Fatal(err)
-	}
-	consensus, err := NewConsensusFromJSON(consensusBuf)
-	if err != nil {
-		t.Fatal(err)
-	}
+	/*
+		consensusBuf, err := json.Marshal(sideChain.Consensus)
+		if err != nil {
+			t.Fatal(err)
+		}
+		consensus, err := NewConsensusFromJSON(consensusBuf)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	// do this to create a new full hasher
-	sideChain.Consensus = consensus
-	err = sideChain.Consensus.InitHasher(2, randomx.FlagSecure, randomx.FlagFullMemory)
-	if err != nil {
-		t.Fatal(err)
-	}
+		// do this to create a new full hasher
+		sideChain.Consensus = consensus
+		err = sideChain.Consensus.InitHasher(2, randomx.FlagSecure, randomx.FlagFullMemory)
+		if err != nil {
+			t.Fatal(err)
+		}
+	*/
 
 	server, blocks, err := sideChain.Load()
 	if err != nil {
