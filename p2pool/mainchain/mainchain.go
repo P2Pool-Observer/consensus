@@ -23,6 +23,8 @@ import (
 )
 
 const TimestampWindow = 60
+
+// BlockHeadersRequired TODO: make this dynamic depending on PPLNS size
 const BlockHeadersRequired = 720
 
 type MainChain struct {

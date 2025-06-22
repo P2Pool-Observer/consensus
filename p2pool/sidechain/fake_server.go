@@ -2,6 +2,7 @@ package sidechain
 
 import (
 	"context"
+	"fmt"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
@@ -13,6 +14,7 @@ type FakeServer struct {
 	consensus   *Consensus
 	headersLock sync.Mutex
 	headers     map[uint64]*mainblock.Header
+	sidechain   *SideChain
 }
 
 func (s *FakeServer) Context() context.Context {
@@ -74,6 +76,39 @@ func (s *FakeServer) GetMinimalBlockHeaderByHeight(height uint64) *mainblock.Hea
 		return header
 	}
 }
+
+func (s *FakeServer) DownloadMinimalBlockHeaders(currentHeight uint64) error {
+	// BlockHeadersRequired TODO: make this dynamic depending on PPLNS size
+	const BlockHeadersRequired = 720
+
+	var startHeight uint64
+	if currentHeight > BlockHeadersRequired {
+		startHeight = currentHeight - BlockHeadersRequired
+	}
+
+	if rangeResult, err := s.ClientRPC().GetBlockHeadersRangeResult(startHeight, currentHeight-1, s.Context()); err != nil {
+		return fmt.Errorf("couldn't download block headers range for height %d to %d: %s", startHeight, currentHeight-1, err)
+	} else {
+		s.headersLock.Lock()
+		defer s.headersLock.Unlock()
+
+		for _, header := range rangeResult.Headers {
+			s.headers[header.Height] = &mainblock.Header{
+				MajorVersion: uint8(header.MajorVersion),
+				MinorVersion: uint8(header.MinorVersion),
+				Timestamp:    uint64(header.Timestamp),
+				PreviousId:   header.PrevHash,
+				Height:       header.Height,
+				Nonce:        uint32(header.Nonce),
+				Reward:       header.Reward,
+				Id:           header.Hash,
+				Difficulty:   types.NewDifficulty(header.Difficulty, header.DifficultyTop64),
+			}
+		}
+		return nil
+	}
+}
+
 func (s *FakeServer) GetMinimalBlockHeaderByHash(hash types.Hash) *mainblock.Header {
 	return nil
 }
@@ -99,9 +134,15 @@ func (s *FakeServer) ClearCachedBlocks() {
 
 }
 
+func (s *FakeServer) SideChain() *SideChain {
+	return s.sidechain
+}
+
 func GetFakeTestServer(consensus *Consensus) *FakeServer {
-	return &FakeServer{
+	s := &FakeServer{
 		consensus: consensus,
 		headers:   make(map[uint64]*mainblock.Header),
 	}
+	s.sidechain = NewSideChain(s)
+	return s
 }

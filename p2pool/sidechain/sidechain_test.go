@@ -3,8 +3,10 @@ package sidechain
 import (
 	"compress/gzip"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/go-json"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"os"
@@ -44,8 +46,10 @@ type TestSideChainData struct {
 	TipMainHeight uint64
 }
 
-func (d TestSideChainData) Load() (s *SideChain, blocks []*PoolBlock, err error) {
-	s = NewSideChain(GetFakeTestServer(d.Consensus))
+func (d TestSideChainData) Load() (server *FakeServer, blocks UniquePoolBlockSlice, err error) {
+	server = GetFakeTestServer(d.Consensus)
+
+	s := server.SideChain()
 
 	var reader io.ReadCloser
 
@@ -76,7 +80,7 @@ func (d TestSideChainData) Load() (s *SideChain, blocks []*PoolBlock, err error)
 	if blocks, err = LoadSideChainTestData(s, reader, patchedBlocks...); err != nil {
 		return nil, nil, err
 	} else {
-		return s, blocks, nil
+		return server, blocks, nil
 	}
 }
 
@@ -84,13 +88,16 @@ func gzipDecompress(r io.ReadCloser) (io.ReadCloser, error) {
 	return gzip.NewReader(r)
 }
 
+var DefaultTestSideChainData = testSideChains[0]
+
 var testSideChains = []TestSideChainData{
 	{
-		Name:          "Default_V1",
-		Path:          "testdata/v1_sidechain_dump.dat",
+		Name:          "Default_V4",
+		Path:          "testdata/v4_sidechain_dump.dat.gz",
+		Decompress:    gzipDecompress,
 		Consensus:     ConsensusDefault,
-		TipSideHeight: 522805,
-		TipMainHeight: 2483901,
+		TipSideHeight: 9443762,
+		TipMainHeight: 3258121,
 	},
 	{
 		Name:          "Default_V2",
@@ -101,14 +108,29 @@ var testSideChains = []TestSideChainData{
 		TipMainHeight: 2870010,
 	},
 	{
-		Name:          "Default_V4",
-		Path:          "testdata/v4_sidechain_dump.dat.gz",
-		Decompress:    gzipDecompress,
+		Name:          "Default_V1",
+		Path:          "testdata/v1_sidechain_dump.dat",
 		Consensus:     ConsensusDefault,
-		TipSideHeight: 9443762,
-		TipMainHeight: 3258121,
+		TipSideHeight: 522805,
+		TipMainHeight: 2483901,
 	},
 
+	{
+		Name:          "Mini_V4",
+		Path:          "testdata/v4_sidechain_dump_mini.dat.gz",
+		Decompress:    gzipDecompress,
+		Consensus:     ConsensusMini,
+		TipSideHeight: 8912067,
+		TipMainHeight: 3258121,
+	},
+	{
+		Name:          "Mini_V2",
+		Path:          "testdata/v2_sidechain_dump_mini.dat.gz",
+		Decompress:    gzipDecompress,
+		Consensus:     ConsensusMini,
+		TipSideHeight: 4414446,
+		TipMainHeight: 2870010,
+	},
 	{
 		Name: "Mini_V1",
 		Path: "testdata/v1_sidechain_dump_mini.dat",
@@ -121,22 +143,6 @@ var testSideChains = []TestSideChainData{
 		TipSideHeight: 2424349,
 		TipMainHeight: 2696040,
 	},
-	{
-		Name:          "Mini_V2",
-		Path:          "testdata/v2_sidechain_dump_mini.dat.gz",
-		Decompress:    gzipDecompress,
-		Consensus:     ConsensusMini,
-		TipSideHeight: 4414446,
-		TipMainHeight: 2870010,
-	},
-	{
-		Name:          "Mini_V4",
-		Path:          "testdata/v4_sidechain_dump_mini.dat.gz",
-		Decompress:    gzipDecompress,
-		Consensus:     ConsensusMini,
-		TipSideHeight: 8912067,
-		TipMainHeight: 3258121,
-	},
 
 	{
 		Name:          "Nano_V4",
@@ -148,10 +154,112 @@ var testSideChains = []TestSideChainData{
 	},
 }
 
+func TestSideChainFullSync(t *testing.T) {
+	oldLogLevel := utils.GlobalLogLevel
+	defer func() {
+		utils.GlobalLogLevel = oldLogLevel
+	}()
+	utils.GlobalLogLevel = utils.LogLevelInfo | utils.LogLevelNotice | utils.LogLevelError
+
+	sideChain := DefaultTestSideChainData
+
+	consensusBuf, err := json.Marshal(sideChain.Consensus)
+	if err != nil {
+		t.Fatal(err)
+	}
+	consensus, err := NewConsensusFromJSON(consensusBuf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// do this to create a new full hasher
+	sideChain.Consensus = consensus
+	err = sideChain.Consensus.InitHasher(2, randomx.FlagSecure, randomx.FlagFullMemory)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server, blocks, err := sideChain.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := server.SideChain()
+
+	var tip *PoolBlock
+
+	for _, b := range blocks {
+		if tip == nil {
+			tip = b
+			continue
+		}
+
+		if tip.Side.Height < b.Side.Height {
+			tip = b
+		} else if tip.Side.Height == b.Side.Height {
+			//determinism
+			if tip.SideTemplateId(s.Consensus()).Compare(b.SideTemplateId(s.Consensus())) < 0 {
+				tip = b
+			}
+		}
+	}
+
+	if tip == nil {
+		t.Fatal("no tip")
+	}
+
+	err = server.DownloadMinimalBlockHeaders(tip.Main.Coinbase.GenHeight)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var blocksToAdd UniquePoolBlockSlice
+	blocksToAdd = append(blocksToAdd, tip)
+
+	for len(blocksToAdd) > 0 {
+		block := blocksToAdd[0]
+		blocksToAdd = blocksToAdd[1:]
+		missingBlocks, err, _ := s.AddPoolBlockExternal(block)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		block = nil
+		for _, id := range missingBlocks {
+			if b := blocks.Get(s.Consensus(), id); b != nil {
+				if blocksToAdd.Get(s.Consensus(), id) == nil {
+					blocksToAdd = append(blocksToAdd, b)
+				}
+			}
+		}
+	}
+
+	tip = s.GetChainTip()
+
+	if tip == nil {
+		t.Fatalf("GetChainTip() returned nil")
+	}
+
+	if !tip.Verified.Load() {
+		t.Fatalf("tip is not verified")
+	}
+
+	if tip.Invalid.Load() {
+		t.Fatalf("tip is invalid")
+	}
+
+	if tip.Main.Coinbase.GenHeight != sideChain.TipMainHeight {
+		t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.GenHeight, sideChain.TipMainHeight)
+	}
+	if tip.Side.Height != sideChain.TipSideHeight {
+		t.Fatalf("tip side height mismatch %d != %d", tip.Side.Height, sideChain.TipSideHeight)
+	}
+}
+
 func TestSideChain(t *testing.T) {
 	for _, sideChain := range testSideChains {
 		t.Run(sideChain.Name, func(t *testing.T) {
-			s, blocks, err := sideChain.Load()
+			server, blocks, err := sideChain.Load()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -160,6 +268,8 @@ func TestSideChain(t *testing.T) {
 			unsafeRandom.Shuffle(len(blocks), func(i, j int) {
 				blocks[i], blocks[j] = blocks[j], blocks[i]
 			})
+
+			s := server.SideChain()
 
 			for _, b := range blocks {
 				// verify externally first without PoW, then add directly
@@ -314,12 +424,12 @@ func TestMain(m *testing.M) {
 			TipMainHeight: 2870010,
 		}
 
-		var err error
-		var blocks []*PoolBlock
-		benchLoadedSideChain, blocks, err = sideChainData.Load()
+		server, blocks, err := sideChainData.Load()
 		if err != nil {
 			panic(err)
 		}
+
+		benchLoadedSideChain = server.SideChain()
 
 		for _, b := range blocks {
 			// verify externally first without PoW, then add directly

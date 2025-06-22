@@ -54,6 +54,17 @@ func NewDerivationMapCache() *DerivationCache {
 	return d
 }
 
+func NewDerivationNilCache() *DerivationCache {
+	d := &DerivationCache{
+		deterministicKeyCache:   utils.NewNilCache[deterministicTransactionCacheKey, *crypto.KeyPair](),
+		ephemeralPublicKeyCache: utils.NewNilCache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag](),
+		derivationCache:         utils.NewNilCache[derivationCacheKey, crypto.PublicKeyBytes](),
+		pubKeyToTableCache:      utils.NewNilCache[crypto.PublicKeyBytes, *edwards25519.PrecomputedTable](),
+		pubKeyToPointCache:      utils.NewNilCache[crypto.PublicKeyBytes, *edwards25519.Point](),
+	}
+	return d
+}
+
 func (d *DerivationCache) Clear() {
 	d.deterministicKeyCache.Clear()
 	d.ephemeralPublicKeyCache.Clear()

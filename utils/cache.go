@@ -107,3 +107,30 @@ func (m *MapCache[K, T]) Stats() (hits, misses uint64) {
 	defer m.lock.Unlock()
 	return m.hits.Load(), m.misses.Load()
 }
+
+type NilCache[K comparable, T any] struct {
+}
+
+func NewNilCache[K comparable, T any]() NilCache[K, T] {
+	return NilCache[K, T]{}
+}
+
+func (m NilCache[K, T]) Get(key K) (value T, ok bool) {
+	return value, false
+}
+
+func (m NilCache[K, T]) Set(key K, value T) {
+
+}
+
+func (m NilCache[K, T]) Delete(key K) {
+
+}
+
+func (m NilCache[K, T]) Clear() {
+
+}
+
+func (m NilCache[K, T]) Stats() (hits, misses uint64) {
+	return 0, 0
+}

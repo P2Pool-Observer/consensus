@@ -452,6 +452,7 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 			utils.Logf("SideChain", "add_external_block: block %s has enough PoW for Monero height %d, submitting it", templateId.String(), block.Main.Coinbase.GenHeight)
 			c.server.SubmitBlock(&block.Main)
 		}
+
 		if isHigher, err := block.IsProofHigherThanDifficultyWithError(c.Consensus().GetHasher(), c.getSeedByHeightFunc()); err != nil {
 			return nil, err, true
 		} else if !isHigher {
@@ -1297,7 +1298,7 @@ func (c *SideChain) isLongerChain(block, candidate *PoolBlock) (isLonger, isAlte
 	})
 }
 
-func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]byte) ([]*PoolBlock, error) {
+func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]byte) (UniquePoolBlockSlice, error) {
 	var err error
 	buf := make([]byte, PoolBlockMaxTemplateSize)
 
