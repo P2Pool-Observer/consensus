@@ -18,7 +18,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
 	"io"
-	unsafeRandom "math/rand/v2"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -1298,7 +1297,7 @@ func (c *SideChain) isLongerChain(block, candidate *PoolBlock) (isLonger, isAlte
 	})
 }
 
-func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]byte) error {
+func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]byte) ([]*PoolBlock, error) {
 	var err error
 	buf := make([]byte, PoolBlockMaxTemplateSize)
 
@@ -1310,14 +1309,14 @@ func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]by
 		if err = binary.Read(reader, binary.LittleEndian, &blockLen); err == io.EOF {
 			break
 		} else if err != nil {
-			return err
+			return nil, err
 		}
 		if _, err = io.ReadFull(reader, buf[:blockLen]); err != nil {
-			return err
+			return nil, err
 		}
 		b := &PoolBlock{}
 		if err = b.UnmarshalBinary(c.Consensus(), c.DerivationCache(), buf[:blockLen]); err != nil {
-			return err
+			return nil, err
 		}
 		blocks = append(blocks, b)
 	}
@@ -1325,25 +1324,10 @@ func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]by
 	for _, buf := range patchedBlocks {
 		b := &PoolBlock{}
 		if err = b.UnmarshalBinary(c.Consensus(), c.DerivationCache(), buf); err != nil {
-			return err
+			return nil, err
 		}
 		blocks = append(blocks, b)
 	}
 
-	// Shuffle blocks. This allows testing proper reorg
-	unsafeRandom.Shuffle(len(blocks), func(i, j int) {
-		blocks[i], blocks[j] = blocks[j], blocks[i]
-	})
-
-	for _, b := range blocks {
-		// verify externally first without PoW, then add directly
-		if _, err, _ = c.PoolBlockExternalVerify(b); err != nil {
-			return err
-		}
-		if err = c.AddPoolBlock(b); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return blocks, nil
 }

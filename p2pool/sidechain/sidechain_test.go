@@ -6,6 +6,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"io"
+	unsafeRandom "math/rand/v2"
 	"os"
 	"path"
 	"runtime"
@@ -30,193 +31,189 @@ func init() {
 	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
 }
 
-func testSideChain(s *SideChain, t *testing.T, reader io.Reader, sideHeight, mainHeight uint64, patchedBlocks ...[]byte) {
+type TestSideChainData struct {
+	Name       string
+	Path       string
+	Decompress func(io.ReadCloser) (io.ReadCloser, error)
 
-	if err := LoadSideChainTestData(s, reader, patchedBlocks...); err != nil {
-		if t == nil {
-			panic(err)
+	PatchedBlocks []string
+
+	Consensus *Consensus
+
+	TipSideHeight uint64
+	TipMainHeight uint64
+}
+
+func (d TestSideChainData) Load() (s *SideChain, blocks []*PoolBlock, err error) {
+	s = NewSideChain(GetFakeTestServer(d.Consensus))
+
+	var reader io.ReadCloser
+
+	reader, err = os.Open(d.Path)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer reader.Close()
+
+	if d.Decompress != nil {
+		reader, err = d.Decompress(reader)
+		if err != nil {
+			return nil, nil, err
 		}
-		t.Fatal(err)
+		defer reader.Close()
 	}
 
-	if t == nil {
-		return
+	var patchedBlocks [][]byte
+
+	for _, p := range d.PatchedBlocks {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return nil, nil, err
+		}
+		patchedBlocks = append(patchedBlocks, data)
 	}
 
-	tip := s.GetChainTip()
-
-	if tip == nil {
-		s.GetPoolBlockByTemplateId(types.MustHashFromString("2fd0b1cdd9735f8c908b18ae77ce0228feacce280dfbd9b92ed0c06790e39b63"))
-		t.Fatal()
+	if blocks, err = LoadSideChainTestData(s, reader, patchedBlocks...); err != nil {
+		return nil, nil, err
+	} else {
+		return s, blocks, nil
 	}
-
-	if !tip.Verified.Load() {
-		t.Fatal()
-	}
-
-	if tip.Invalid.Load() {
-		t.Fatal()
-	}
-
-	if tip.Main.Coinbase.GenHeight != mainHeight {
-		t.Fatal()
-	}
-
-	if tip.Side.Height != sideHeight {
-		t.Fatal()
-	}
-
-	hits, misses := s.DerivationCache().ephemeralPublicKeyCache.Stats()
-	total := max(1, hits+misses)
-	t.Logf("Ephemeral Public Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
-
-	hits, misses = s.DerivationCache().deterministicKeyCache.Stats()
-	total = max(1, hits+misses)
-	t.Logf("Deterministic Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
-
-	hits, misses = s.DerivationCache().derivationCache.Stats()
-	total = max(1, hits+misses)
-	t.Logf("Derivation Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
-
-	hits, misses = s.DerivationCache().pubKeyToTableCache.Stats()
-	total = max(1, hits+misses)
-	t.Logf("PubKeyToTable Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
-
-	hits, misses = s.DerivationCache().pubKeyToPointCache.Stats()
-	total = max(1, hits+misses)
-	t.Logf("PubKeyToPoint Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
 }
 
-func TestSideChainDefaultV4(t *testing.T) {
-
-	s := NewSideChain(GetFakeTestServer(ConsensusDefault))
-
-	f, err := os.Open("testdata/v4_sidechain_dump.dat.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	r, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.Close()
-
-	testSideChain(s, t, r, 9443762, 3258121)
+func gzipDecompress(r io.ReadCloser) (io.ReadCloser, error) {
+	return gzip.NewReader(r)
 }
 
-func TestSideChainDefaultV2(t *testing.T) {
+var testSideChains = []TestSideChainData{
+	{
+		Name:          "Default_V1",
+		Path:          "testdata/v1_sidechain_dump.dat",
+		Consensus:     ConsensusDefault,
+		TipSideHeight: 522805,
+		TipMainHeight: 2483901,
+	},
+	{
+		Name:          "Default_V2",
+		Path:          "testdata/v2_sidechain_dump.dat.gz",
+		Decompress:    gzipDecompress,
+		Consensus:     ConsensusDefault,
+		TipSideHeight: 4957203,
+		TipMainHeight: 2870010,
+	},
+	{
+		Name:          "Default_V4",
+		Path:          "testdata/v4_sidechain_dump.dat.gz",
+		Decompress:    gzipDecompress,
+		Consensus:     ConsensusDefault,
+		TipSideHeight: 9443762,
+		TipMainHeight: 3258121,
+	},
 
-	s := NewSideChain(GetFakeTestServer(ConsensusDefault))
+	{
+		Name: "Mini_V1",
+		Path: "testdata/v1_sidechain_dump_mini.dat",
+		PatchedBlocks: []string{
+			//patch in missing blocks that are needed to reach sync range on newer limits
+			"testdata/v1_sidechain_dump_mini_2420028.dat",
+			"testdata/v1_sidechain_dump_mini_2420027.dat",
+		},
+		Consensus:     ConsensusMini,
+		TipSideHeight: 2424349,
+		TipMainHeight: 2696040,
+	},
+	{
+		Name:          "Mini_V2",
+		Path:          "testdata/v2_sidechain_dump_mini.dat.gz",
+		Decompress:    gzipDecompress,
+		Consensus:     ConsensusMini,
+		TipSideHeight: 4414446,
+		TipMainHeight: 2870010,
+	},
+	{
+		Name:          "Mini_V4",
+		Path:          "testdata/v4_sidechain_dump_mini.dat.gz",
+		Decompress:    gzipDecompress,
+		Consensus:     ConsensusMini,
+		TipSideHeight: 8912067,
+		TipMainHeight: 3258121,
+	},
 
-	f, err := os.Open("testdata/v2_sidechain_dump.dat.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	r, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.Close()
-
-	testSideChain(s, t, r, 4957203, 2870010)
+	{
+		Name:          "Nano_V4",
+		Path:          "testdata/v4_sidechain_dump_nano.dat.gz",
+		Decompress:    gzipDecompress,
+		Consensus:     ConsensusNano,
+		TipSideHeight: 116651,
+		TipMainHeight: 3438036,
+	},
 }
 
-func TestSideChainDefaultV1(t *testing.T) {
+func TestSideChain(t *testing.T) {
+	for _, sideChain := range testSideChains {
+		t.Run(sideChain.Name, func(t *testing.T) {
+			s, blocks, err := sideChain.Load()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	s := NewSideChain(GetFakeTestServer(ConsensusDefault))
+			// Shuffle blocks. This allows testing proper reorg
+			unsafeRandom.Shuffle(len(blocks), func(i, j int) {
+				blocks[i], blocks[j] = blocks[j], blocks[i]
+			})
 
-	f, err := os.Open("testdata/v1_sidechain_dump.dat")
-	if err != nil {
-		t.Fatal(err)
+			for _, b := range blocks {
+				// verify externally first without PoW, then add directly
+				if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
+					t.Fatalf("pool block external verify failed: %s", err)
+				}
+				if err = s.AddPoolBlock(b); err != nil {
+					t.Fatalf("add pool block failed: %s", err)
+				}
+			}
+
+			tip := s.GetChainTip()
+
+			if tip == nil {
+				t.Fatalf("GetChainTip() returned nil")
+			}
+
+			if !tip.Verified.Load() {
+				t.Fatalf("tip is not verified")
+			}
+
+			if tip.Invalid.Load() {
+				t.Fatalf("tip is invalid")
+			}
+
+			if tip.Main.Coinbase.GenHeight != sideChain.TipMainHeight {
+				t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.GenHeight, sideChain.TipMainHeight)
+			}
+			if tip.Side.Height != sideChain.TipSideHeight {
+				t.Fatalf("tip side height mismatch %d != %d", tip.Side.Height, sideChain.TipSideHeight)
+			}
+
+			hits, misses := s.DerivationCache().ephemeralPublicKeyCache.Stats()
+			total := max(1, hits+misses)
+			t.Logf("Ephemeral Public Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
+
+			hits, misses = s.DerivationCache().deterministicKeyCache.Stats()
+			total = max(1, hits+misses)
+			t.Logf("Deterministic Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
+
+			hits, misses = s.DerivationCache().derivationCache.Stats()
+			total = max(1, hits+misses)
+			t.Logf("Derivation Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
+
+			hits, misses = s.DerivationCache().pubKeyToTableCache.Stats()
+			total = max(1, hits+misses)
+			t.Logf("PubKeyToTable Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
+
+			hits, misses = s.DerivationCache().pubKeyToPointCache.Stats()
+			total = max(1, hits+misses)
+			t.Logf("PubKeyToPoint Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
+
+		})
 	}
-	defer f.Close()
-
-	testSideChain(s, t, f, 522805, 2483901)
-}
-
-func TestSideChainMiniV4(t *testing.T) {
-
-	s := NewSideChain(GetFakeTestServer(ConsensusMini))
-
-	f, err := os.Open("testdata/v4_sidechain_dump_mini.dat.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	r, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.Close()
-
-	testSideChain(s, t, r, 8912067, 3258121)
-}
-
-func TestSideChainMiniV2(t *testing.T) {
-
-	s := NewSideChain(GetFakeTestServer(ConsensusMini))
-
-	f, err := os.Open("testdata/v2_sidechain_dump_mini.dat.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	r, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.Close()
-
-	testSideChain(s, t, r, 4414446, 2870010)
-}
-
-func TestSideChainMiniV1(t *testing.T) {
-
-	s := NewSideChain(GetFakeTestServer(ConsensusMini))
-
-	f, err := os.Open("testdata/v1_sidechain_dump_mini.dat")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	//patch in missing blocks that are needed to newer reach sync range
-	block2420028, err := os.ReadFile("testdata/v1_sidechain_dump_mini_2420028.dat")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	block2420027, err := os.ReadFile("testdata/v1_sidechain_dump_mini_2420027.dat")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testSideChain(s, t, f, 2424349, 2696040, block2420028, block2420027)
-}
-
-func TestSideChainNanoV4(t *testing.T) {
-
-	s := NewSideChain(GetFakeTestServer(ConsensusNano))
-
-	f, err := os.Open("testdata/v4_sidechain_dump_nano.dat.gz")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-
-	r, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer r.Close()
-
-	testSideChain(s, t, r, 116651, 3438036)
 }
 
 func benchmarkResetState(tip, parent *PoolBlock, templateId, merkleRoot types.Hash, fullId FullId, difficulty types.Difficulty, blocksByHeightKeys []uint64, s *SideChain) {
@@ -307,21 +304,32 @@ func TestMain(m *testing.M) {
 	}
 
 	if isBenchmark {
-		benchLoadedSideChain = NewSideChain(GetFakeTestServer(ConsensusDefault))
 
-		f, err := os.Open("testdata/v2_sidechain_dump.dat.gz")
+		sideChainData := TestSideChainData{
+			Name:          "Default_V2",
+			Path:          "testdata/v2_sidechain_dump.dat.gz",
+			Decompress:    gzipDecompress,
+			Consensus:     ConsensusDefault,
+			TipSideHeight: 4957203,
+			TipMainHeight: 2870010,
+		}
+
+		var err error
+		var blocks []*PoolBlock
+		benchLoadedSideChain, blocks, err = sideChainData.Load()
 		if err != nil {
 			panic(err)
 		}
-		defer f.Close()
 
-		r, err := gzip.NewReader(f)
-		if err != nil {
-			panic(err)
+		for _, b := range blocks {
+			// verify externally first without PoW, then add directly
+			if _, err, _ = benchLoadedSideChain.PoolBlockExternalVerify(b); err != nil {
+				panic(err)
+			}
+			if err = benchLoadedSideChain.AddPoolBlock(b); err != nil {
+				panic(err)
+			}
 		}
-		defer r.Close()
-
-		testSideChain(benchLoadedSideChain, nil, r, 4957203, 2870010)
 
 		tip := benchLoadedSideChain.GetChainTip()
 

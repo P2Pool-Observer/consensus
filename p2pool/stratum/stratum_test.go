@@ -96,8 +96,18 @@ func TestMain(m *testing.M) {
 	}
 	defer r.Close()
 
-	if err = sidechain.LoadSideChainTestData(preLoadedMiniSideChain, r); err != nil {
+	if blocks, err := sidechain.LoadSideChainTestData(preLoadedMiniSideChain, r); err != nil {
 		panic(err)
+	} else {
+		for _, b := range blocks {
+			// verify externally first without PoW, then add directly
+			if _, err, _ = preLoadedMiniSideChain.PoolBlockExternalVerify(b); err != nil {
+				panic(err)
+			}
+			if err = preLoadedMiniSideChain.AddPoolBlock(b); err != nil {
+				panic(err)
+			}
+		}
 	}
 
 	code := m.Run()
