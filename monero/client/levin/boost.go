@@ -26,29 +26,68 @@ const (
 	BoostSerializeFlagArray byte = 0x80
 )
 
+type BoostBool bool
+
+func (v BoostBool) Bytes() ([]byte, error) {
+	return []byte{
+		BoostSerializeTypeBool,
+		func() byte {
+			if v {
+				return 1
+			}
+			return 0
+		}(),
+	}, nil
+}
+
 type BoostByte byte
 
-func (v BoostByte) Bytes() []byte {
+func (v BoostByte) Bytes() ([]byte, error) {
 	return []byte{
 		BoostSerializeTypeUint8,
 		byte(v),
+	}, nil
+}
+
+type BoostUint16 uint16
+
+func (v BoostUint16) Bytes() ([]byte, error) {
+	b := []byte{
+		BoostSerializeTypeUint16,
+		0x00, 0x00,
 	}
+	binary.LittleEndian.PutUint16(b[1:], uint16(v))
+	return b, nil
 }
 
 type BoostUint32 uint32
 
-func (v BoostUint32) Bytes() []byte {
+func (v BoostUint32) Bytes() ([]byte, error) {
 	b := []byte{
 		BoostSerializeTypeUint32,
 		0x00, 0x00, 0x00, 0x00,
 	}
 	binary.LittleEndian.PutUint32(b[1:], uint32(v))
-	return b
+	return b, nil
+}
+
+type BoostInt64 int64
+
+func (v BoostInt64) Bytes() ([]byte, error) {
+	b := []byte{
+		BoostSerializeTypeInt64,
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00,
+	}
+
+	binary.LittleEndian.PutUint64(b[1:], uint64(v))
+
+	return b, nil
 }
 
 type BoostUint64 uint64
 
-func (v BoostUint64) Bytes() []byte {
+func (v BoostUint64) Bytes() ([]byte, error) {
 	b := []byte{
 		BoostSerializeTypeUint64,
 		0x00, 0x00, 0x00, 0x00,
@@ -57,18 +96,18 @@ func (v BoostUint64) Bytes() []byte {
 
 	binary.LittleEndian.PutUint64(b[1:], uint64(v))
 
-	return b
+	return b, nil
 }
 
 type BoostString string
 
-func (v BoostString) Bytes() []byte {
+func (v BoostString) Bytes() ([]byte, error) {
 	b := []byte{BoostSerializeTypeString}
 
 	varInB, err := VarIn(len(v))
 	if err != nil {
-		panic(fmt.Errorf("varin '%d': %w", len(v), err))
+		return nil, fmt.Errorf("varin '%d': %w", len(v), err)
 	}
 
-	return append(b, append(varInB, []byte(v)...)...)
+	return append(b, append(varInB, []byte(v)...)...), nil
 }

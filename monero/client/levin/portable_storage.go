@@ -207,13 +207,14 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 		ttype := bytes[idx]
 		idx += 1
 
-		n, obj, err := ReadAny(bytes[idx:], ttype)
+		n, obj, serializable, err := ReadAny(bytes[idx:], ttype)
 		if err != nil {
 			return 0, nil, err
 		}
 		idx += n
 
 		entry.Value = obj
+		entry.Serializable = serializable
 
 		entries = append(entries, entry)
 	}
@@ -236,124 +237,128 @@ func ReadArray(ttype byte, bytes []byte) (int, Entries, error) {
 	entries := make(Entries, 0, min(math.MaxUint16, i))
 
 	for iter := 0; iter < i; iter++ {
-		n, obj, err := ReadAny(bytes[idx:], ttype)
+		n, obj, serializable, err := ReadAny(bytes[idx:], ttype)
 		if err != nil {
 			return 0, nil, err
 		}
 		idx += n
 
 		entries = append(entries, Entry{
-			Value: obj,
+			Value:        obj,
+			Serializable: serializable,
 		})
 	}
 
 	return idx, entries, nil
 }
 
-func ReadAny(bytes []byte, ttype byte) (int, interface{}, error) {
+func ReadAny(bytes []byte, ttype byte) (idx int, value interface{}, serializable Serializable, err error) {
 	var (
-		idx = 0
-		n   = 0
+		n = 0
 	)
 
 	if ttype&BoostSerializeFlagArray != 0 {
 		internalType := ttype &^ BoostSerializeFlagArray
 		n, obj, err := ReadArray(internalType, bytes[idx:])
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, nil, err
 		}
 		idx += n
 
-		return idx, obj, nil
+		return idx, obj, nil, nil
 	}
 
 	if ttype == BoostSerializeTypeObject {
 		n, obj, err := ReadObject(bytes[idx:])
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, nil, err
 		}
 		idx += n
 
-		return idx, obj, nil
+		return idx, obj, nil, nil
 	}
 
 	if ttype == BoostSerializeTypeUint8 {
 		if len(bytes[idx:]) < 1 {
-			return 0, nil, io.ErrUnexpectedEOF
+			return 0, nil, nil, io.ErrUnexpectedEOF
 		}
 		obj := uint8(bytes[idx])
 		n += 1
 		idx += n
 
-		return idx, obj, nil
+		return idx, obj, BoostByte(obj), nil
 	}
 
 	if ttype == BoostSerializeTypeUint16 {
 		if len(bytes[idx:]) < 2 {
-			return 0, nil, io.ErrUnexpectedEOF
+			return 0, nil, nil, io.ErrUnexpectedEOF
 		}
 		obj := binary.LittleEndian.Uint16(bytes[idx:])
 		n += 2
 		idx += n
 
-		return idx, obj, nil
+		return idx, obj, BoostUint16(obj), nil
 	}
 
 	if ttype == BoostSerializeTypeUint32 {
 		if len(bytes[idx:]) < 4 {
-			return 0, nil, io.ErrUnexpectedEOF
+			return 0, nil, nil, io.ErrUnexpectedEOF
 		}
 		obj := binary.LittleEndian.Uint32(bytes[idx:])
 		n += 4
 		idx += n
 
-		return idx, obj, nil
+		return idx, obj, BoostUint32(obj), nil
 	}
 
 	if ttype == BoostSerializeTypeUint64 {
 		if len(bytes[idx:]) < 8 {
-			return 0, nil, io.ErrUnexpectedEOF
+			return 0, nil, nil, io.ErrUnexpectedEOF
 		}
 		obj := binary.LittleEndian.Uint64(bytes[idx:])
 		n += 8
 		idx += n
 
-		return idx, obj, nil
+		return idx, obj, BoostUint64(obj), nil
 	}
 
 	if ttype == BoostSerializeTypeInt64 {
 		if len(bytes[idx:]) < 8 {
-			return 0, nil, io.ErrUnexpectedEOF
+			return 0, nil, nil, io.ErrUnexpectedEOF
 		}
 		obj := binary.LittleEndian.Uint64(bytes[idx:])
 		n += 8
 		idx += n
 
-		return idx, int64(obj), nil
+		return idx, int64(obj), BoostInt64(obj), nil
 	}
 
 	if ttype == BoostSerializeTypeString {
 		n, obj, err := ReadString(bytes[idx:])
 		if err != nil {
-			return 0, nil, err
+			return 0, nil, nil, err
 		}
 		idx += n
 
-		return idx, obj, nil
+		return idx, obj, BoostString(obj), nil
 	}
 
 	if ttype == BoostSerializeTypeBool {
 		if len(bytes[idx:]) < 1 {
-			return 0, nil, io.ErrUnexpectedEOF
+			return 0, nil, nil, io.ErrUnexpectedEOF
+		}
+
+		if bytes[idx] > 1 {
+			return 0, nil, nil, errors.New("invalid non-canonical bool encoding")
 		}
 		obj := bytes[idx] > 0
 		n += 1
 		idx += n
 
-		return idx, obj, nil
+		return idx, obj, BoostBool(obj), nil
 	}
 
-	return -1, nil, fmt.Errorf("unknown ttype %x", ttype)
+	return -1, nil, nil, fmt.Errorf("unknown ttype %x", ttype)
 }
 
 // ReadVarInt reads var int, returning number of bytes read and the integer in that byte
@@ -434,7 +439,11 @@ func (s *PortableStorage) Bytes() ([]byte, error) {
 		if entry.Serializable == nil {
 			return nil, ErrNotSerializable
 		}
-		body = append(body, entry.Serializable.Bytes()...)
+		data, err := entry.Serializable.Bytes()
+		if err != nil {
+			return nil, err
+		}
+		body = append(body, data...)
 	}
 
 	return body, nil
@@ -443,14 +452,14 @@ func (s *PortableStorage) Bytes() ([]byte, error) {
 var ErrNotSerializable = errors.New("not serializable")
 
 type Serializable interface {
-	Bytes() []byte
+	Bytes() ([]byte, error)
 }
 
 type Section struct {
 	Entries []Entry
 }
 
-func (s Section) Bytes() []byte {
+func (s Section) Bytes() ([]byte, error) {
 	body := []byte{
 		BoostSerializeTypeObject,
 	}
@@ -464,10 +473,17 @@ func (s Section) Bytes() []byte {
 	for _, entry := range s.Entries {
 		body = append(body, byte(len(entry.Name))) // section name length
 		body = append(body, []byte(entry.Name)...) // section name
-		body = append(body, entry.Serializable.Bytes()...)
+		if entry.Serializable == nil {
+			return nil, ErrNotSerializable
+		}
+		data, err := entry.Serializable.Bytes()
+		if err != nil {
+			return nil, err
+		}
+		body = append(body, data...)
 	}
 
-	return body
+	return body, nil
 }
 
 func VarIn(i int) ([]byte, error) {
