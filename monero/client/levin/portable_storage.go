@@ -146,10 +146,17 @@ func NewPortableStorageFromBytes(bytes []byte) (ps *PortableStorage, err error) 
 
 	ps = &PortableStorage{}
 
-	_, ps.Entries, err = ReadObject(bytes[idx:])
+	var n int
+	n, ps.Entries, err = ReadObject(bytes[idx:])
 
 	if err != nil {
 		return nil, err
+	}
+
+	idx += n
+
+	if len(bytes[idx:]) > 0 {
+		return nil, fmt.Errorf("leftover bytes")
 	}
 
 	return ps, nil
@@ -163,6 +170,14 @@ func ReadString(bytes []byte) (int, string, error) {
 		return -1, "", err
 	}
 	idx += n
+
+	if n < 0 {
+		return -1, "", fmt.Errorf("length out of bounds")
+	}
+
+	if !CanonicalVarIntSize(n, strLen) {
+		return -1, "", fmt.Errorf("non-canonical length encoding")
+	}
 
 	if len(bytes[idx:]) < strLen {
 		return -1, "", io.ErrUnexpectedEOF
@@ -182,6 +197,10 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 
 	if i <= 0 {
 		return 0, nil, fmt.Errorf("invalid length")
+	}
+
+	if !CanonicalVarIntSize(n, i) {
+		return 0, nil, fmt.Errorf("non-canonical length encoding")
 	}
 
 	entries := make(Entries, 0, min(math.MaxUint16, i))
@@ -233,6 +252,14 @@ func ReadArray(ttype byte, bytes []byte) (int, Entries, error) {
 		return 0, nil, err
 	}
 	idx += n
+
+	if i < 0 {
+		return 0, nil, fmt.Errorf("invalid length")
+	}
+
+	if !CanonicalVarIntSize(n, i) {
+		return 0, nil, fmt.Errorf("non-canonical length encoding")
+	}
 
 	entries := make(Entries, 0, min(math.MaxUint16, i))
 
@@ -359,6 +386,10 @@ func ReadAny(bytes []byte, ttype byte) (idx int, value interface{}, serializable
 	}
 
 	return -1, nil, nil, fmt.Errorf("unknown ttype %x", ttype)
+}
+
+func CanonicalVarIntSize(n, i int) bool {
+	return n <= 1 || i > (1<<((n-1)*8-2))-1
 }
 
 // ReadVarInt reads var int, returning number of bytes read and the integer in that byte
