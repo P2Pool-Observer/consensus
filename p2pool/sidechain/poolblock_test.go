@@ -185,3 +185,24 @@ func TestPoolBlockDecodeV1(t *testing.T) {
 		)
 	}
 }
+
+func FuzzPoolBlockDecode(f *testing.F) {
+	for _, path := range []string{
+		"testdata/v4_block.dat",
+		"testdata/v2_block.dat",
+		"testdata/v1_mainnet_test2_block.dat",
+	} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(data)
+	}
+
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		b := &PoolBlock{}
+		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
+			t.Logf("leftover error: %s", err)
+		}
+	})
+}
