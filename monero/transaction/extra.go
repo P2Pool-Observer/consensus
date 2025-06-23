@@ -190,7 +190,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 			return errors.New("padding is too big")
 		}
 
-		t.Data = make([]byte, size-2)
+		t.Data = make([]byte, size-1)
 	case TxExtraTagPubKey:
 		t.Data = make([]byte, crypto.PublicKeySize)
 		if _, err = io.ReadFull(reader, t.Data); err != nil {
