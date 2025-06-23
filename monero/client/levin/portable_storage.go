@@ -164,6 +164,10 @@ func ReadString(bytes []byte) (int, string, error) {
 	}
 	idx += n
 
+	if len(bytes[idx:]) < strLen {
+		return -1, "", io.ErrUnexpectedEOF
+	}
+
 	return idx + strLen, string(bytes[idx : idx+strLen]), nil
 }
 
