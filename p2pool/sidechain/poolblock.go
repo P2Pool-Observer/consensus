@@ -354,7 +354,7 @@ func (b *PoolBlock) FullId(consensus *Consensus) FullId {
 	sidechainId := b.FastSideTemplateId(consensus)
 	copy(buf[:], sidechainId[:])
 	binary.LittleEndian.PutUint32(buf[types.HashSize:], b.Main.Nonce)
-	copy(buf[types.HashSize+unsafe.Sizeof(b.Main.Nonce):], b.CoinbaseExtra(SideExtraNonce)[:SideExtraNonceSize])
+	binary.LittleEndian.PutUint32(buf[types.HashSize+unsafe.Sizeof(b.Main.Nonce):], b.ExtraNonce())
 	return buf
 }
 
@@ -398,7 +398,7 @@ func (b *PoolBlock) CalculateFullId(consensus *Consensus) FullId {
 	sidechainId := b.SideTemplateId(consensus)
 	copy(buf[:], sidechainId[:])
 	binary.LittleEndian.PutUint32(buf[types.HashSize:], b.Main.Nonce)
-	copy(buf[types.HashSize+unsafe.Sizeof(b.Main.Nonce):], b.CoinbaseExtra(SideExtraNonce)[:SideExtraNonceSize])
+	binary.LittleEndian.PutUint32(buf[types.HashSize+unsafe.Sizeof(b.Main.Nonce):], b.ExtraNonce())
 	return buf
 }
 
