@@ -267,6 +267,9 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}, error) {
 	}
 
 	if ttype == BoostSerializeTypeUint8 {
+		if len(bytes[idx:]) < 1 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		obj := uint8(bytes[idx])
 		n += 1
 		idx += n
@@ -275,6 +278,9 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}, error) {
 	}
 
 	if ttype == BoostSerializeTypeUint16 {
+		if len(bytes[idx:]) < 2 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		obj := binary.LittleEndian.Uint16(bytes[idx:])
 		n += 2
 		idx += n
@@ -283,6 +289,9 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}, error) {
 	}
 
 	if ttype == BoostSerializeTypeUint32 {
+		if len(bytes[idx:]) < 4 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		obj := binary.LittleEndian.Uint32(bytes[idx:])
 		n += 4
 		idx += n
@@ -291,6 +300,9 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}, error) {
 	}
 
 	if ttype == BoostSerializeTypeUint64 {
+		if len(bytes[idx:]) < 8 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		obj := binary.LittleEndian.Uint64(bytes[idx:])
 		n += 8
 		idx += n
@@ -299,6 +311,9 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}, error) {
 	}
 
 	if ttype == BoostSerializeTypeInt64 {
+		if len(bytes[idx:]) < 8 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		obj := binary.LittleEndian.Uint64(bytes[idx:])
 		n += 8
 		idx += n
@@ -317,6 +332,9 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}, error) {
 	}
 
 	if ttype == BoostSerializeTypeBool {
+		if len(bytes[idx:]) < 1 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		obj := bytes[idx] > 0
 		n += 1
 		idx += n
