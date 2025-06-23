@@ -6,16 +6,16 @@ import (
 	"testing"
 )
 
-func FuzzCoinbaseTransactionRoundTrip(f *testing.F) {
+func FuzzCoinbaseTransactionExtraTagRoundTrip(f *testing.F) {
 	f.Fuzz(func(t *testing.T, buf []byte) {
-		tx := &CoinbaseTransaction{}
-		if err := tx.UnmarshalBinary(buf, false, false); err != nil {
+		tag := &ExtraTag{}
+		if err := tag.UnmarshalBinary(buf); err != nil {
 			t.Skipf("leftover error: %s", err)
 			return
 		}
-		data, err := tx.MarshalBinary()
+		data, err := tag.MarshalBinary()
 		if err != nil {
-			t.Fatalf("failed to marshal decoded transacion: %s", err)
+			t.Fatalf("failed to marshal decoded tag: %s", err)
 			return
 		}
 		if !bytes.Equal(data, buf) {

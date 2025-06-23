@@ -37,7 +37,14 @@ type ExtraTag struct {
 
 func (t *ExtraTags) UnmarshalBinary(data []byte) (err error) {
 	reader := bytes.NewReader(data)
-	return t.FromReader(reader)
+	err = t.FromReader(reader)
+	if err != nil {
+		return err
+	}
+	if reader.Len() > 0 {
+		return errors.New("leftover bytes in reader")
+	}
+	return nil
 }
 
 func (t *ExtraTags) BufferLength() (length int) {
@@ -108,7 +115,14 @@ func (t *ExtraTags) GetTag(tag uint8) *ExtraTag {
 
 func (t *ExtraTag) UnmarshalBinary(data []byte) error {
 	reader := bytes.NewReader(data)
-	return t.FromReader(reader)
+	err := t.FromReader(reader)
+	if err != nil {
+		return err
+	}
+	if reader.Len() > 0 {
+		return errors.New("leftover bytes in reader")
+	}
+	return nil
 }
 
 func (t *ExtraTag) BufferLength() int {

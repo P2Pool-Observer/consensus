@@ -3,6 +3,7 @@ package sidechain
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
@@ -289,5 +290,12 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 
 func (b *SideData) UnmarshalBinary(data []byte, version ShareVersion) error {
 	reader := bytes.NewReader(data)
-	return b.FromReader(reader, version)
+	err := b.FromReader(reader, version)
+	if err != nil {
+		return err
+	}
+	if reader.Len() > 0 {
+		return errors.New("leftover bytes in reader")
+	}
+	return nil
 }

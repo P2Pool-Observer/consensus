@@ -157,6 +157,10 @@ func (m *PoolBlockReceptionMetadata) UnmarshalBinary(buf []byte) error {
 	m.SoftwareId = uint32(sId)
 	m.SoftwareVersion = uint32(sVer)
 
+	if r.Len() > 0 {
+		return errors.New("leftover bytes in reader")
+	}
+
 	return nil
 }
 
