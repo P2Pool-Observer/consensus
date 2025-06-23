@@ -456,7 +456,14 @@ func (b *PoolBlock) UnmarshalBinary(consensus *Consensus, derivationCache Deriva
 		return errors.New("buffer too large")
 	}
 	reader := bytes.NewReader(data)
-	return b.FromReader(consensus, derivationCache, reader)
+	err := b.FromReader(consensus, derivationCache, reader)
+	if err != nil {
+		return err
+	}
+	if reader.Len() > 0 {
+		return errors.New("leftover bytes in reader")
+	}
+	return nil
 }
 
 func (b *PoolBlock) BufferLength() int {

@@ -1,7 +1,9 @@
 package sidechain
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
@@ -203,6 +205,38 @@ func FuzzPoolBlockDecode(f *testing.F) {
 		b := &PoolBlock{}
 		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
 			t.Logf("leftover error: %s", err)
+		}
+	})
+}
+
+func FuzzPoolBlockRoundTrip(f *testing.F) {
+	for _, path := range []string{
+		"testdata/v4_block.dat",
+		"testdata/v2_block.dat",
+		"testdata/v1_mainnet_test2_block.dat",
+	} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(data)
+	}
+
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		b := &PoolBlock{}
+		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
+			t.Skipf("leftover error: %s", err)
+			return
+		}
+		data, err := b.MarshalBinary()
+		if err != nil {
+			t.Fatalf("failed to marshal decoded block: %s", err)
+			return
+		}
+		if !bytes.Equal(data, buf) {
+			t.Logf("EXPECTED (len %d):\n%s", len(buf), hex.Dump(buf))
+			t.Logf("ACTUAL (len %d):\n%s", len(data), hex.Dump(data))
+			t.Fatalf("mismatched roundtrip")
 		}
 	})
 }
