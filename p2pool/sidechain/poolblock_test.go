@@ -188,12 +188,14 @@ func TestPoolBlockDecodeV1(t *testing.T) {
 	}
 }
 
+var fuzzPoolBlocks = []string{
+	"testdata/v4_block.dat",
+	"testdata/v2_block.dat",
+	"testdata/v1_mainnet_test2_block.dat",
+}
+
 func FuzzPoolBlockDecode(f *testing.F) {
-	for _, path := range []string{
-		"testdata/v4_block.dat",
-		"testdata/v2_block.dat",
-		"testdata/v1_mainnet_test2_block.dat",
-	} {
+	for _, path := range fuzzPoolBlocks {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			f.Fatal(err)
@@ -210,11 +212,7 @@ func FuzzPoolBlockDecode(f *testing.F) {
 }
 
 func FuzzPoolBlockRoundTrip(f *testing.F) {
-	for _, path := range []string{
-		"testdata/v4_block.dat",
-		"testdata/v2_block.dat",
-		"testdata/v1_mainnet_test2_block.dat",
-	} {
+	for _, path := range fuzzPoolBlocks {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			f.Fatal(err)

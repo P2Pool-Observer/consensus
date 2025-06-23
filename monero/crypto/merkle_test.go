@@ -233,3 +233,29 @@ func BenchmarkBinaryTreeHash_RootHash(b *testing.B) {
 		runtime.KeepAlive(txTreeHash)
 	})
 }
+
+func FuzzBinaryTreeHash(f *testing.F) {
+	var buf []byte
+	for _, tx := range transactionHashes {
+		buf = append(buf, tx[:]...)
+	}
+	f.Add(buf)
+
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		if len(buf) == 0 || len(buf)%types.HashSize != 0 {
+			t.SkipNow()
+		}
+		var tree BinaryTreeHash
+		for i := 0; i < len(buf); i += types.HashSize {
+			tree = append(tree, types.HashFromBytes(buf[i:]))
+		}
+
+		rootHash := tree.RootHash()
+
+		runtime.KeepAlive(rootHash)
+
+		mainBranch := tree.MainBranch()
+
+		runtime.KeepAlive(mainBranch)
+	})
+}
