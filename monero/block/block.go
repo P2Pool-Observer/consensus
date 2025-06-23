@@ -120,7 +120,14 @@ func (b *Block) FromCompactReader(reader utils.ReaderAndByteReader, canBePruned 
 
 func (b *Block) UnmarshalBinary(data []byte, canBePruned bool, f PrunedFlagsFunc) error {
 	reader := bytes.NewReader(data)
-	return b.FromReader(reader, canBePruned, f)
+	err := b.FromReader(reader, canBePruned, f)
+	if err != nil {
+		return err
+	}
+	if reader.Len() > 0 {
+		return errors.New("leftover bytes in reader")
+	}
+	return nil
 }
 
 func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBePruned bool, f PrunedFlagsFunc) (err error) {

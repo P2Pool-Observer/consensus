@@ -44,7 +44,14 @@ type CoinbaseTransactionAuxiliaryData struct {
 
 func (c *CoinbaseTransaction) UnmarshalBinary(data []byte, canBePruned, containsAuxiliaryTemplateId bool) error {
 	reader := bytes.NewReader(data)
-	return c.FromReader(reader, canBePruned, containsAuxiliaryTemplateId)
+	err := c.FromReader(reader, canBePruned, containsAuxiliaryTemplateId)
+	if err != nil {
+		return err
+	}
+	if reader.Len() > 0 {
+		return errors.New("leftover bytes in reader")
+	}
+	return nil
 }
 
 func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBePruned, containsAuxiliaryTemplateId bool) (err error) {
