@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 )
 
 const (
@@ -179,11 +180,10 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 		return 0, nil, fmt.Errorf("invalid length")
 	}
 
-	entries := make(Entries, i)
+	entries := make(Entries, 0, min(math.MaxUint16, i))
 
 	for iter := 0; iter < i; iter++ {
-		entries[iter] = Entry{}
-		entry := &entries[iter]
+		var entry Entry
 
 		if len(bytes[idx:]) < 1 {
 			return 0, nil, io.ErrUnexpectedEOF
@@ -210,6 +210,8 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 		idx += n
 
 		entry.Value = obj
+
+		entries = append(entries, entry)
 	}
 
 	return idx, entries, nil
@@ -227,7 +229,7 @@ func ReadArray(ttype byte, bytes []byte) (int, Entries, error) {
 	}
 	idx += n
 
-	entries := make(Entries, i)
+	entries := make(Entries, 0, min(math.MaxUint16, i))
 
 	for iter := 0; iter < i; iter++ {
 		n, obj, err := ReadAny(bytes[idx:], ttype)
@@ -236,9 +238,9 @@ func ReadArray(ttype byte, bytes []byte) (int, Entries, error) {
 		}
 		idx += n
 
-		entries[iter] = Entry{
+		entries = append(entries, Entry{
 			Value: obj,
-		}
+		})
 	}
 
 	return idx, entries, nil
