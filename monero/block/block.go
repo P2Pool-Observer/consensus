@@ -145,6 +145,10 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return fmt.Errorf("minor version %d smaller than major version %d", b.MinorVersion, b.MajorVersion)
 	}
 
+	if b.MinorVersion > 127 {
+		return fmt.Errorf("minor version %d larger than maximum byte varint size", b.MinorVersion)
+	}
+
 	if b.Timestamp, err = binary.ReadUvarint(reader); err != nil {
 		return err
 	}
