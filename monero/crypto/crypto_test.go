@@ -101,3 +101,32 @@ func TestDeriveViewTag(t *testing.T) {
 		}
 	}
 }
+
+func FuzzDeriveViewTag(f *testing.F) {
+	results := GetTestEntries("derive_view_tag", 3)
+	if results == nil {
+		f.Fatal()
+	}
+	for e := range results {
+		derivation := PublicKeyBytes(types.MustHashFromString(e[0]))
+		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
+
+		f.Add([]byte(derivation.AsSlice()), outputIndex)
+	}
+
+	f.Fuzz(func(t *testing.T, derivation []byte, outputIndex uint64) {
+		hasher := GetKeccak256Hasher()
+		defer PutKeccak256Hasher(hasher)
+
+		derivationBytes := (*PublicKeySlice)(&derivation).AsBytes()
+
+		viewTag := GetDerivationViewTagForOutputIndex(&derivationBytes, outputIndex)
+
+		_, viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivationBytes, outputIndex, hasher)
+
+		if viewTag != viewTag2 {
+			t.Fatalf("derive_view_tag differs from no_allocate: %d != %d", viewTag, &viewTag2)
+		}
+	})
+
+}

@@ -1,6 +1,8 @@
 package levin_test
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"strings"
@@ -193,5 +195,23 @@ func TestLevin(t *testing.T) {
 				0x01, 0x00, 0x00, 0x00, // version
 			})
 		})
+	})
+}
+
+func FuzzLevinHeader_RoundTrip(f *testing.F) {
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		// enforce capacity checks
+		buf = buf[:len(buf):len(buf)]
+
+		header, err := levin.NewHeaderFromBytesBytes(buf)
+		if err != nil {
+			t.Skip(err)
+		}
+		data := header.Bytes()
+		if !bytes.Equal(buf, data) {
+			t.Logf("EXPECTED (len %d):\n%s", len(buf), hex.Dump(buf))
+			t.Logf("ACTUAL (len %d):\n%s", len(data), hex.Dump(data))
+			t.Fatalf("mismatched roundtrip")
+		}
 	})
 }
