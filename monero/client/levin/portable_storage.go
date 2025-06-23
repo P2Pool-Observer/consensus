@@ -180,12 +180,21 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 		entries[iter] = Entry{}
 		entry := &entries[iter]
 
+		if len(bytes[idx:]) < 1 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		lenName := int(bytes[idx])
 		idx += 1
 
+		if len(bytes[idx:]) < lenName {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		entry.Name = string(bytes[idx : idx+lenName])
 		idx += lenName
 
+		if len(bytes[idx:]) < 1 {
+			return 0, nil, io.ErrUnexpectedEOF
+		}
 		ttype := bytes[idx]
 		idx += 1
 
