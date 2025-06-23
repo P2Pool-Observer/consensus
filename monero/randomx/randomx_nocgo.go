@@ -145,7 +145,7 @@ func newRandomXState(flags ...Flag) (*hasherState, error) {
 		return nil, err
 	}
 
-	if slices.Contains(flags, FlagLargePages) {
+	if slices.Contains(flags, FlagFullMemory) {
 		if dataset, err := randomx.NewDataset(h.flags); err != nil {
 			h.Close()
 			return nil, fmt.Errorf("couldn't initialize dataset: %w", err)
