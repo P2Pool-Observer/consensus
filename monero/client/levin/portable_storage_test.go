@@ -85,16 +85,18 @@ func TestPortableStorage(t *testing.T) {
 			assertEqual(t, ps.Entries[0].Name, "node_data")
 			assertEqual(t, ps.Entries[0].Value, levin.Entries{
 				{
-					Name:  "foo",
-					Value: "bar",
+					Name:         "foo",
+					Value:        "bar",
+					Serializable: levin.BoostString("bar"),
 				},
 			})
 
 			assertEqual(t, ps.Entries[1].Name, "payload_data")
 			assertEqual(t, ps.Entries[1].Value, levin.Entries{
 				{
-					Name:  "number",
-					Value: uint32(1),
+					Name:         "number",
+					Value:        uint32(1),
+					Serializable: levin.BoostUint32(1),
 				},
 			})
 		})
