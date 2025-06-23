@@ -81,8 +81,8 @@ func (t *ExtraTags) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId 
 }
 
 func (t *ExtraTags) FromReader(reader utils.ReaderAndByteReader) (err error) {
-	var tag ExtraTag
 	for {
+		var tag ExtraTag
 		if err = tag.FromReader(reader); err != nil {
 			if errors.Is(err, ErrExtraTagNoMoreTags) {
 				return nil
