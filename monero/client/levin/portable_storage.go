@@ -388,7 +388,7 @@ func ReadVarInt(b []byte) (int, int, error) {
 	}
 }
 
-func (s *PortableStorage) Bytes() []byte {
+func (s *PortableStorage) Bytes() ([]byte, error) {
 	var (
 		body = make([]byte, 9) // fit _at least_ signatures + format ver
 		b    = make([]byte, 8) // biggest type
@@ -424,18 +424,23 @@ func (s *PortableStorage) Bytes() []byte {
 	// // write_var_in
 	varInB, err := VarIn(len(s.Entries))
 	if err != nil {
-		panic(fmt.Errorf("varin '%d': %w", len(s.Entries), err))
+		return nil, fmt.Errorf("varin '%d': %w", len(s.Entries), err)
 	}
 
 	body = append(body, varInB...)
 	for _, entry := range s.Entries {
 		body = append(body, byte(len(entry.Name))) // section name length
 		body = append(body, []byte(entry.Name)...) // section name
+		if entry.Serializable == nil {
+			return nil, ErrNotSerializable
+		}
 		body = append(body, entry.Serializable.Bytes()...)
 	}
 
-	return body
+	return body, nil
 }
+
+var ErrNotSerializable = errors.New("not serializable")
 
 type Serializable interface {
 	Bytes() []byte

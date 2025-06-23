@@ -62,7 +62,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) Handshake(ctx context.Context) (*Node, error) {
-	payload := (&PortableStorage{
+	payload, err := (&PortableStorage{
 		Entries: []Entry{
 			{
 				Name: "node_data",
@@ -77,6 +77,9 @@ func (c *Client) Handshake(ctx context.Context) (*Node, error) {
 			},
 		},
 	}).Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("handshake: %w", err)
+	}
 
 	reqHeaderB := NewRequestHeader(CommandHandshake, uint64(len(payload))).Bytes()
 

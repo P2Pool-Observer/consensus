@@ -24,7 +24,10 @@ func (c *Client) GetOIndexes(
 		},
 	}}
 
-	data := storage.Bytes()
+	data, err := storage.Bytes()
+	if err != nil {
+		return nil, err
+	}
 
 	resp, err := c.RawBinaryRequest(ctx, endpointGetOIndexes, bytes.NewReader(data))
 	if err != nil {

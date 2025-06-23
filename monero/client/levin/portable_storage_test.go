@@ -187,6 +187,8 @@ func TestPortableStorage(t *testing.T) {
 				},
 			}
 
+			data, _ := ps.Bytes()
+
 			assertEqual(t, []byte{
 				0x01, 0x11, 0x01, 0x01, // sig a
 				0x01, 0x01, 0x02, 0x01, // sig b
@@ -218,7 +220,7 @@ func TestPortableStorage(t *testing.T) {
 				0x06,                   // boost_serialized_uint32
 				0x01, 0x00, 0x00, 0x00, // uint32(1)
 
-			}, ps.Bytes())
+			}, data)
 		})
 	})
 }
@@ -232,7 +234,10 @@ func FuzzLevinPortableStorage_RoundTrip(f *testing.F) {
 		if err != nil {
 			t.Skip(err)
 		}
-		data := ps.Bytes()
+		data, err := ps.Bytes()
+		if err != nil {
+			t.Skip(err)
+		}
 		if !bytes.Equal(buf, data) {
 			t.Logf("EXPECTED (len %d):\n%s", len(buf), hex.Dump(buf))
 			t.Logf("ACTUAL (len %d):\n%s", len(data), hex.Dump(data))
