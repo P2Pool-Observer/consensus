@@ -5,7 +5,7 @@ go 1.24
 require (
 	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20250621105958-76afb56a7fa0
 	git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3
-	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.0.0
+	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.0.1
 	git.gammaspectra.live/P2Pool/monero-base58 v1.0.0
 	git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0
 	git.gammaspectra.live/P2Pool/sha3 v0.17.0
