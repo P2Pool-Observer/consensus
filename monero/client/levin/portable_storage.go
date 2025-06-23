@@ -2,6 +2,7 @@ package levin
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -368,7 +369,8 @@ func ReadVarInt(b []byte) (int, int, error) {
 		}
 		return 4, int((binary.LittleEndian.Uint32(b[0:4])) >> 2), nil
 	case uint32(PortableRawSizeMarkInt64):
-		panic("int64 not supported") // TODO
+		// TODO
+		return -1, -1, errors.New("int64 not supported")
 		// return int((binary.LittleEndian.Uint64(b[0:8])) >> 2)
 		//         '-> bad
 	default:
