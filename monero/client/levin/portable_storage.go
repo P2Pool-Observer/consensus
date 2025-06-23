@@ -175,6 +175,10 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 	}
 	idx += n
 
+	if i <= 0 {
+		return 0, nil, fmt.Errorf("invalid length")
+	}
+
 	entries := make(Entries, i)
 
 	for iter := 0; iter < i; iter++ {
