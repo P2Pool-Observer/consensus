@@ -340,7 +340,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 			if _, err := block.PowHashWithError(c.Consensus().GetHasher(), c.getSeedByHeightFunc()); err != nil {
 				return nil, err, false
 			} else {
-				if isHigherMainChain, err := block.IsProofHigherThanMainDifficultyWithError(c.Consensus().GetHasher(), c.server.GetDifficultyByHeight, c.getSeedByHeightFunc()); err != nil {
+				if isHigherMainChain, err := block.IsProofHigherThanMainDifficultyWithError(c.Consensus().GetHasher(), c.getOptionalMainDifficulty, c.getSeedByHeightFunc()); err != nil {
 					utils.Logf("SideChain", "add_external_block: couldn't get mainchain difficulty for height = %d: %s", block.Main.Coinbase.GenHeight, err)
 				} else if isHigherMainChain {
 					utils.Logf("SideChain", "add_external_block: ALTERNATE block %s has enough PoW for Monero height %d, submitting it", templateId.String(), block.Main.Coinbase.GenHeight)
@@ -420,6 +420,18 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	}(), nil, false
 }
 
+func (c *SideChain) getOptionalMainDifficulty(height uint64) types.Difficulty {
+	tip := c.server.GetMinerDataTip()
+	if tip == nil {
+		return types.ZeroDifficulty
+	}
+	// too stale to send to monerod
+	if height < max(tip.Height-8) {
+		return types.ZeroDifficulty
+	}
+	return c.server.GetDifficultyByHeight(height)
+}
+
 func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []types.Hash, err error, ban bool) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -446,7 +458,7 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 		c.BlockUnsee(block)
 		return nil, err, false
 	} else {
-		if isHigherMainChain, err := block.IsProofHigherThanMainDifficultyWithError(c.Consensus().GetHasher(), c.server.GetDifficultyByHeight, c.getSeedByHeightFunc()); err != nil {
+		if isHigherMainChain, err := block.IsProofHigherThanMainDifficultyWithError(c.Consensus().GetHasher(), c.getOptionalMainDifficulty, c.getSeedByHeightFunc()); err != nil {
 			utils.Logf("SideChain", "add_external_block: couldn't get mainchain difficulty for height = %d: %s", block.Main.Coinbase.GenHeight, err)
 		} else if isHigherMainChain {
 			utils.Logf("SideChain", "add_external_block: block %s has enough PoW for Monero height %d, submitting it", templateId.String(), block.Main.Coinbase.GenHeight)
