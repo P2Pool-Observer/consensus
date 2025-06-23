@@ -114,6 +114,10 @@ func NewPortableStorageFromBytes(bytes []byte) (*PortableStorage, error) {
 
 	{ // sig-b
 		size = 4
+		if len(bytes[idx:]) < size {
+			return nil, fmt.Errorf("sig-b out of bounds")
+		}
+
 		sig := binary.LittleEndian.Uint32(bytes[idx : idx+size])
 		idx += size
 
@@ -124,6 +128,11 @@ func NewPortableStorageFromBytes(bytes []byte) (*PortableStorage, error) {
 
 	{ // format ver
 		size = 1
+
+		if len(bytes[idx:]) < size {
+			return nil, fmt.Errorf("version out of bounds")
+		}
+
 		version := bytes[idx]
 		idx += size
 
