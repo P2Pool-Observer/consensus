@@ -99,7 +99,10 @@ func (s *Outputs) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) 
 }
 
 type Output struct {
-	Index  uint64 `json:"index"`
+	Index uint64 `json:"index"`
+	// Reward amount of Monero rewarded on this output.
+	// Consensus: p2pool limits this field to 56 bits max
+	// https://github.com/SChernykh/p2pool/blob/10d583adb67d0566af6c36a6c97fed69545421a2/src/pool_block.h#L104-L106
 	Reward uint64 `json:"reward"`
 	// Type would be here
 	EphemeralPublicKey crypto.PublicKeyBytes `json:"ephemeral_public_key"`

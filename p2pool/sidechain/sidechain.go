@@ -298,6 +298,10 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		if o.Type != expectedTxType {
 			return nil, errors.New("unexpected transaction type"), true
 		}
+
+		if o.Reward > MaxTxOutputReward {
+			return nil, errors.New("reward too high"), true
+		}
 	}
 
 	templateId := block.SideTemplateId(c.Consensus())

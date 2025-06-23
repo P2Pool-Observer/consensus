@@ -21,7 +21,8 @@ const (
 )
 
 const (
-	UncleBlockDepth = 3
+	UncleBlockDepth   = 3
+	MaxTxOutputReward = (1 << 56) - 1
 )
 
 type ConsensusProvider interface {
