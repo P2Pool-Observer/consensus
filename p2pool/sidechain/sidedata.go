@@ -175,7 +175,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		return err
 	}
 
-	if uncleCount, err = binary.ReadUvarint(reader); err != nil {
+	if uncleCount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	} else if uncleCount > MaxUncleCount {
 		return fmt.Errorf("uncle count too large: %d > %d", uncleCount, MaxUncleCount)
@@ -191,7 +191,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 		}
 	}
 
-	if b.Height, err = binary.ReadUvarint(reader); err != nil {
+	if b.Height, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 
@@ -200,21 +200,21 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 	}
 
 	{
-		if b.Difficulty.Lo, err = binary.ReadUvarint(reader); err != nil {
+		if b.Difficulty.Lo, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		}
 
-		if b.Difficulty.Hi, err = binary.ReadUvarint(reader); err != nil {
+		if b.Difficulty.Hi, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		}
 	}
 
 	{
-		if b.CumulativeDifficulty.Lo, err = binary.ReadUvarint(reader); err != nil {
+		if b.CumulativeDifficulty.Lo, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		}
 
-		if b.CumulativeDifficulty.Hi, err = binary.ReadUvarint(reader); err != nil {
+		if b.CumulativeDifficulty.Hi, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		}
 	}
@@ -240,7 +240,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 			}
 		}
 
-		if mergeMiningExtraSize, err = binary.ReadUvarint(reader); err != nil {
+		if mergeMiningExtraSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else if mergeMiningExtraSize > merge_mining.MaxChains {
 			return fmt.Errorf("merge mining data too big: %d > %d", mergeMiningExtraSize, merge_mining.MaxChains)
@@ -254,7 +254,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 				} else if i > 0 && b.MergeMiningExtra[i-1].ChainId.Compare(b.MergeMiningExtra[i].ChainId) >= 0 {
 					// IDs must be ordered to avoid duplicates
 					return fmt.Errorf("duplicate or not ordered merge mining data chain id: %s > %s", b.MergeMiningExtra[i-1].ChainId, b.MergeMiningExtra[i].ChainId)
-				} else if mergeMiningExtraDataSize, err = binary.ReadUvarint(reader); err != nil {
+				} else if mergeMiningExtraDataSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
 					return err
 				} else if mergeMiningExtraDataSize > PoolBlockMaxTemplateSize {
 					return fmt.Errorf("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, PoolBlockMaxTemplateSize)

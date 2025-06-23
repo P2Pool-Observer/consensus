@@ -879,12 +879,12 @@ func (c *Client) OnConnection() {
 			//TODO: broadcast/save data signatures
 
 		case MessageInternal:
-			internalMessageId, err := binary.ReadUvarint(c)
+			internalMessageId, err := utils.ReadCanonicalUvarint(c)
 			if err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
-			messageSize, err := binary.ReadUvarint(c)
+			messageSize, err := utils.ReadCanonicalUvarint(c)
 			if err != nil {
 				c.Ban(DefaultBanTime, err)
 				return

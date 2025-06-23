@@ -140,7 +140,7 @@ func (tpl *Template) SideData(consensus *sidechain.Consensus) (d sidechain.SideD
 }
 
 func (tpl *Template) Timestamp() uint64 {
-	t, _ := binary.Uvarint(tpl.Buffer[2:])
+	t, _ := utils.CanonicalUvarint(tpl.Buffer[2:])
 	return t
 }
 
@@ -207,7 +207,7 @@ func CoinbaseIdHash(hasher *sha3.HasherState, coinbaseBlobMinusBaseRTC types.Has
 }
 
 func (tpl *Template) HashingBlobBufferLength() int {
-	_, n := binary.Uvarint(tpl.Buffer[tpl.TransactionsOffset:])
+	_, n := utils.CanonicalUvarint(tpl.Buffer[tpl.TransactionsOffset:])
 
 	return tpl.NonceOffset + 4 + types.HashSize + n
 }
@@ -220,7 +220,7 @@ func (tpl *Template) HashingBlob(hasher *sha3.HasherState, preAllocatedBuffer []
 	buf := append(preAllocatedBuffer, tpl.Buffer[:tpl.NonceOffset]...)
 	buf = binary.LittleEndian.AppendUint32(buf, nonce)
 
-	numTransactions, n := binary.Uvarint(tpl.Buffer[tpl.TransactionsOffset:])
+	numTransactions, n := utils.CanonicalUvarint(tpl.Buffer[tpl.TransactionsOffset:])
 
 	if numTransactions < 1 {
 	} else if numTransactions < 2 {

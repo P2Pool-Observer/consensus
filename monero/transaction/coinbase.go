@@ -63,7 +63,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 		return errors.New("version not supported")
 	}
 
-	if c.UnlockTime, err = binary.ReadUvarint(reader); err != nil {
+	if c.UnlockTime, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 
@@ -83,7 +83,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 		return errors.New("invalid coinbase input type")
 	}
 
-	if c.GenHeight, err = binary.ReadUvarint(reader); err != nil {
+	if c.GenHeight, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 
@@ -116,11 +116,11 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 		// We only have total reward and outputs blob size here
 		//special case, pruned block. outputs have to be generated from chain
 
-		if c.AuxiliaryData.TotalReward, err = binary.ReadUvarint(reader); err != nil {
+		if c.AuxiliaryData.TotalReward, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		}
 
-		if c.AuxiliaryData.OutputsBlobSize, err = binary.ReadUvarint(reader); err != nil {
+		if c.AuxiliaryData.OutputsBlobSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		}
 
@@ -132,7 +132,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 		}
 	}
 
-	if txExtraSize, err = binary.ReadUvarint(reader); err != nil {
+	if txExtraSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 	if txExtraSize > 65536 {

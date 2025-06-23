@@ -14,7 +14,7 @@ type Outputs []Output
 func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 	var outputCount uint64
 
-	if outputCount, err = binary.ReadUvarint(reader); err != nil {
+	if outputCount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 
@@ -27,7 +27,7 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		for index := 0; index < int(outputCount); index++ {
 			o.Index = uint64(index)
 
-			if o.Reward, err = binary.ReadUvarint(reader); err != nil {
+			if o.Reward, err = utils.ReadCanonicalUvarint(reader); err != nil {
 				return err
 			}
 

@@ -113,18 +113,18 @@ type PoolBlockReceptionMetadata struct {
 
 func (m *PoolBlockReceptionMetadata) UnmarshalBinary(buf []byte) error {
 	r := bytes.NewReader(buf)
-	s, err := binary.ReadUvarint(r)
+	s, err := utils.ReadCanonicalUvarint(r)
 	if err != nil {
 		return err
 	}
-	ns, err := binary.ReadUvarint(r)
+	ns, err := utils.ReadCanonicalUvarint(r)
 	if err != nil {
 		return err
 	}
 
 	m.LocalTime = time.Unix(int64(s), int64(ns)).UTC()
 
-	l, err := binary.ReadUvarint(r)
+	l, err := utils.ReadCanonicalUvarint(r)
 	if err != nil {
 		return err
 	}
@@ -139,17 +139,17 @@ func (m *PoolBlockReceptionMetadata) UnmarshalBinary(buf []byte) error {
 		return err
 	}
 
-	m.PeerId, err = binary.ReadUvarint(r)
+	m.PeerId, err = utils.ReadCanonicalUvarint(r)
 	if err != nil {
 		return err
 	}
 
-	sId, err := binary.ReadUvarint(r)
+	sId, err := utils.ReadCanonicalUvarint(r)
 	if err != nil {
 		return err
 	}
 
-	sVer, err := binary.ReadUvarint(r)
+	sVer, err := utils.ReadCanonicalUvarint(r)
 	if err != nil {
 		return err
 	}

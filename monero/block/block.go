@@ -149,7 +149,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return fmt.Errorf("minor version %d larger than maximum byte varint size", b.MinorVersion)
 	}
 
-	if b.Timestamp, err = binary.ReadUvarint(reader); err != nil {
+	if b.Timestamp, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 
@@ -176,7 +176,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 
 	//TODO: verify hardfork major versions
 
-	if txCount, err = binary.ReadUvarint(reader); err != nil {
+	if txCount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	} else if txCount > MaxTransactionCount {
 		return fmt.Errorf("transaction count count too large: %d > %d", txCount, MaxTransactionCount)
@@ -188,7 +188,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 
 			var parentIndex uint64
 			for i := 0; i < int(txCount); i++ {
-				if parentIndex, err = binary.ReadUvarint(reader); err != nil {
+				if parentIndex, err = utils.ReadCanonicalUvarint(reader); err != nil {
 					return err
 				}
 

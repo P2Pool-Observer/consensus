@@ -17,7 +17,7 @@ type Tag struct {
 // FromReader Decodes the merge mining tag located in coinbase transaction
 // Format according to https://github.com/SChernykh/p2pool/blob/e6b8292d5b59692921af23613456674ccab4958b/docs/MERGE_MINING.MD
 func (t *Tag) FromReader(reader utils.ReaderAndByteReader) error {
-	merkleTreeData, err := binary.ReadUvarint(reader)
+	merkleTreeData, err := utils.ReadCanonicalUvarint(reader)
 	if err != nil {
 		return err
 	}

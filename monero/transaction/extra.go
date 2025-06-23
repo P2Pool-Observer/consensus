@@ -198,7 +198,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		}
 	case TxExtraTagNonce:
 		t.HasVarInt = true
-		if t.VarInt, err = binary.ReadUvarint(reader); err != nil {
+		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else {
 			if t.VarInt > TxExtraNonceMaxCount {
@@ -212,7 +212,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		}
 	case TxExtraTagMergeMining:
 		t.HasVarInt = true
-		if t.VarInt, err = binary.ReadUvarint(reader); err != nil {
+		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else {
 			if t.VarInt > TxExtraTagMergeMiningMaxCount {
@@ -225,7 +225,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		}
 	case TxExtraTagAdditionalPubKeys:
 		t.HasVarInt = true
-		if t.VarInt, err = binary.ReadUvarint(reader); err != nil {
+		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else {
 			if t.VarInt > TxExtraAdditionalPubKeysMaxCount {
@@ -239,7 +239,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		}
 	case TxExtraTagMysteriousMinergate:
 		t.HasVarInt = true
-		if t.VarInt, err = binary.ReadUvarint(reader); err != nil {
+		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else {
 			if t.VarInt > TxExtraNonceMaxCount {
