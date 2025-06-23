@@ -103,7 +103,7 @@ func TestPortableStorage(t *testing.T) {
 	t.Run("ReadVarIn", func(t *testing.T) {
 		it(t, "i <= 63", func(t *testing.T) {
 			b := []byte{0x08}
-			n, v := levin.ReadVarInt(b)
+			n, v, _ := levin.ReadVarInt(b)
 
 			assertEqual(t, n, 1)
 			assertEqual(t, v, 2)
@@ -111,14 +111,14 @@ func TestPortableStorage(t *testing.T) {
 
 		it(t, "64 <= i <= 16383", func(t *testing.T) {
 			b := []byte{0x01, 0x02}
-			n, v := levin.ReadVarInt(b)
+			n, v, _ := levin.ReadVarInt(b)
 			assertEqual(t, n, 2)
 			assertEqual(t, v, 128)
 		})
 
 		it(t, "16384 <= i <= 1073741823", func(t *testing.T) {
 			b := []byte{0x02, 0x00, 0x01, 0x00}
-			n, v := levin.ReadVarInt(b)
+			n, v, _ := levin.ReadVarInt(b)
 			assertEqual(t, n, 4)
 			assertEqual(t, v, 16384)
 		})

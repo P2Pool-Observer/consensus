@@ -3,6 +3,7 @@ package levin
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 )
 
 const (
@@ -91,7 +92,7 @@ type PortableStorage struct {
 	Entries Entries
 }
 
-func NewPortableStorageFromBytes(bytes []byte) (*PortableStorage, error) {
+func NewPortableStorageFromBytes(bytes []byte) (ps *PortableStorage, err error) {
 	var (
 		size = 0
 		idx  = 0
@@ -141,26 +142,36 @@ func NewPortableStorageFromBytes(bytes []byte) (*PortableStorage, error) {
 		}
 	}
 
-	ps := &PortableStorage{}
+	ps = &PortableStorage{}
 
-	_, ps.Entries = ReadObject(bytes[idx:])
+	_, ps.Entries, err = ReadObject(bytes[idx:])
+
+	if err != nil {
+		return nil, err
+	}
 
 	return ps, nil
 }
 
-func ReadString(bytes []byte) (int, string) {
+func ReadString(bytes []byte) (int, string, error) {
 	idx := 0
 
-	n, strLen := ReadVarInt(bytes)
+	n, strLen, err := ReadVarInt(bytes)
+	if err != nil {
+		return -1, "", err
+	}
 	idx += n
 
-	return idx + strLen, string(bytes[idx : idx+strLen])
+	return idx + strLen, string(bytes[idx : idx+strLen]), nil
 }
 
-func ReadObject(bytes []byte) (int, Entries) {
+func ReadObject(bytes []byte) (int, Entries, error) {
 	idx := 0
 
-	n, i := ReadVarInt(bytes[idx:])
+	n, i, err := ReadVarInt(bytes[idx:])
+	if err != nil {
+		return 0, nil, err
+	}
 	idx += n
 
 	entries := make(Entries, i)
@@ -178,28 +189,37 @@ func ReadObject(bytes []byte) (int, Entries) {
 		ttype := bytes[idx]
 		idx += 1
 
-		n, obj := ReadAny(bytes[idx:], ttype)
+		n, obj, err := ReadAny(bytes[idx:], ttype)
+		if err != nil {
+			return 0, nil, err
+		}
 		idx += n
 
 		entry.Value = obj
 	}
 
-	return idx, entries
+	return idx, entries, nil
 }
 
-func ReadArray(ttype byte, bytes []byte) (int, Entries) {
+func ReadArray(ttype byte, bytes []byte) (int, Entries, error) {
 	var (
 		idx = 0
 		n   = 0
 	)
 
-	n, i := ReadVarInt(bytes[idx:])
+	n, i, err := ReadVarInt(bytes[idx:])
+	if err != nil {
+		return 0, nil, err
+	}
 	idx += n
 
 	entries := make(Entries, i)
 
 	for iter := 0; iter < i; iter++ {
-		n, obj := ReadAny(bytes[idx:], ttype)
+		n, obj, err := ReadAny(bytes[idx:], ttype)
+		if err != nil {
+			return 0, nil, err
+		}
 		idx += n
 
 		entries[iter] = Entry{
@@ -207,10 +227,10 @@ func ReadArray(ttype byte, bytes []byte) (int, Entries) {
 		}
 	}
 
-	return idx, entries
+	return idx, entries, nil
 }
 
-func ReadAny(bytes []byte, ttype byte) (int, interface{}) {
+func ReadAny(bytes []byte, ttype byte) (int, interface{}, error) {
 	var (
 		idx = 0
 		n   = 0
@@ -218,17 +238,23 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}) {
 
 	if ttype&BoostSerializeFlagArray != 0 {
 		internalType := ttype &^ BoostSerializeFlagArray
-		n, obj := ReadArray(internalType, bytes[idx:])
+		n, obj, err := ReadArray(internalType, bytes[idx:])
+		if err != nil {
+			return 0, nil, err
+		}
 		idx += n
 
-		return idx, obj
+		return idx, obj, nil
 	}
 
 	if ttype == BoostSerializeTypeObject {
-		n, obj := ReadObject(bytes[idx:])
+		n, obj, err := ReadObject(bytes[idx:])
+		if err != nil {
+			return 0, nil, err
+		}
 		idx += n
 
-		return idx, obj
+		return idx, obj, nil
 	}
 
 	if ttype == BoostSerializeTypeUint8 {
@@ -236,7 +262,7 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}) {
 		n += 1
 		idx += n
 
-		return idx, obj
+		return idx, obj, nil
 	}
 
 	if ttype == BoostSerializeTypeUint16 {
@@ -244,7 +270,7 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}) {
 		n += 2
 		idx += n
 
-		return idx, obj
+		return idx, obj, nil
 	}
 
 	if ttype == BoostSerializeTypeUint32 {
@@ -252,7 +278,7 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}) {
 		n += 4
 		idx += n
 
-		return idx, obj
+		return idx, obj, nil
 	}
 
 	if ttype == BoostSerializeTypeUint64 {
@@ -260,7 +286,7 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}) {
 		n += 8
 		idx += n
 
-		return idx, obj
+		return idx, obj, nil
 	}
 
 	if ttype == BoostSerializeTypeInt64 {
@@ -268,14 +294,17 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}) {
 		n += 8
 		idx += n
 
-		return idx, int64(obj)
+		return idx, int64(obj), nil
 	}
 
 	if ttype == BoostSerializeTypeString {
-		n, obj := ReadString(bytes[idx:])
+		n, obj, err := ReadString(bytes[idx:])
+		if err != nil {
+			return 0, nil, err
+		}
 		idx += n
 
-		return idx, obj
+		return idx, obj, nil
 	}
 
 	if ttype == BoostSerializeTypeBool {
@@ -283,34 +312,41 @@ func ReadAny(bytes []byte, ttype byte) (int, interface{}) {
 		n += 1
 		idx += n
 
-		return idx, obj
+		return idx, obj, nil
 	}
 
-	panic(fmt.Errorf("unknown ttype %x", ttype))
-	return -1, nil
+	return -1, nil, fmt.Errorf("unknown ttype %x", ttype)
 }
 
-// reads var int, returning number of bytes read and the integer in that byte
+// ReadVarInt reads var int, returning number of bytes read and the integer in that byte
 // sequence.
-func ReadVarInt(b []byte) (int, int) {
+func ReadVarInt(b []byte) (int, int, error) {
+	if len(b) < 1 {
+		return -1, -1, io.ErrUnexpectedEOF
+	}
+
 	sizeMask := b[0] & PortableRawSizeMarkMask
 
 	switch uint32(sizeMask) {
 	case uint32(PortableRawSizeMarkByte):
-		return 1, int(b[0] >> 2)
+		return 1, int(b[0] >> 2), nil
 	case uint32(PortableRawSizeMarkWord):
-		return 2, int((binary.LittleEndian.Uint16(b[0:2])) >> 2)
+		if len(b) < 2 {
+			return -1, -1, io.ErrUnexpectedEOF
+		}
+		return 2, int((binary.LittleEndian.Uint16(b[0:2])) >> 2), nil
 	case PortableRawSizeMarkDword:
-		return 4, int((binary.LittleEndian.Uint32(b[0:4])) >> 2)
+		if len(b) < 4 {
+			return -1, -1, io.ErrUnexpectedEOF
+		}
+		return 4, int((binary.LittleEndian.Uint32(b[0:4])) >> 2), nil
 	case uint32(PortableRawSizeMarkInt64):
 		panic("int64 not supported") // TODO
 		// return int((binary.LittleEndian.Uint64(b[0:8])) >> 2)
 		//         '-> bad
 	default:
-		panic(fmt.Errorf("malformed sizemask: %+v", sizeMask))
+		return -1, -1, fmt.Errorf("malformed sizemask: %+v", sizeMask)
 	}
-
-	return -1, -1
 }
 
 func (s *PortableStorage) Bytes() []byte {
