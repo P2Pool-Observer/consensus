@@ -1,6 +1,8 @@
 package levin_test
 
 import (
+	"bytes"
+	"encoding/hex"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/levin"
@@ -218,5 +220,23 @@ func TestPortableStorage(t *testing.T) {
 
 			}, ps.Bytes())
 		})
+	})
+}
+
+func FuzzLevinPortableStorage_RoundTrip(f *testing.F) {
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		// enforce capacity checks
+		buf = buf[:len(buf):len(buf)]
+
+		ps, err := levin.NewPortableStorageFromBytes(buf)
+		if err != nil {
+			t.Skip(err)
+		}
+		data := ps.Bytes()
+		if !bytes.Equal(buf, data) {
+			t.Logf("EXPECTED (len %d):\n%s", len(buf), hex.Dump(buf))
+			t.Logf("ACTUAL (len %d):\n%s", len(data), hex.Dump(data))
+			t.Fatalf("mismatched roundtrip")
+		}
 	})
 }
