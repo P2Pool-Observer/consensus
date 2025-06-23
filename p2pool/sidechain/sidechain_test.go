@@ -2,6 +2,7 @@ package sidechain
 
 import (
 	"compress/gzip"
+	"encoding/binary"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
@@ -75,7 +76,7 @@ func (d TestSideChainData) Load() (server *FakeServer, blocks UniquePoolBlockSli
 		patchedBlocks = append(patchedBlocks, data)
 	}
 
-	if blocks, err = LoadSideChainTestData(s, reader, patchedBlocks...); err != nil {
+	if blocks, err = LoadSideChainTestData(s.Consensus(), s.DerivationCache(), reader, patchedBlocks...); err != nil {
 		return nil, nil, err
 	} else {
 		return server, blocks, nil
@@ -254,6 +255,115 @@ func TestSideChainFullSync(t *testing.T) {
 	if tip.Side.Height != sideChain.TipSideHeight {
 		t.Fatalf("tip side height mismatch %d != %d", tip.Side.Height, sideChain.TipSideHeight)
 	}
+}
+
+func FuzzSideChain_Shuffle_V4(f *testing.F) {
+	// Fuzz shuffle insertion, does need to sync
+	utils.GlobalLogLevel = utils.LogLevelError | utils.LogLevelNotice | utils.LogLevelInfo
+
+	_, blocks, err := DefaultTestSideChainData.Load()
+	if err != nil {
+		f.Fatal(err)
+	}
+
+	indices := make([]byte, len(blocks)*2)
+	for i := range blocks {
+		binary.LittleEndian.PutUint16(indices[i*2:], uint16(i))
+	}
+
+	f.Add(indices)
+
+	f.Fuzz(func(t *testing.T, ix []byte) {
+		if len(ix)%2 != 0 || len(ix) > len(indices) {
+			t.SkipNow()
+		}
+
+		curBlocks := slices.Clone(blocks)
+
+		for i := 0; i < len(ix); i += 2 {
+			n := binary.LittleEndian.Uint16(ix[i:])
+			ii := i / 2
+			// wrap around index to ease edge finding
+			curBlocks[ii], curBlocks[int(n)%len(blocks)] = curBlocks[int(n)%len(blocks)], curBlocks[ii]
+		}
+
+		server := GetFakeTestServer(DefaultTestSideChainData.Consensus)
+		s := server.SideChain()
+
+		for _, b := range curBlocks {
+			if b == nil {
+				continue
+			}
+			// verify externally first without PoW, then add directly
+			if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
+				t.Fatalf("pool block external verify failed: %s", err)
+			}
+			if err = s.AddPoolBlock(b); err != nil {
+				t.Fatalf("add pool block failed: %s", err)
+			}
+		}
+
+		tip := s.GetChainTip()
+
+		if tip == nil {
+			t.Fatalf("GetChainTip() returned nil")
+		}
+
+		if !tip.Verified.Load() {
+			t.Fatalf("tip is not verified")
+		}
+
+		if tip.Invalid.Load() {
+			t.Fatalf("tip is invalid")
+		}
+	})
+}
+
+func FuzzSideChain_Random_V4(f *testing.F) {
+	// Fuzz random insertion, does not need to sync
+
+	_, blocks, err := DefaultTestSideChainData.Load()
+	if err != nil {
+		f.Fatal(err)
+	}
+
+	indices := make([]byte, len(blocks)*2)
+	for i := range blocks {
+		binary.LittleEndian.PutUint16(indices[i*2:], uint16(i))
+	}
+
+	f.Add(indices)
+
+	f.Fuzz(func(t *testing.T, ix []byte) {
+		if len(ix)%2 != 0 {
+			t.SkipNow()
+		}
+
+		curBlocks := make([]*PoolBlock, 0, len(blocks))
+
+		for i := 0; i < len(ix); i += 2 {
+			n := binary.LittleEndian.Uint16(ix[i:])
+
+			// wrap around index to ease edge finding
+			curBlocks = append(curBlocks, blocks[int(n)%len(blocks)])
+		}
+
+		server := GetFakeTestServer(DefaultTestSideChainData.Consensus)
+		s := server.SideChain()
+
+		for _, b := range curBlocks {
+			if b == nil {
+				continue
+			}
+			// verify externally first without PoW, then add directly
+			if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
+				t.Fatalf("pool block external verify failed: %s", err)
+			}
+			if err = s.AddPoolBlock(b); err != nil {
+				t.Fatalf("add pool block failed: %s", err)
+			}
+		}
+	})
 }
 
 func TestSideChain(t *testing.T) {

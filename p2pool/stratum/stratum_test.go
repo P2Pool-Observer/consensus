@@ -96,7 +96,7 @@ func TestMain(m *testing.M) {
 	}
 	defer r.Close()
 
-	if blocks, err := sidechain.LoadSideChainTestData(preLoadedMiniSideChain, r); err != nil {
+	if blocks, err := sidechain.LoadSideChainTestData(preLoadedMiniSideChain.Consensus(), preLoadedMiniSideChain.DerivationCache(), r); err != nil {
 		panic(err)
 	} else {
 		for _, b := range blocks {

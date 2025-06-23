@@ -1298,11 +1298,11 @@ func (c *SideChain) isLongerChain(block, candidate *PoolBlock) (isLonger, isAlte
 	})
 }
 
-func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]byte) (UniquePoolBlockSlice, error) {
+func LoadSideChainTestData(consensus *Consensus, derivationCache DerivationCacheInterface, reader io.Reader, patchedBlocks ...[]byte) (UniquePoolBlockSlice, error) {
 	var err error
 	buf := make([]byte, PoolBlockMaxTemplateSize)
 
-	blocks := make([]*PoolBlock, 0, c.Consensus().ChainWindowSize*3)
+	blocks := make([]*PoolBlock, 0, consensus.ChainWindowSize*3)
 
 	for {
 		buf = buf[:0]
@@ -1316,7 +1316,7 @@ func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]by
 			return nil, err
 		}
 		b := &PoolBlock{}
-		if err = b.UnmarshalBinary(c.Consensus(), c.DerivationCache(), buf[:blockLen]); err != nil {
+		if err = b.UnmarshalBinary(consensus, derivationCache, buf[:blockLen]); err != nil {
 			return nil, err
 		}
 		blocks = append(blocks, b)
@@ -1324,7 +1324,7 @@ func LoadSideChainTestData(c *SideChain, reader io.Reader, patchedBlocks ...[]by
 
 	for _, buf := range patchedBlocks {
 		b := &PoolBlock{}
-		if err = b.UnmarshalBinary(c.Consensus(), c.DerivationCache(), buf); err != nil {
+		if err = b.UnmarshalBinary(consensus, derivationCache, buf); err != nil {
 			return nil, err
 		}
 		blocks = append(blocks, b)
