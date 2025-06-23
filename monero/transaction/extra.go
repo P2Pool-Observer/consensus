@@ -84,7 +84,7 @@ func (t *ExtraTags) FromReader(reader utils.ReaderAndByteReader) (err error) {
 	var tag ExtraTag
 	for {
 		if err = tag.FromReader(reader); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, ErrExtraTagNoMoreTags) {
 				return nil
 			}
 			return err
@@ -160,9 +160,14 @@ func (t *ExtraTag) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId b
 	return buf, nil
 }
 
+var ErrExtraTagNoMoreTags = errors.New("no more tags")
+
 func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 
 	if err = binary.Read(reader, binary.LittleEndian, &t.Tag); err != nil {
+		if err == io.EOF {
+			return ErrExtraTagNoMoreTags
+		}
 		return err
 	}
 
