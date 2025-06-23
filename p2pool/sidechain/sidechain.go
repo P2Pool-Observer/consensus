@@ -320,6 +320,10 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		}
 	}
 
+	if extraNonce := block.CoinbaseExtra(SideExtraNonce); extraNonce == nil {
+		return nil, fmt.Errorf("invalid or non existing extra nonce"), true
+	}
+
 	if block.Side.Difficulty.Cmp64(c.Consensus().MinimumDifficulty) < 0 {
 		return nil, fmt.Errorf("block mined by %s has invalid difficulty %s, expected >= %d", block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), block.Side.Difficulty.StringNumeric(), c.Consensus().MinimumDifficulty), true
 	}
