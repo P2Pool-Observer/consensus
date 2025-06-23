@@ -432,15 +432,17 @@ func (c *SideChain) getOptionalMainDifficulty(height uint64) types.Difficulty {
 	return c.server.GetDifficultyByHeight(height)
 }
 
+var ErrPanic = errors.New("panic while processing")
+
 func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []types.Hash, err error, ban bool) {
 	defer func() {
 		if e := recover(); e != nil {
 			//recover from panics
 			missingBlocks = nil
 			if panicError, ok := e.(error); ok {
-				err = fmt.Errorf("panic: %w", panicError)
+				err = errors.Join(ErrPanic, panicError)
 			} else {
-				err = fmt.Errorf("panic: %v", e)
+				err = errors.Join(ErrPanic, fmt.Errorf("panic: %v", e))
 			}
 			ban = true
 			utils.Errorf("SideChain", "add_external_block: panic %v, block %+v", e, block)

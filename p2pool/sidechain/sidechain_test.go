@@ -3,6 +3,7 @@ package sidechain
 import (
 	"compress/gzip"
 	"encoding/binary"
+	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
@@ -315,6 +316,80 @@ func FuzzSideChain_Mini_Shuffle_V4(f *testing.F) {
 
 		if tip.Invalid.Load() {
 			t.Fatalf("tip is invalid")
+		}
+	})
+}
+
+func FuzzSideChain_AddPoolBlockExternal(f *testing.F) {
+	// Fuzz shuffle insertion, does need to sync
+
+	server, blocks, err := DefaultTestSideChainData.Load()
+	if err != nil {
+		f.Fatal(err)
+	}
+
+	s := server.SideChain()
+
+	var knownPoolBlocks []types.Hash
+	for _, b := range blocks {
+		// verify externally first without PoW, then add directly
+		if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
+			f.Fatalf("pool block external verify failed: %s", err)
+		}
+		if err = s.AddPoolBlock(b); err != nil {
+			f.Fatalf("add pool block failed: %s", err)
+		}
+		knownPoolBlocks = append(knownPoolBlocks, b.SideTemplateId(s.Consensus()))
+	}
+
+	for _, path := range fuzzPoolBlocks {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(data)
+		b := &PoolBlock{}
+		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, data); err != nil {
+			f.Fatal(err)
+		}
+		knownPoolBlocks = append(knownPoolBlocks, b.SideTemplateId(s.Consensus()))
+	}
+
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		b := &PoolBlock{}
+		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
+			t.Skipf("leftover error: %s", err)
+		}
+
+		templateId := b.SideTemplateId(s.Consensus())
+		if templateId == types.ZeroHash {
+			t.Fatalf("template id should not be zero")
+		}
+		defer func() {
+			// cleanup
+			delete(s.blocksByTemplateId, templateId)
+			delete(s.blocksByMerkleRoot, b.MergeMiningTag().RootHash)
+			delete(s.seenBlocks, b.FullId(s.Consensus()))
+		}()
+
+		// verify externally first without PoW, then add directly
+		if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
+			if errors.Is(err, ErrPanic) {
+				t.Fatal(err)
+			}
+			t.Skip(err)
+		}
+		if err = s.AddPoolBlock(b); err != nil {
+			if errors.Is(err, ErrPanic) {
+				t.Fatal(err)
+			}
+			t.Skip(err)
+		}
+
+		if b.Verified.Load() {
+			if !slices.Contains(knownPoolBlocks, b.SideTemplateId(s.Consensus())) {
+				t.Fatal("block is verified")
+			}
 		}
 	})
 }

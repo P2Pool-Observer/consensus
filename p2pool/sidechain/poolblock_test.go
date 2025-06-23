@@ -206,7 +206,7 @@ func FuzzPoolBlockDecode(f *testing.F) {
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &PoolBlock{}
 		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
-			t.Logf("leftover error: %s", err)
+			t.Skipf("leftover error: %s", err)
 		}
 	})
 }
@@ -224,12 +224,10 @@ func FuzzPoolBlockRoundTrip(f *testing.F) {
 		b := &PoolBlock{}
 		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
 			t.Skipf("leftover error: %s", err)
-			return
 		}
 		data, err := b.MarshalBinary()
 		if err != nil {
 			t.Fatalf("failed to marshal decoded block: %s", err)
-			return
 		}
 		if !bytes.Equal(data, buf) {
 			t.Logf("EXPECTED (len %d):\n%s", len(buf), hex.Dump(buf))
