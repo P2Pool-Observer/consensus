@@ -128,6 +128,9 @@ func (m *PoolBlockReceptionMetadata) UnmarshalBinary(buf []byte) error {
 	if err != nil {
 		return err
 	}
+	if l > 256 {
+		return errors.New("too large ip")
+	}
 	ip := make([]byte, l)
 	_, err = io.ReadFull(r, ip)
 	if err != nil {
