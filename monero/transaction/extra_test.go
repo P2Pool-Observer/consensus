@@ -9,10 +9,17 @@ import (
 func FuzzCoinbaseTransactionExtraTagRoundTrip(f *testing.F) {
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		tag := &ExtraTag{}
-		if err := tag.UnmarshalBinary(buf); err != nil {
+		reader := bytes.NewReader(buf)
+		err := tag.FromReader(reader)
+		if err != nil {
 			t.Skipf("leftover error: %s", err)
 			return
 		}
+		if reader.Len() > 0 {
+			//clamp comparison
+			buf = buf[:len(buf)-reader.Len()]
+		}
+
 		data, err := tag.MarshalBinary()
 		if err != nil {
 			t.Fatalf("failed to marshal decoded tag: %s", err)

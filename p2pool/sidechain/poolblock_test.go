@@ -222,9 +222,23 @@ func FuzzPoolBlockRoundTrip(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &PoolBlock{}
-		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
+		reader := bytes.NewReader(buf)
+		err := b.FromReader(ConsensusDefault, &NilDerivationCache{}, reader)
+		if err != nil {
 			t.Skipf("leftover error: %s", err)
 		}
+		if reader.Len() > 0 {
+			//clamp comparison
+			buf = buf[:len(buf)-reader.Len()]
+		}
+
+		if b.FastSideTemplateId(ConsensusDefault) != b.SideTemplateId(ConsensusDefault) {
+			t.Logf("mismatched side template ids")
+		}
+		_ = b.FullId(ConsensusDefault)
+		_ = b.CalculateTransactionPrivateKeySeed()
+		_ = b.MainId()
+
 		data, err := b.MarshalBinary()
 		if err != nil {
 			t.Fatalf("failed to marshal decoded block: %s", err)

@@ -1,6 +1,7 @@
 package sidechain
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/binary"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"testing"
 )
@@ -321,9 +323,12 @@ func FuzzSideChain_Mini_Shuffle_V4(f *testing.F) {
 }
 
 func FuzzSideChain_AddPoolBlockExternal(f *testing.F) {
+	debug.SetMemoryLimit(1024 * 1024 * 1024 * 8)
+	debug.SetMaxStack(1024 * 1024 * 256)
+
 	// Fuzz shuffle insertion, does need to sync
 
-	server, blocks, err := DefaultTestSideChainData.Load()
+	server, blocks, err := MiniTestSideChainData.Load()
 	if err != nil {
 		f.Fatal(err)
 	}
@@ -339,26 +344,123 @@ func FuzzSideChain_AddPoolBlockExternal(f *testing.F) {
 		if err = s.AddPoolBlock(b); err != nil {
 			f.Fatalf("add pool block failed: %s", err)
 		}
-		knownPoolBlocks = append(knownPoolBlocks, b.SideTemplateId(s.Consensus()))
-	}
-
-	for _, path := range fuzzPoolBlocks {
-		data, err := os.ReadFile(path)
+		data, err := b.MarshalBinary()
 		if err != nil {
 			f.Fatal(err)
 		}
 		f.Add(data)
-		b := &PoolBlock{}
-		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, data); err != nil {
-			f.Fatal(err)
-		}
 		knownPoolBlocks = append(knownPoolBlocks, b.SideTemplateId(s.Consensus()))
 	}
 
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &PoolBlock{}
-		if err := b.UnmarshalBinary(ConsensusDefault, &NilDerivationCache{}, buf); err != nil {
+		reader := bytes.NewReader(buf)
+		if err := b.FromReader(s.Consensus(), &NilDerivationCache{}, reader); err != nil {
 			t.Skipf("leftover error: %s", err)
+		}
+		if reader.Len() > 0 {
+			//clamp comparison
+			buf = buf[:len(buf)-reader.Len()]
+		}
+
+		templateId := b.SideTemplateId(s.Consensus())
+		if templateId == types.ZeroHash {
+			t.Fatalf("template id should not be zero")
+		}
+		defer func() {
+			// cleanup
+			delete(s.blocksByTemplateId, templateId)
+			delete(s.blocksByMerkleRoot, b.MergeMiningTag().RootHash)
+			delete(s.seenBlocks, b.FullId(s.Consensus()))
+		}()
+
+		// verify externally first without PoW, then add directly
+		if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
+			if errors.Is(err, ErrPanic) {
+				t.Fatal(err)
+			}
+			t.Skip(err)
+		}
+		if err = s.AddPoolBlock(b); err != nil {
+			if errors.Is(err, ErrPanic) {
+				t.Fatal(err)
+			}
+			t.Skip(err)
+		}
+
+		if b.Verified.Load() {
+			if !slices.Contains(knownPoolBlocks, b.SideTemplateId(s.Consensus())) {
+				t.Fatal("block is verified")
+			}
+		}
+	})
+}
+
+func FuzzSideChain_AddPoolBlockExternal_PrunedCompact(f *testing.F) {
+	debug.SetMemoryLimit(1024 * 1024 * 1024 * 8)
+	debug.SetMaxStack(1024 * 1024 * 256)
+	// Fuzz shuffle insertion, does need to sync
+
+	server, blocks, err := MiniTestSideChainData.Load()
+	if err != nil {
+		f.Fatal(err)
+	}
+
+	s := server.SideChain()
+
+	var knownPoolBlocks []types.Hash
+	for _, b := range blocks {
+		// verify externally first without PoW, then add directly
+		if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
+			f.Fatalf("pool block external verify failed: %s", err)
+		}
+		if err = s.AddPoolBlock(b); err != nil {
+			f.Fatalf("add pool block failed: %s", err)
+		}
+	}
+
+	tip := s.GetChainTip()
+	if tip == nil {
+		f.Fatalf("GetChainTip() returned nil")
+	}
+
+	for _, b := range blocks {
+		buf, err := b.MarshalBinary()
+		if err != nil {
+			f.Fatal(err)
+		}
+		b2 := &PoolBlock{}
+		if err := b2.UnmarshalBinary(s.Consensus(), &NilDerivationCache{}, buf); err != nil {
+			f.Fatal(err)
+		}
+		// force certain properties by default to assist
+		tip2 := s.GetPoolBlocksByHeight(tip.Side.Height - unsafeRandom.Uint64N(100))[0]
+		b2.Side.Parent = tip2.SideTemplateId(s.Consensus())
+		b2.Side.Height = tip2.Side.Height + 1
+		b2.Side.MerkleProof = []types.Hash{b2.SideTemplateId(s.Consensus())}
+		// add pruned and unpruned
+		data, err := b2.MarshalBinaryFlags(false, true)
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(data)
+		data, err = b2.MarshalBinaryFlags(true, true)
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(data)
+		knownPoolBlocks = append(knownPoolBlocks, b2.SideTemplateId(s.Consensus()))
+	}
+
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		b := &PoolBlock{}
+		reader := bytes.NewReader(buf)
+		if err := b.FromCompactReader(s.Consensus(), &NilDerivationCache{}, reader); err != nil {
+			t.Skipf("leftover error: %s", err)
+		}
+
+		if reader.Len() > 0 {
+			t.Skipf("leftover data should be empty")
 		}
 
 		templateId := b.SideTemplateId(s.Consensus())
