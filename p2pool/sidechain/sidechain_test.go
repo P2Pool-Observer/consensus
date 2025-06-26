@@ -158,6 +158,11 @@ var testSideChains = []TestSideChainData{
 }
 
 func TestSideChainFullSync(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping full mode with -short")
+	}
+
 	oldLogLevel := utils.GlobalLogLevel
 	defer func() {
 		utils.GlobalLogLevel = oldLogLevel
