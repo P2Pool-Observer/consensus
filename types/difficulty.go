@@ -3,7 +3,6 @@ package types
 import (
 	"database/sql/driver"
 	"errors"
-	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	fasthex "github.com/tmthrgd/go-hex"
 	"io"
@@ -292,13 +291,11 @@ func (d *Difficulty) UnmarshalJSON(b []byte) (err error) {
 					return err
 				} else {
 					//recover bigint panics
-					defer func() {
-						if e := recover(); e != nil {
-							if err = e.(error); err == nil {
-								err = fmt.Errorf("panic: %v", e)
-							}
-						}
-					}()
+					if bInt.Sign() < 0 {
+						return errors.New("value cannot be negative")
+					} else if bInt.BitLen() > 128 {
+						return errors.New("value overflows Uint128")
+					}
 					*d = Difficulty(uint128.FromBig(&bInt))
 				}
 			}
