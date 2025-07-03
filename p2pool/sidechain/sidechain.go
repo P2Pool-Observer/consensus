@@ -90,7 +90,27 @@ type SideChain struct {
 	preAllocatedDifficultyData []DifficultyData
 	preAllocatedTimestampData  []uint64
 	preAllocatedMinedBlocks    []types.Hash
+
+	pruneMode PruneMode
 }
+
+// PruneMode The mode on how to prune blocks within SideChain
+// Can be set before any blocks are added, or, a greater value in runtime.
+// For example, can go from PruneModeNone to PruneModeDefault, or PruneModeDefault to PruneModeThin
+type PruneMode int
+
+const (
+	// PruneModeNone Never prune old blocks
+	// Do not use on production
+	PruneModeNone PruneMode = -1
+	// PruneModeDefault The default, keeps all blocks required to do full verification.
+	// Matches upstream p2pool behavior
+	PruneModeDefault PruneMode = 0
+	// PruneModeThin Prunes blocks like PruneModeDefault, except unnecessary data is removed from all but a few on top. Useful to reduce memory usage
+	// These pruned blocks cannot be sent to clients
+	// TODO: prune crypto cache as well?
+	PruneModeThin PruneMode = 1
+)
 
 func NewSideChain(server P2PoolInterface) *SideChain {
 	s := &SideChain{
@@ -123,6 +143,30 @@ func (c *SideChain) DerivationCache() *DerivationCache {
 
 func (c *SideChain) Difficulty() types.Difficulty {
 	return *c.currentDifficulty.Load()
+}
+
+func (c *SideChain) SetPruneMode(mode PruneMode) error {
+	c.sidechainLock.Lock()
+	defer c.sidechainLock.Unlock()
+
+	// always allow change
+	if len(c.blocksByTemplateId) == 0 {
+		c.pruneMode = mode
+		return nil
+	} else if c.pruneMode < mode {
+		// always allow pruning more
+		c.pruneMode = mode
+		return nil
+	} else {
+		return errors.New("cannot rewind prune mode")
+	}
+}
+
+func (c *SideChain) GetPruneMode() PruneMode {
+	c.sidechainLock.Lock()
+	defer c.sidechainLock.Unlock()
+
+	return c.pruneMode
 }
 
 func (c *SideChain) PreCalcFinished() bool {
@@ -1017,6 +1061,10 @@ func (c *SideChain) updateChainTip(block *PoolBlock) {
 			if isAlternative {
 				c.precalcFinished.Store(true)
 				c.derivationCache.Clear()
+				/*if c.pruneMode == PruneModeThin {
+					// change to a nil cache for new incoming blocks
+					c.derivationCache = NewDerivationNilCache()
+				}*/
 
 				utils.Logf("SideChain", "SYNCHRONIZED to tip %s", block.SideTemplateId(c.Consensus()))
 			}
@@ -1037,13 +1085,33 @@ func (c *SideChain) updateChainTip(block *PoolBlock) {
 
 func (c *SideChain) pruneOldBlocks() {
 
-	// Leave 2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
-	pruneDistance := c.Consensus().ChainWindowSize*2 + monero.BlockTime/c.Consensus().TargetBlockTime
+	var pruneDistance, thinDistance uint64
+	var pruneDelay time.Duration
+
+	switch c.pruneMode {
+	case PruneModeNone:
+		// do not prune from now on, but still sort keys
+		if !c.blocksByHeightKeysSorted {
+			slices.Sort(c.blocksByHeightKeys)
+			c.blocksByHeightKeysSorted = true
+		}
+		return
+	case PruneModeDefault:
+		// Leave 2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
+		pruneDistance = c.Consensus().ChainWindowSize*2 + monero.BlockTime/c.Consensus().TargetBlockTime
+		// Remove old blocks from alternative unconnected chains after long enough time
+		pruneDelay = time.Duration(c.Consensus().ChainWindowSize*4*c.Consensus().TargetBlockTime) * time.Second
+	case PruneModeThin:
+		// Leave 2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
+		pruneDistance = c.Consensus().ChainWindowSize*2 + monero.BlockTime/c.Consensus().TargetBlockTime
+		// Remove old blocks from alternative unconnected chains after long enough time
+		pruneDelay = time.Duration(c.Consensus().ChainWindowSize*4*c.Consensus().TargetBlockTime) * time.Second
+
+		// keep at least around one minute of blocks from tip for relaying, plus relevant uncle depths
+		thinDistance = 1 + UncleBlockDepth + max(10, uint64(time.Minute/(time.Second*time.Duration(c.Consensus().TargetBlockTime))))
+	}
 
 	curTime := time.Now().UTC()
-
-	// Remove old blocks from alternative unconnected chains after long enough time
-	pruneDelay := time.Duration(c.Consensus().ChainWindowSize*4*c.Consensus().TargetBlockTime) * time.Second
 
 	curTime.Add(-pruneDelay)
 
@@ -1054,14 +1122,40 @@ func (c *SideChain) pruneOldBlocks() {
 
 	h := tip.Side.Height - pruneDistance
 
+	var thinHeight uint64
+	if thinDistance > 0 {
+		thinHeight = tip.Side.Height - thinDistance
+	}
+
 	if !c.blocksByHeightKeysSorted {
 		slices.Sort(c.blocksByHeightKeys)
 		c.blocksByHeightKeysSorted = true
 	}
 
 	numBlocksPruned := 0
+	numBlocksThinned := 0
 
+	// loops backwards!
 	for keyIndex, height := range c.blocksByHeightKeys {
+		if height < thinHeight {
+			v := c.getPoolBlocksByHeight(height)
+			for _, b := range v {
+				if !b.Thinned.Swap(true) {
+					numBlocksThinned++
+
+					b.WantBroadcast.Store(false)
+
+					// delete transactions
+					b.Main.Transactions = nil
+					b.Main.TransactionParentIndices = nil
+
+					// delete coinbase outputs and mark as pruned
+					b.Main.Coinbase.Outputs = nil
+					b.Main.Coinbase.AuxiliaryData.WasPruned = true
+				}
+			}
+		}
+
 		// Early exit
 		if height > h {
 			break
@@ -1109,12 +1203,20 @@ func (c *SideChain) pruneOldBlocks() {
 		utils.Logf("SideChain", "pruned %d old blocks at heights <= %d", numBlocksPruned, h)
 		if !c.precalcFinished.Swap(true) {
 			c.derivationCache.Clear()
+			/*if c.pruneMode == PruneModeThin {
+				// change to a nil cache for new incoming blocks
+				c.derivationCache = NewDerivationNilCache()
+			}*/
 		}
 
 		numSeenBlocksPruned := c.cleanupSeenBlocks()
 		if numSeenBlocksPruned > 0 {
 			//utils.Logf("SideChain", "pruned %d seen blocks", numBlocksPruned)
 		}
+	}
+
+	if numBlocksThinned > 0 {
+		utils.Logf("SideChain", "thinned %d old blocks at heights <= %d", numBlocksThinned, h)
 	}
 }
 

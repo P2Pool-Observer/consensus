@@ -276,6 +276,14 @@ func (c *Client) SendBlockNotify(id types.Hash) {
 func (c *Client) SendBlockResponse(block *sidechain.PoolBlock) {
 	if block != nil {
 		blockData, err := block.AppendBinaryFlags(make([]byte, 0, block.BufferLength()), false, false)
+		if block.Thinned.Load() {
+			// return thin
+			c.SendMessage(&ClientMessage{
+				MessageId: MessageBlockResponse,
+				Buffer:    binary.LittleEndian.AppendUint32(nil, 0),
+			})
+			return
+		}
 		if err != nil {
 			utils.Logf("P2PClient", "Peer %s tried to respond with a block but received error, disconnecting: %s", c.AddressPort, err)
 			c.Close()
@@ -480,7 +488,7 @@ func (c *Client) OnConnection() {
 			if templateId == types.ZeroHash {
 				utils.Logf("P2PClient", "Peer %s requested tip", c.AddressPort.String())
 				// Don't return stale chain tip
-				if block = c.Owner.SideChain().GetChainTip(); block != nil && (block.Main.Coinbase.GenHeight+2) < c.Owner.MainChain().GetMinerDataTip().Height {
+				if block = c.Owner.SideChain().GetChainTip(); block != nil && ((block.Main.Coinbase.GenHeight+2) < c.Owner.MainChain().GetMinerDataTip().Height || block.Thinned.Load()) {
 					block = nil
 				}
 			} else {

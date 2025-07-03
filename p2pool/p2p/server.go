@@ -820,6 +820,11 @@ func (s *Server) Broadcast(block *sidechain.PoolBlock) {
 		// Full block broadcast
 		buffer := make([]byte, 4, block.BufferLength()+4)
 		blockData, err := block.AppendBinaryFlags(buffer, false, false)
+		// check on every step after marshaling!
+		if block.Thinned.Load() {
+			utils.Noticef("P2PServer", "Attempted to broadcast thinned block %s at height %d", block.SideTemplateId(s.Consensus()), block.Side.Height)
+			return
+		}
 		if err != nil {
 			utils.Panicf("[P2PServer] Tried to broadcast block %s at height %d but received error: %s", block.SideTemplateId(s.Consensus()), block.Side.Height, err)
 			return
@@ -833,6 +838,11 @@ func (s *Server) Broadcast(block *sidechain.PoolBlock) {
 		// Pruned block broadcast
 		prunedBuffer := make([]byte, 4, block.BufferLength()+4)
 		prunedBlockData, _ := block.AppendBinaryFlags(prunedBuffer, true, false)
+		// check on every step after marshaling!
+		if block.Thinned.Load() {
+			utils.Noticef("P2PServer", "Attempted to broadcast thinned block %s at height %d", block.SideTemplateId(s.Consensus()), block.Side.Height)
+			return
+		}
 		binary.LittleEndian.PutUint32(prunedBlockData, uint32(len(prunedBlockData)-4))
 		prunedMessage = &ClientMessage{
 			MessageId: MessageBlockBroadcast,
@@ -842,6 +852,11 @@ func (s *Server) Broadcast(block *sidechain.PoolBlock) {
 		// Compact block broadcast
 		compactBuffer := make([]byte, 4, block.BufferLength()+4)
 		compactBlockData, _ := block.AppendBinaryFlags(compactBuffer, true, true)
+		// check on every step after marshaling!
+		if block.Thinned.Load() {
+			utils.Noticef("P2PServer", "Attempted to broadcast thinned block %s at height %d", block.SideTemplateId(s.Consensus()), block.Side.Height)
+			return
+		}
 		binary.LittleEndian.PutUint32(compactBlockData, uint32(len(compactBlockData)-4))
 		if len(compactBlockData) >= len(prunedBlockData) {
 			//do not send compact if it ends up larger due to some reason, like parent missing or mismatch in transactions

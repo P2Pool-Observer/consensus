@@ -90,6 +90,7 @@ type PoolBlock struct {
 
 	WantBroadcast atomic.Bool `json:"-"`
 	Broadcasted   atomic.Bool `json:"-"`
+	Thinned       atomic.Bool `json:"-"`
 
 	Metadata PoolBlockReceptionMetadata `json:"metadata"`
 
