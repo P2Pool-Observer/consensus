@@ -128,8 +128,8 @@ func (v SoftwareVersion) SoftwareAwareString(id SoftwareId) string {
 const SupportedProtocolVersion = ProtocolVersion_1_3
 
 const CurrentSoftwareVersionMajor = 4 & 0xFFFF
-const CurrentSoftwareVersionMinor = 2 & 0xFF
-const CurrentSoftwareVersionPatch = 1 & 0xFF
+const CurrentSoftwareVersionMinor = 3 & 0xFF
+const CurrentSoftwareVersionPatch = 0 & 0xFF
 
 const CurrentSoftwareVersion SoftwareVersion = (CurrentSoftwareVersionMajor << 16) | (CurrentSoftwareVersionMinor << 8) | CurrentSoftwareVersionPatch
 const CurrentSoftwareId = SoftwareIdGoObserver
