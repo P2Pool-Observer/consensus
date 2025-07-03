@@ -7,7 +7,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"math/bits"
 	"sync/atomic"
-	"unsafe"
 )
 
 const HandshakeChallengeSize = 8
@@ -22,7 +21,7 @@ func FindChallengeSolution(challenge HandshakeChallenge, consensusId types.Hash,
 	copy(buf[HandshakeChallengeSize:], consensusId[:])
 	var salt uint64
 
-	var saltSlice [int(unsafe.Sizeof(salt))]byte
+	var saltSlice [8]byte
 	_, _ = rand.Read(saltSlice[:])
 	salt = binary.LittleEndian.Uint64(saltSlice[:])
 
@@ -42,7 +41,7 @@ func FindChallengeSolution(challenge HandshakeChallenge, consensusId types.Hash,
 			return salt, sum, false
 		}
 
-		if hi, _ := bits.Mul64(binary.LittleEndian.Uint64(sum[len(sum)-int(unsafe.Sizeof(uint64(0))):]), HandshakeChallengeDifficulty); hi == 0 {
+		if hi, _ := bits.Mul64(binary.LittleEndian.Uint64(sum[types.HashSize-8:]), HandshakeChallengeDifficulty); hi == 0 {
 			//found solution
 			return salt, sum, true
 		}
@@ -53,6 +52,6 @@ func FindChallengeSolution(challenge HandshakeChallenge, consensusId types.Hash,
 
 func CalculateChallengeHash(challenge HandshakeChallenge, consensusId types.Hash, solution uint64) (hash types.Hash, ok bool) {
 	hash = crypto.PooledKeccak256(challenge[:], consensusId[:], binary.LittleEndian.AppendUint64(nil, solution))
-	hi, _ := bits.Mul64(binary.LittleEndian.Uint64(hash[types.HashSize-int(unsafe.Sizeof(uint64(0))):]), HandshakeChallengeDifficulty)
+	hi, _ := bits.Mul64(binary.LittleEndian.Uint64(hash[types.HashSize-8:]), HandshakeChallengeDifficulty)
 	return hash, hi == 0
 }
