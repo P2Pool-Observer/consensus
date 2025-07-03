@@ -48,6 +48,14 @@ func returnBuffer(x []byte) {
 	}
 }
 
+func ensureEOF(r io.Reader) error {
+	var buf [1]byte
+	if _, err := r.Read(buf[:]); err == nil || !errors.Is(err, io.EOF) {
+		return errors.New("leftover bytes on reader")
+	}
+	return nil
+}
+
 type Client struct {
 	// Peer general static-ish information
 	PeerId             atomic.Uint64
@@ -527,8 +535,12 @@ func (c *Client) OnConnection() {
 				}
 				break
 			} else {
-				if err = block.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), bufio.NewReaderSize(io.LimitReader(c, int64(blockSize)), int(blockSize))); err != nil {
+				reader := bufio.NewReaderSize(io.LimitReader(c, int64(blockSize)), int(blockSize))
+				if err = block.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
+					c.Ban(DefaultBanTime, err)
+					return
+				} else if err = ensureEOF(reader); err != nil {
 					c.Ban(DefaultBanTime, err)
 					return
 				} else {
@@ -608,14 +620,22 @@ func (c *Client) OnConnection() {
 				//TODO log
 				break
 			} else if messageId == MessageBlockBroadcastCompact {
-				if err = block.FromCompactReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), bufio.NewReaderSize(io.LimitReader(c, int64(blockSize)), int(blockSize))); err != nil {
+				reader := bufio.NewReaderSize(io.LimitReader(c, int64(blockSize)), int(blockSize))
+				if err = block.FromCompactReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
+					c.Ban(DefaultBanTime, err)
+					return
+				} else if err = ensureEOF(reader); err != nil {
 					c.Ban(DefaultBanTime, err)
 					return
 				}
 			} else {
-				if err = block.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), bufio.NewReaderSize(io.LimitReader(c, int64(blockSize)), int(blockSize))); err != nil {
+				reader := bufio.NewReaderSize(io.LimitReader(c, int64(blockSize)), int(blockSize))
+				if err = block.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
+					c.Ban(DefaultBanTime, err)
+					return
+				} else if err = ensureEOF(reader); err != nil {
 					c.Ban(DefaultBanTime, err)
 					return
 				}
