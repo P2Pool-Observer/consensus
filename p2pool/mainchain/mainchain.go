@@ -443,7 +443,7 @@ func (c *MainChain) HandleMinerData(minerData *p2pooltypes.MinerData) {
 
 		c.updateMedianTimestamp()
 
-		utils.Logf("MainChain", "new miner data: major_version = %d, height = %d, prev_id = %s, seed_hash = %s, difficulty = %s", minerData.MajorVersion, minerData.Height, minerData.PrevId.String(), minerData.SeedHash.String(), minerData.Difficulty.StringNumeric())
+		utils.Logf("MainChain", "new miner data: major_version = %d, height = %d, prev_id = %x, seed_hash = %x, difficulty = %s", minerData.MajorVersion, minerData.Height, minerData.PrevId.Slice(), minerData.SeedHash.Slice(), minerData.Difficulty.StringNumeric())
 
 		// Tx secret keys from all miners change every block, so cache can be cleared here
 		if c.sidechain.PreCalcFinished() {

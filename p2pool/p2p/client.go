@@ -182,7 +182,7 @@ func (c *Client) SendMissingBlockRequestAtRandom(hash types.Hash, allowedClients
 	}
 
 	if b := c.Owner.GetCachedBlock(hash); b != nil {
-		utils.Logf("P2PClient", "Using cached block for id = %s", hash.String())
+		utils.Logf("P2PClient", "Using cached block for id = %x", hash.Slice())
 		if _, err, _ := c.Owner.SideChain().AddPoolBlockExternal(b); err == nil {
 			return allowedClients
 		}
@@ -211,7 +211,7 @@ func (c *Client) SendMissingBlockRequest(hash types.Hash) {
 	}
 
 	if b := c.Owner.GetCachedBlock(hash); b != nil {
-		utils.Logf("P2PClient", "Using cached block for id = %s", hash.String())
+		utils.Logf("P2PClient", "Using cached block for id = %x", hash.Slice())
 		if missingBlocks, err, _ := c.Owner.SideChain().AddPoolBlockExternal(b); err == nil {
 			for _, id := range missingBlocks {
 				c.SendMissingBlockRequest(id)

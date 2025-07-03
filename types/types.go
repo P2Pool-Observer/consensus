@@ -91,6 +91,10 @@ func (h Hash) Compare(other Hash) int {
 	return 0
 }
 
+func (h Hash) Slice() []byte {
+	return h[:]
+}
+
 func (h Hash) String() string {
 	return fasthex.EncodeToString(h[:])
 }

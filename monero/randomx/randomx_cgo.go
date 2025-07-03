@@ -152,7 +152,7 @@ func (h *hasherState) Init(key []byte) (err error) {
 	copy(h.key, key)
 
 	utils.Logf("RandomX", "Initializing to seed %s", fasthex.EncodeToString(h.key))
-	if h.dataset.GoInit(h.key, uint32(runtime.NumCPU())) == false {
+	if h.dataset.GoInit(h.key, uint32(utils.GOMAXPROCS)) == false {
 		return errors.New("could not initialize dataset")
 	}
 	if h.vm != nil {

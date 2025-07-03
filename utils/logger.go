@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -22,20 +24,42 @@ const (
 
 var GlobalLogLevel = LogLevelError | LogLevelInfo
 
+var logBufPool sync.Pool
+
+func init() {
+	logBufPool.New = func() any {
+		return make([]byte, 0, 512)
+	}
+}
+
+func getLogBuf() []byte {
+	return logBufPool.Get().([]byte)[:0]
+}
+
+func returnLogBuf(buf []byte) {
+	logBufPool.Put(buf)
+}
+
 func Panic(v ...any) {
-	s := fmt.Sprint(v...)
-	innerPrint("", "PANIC", s)
-	panic(s)
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	buf = fmt.Append(innerPrint(buf, "", "PANIC"), v...)
+	_println(buf)
+	panic(string(buf))
 }
 
 func Panicf(format string, v ...any) {
-	s := fmt.Sprintf(format, v...)
-	innerPrint("", "PANIC", s)
-	panic(s)
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	buf = fmt.Appendf(innerPrint(buf, "", "PANIC"), format, v...)
+	_println(buf)
+	panic(string(buf))
 }
 
 func Fatalf(format string, v ...any) {
-	innerPrint("", "FATAL", fmt.Sprintf(format, v...))
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	_println(fmt.Appendf(innerPrint(buf, "", "FATAL"), format, v...))
 	os.Exit(1)
 }
 
@@ -43,35 +67,45 @@ func Error(v ...any) {
 	if GlobalLogLevel&LogLevelError == 0 {
 		return
 	}
-	innerPrint("", "ERROR", fmt.Sprint(v...))
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	_println(fmt.Append(innerPrint(buf, "", "ERROR"), v...))
 }
 
 func Errorf(prefix, format string, v ...any) {
 	if GlobalLogLevel&LogLevelError == 0 {
 		return
 	}
-	innerPrint(prefix, "ERROR", fmt.Sprintf(format, v...))
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	_println(fmt.Appendf(innerPrint(buf, prefix, "ERROR"), format, v...))
 }
 
 func Print(v ...any) {
 	if GlobalLogLevel&LogLevelInfo == 0 {
 		return
 	}
-	innerPrint("", "INFO", fmt.Sprint(v...))
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	_println(fmt.Append(innerPrint(buf, "", "INFO"), v...))
 }
 
 func Logf(prefix, format string, v ...any) {
 	if GlobalLogLevel&LogLevelInfo == 0 {
 		return
 	}
-	innerPrint(prefix, "INFO", fmt.Sprintf(format, v...))
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	_println(fmt.Appendf(innerPrint(buf, prefix, "INFO"), format, v...))
 }
 
 func Noticef(prefix, format string, v ...any) {
 	if GlobalLogLevel&LogLevelNotice == 0 {
 		return
 	}
-	innerPrint(prefix, "NOTICE", fmt.Sprintf(format, v...))
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	_println(fmt.Appendf(innerPrint(buf, prefix, "NOTICE"), format, v...))
 }
 
 func IsLogLevelDebug() bool {
@@ -82,11 +116,20 @@ func Debugf(prefix, format string, v ...any) {
 	if GlobalLogLevel&LogLevelDebug == 0 {
 		return
 	}
-	innerPrint(prefix, "DEBUG", fmt.Sprintf(format, v...))
+	buf := getLogBuf()
+	defer returnLogBuf(buf)
+	_println(fmt.Appendf(innerPrint(buf, prefix, "DEBUG"), format, v...))
 }
 
-func innerPrint(prefix, class, v string) {
-	timestamp := time.Now().UTC().Format("2006-01-02 15:04:05.000")
+func _println(buf []byte) {
+	buf = bytes.TrimSpace(buf)
+	buf = append(buf, '\n')
+
+	_, _ = os.Stdout.Write(buf)
+}
+
+func innerPrint(buf []byte, prefix, class string) []byte {
+	buf = time.Now().UTC().AppendFormat(buf, "2006-01-02 15:04:05.000")
 	if LogFile {
 		var function string
 		pc, file, line, ok := runtime.Caller(2)
@@ -117,11 +160,12 @@ func innerPrint(prefix, class, v string) {
 				}
 			}
 			funcItems := strings.Split(shortFunc, ".")
-			fmt.Printf("%s %s:%d:%s [%s] %s %s\n", timestamp, short, line, funcItems[len(funcItems)-1], prefix, class, strings.TrimSpace(v))
+			buf = fmt.Appendf(buf, " %s:%d:%s [%s] %s ", short, line, funcItems[len(funcItems)-1], prefix, class)
 		} else {
-			fmt.Printf("%s %s:%d [%s] %s %s\n", timestamp, short, line, prefix, class, strings.TrimSpace(v))
+			buf = fmt.Appendf(buf, " %s:%d [%s] %s ", short, line, prefix, class)
 		}
 	} else {
-		fmt.Printf("%s [%s] %s %s\n", timestamp, prefix, class, strings.TrimSpace(v))
+		buf = fmt.Appendf(buf, " [%s] %s ", prefix, class)
 	}
+	return buf
 }

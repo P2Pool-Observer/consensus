@@ -6,9 +6,26 @@ import (
 	"sync/atomic"
 )
 
+var GOMAXPROCS = min(runtime.GOMAXPROCS(0), runtime.NumCPU())
+
 func SplitWork(routines int, workSize uint64, do func(workIndex uint64, routineIndex int) error, init func(routines, routineIndex int) error) error {
 	if routines <= 0 {
-		routines = max(runtime.NumCPU()-routines, 4)
+		routines = min(GOMAXPROCS, max(GOMAXPROCS-routines, 1))
+	}
+
+	if routines == 1 {
+		// do not spawn goroutines if we have a single worker
+		err := init(routines, 0)
+		if err != nil {
+			return err
+		}
+
+		for workIndex := uint64(0); workIndex < workSize; workIndex++ {
+			if err = do(workIndex, 0); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	if workSize < uint64(routines) {

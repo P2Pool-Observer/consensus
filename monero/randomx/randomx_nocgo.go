@@ -175,7 +175,7 @@ func (h *hasherState) Init(key []byte) (err error) {
 		h.cache.Init(h.key)
 	}
 	if h.dataset != nil {
-		h.dataset.InitDatasetParallel(h.cache, runtime.NumCPU())
+		h.dataset.InitDatasetParallel(h.cache, utils.GOMAXPROCS)
 	}
 
 	utils.Logf("RandomX", "Initialized to seed %s", fasthex.EncodeToString(h.key))

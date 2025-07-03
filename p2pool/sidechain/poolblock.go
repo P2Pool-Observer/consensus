@@ -205,7 +205,7 @@ func (b *PoolBlock) iteratorUncles(getByTemplateId GetByTemplateIdFunc, uncleFun
 		for _, uncleId := range b.Side.Uncles {
 			uncle := getByTemplateId(uncleId)
 			if uncle == nil {
-				return fmt.Errorf("could not find uncle %s", uncleId)
+				return fmt.Errorf("could not find uncle %x", uncleId.Slice())
 			}
 			uncleFunc(uncle)
 		}
@@ -672,9 +672,11 @@ func (b *PoolBlock) IsProofHigherThanMainDifficulty(hasher randomx.Hasher, diffi
 	return r
 }
 
+var ErrNoMainDifficulty = errors.New("could not get main difficulty")
+
 func (b *PoolBlock) IsProofHigherThanMainDifficultyWithError(hasher randomx.Hasher, difficultyFunc mainblock.GetDifficultyByHeightFunc, seedFunc mainblock.GetSeedByHeightFunc) (bool, error) {
 	if mainDifficulty := b.MainDifficulty(difficultyFunc); mainDifficulty == types.ZeroDifficulty {
-		return false, errors.New("could not get main difficulty")
+		return false, ErrNoMainDifficulty
 	} else if powHash, err := b.PowHashWithError(hasher, seedFunc); err != nil {
 		return false, err
 	} else {
