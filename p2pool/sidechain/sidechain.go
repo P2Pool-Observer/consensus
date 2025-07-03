@@ -1135,10 +1135,12 @@ func (c *SideChain) pruneOldBlocks() {
 	numBlocksPruned := 0
 	numBlocksThinned := 0
 
-	// loops backwards!
-	for keyIndex, height := range c.blocksByHeightKeys {
+	for keyIndex := 0; keyIndex < len(c.blocksByHeightKeys); keyIndex++ {
+
+		height := c.blocksByHeightKeys[keyIndex]
+		v := c.getPoolBlocksByHeight(height)
+
 		if height < thinHeight {
-			v := c.getPoolBlocksByHeight(height)
 			for _, b := range v {
 				if !b.Thinned.Swap(true) {
 					numBlocksThinned++
@@ -1158,10 +1160,8 @@ func (c *SideChain) pruneOldBlocks() {
 
 		// Early exit
 		if height > h {
-			break
+			continue
 		}
-
-		v := c.getPoolBlocksByHeight(height)
 
 		// loop backwards for proper deletions
 		for i := len(v) - 1; i >= 0; i-- {
@@ -1194,6 +1194,8 @@ func (c *SideChain) pruneOldBlocks() {
 		if len(v) == 0 {
 			delete(c.blocksByHeight, height)
 			c.blocksByHeightKeys = slices.Delete(c.blocksByHeightKeys, keyIndex, keyIndex+1)
+			// reduce keyIndex to allow the next iteration to go through properly
+			keyIndex--
 		} else {
 			c.blocksByHeight[height] = v
 		}
