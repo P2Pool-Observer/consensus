@@ -248,5 +248,10 @@ func FuzzPoolBlockRoundTrip(f *testing.F) {
 			t.Logf("ACTUAL (len %d):\n%s", len(data), hex.Dump(data))
 			t.Fatalf("mismatched roundtrip")
 		}
+
+		if b.BufferLength() != len(buf) {
+			t.Fatal("buffer length mismatch")
+		}
+
 	})
 }

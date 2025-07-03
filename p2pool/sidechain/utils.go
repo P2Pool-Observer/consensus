@@ -1,6 +1,7 @@
 package sidechain
 
 import (
+	"errors"
 	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
@@ -22,15 +23,18 @@ type GetBySideHeightFunc func(height uint64) UniquePoolBlockSlice
 // GetChainMainByHashFunc if h = types.ZeroHash, return tip
 type GetChainMainByHashFunc func(h types.Hash) *ChainMain
 
-func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, derivationCache DerivationCacheInterface, preAllocatedShares Shares, preAllocatedRewards []uint64) (outputs transaction.Outputs, bottomHeight uint64) {
-	tmpShares, bottomHeight := GetShares(block, consensus, difficultyByHeight, getByTemplateId, preAllocatedShares)
+func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, derivationCache DerivationCacheInterface, preAllocatedShares Shares, preAllocatedRewards []uint64) (outputs transaction.Outputs, bottomHeight uint64, err error) {
+	tmpShares, bottomHeight, err := GetShares(block, consensus, difficultyByHeight, getByTemplateId, preAllocatedShares)
+	if err != nil {
+		return nil, 0, err
+	}
 	if preAllocatedRewards == nil {
 		preAllocatedRewards = make([]uint64, 0, len(tmpShares))
 	}
 	tmpRewards := SplitReward(preAllocatedRewards, block.Main.Coinbase.AuxiliaryData.TotalReward, tmpShares)
 
 	if tmpShares == nil || tmpRewards == nil || len(tmpRewards) != len(tmpShares) {
-		return nil, 0
+		return nil, 0, errors.New("could not calculate outputs")
 	}
 
 	n := uint64(len(tmpShares))
@@ -50,7 +54,7 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 		}
 	}()
 
-	err := utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
+	err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
 		output := transaction.Output{
 			Index: workIndex,
 			Type:  txType,
@@ -67,10 +71,10 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 	})
 
 	if err != nil {
-		return nil, 0
+		return nil, 0, err
 	}
 
-	return outputs, bottomHeight
+	return outputs, bottomHeight, nil
 }
 
 type PoolBlockWindowSlot struct {
@@ -267,11 +271,11 @@ func BlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficultyByHeigh
 	return bottomHeight, nil
 }
 
-func GetSharesOrdered(tip *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, preAllocatedShares Shares) (shares Shares, bottomHeight uint64) {
+func GetSharesOrdered(tip *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, preAllocatedShares Shares) (shares Shares, bottomHeight uint64, err error) {
 	index := 0
 	l := len(preAllocatedShares)
 
-	if bottomHeight, err := BlocksInPPLNSWindow(tip, consensus, difficultyByHeight, getByTemplateId, func(b *PoolBlock, weight types.Difficulty) {
+	if bottomHeight, err = BlocksInPPLNSWindow(tip, consensus, difficultyByHeight, getByTemplateId, func(b *PoolBlock, weight types.Difficulty) {
 		if index < l {
 			preAllocatedShares[index].Address = b.Side.PublicKey
 
@@ -284,27 +288,27 @@ func GetSharesOrdered(tip *PoolBlock, consensus *Consensus, difficultyByHeight b
 		}
 		index++
 	}); err != nil {
-		return nil, 0
+		return nil, 0, err
 	} else {
 		shares = preAllocatedShares[:index]
 
 		//remove dupes
 		shares = shares.Compact()
 
-		return shares, bottomHeight
+		return shares, bottomHeight, nil
 	}
 }
 
-func GetShares(tip *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, preAllocatedShares Shares) (shares Shares, bottomHeight uint64) {
-	shares, bottomHeight = GetSharesOrdered(tip, consensus, difficultyByHeight, getByTemplateId, preAllocatedShares)
-	if shares == nil {
-		return
+func GetShares(tip *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, preAllocatedShares Shares) (shares Shares, bottomHeight uint64, err error) {
+	shares, bottomHeight, err = GetSharesOrdered(tip, consensus, difficultyByHeight, getByTemplateId, preAllocatedShares)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	//Shuffle shares
 	ShuffleShares(shares, tip.ShareVersion(), tip.Side.CoinbasePrivateKeySeed)
 
-	return shares, bottomHeight
+	return shares, bottomHeight, nil
 }
 
 // ShuffleShares Shuffles shares according to consensus parameters via ShuffleSequence. Requires pre-sorted shares based on address

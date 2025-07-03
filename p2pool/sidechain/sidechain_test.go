@@ -839,7 +839,7 @@ func BenchmarkSideChainDefault_CalculateOutputs(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		outputs, _ := CalculateOutputs(tip, benchLoadedSideChain.Consensus(), benchLoadedSideChain.server.GetDifficultyByHeight, benchLoadedSideChain.getPoolBlockByTemplateId, benchLoadedSideChain.derivationCache, benchLoadedSideChain.preAllocatedShares, benchLoadedSideChain.preAllocatedRewards)
+		outputs, _, _ := CalculateOutputs(tip, benchLoadedSideChain.Consensus(), benchLoadedSideChain.server.GetDifficultyByHeight, benchLoadedSideChain.getPoolBlockByTemplateId, benchLoadedSideChain.derivationCache, benchLoadedSideChain.preAllocatedShares, benchLoadedSideChain.preAllocatedRewards)
 		if outputs == nil {
 			b.Error("nil outputs")
 			return
@@ -854,7 +854,7 @@ func BenchmarkSideChainDefault_GetShares(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		shares, _ := benchLoadedSideChain.getShares(tip, benchLoadedSideChain.preAllocatedShares)
+		shares, _, _ := benchLoadedSideChain.getShares(tip, benchLoadedSideChain.preAllocatedShares)
 		if shares == nil {
 			b.Error("nil shares")
 			return
@@ -866,7 +866,7 @@ func BenchmarkSideChainDefault_SplitReward(b *testing.B) {
 	b.ReportAllocs()
 	tip := benchLoadedSideChain.GetChainTip()
 
-	shares, _ := benchLoadedSideChain.getShares(tip, benchLoadedSideChain.preAllocatedShares)
+	shares, _, _ := benchLoadedSideChain.getShares(tip, benchLoadedSideChain.preAllocatedShares)
 	preAllocatedRewards := make([]uint64, 0, len(shares))
 
 	b.ResetTimer()

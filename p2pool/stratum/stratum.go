@@ -263,10 +263,9 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 	preAllocatedShares := s.preAllocatedSharesPool.Get()
 	defer s.preAllocatedSharesPool.Put(preAllocatedShares)
-	shares, _ := sidechain.GetSharesOrdered(fakeTemplateTipBlock, s.sidechain.Consensus(), s.sidechain.Server().GetDifficultyByHeight, s.sidechain.GetPoolBlockByTemplateId, preAllocatedShares)
-
-	if shares == nil {
-		return errors.New("could not get outputs")
+	shares, _, err := sidechain.GetSharesOrdered(fakeTemplateTipBlock, s.sidechain.Consensus(), s.sidechain.Server().GetDifficultyByHeight, s.sidechain.GetPoolBlockByTemplateId, preAllocatedShares)
+	if err != nil {
+		return fmt.Errorf("could not get outputs: %w", err)
 	}
 
 	s.newTemplateData.Window.Shares = slices.Clone(shares)

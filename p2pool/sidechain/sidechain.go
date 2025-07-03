@@ -828,8 +828,8 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			return nil, fmt.Errorf("wrong difficulty, got %s, expected %s", block.Side.Difficulty.StringNumeric(), diff.StringNumeric())
 		}
 
-		if shares, _ := c.getShares(block, c.preAllocatedShares); len(shares) == 0 {
-			return nil, errors.New("could not get outputs")
+		if shares, _, err := c.getShares(block, c.preAllocatedShares); len(shares) == 0 {
+			return nil, fmt.Errorf("could not get outputs: %w", err)
 		} else if len(shares) != len(block.Main.Coinbase.Outputs) {
 			return nil, fmt.Errorf("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(shares))
 		} else if totalReward := func() (result uint64) {
@@ -1167,7 +1167,7 @@ func (c *SideChain) GetMissingBlocks() []types.Hash {
 
 // calculateOutputs
 // Deprecated
-func (c *SideChain) calculateOutputs(block *PoolBlock) (outputs transaction.Outputs, bottomHeight uint64) {
+func (c *SideChain) calculateOutputs(block *PoolBlock) (outputs transaction.Outputs, bottomHeight uint64, err error) {
 	preAllocatedShares := c.preAllocatedSharesPool.Get()
 	defer c.preAllocatedSharesPool.Put(preAllocatedShares)
 	return CalculateOutputs(block, c.Consensus(), c.server.GetDifficultyByHeight, c.getPoolBlockByTemplateId, c.derivationCache, preAllocatedShares, c.preAllocatedRewards)
@@ -1177,7 +1177,7 @@ func (c *SideChain) Server() P2PoolInterface {
 	return c.server
 }
 
-func (c *SideChain) getShares(tip *PoolBlock, preAllocatedShares Shares) (shares Shares, bottomHeight uint64) {
+func (c *SideChain) getShares(tip *PoolBlock, preAllocatedShares Shares) (shares Shares, bottomHeight uint64, err error) {
 	return GetShares(tip, c.Consensus(), c.server.GetDifficultyByHeight, c.getPoolBlockByTemplateId, preAllocatedShares)
 }
 
