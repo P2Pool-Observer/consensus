@@ -35,7 +35,7 @@ Version v2.6 implemented stricter checks on lagging behind or outdated Monero bl
 
 
 #### Chain split attack
-Commit [45660e](https://github.com/SChernykh/p2pool/commit/45660e3d9612428eb7855f64f103b52088a214ed) on Nov 3, 2022 fixed an attack that could cause a chain split.
+Commit [45660e Show wallet address in error messages and status](https://github.com/SChernykh/p2pool/commit/45660e3d9612428eb7855f64f103b52088a214ed) on Nov 3, 2022 fixed an attack that could cause a chain split.
 
 This commit appears unrelated but the hidden fix is in lines of `src/wallet.h` for `bool operator<(const Wallet& w)` and `bool operator==(const Wallet& w) const`.
 ```diff
@@ -92,7 +92,9 @@ Version v3.0 implemented hard fork changes for allowing dynamic PPLNS window and
 
 ### P2Pool v3.3+
 
-P2Pool could fail to sync if uncles of depth 3 were present at a certain depth in the chain. Fixed in [b49808 SideChain: fixed a rare sync bug](https://github.com/SChernykh/p2pool/commit/b4980843884d01fd1070710b2b7c08f5f6faca91)
+* P2Pool could fail to sync if uncles of depth 3 were present at a certain depth in the chain.
+  * Fixed in [b49808 SideChain: fixed a rare sync bug](https://github.com/SChernykh/p2pool/commit/b4980843884d01fd1070710b2b7c08f5f6faca91)
+  * Go consensus [c43862 Match consensus sync on high depth uncles as they leave outer PPLNS window](https://git.gammaspectra.live/P2Pool/consensus/commit/c438622558adf71698335af7a3eca818c540ffe8) and [61cfc4 Match deep block behavior in missed spot](https://git.gammaspectra.live/P2Pool/consensus/commit/61cfc4478cb4b97e85ef836382970e77257d769e)
 
 
 
@@ -106,8 +108,28 @@ Version v4.0 implemented hard fork changes to allow merge mining via P2Pool.
 * Side data also has a vector of chain id and arbitrary data pairs for any necessary data to be included for other chains in-template, for future proofing.
 * On pruned blocks, template id is included within the coinbase transaction pruned data.
 * The Monero block major/minor version is encoded as a varint, but their values cannot exceed 256. P2Pool encoded these always as bytes. A check was added now to prevent any minor versions greater than 128 being encoded. 
+  * Fixed in [4bc0b5 Block parser: sanity check minor version](https://github.com/SChernykh/p2pool/commit/4bc0b559cbb2f01a074e9168d16a09b8e1deff98****)
+  * Go consensus [d0f153 fuzz: fix minor version on main block higher than max varint size for one byte](https://git.gammaspectra.live/P2Pool/consensus/commit/d0f1537fbab4aeb97655192de8c66efb9d56f965)
 * Side difficulty and side height now have limits to prevent overflows.
+  * Reported possible issue privately, with full extent still undisclosed.
 
 ### P2Pool v4.9+
 
-P2Pool could fail to sync if a certain order of blocks was received. Fixed in [c42132 SideChain: fixed a synchronization blocker bug](https://github.com/SChernykh/p2pool/commit/c421324b7362f118be17e4688922f7fc472f35af)
+A testing and fuzzing (random coverage testing) campaign was initiated on Go consensus for Observer.
+Many minor and major issues were found that only affected Go consensus, but several affected P2Pool as well and were reported.  
+
+* P2Pool could fail to sync if a certain order of blocks was received.
+  * This issue was found by tests in Go consensus for Observer. It was disclosed to sech1 via IRC on Jun 20th, 2025.
+  * Fixed in [c42132 SideChain: fixed a synchronization blocker bug](https://github.com/SChernykh/p2pool/commit/c421324b7362f118be17e4688922f7fc472f35af)
+  * Go consensus [adee5d fix sync blocker bug on sidechain](https://git.gammaspectra.live/P2Pool/consensus/commit/adee5d8340d30b0a3b5f72e52f742774dd4b11c4)
+* P2Pool would read non-canonical encodings of VarInt causing a different binary encoding of blocks after a decode/encode roundtrip.
+  * This issue was found by fuzzing Go consensus for Observer. It was disclosed privately to sech1 via IRC on Jun 23th, 2025.
+  * This bug could allow an attacker to send valid blocks to other peers, which would validate. However, as soon as this node would try to broadcast this block, the encoded data would be invalid and be banned by the rest of its peers instantly.
+  * Affected nodes could not rejoin or reconnect as this block was broadcasted instantly. Only once enough time has passed in the pool and Monero, the node would re-sync to a newer chain.
+  * On older chains that do not merge mine, a denegation of service is also able to be done to fill RAM of the target node. This is no longer possible.
+  * Fixed in [55eef3 Added more checks to readVarint](https://github.com/SChernykh/p2pool/commit/55eef3c5e9d21f8bc53b7be248a893fa23dfa612)
+  * Go consensus [73f5cc fuzz: ensure only normalized zeros on varints are read, or fail](https://git.gammaspectra.live/P2Pool/consensus/commit/73f5ccc654cff1b77fafb129ae2df8f46e77057c)
+* P2Pool would decode a TxOutput as 64-bit VarInt, but clamp it to 56 bits, causing a different binary encoding of blocks after a decode/encode roundtrip.
+  * This issue was found by newly added fuzzing on P2Pool code. It was shared privately via IRC on Jun 23th, 2025.
+  * Fixed in [1b05f1 Block parser: stricter checks](https://github.com/SChernykh/p2pool/commit/1b05f1e7504f55e297791e8d39135b40e63f8c55)
+  * Go consensus [406e4a verify maximum tx output reward allowed in a pool block, up to 56 bits](https://git.gammaspectra.live/P2Pool/consensus/commit/406e4a19d992663bbb92ad371155c9d1a1ef4901)
