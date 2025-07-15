@@ -219,18 +219,21 @@ func (b *PoolBlock) iteratorUncles(getByTemplateId GetByTemplateIdFunc, uncleFun
 }
 
 func (b *PoolBlock) NeedsCompactTransactionFilling() bool {
-	return len(b.Main.TransactionParentIndices) > 0 && len(b.Main.TransactionParentIndices) == len(b.Main.Transactions) && slices.Index(b.Main.Transactions, types.ZeroHash) != -1
+	return len(b.Main.TransactionParentIndices) > 0 && len(b.Main.TransactionParentIndices) == len(b.Main.Transactions) && slices.Contains(b.Main.Transactions, types.ZeroHash)
 }
 
 func (b *PoolBlock) FillTransactionsFromTransactionParentIndices(consensus *Consensus, parent *PoolBlock) error {
 	if b.NeedsCompactTransactionFilling() {
-		if parent != nil && parent.FastSideTemplateId(consensus) == b.Side.Parent {
+		if parent != nil && (parent.FastSideTemplateId(consensus) == b.Side.Parent || (parent.Side.Height == (b.Side.Height-1) && parent.NeedsCompactTransactionFilling())) {
 			for i, parentIndex := range b.Main.TransactionParentIndices {
 				if parentIndex != 0 {
 					// p2pool stores coinbase transaction hash as well, decrease
 					actualIndex := parentIndex - 1
 					if actualIndex > uint64(len(parent.Main.Transactions)) {
 						return errors.New("index of parent transaction out of bounds")
+					}
+					if parent.Main.Transactions[actualIndex] == types.ZeroHash {
+						return errors.New("parent transaction is zero")
 					}
 					b.Main.Transactions[i] = parent.Main.Transactions[actualIndex]
 				}
@@ -594,8 +597,10 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 				break
 			}
 			if len(chain) > 1 {
-				if chain[len(chain)-2].FillTransactionsFromTransactionParentIndices(consensus, chain[len(chain)-1]) == nil {
-					if !chain[len(chain)-2].NeedsCompactTransactionFilling() {
+				prevBlock := chain[len(chain)-2]
+				lastBlock := chain[len(chain)-1]
+				if prevBlock.FillTransactionsFromTransactionParentIndices(consensus, lastBlock) == nil {
+					if !prevBlock.NeedsCompactTransactionFilling() {
 						//early abort if it can all be filled
 						chain = chain[:len(chain)-1]
 						break
