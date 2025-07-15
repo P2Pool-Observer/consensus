@@ -536,21 +536,18 @@ func (b *PoolBlock) FromCompactReader(consensus *Consensus, derivationCache Deri
 	return b.consensusDecode(consensus, derivationCache, reader)
 }
 
-func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
-	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.NetworkType.MustAddressNetwork(), b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
-		return fmt.Errorf("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
+func (b *PoolBlock) UnmarshalJSON(buf []byte) (err error) {
+	type poolBlock PoolBlock
+	// unalias types
+	err = utils.UnmarshalJSON(buf, (*poolBlock)(b))
+	if err != nil {
+		return err
 	}
 
-	if b.CachedShareVersion == ShareVersion_None {
-		b.CachedShareVersion = b.CalculateShareVersion(consensus)
-	}
+	return b.consensusMergeMiningTag()
+}
 
-	if b.ShareVersion() >= ShareVersion_V3 {
-		if b.Main.MajorVersion > math.MaxInt8 || b.Main.MinorVersion > math.MaxInt8 {
-			return errors.New("version exceeds allowed values")
-		}
-	}
-
+func (b *PoolBlock) consensusMergeMiningTag() (err error) {
 	mergeMineTag := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining)
 
 	if mergeMineTag == nil {
@@ -571,6 +568,27 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 		if mergeMineReader.Len() != 0 {
 			return errors.New("wrong merge mining tag len")
 		}
+	}
+	return nil
+}
+
+func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
+	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.NetworkType.MustAddressNetwork(), b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
+		return fmt.Errorf("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
+	}
+
+	if b.CachedShareVersion == ShareVersion_None {
+		b.CachedShareVersion = b.CalculateShareVersion(consensus)
+	}
+
+	if b.ShareVersion() >= ShareVersion_V3 {
+		if b.Main.MajorVersion > math.MaxInt8 || b.Main.MinorVersion > math.MaxInt8 {
+			return errors.New("version exceeds allowed values")
+		}
+	}
+
+	if err = b.consensusMergeMiningTag(); err != nil {
+		return err
 	}
 
 	if err = b.Side.FromReader(reader, b.ShareVersion()); err != nil {
