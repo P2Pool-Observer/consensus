@@ -10,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/go-json"
+	"github.com/ulikunitz/xz"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"os"
@@ -40,7 +41,7 @@ func init() {
 type TestSideChainData struct {
 	Name       string
 	Path       string
-	Decompress func(io.ReadCloser) (io.ReadCloser, error)
+	Decompress func(io.ReadCloser) (io.Reader, error)
 
 	PatchedBlocks []string
 
@@ -55,20 +56,24 @@ func (d TestSideChainData) Load() (server *FakeServer, blocks UniquePoolBlockSli
 
 	s := server.SideChain()
 
-	var reader io.ReadCloser
+	var reader io.Reader
 
-	reader, err = os.Open(d.Path)
+	f, err := os.Open(d.Path)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer reader.Close()
+	defer f.Close()
 
 	if d.Decompress != nil {
-		reader, err = d.Decompress(reader)
+		reader, err = d.Decompress(f)
 		if err != nil {
 			return nil, nil, err
 		}
-		defer reader.Close()
+		if closer, ok := reader.(io.ReadCloser); ok {
+			defer closer.Close()
+		}
+	} else {
+		reader = f
 	}
 
 	var patchedBlocks [][]byte
@@ -88,14 +93,26 @@ func (d TestSideChainData) Load() (server *FakeServer, blocks UniquePoolBlockSli
 	}
 }
 
-func gzipDecompress(r io.ReadCloser) (io.ReadCloser, error) {
+func gzipDecompress(r io.ReadCloser) (io.Reader, error) {
 	return gzip.NewReader(r)
 }
 
+func xzDecompress(r io.ReadCloser) (io.Reader, error) {
+	return xz.NewReader(r)
+}
+
 var DefaultTestSideChainData = testSideChains[0]
-var MiniTestSideChainData = testSideChains[3]
+var MiniTestSideChainData = testSideChains[4]
 
 var testSideChains = []TestSideChainData{
+	{
+		Name:          "Default_V4_2",
+		Path:          "testdata/v4_2_sidechain_dump.dat.xz",
+		Decompress:    xzDecompress,
+		Consensus:     ConsensusDefault,
+		TipSideHeight: 11704382,
+		TipMainHeight: 3456189,
+	},
 	{
 		Name:          "Default_V4",
 		Path:          "testdata/v4_sidechain_dump.dat.gz",
@@ -120,6 +137,14 @@ var testSideChains = []TestSideChainData{
 		TipMainHeight: 2483901,
 	},
 
+	{
+		Name:          "Mini_V4_2",
+		Path:          "testdata/v4_2_sidechain_dump_mini.dat.xz",
+		Decompress:    xzDecompress,
+		Consensus:     ConsensusMini,
+		TipSideHeight: 11207082,
+		TipMainHeight: 3456189,
+	},
 	{
 		Name:          "Mini_V4",
 		Path:          "testdata/v4_sidechain_dump_mini.dat.gz",
@@ -149,6 +174,14 @@ var testSideChains = []TestSideChainData{
 		TipMainHeight: 2696040,
 	},
 
+	{
+		Name:          "Nano_V4_2",
+		Path:          "testdata/v4_2_sidechain_dump_nano.dat.xz",
+		Decompress:    xzDecompress,
+		Consensus:     ConsensusNano,
+		TipSideHeight: 188542,
+		TipMainHeight: 3456189,
+	},
 	{
 		Name:          "Nano_V4",
 		Path:          "testdata/v4_sidechain_dump_nano.dat.gz",

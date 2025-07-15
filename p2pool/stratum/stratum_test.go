@@ -1,7 +1,6 @@
 package stratum
 
 import (
-	"compress/gzip"
 	"fmt"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
@@ -11,6 +10,7 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"github.com/ulikunitz/xz"
 	unsafeRandom "math/rand/v2"
 	"os"
 	"path"
@@ -84,17 +84,16 @@ func TestMain(m *testing.M) {
 
 	preLoadedMiniSideChain = sidechain.NewSideChain(sidechain.GetFakeTestServer(sidechain.ConsensusMini))
 
-	f, err := os.Open("testdata/v4_sidechain_dump_mini.dat.gz")
+	f, err := os.Open("testdata/v4_2_sidechain_dump_mini.dat.xz")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
 
-	r, err := gzip.NewReader(f)
+	r, err := xz.NewReader(f)
 	if err != nil {
 		panic(err)
 	}
-	defer r.Close()
 
 	if blocks, err := sidechain.LoadSideChainTestData(preLoadedMiniSideChain.Consensus(), preLoadedMiniSideChain.DerivationCache(), r); err != nil {
 		panic(err)

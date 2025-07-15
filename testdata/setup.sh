@@ -32,6 +32,19 @@ function download_test_v4() {
     curl --progress-bar --output "./v4_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V4}/tests/src/${1}"
 }
 
+# Post-v4 p2pool hardfork, updated tests
+TESTS_COMMIT_ID_V4_2=0755a9dcf199b9568dee06cf24117c59b92d8a1d
+function download_test_v4_2() {
+    if [ -f "./v4_${1}" ]; then
+      return
+    fi
+    curl --progress-bar --output "./v4_2_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V4_2}/tests/src/${1}"
+}
+
+download_test_v4_2 sidechain_dump.dat.xz
+download_test_v4_2 sidechain_dump_mini.dat.xz
+download_test_v4_2 sidechain_dump_nano.dat.xz
+
 download_test_v4 block.dat
 download_test_v4 sidechain_dump.dat.gz
 download_test_v4 sidechain_dump_mini.dat.gz
