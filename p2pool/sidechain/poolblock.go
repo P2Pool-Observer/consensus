@@ -668,7 +668,12 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 }
 
 func (b *PoolBlock) NeedsPreProcess() bool {
-	return b.NeedsCompactTransactionFilling() || len(b.Main.Transactions) != len(b.Main.TransactionParentIndices) || len(b.Main.Coinbase.Outputs) == 0
+	return b.NeedsCompactTransactionFilling() || len(b.Main.Coinbase.Outputs) == 0
+}
+
+func (b *PoolBlock) NeedsPostProcess() bool {
+	// whether it needs to create indices and others
+	return b.NeedsPreProcess() || len(b.Main.Transactions) > len(b.Main.TransactionParentIndices)
 }
 
 func (b *PoolBlock) FillPrivateKeys(derivationCache DerivationCacheInterface) {
