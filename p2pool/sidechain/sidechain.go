@@ -970,7 +970,14 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 		blocksToUpdate = blocksToUpdate[:len(blocksToUpdate)-1]
 
 		// Verify this block and possibly other blocks on top of it when we're sure it will get verified
-		if !block.Verified.Load() && (block.Depth.Load() > ((c.Consensus().ChainWindowSize-1)*2+UncleBlockDepth) || block.Side.Height == 0) {
+		//
+		// Block at exactly "N = (m_chainWindowSize - 1) * 2 + UNCLE_BLOCK_DEPTH" can have an uncle at "N + UNCLE_BLOCK_DEPTH"
+		// This uncle has a parent at "N + UNCLE_BLOCK_DEPTH + 1"
+		//
+		// So a block at "N = (m_chainWindowSize - 1) * 2 + UNCLE_BLOCK_DEPTH" can be safely validated if there is a block
+		// at depth > (m_chainWindowSize - 1) * 2 + UNCLE_BLOCK_DEPTH * 2
+		//
+		if !block.Verified.Load() && (block.Depth.Load() > ((c.Consensus().ChainWindowSize-1)*2+UncleBlockDepth*2) || block.Side.Height == 0) {
 			_ = c.verifyLoop(block)
 		}
 
@@ -1102,17 +1109,17 @@ func (c *SideChain) pruneOldBlocks() {
 		return
 	case PruneModeDefault:
 		// Leave 2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
-		pruneDistance = c.Consensus().ChainWindowSize*2 + monero.BlockTime/c.Consensus().TargetBlockTime
+		pruneDistance = (c.Consensus().ChainWindowSize-1)*2 + UncleBlockDepth*2 + monero.BlockTime/c.Consensus().TargetBlockTime
 		// Remove old blocks from alternative unconnected chains after long enough time
 		pruneDelay = time.Duration(c.Consensus().ChainWindowSize*4*c.Consensus().TargetBlockTime) * time.Second
 	case PruneModeThin:
 		// Leave 2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
-		pruneDistance = c.Consensus().ChainWindowSize*2 + monero.BlockTime/c.Consensus().TargetBlockTime
+		pruneDistance = (c.Consensus().ChainWindowSize-1)*2 + UncleBlockDepth*2 + monero.BlockTime/c.Consensus().TargetBlockTime
 		// Remove old blocks from alternative unconnected chains after long enough time
 		pruneDelay = time.Duration(c.Consensus().ChainWindowSize*4*c.Consensus().TargetBlockTime) * time.Second
 
 		// keep at least around one minute of blocks from tip for relaying, plus relevant uncle depths
-		thinDistance = 1 + UncleBlockDepth + max(10, uint64(time.Minute/(time.Second*time.Duration(c.Consensus().TargetBlockTime))))
+		thinDistance = 1 + UncleBlockDepth*2 + max(10, uint64(time.Minute/(time.Second*time.Duration(c.Consensus().TargetBlockTime))))
 	}
 
 	curTime := time.Now().UTC()
