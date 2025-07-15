@@ -5,6 +5,7 @@ import (
 	"fmt"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"sync"
@@ -110,6 +111,13 @@ func (s *FakeServer) DownloadMinimalBlockHeaders(currentHeight uint64) error {
 }
 
 func (s *FakeServer) GetMinimalBlockHeaderByHash(hash types.Hash) *mainblock.Header {
+	s.headersLock.Lock()
+	defer s.headersLock.Unlock()
+	for _, b := range s.headers {
+		if b.Id == hash {
+			return b
+		}
+	}
 	return nil
 }
 func (s *FakeServer) GetDifficultyByHeight(height uint64) types.Difficulty {
@@ -125,7 +133,36 @@ func (s *FakeServer) GetChainMainTip() *ChainMain {
 	return nil
 }
 func (s *FakeServer) GetMinerDataTip() *p2pooltypes.MinerData {
-	return nil
+	s.headersLock.Lock()
+	defer s.headersLock.Unlock()
+	// fake miner data
+	var highest *mainblock.Header
+	for _, b := range s.headers {
+		if highest == nil || b.Height > highest.Height {
+			highest = b
+		}
+	}
+	if highest == nil {
+		return nil
+	}
+
+	seedHeight := randomx.SeedHeight(highest.Height + 1)
+	if h := s.headers[seedHeight]; h != nil {
+		//TODO: this is not technically correct but we don't have testcases that go across hardforks
+		return &p2pooltypes.MinerData{
+			MajorVersion: highest.MajorVersion,
+			Height:       highest.Height + 1,
+			PrevId:       highest.Id,
+			SeedHash:     h.Id,
+			// incorrect
+			Difficulty:            highest.Difficulty,
+			MedianWeight:          0,
+			AlreadyGeneratedCoins: 0,
+			MedianTimestamp:       0,
+		}
+	} else {
+		return nil
+	}
 }
 func (s *FakeServer) Store(block *PoolBlock) {
 

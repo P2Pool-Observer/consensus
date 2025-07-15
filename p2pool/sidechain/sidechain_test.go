@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/go-json"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"os"
@@ -171,7 +173,8 @@ func TestSideChainFullSync(t *testing.T) {
 
 	sideChain := DefaultTestSideChainData
 
-	/*
+	if os.Getenv("CI") == "" {
+		// set full hasher
 		consensusBuf, err := json.Marshal(sideChain.Consensus)
 		if err != nil {
 			t.Fatal(err)
@@ -187,7 +190,7 @@ func TestSideChainFullSync(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-	*/
+	}
 
 	server, blocks, err := sideChain.Load()
 	if err != nil {
