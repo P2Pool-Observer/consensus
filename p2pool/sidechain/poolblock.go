@@ -301,6 +301,12 @@ func (b *PoolBlock) FastSideTemplateId(consensus *Consensus) types.Hash {
 		if b.Main.Coinbase.AuxiliaryData.WasPruned {
 			return b.Main.Coinbase.AuxiliaryData.TemplateId
 		} else {
+			// not merge mining, hash should be equal
+			mmTag := b.MergeMiningTag()
+			if mmTag.NumberAuxiliaryChains == 1 {
+				return mmTag.RootHash
+			}
+
 			//fallback to full calculation
 			return b.SideTemplateId(consensus)
 		}
