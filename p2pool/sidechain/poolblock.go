@@ -224,7 +224,7 @@ func (b *PoolBlock) NeedsCompactTransactionFilling() bool {
 
 func (b *PoolBlock) FillTransactionsFromTransactionParentIndices(consensus *Consensus, parent *PoolBlock) error {
 	if b.NeedsCompactTransactionFilling() {
-		if parent != nil && (parent.FastSideTemplateId(consensus) == b.Side.Parent || (parent.Side.Height == (b.Side.Height-1) && parent.NeedsCompactTransactionFilling())) {
+		if parent != nil && ((parent.NeedsPreProcess() && (parent.Side.Height == (b.Side.Height - 1))) || parent.FastSideTemplateId(consensus) == b.Side.Parent) {
 			for i, parentIndex := range b.Main.TransactionParentIndices {
 				if parentIndex != 0 {
 					// p2pool stores coinbase transaction hash as well, decrease
@@ -240,6 +240,8 @@ func (b *PoolBlock) FillTransactionsFromTransactionParentIndices(consensus *Cons
 			}
 		} else if parent == nil {
 			return errors.New("parent is nil")
+		} else {
+			return errors.New("mismatched parent height or template id")
 		}
 	}
 
@@ -423,6 +425,9 @@ func (b *PoolBlock) SideTemplateId(consensus *Consensus) types.Hash {
 	if h := b.cache.templateId.Load(); h != nil {
 		return *h
 	} else {
+		if b.NeedsPreProcess() {
+			return types.ZeroHash
+		}
 		hash := consensus.CalculateSideTemplateId(b)
 		if hash == types.ZeroHash {
 			return types.ZeroHash
