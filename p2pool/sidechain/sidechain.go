@@ -1256,14 +1256,14 @@ func (c *SideChain) GetMissingBlocks() []types.Hash {
 			continue
 		}
 
-		if b.Side.Parent != types.ZeroHash && c.getPoolBlockByTemplateId(b.Side.Parent) == nil {
+		if b.Side.Parent != types.ZeroHash && c.getPoolBlockByTemplateId(b.Side.Parent) == nil && !slices.Contains(missingBlocks, b.Side.Parent) {
 			missingBlocks = append(missingBlocks, b.Side.Parent)
 		}
 
 		missingUncles := 0
 
 		for _, uncleId := range b.Side.Uncles {
-			if uncleId != types.ZeroHash && c.getPoolBlockByTemplateId(uncleId) == nil {
+			if uncleId != types.ZeroHash && c.getPoolBlockByTemplateId(uncleId) == nil && !slices.Contains(missingBlocks, uncleId) {
 				missingBlocks = append(missingBlocks, uncleId)
 				missingUncles++
 
