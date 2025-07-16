@@ -1164,7 +1164,6 @@ func (c *SideChain) pruneOldBlocks() {
 
 					// delete coinbase outputs and mark as pruned
 					b.Main.Coinbase.Outputs = nil
-					b.Main.Coinbase.AuxiliaryData.WasPruned = true
 				}
 			}
 		}

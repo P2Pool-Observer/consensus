@@ -31,8 +31,6 @@ type CoinbaseTransaction struct {
 }
 
 type CoinbaseTransactionAuxiliaryData struct {
-	// WasPruned TODO: use this in encoding instead of flags?
-	WasPruned bool `json:"was_pruned,omitempty"`
 	// OutputsBlobSize length of serialized Outputs. Used by p2pool serialized pruned blocks, filled regardless
 	OutputsBlobSize uint64 `json:"outputs_blob_size"`
 	// TotalReward amount of reward existing Outputs. Used by p2pool serialized pruned blocks, filled regardless
@@ -116,8 +114,6 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 		if !canBePruned {
 			return errors.New("pruned outputs not supported")
 		}
-
-		c.AuxiliaryData.WasPruned = true
 
 		// Outputs are not in the buffer and must be calculated from sidechain data
 		// We only have total reward and outputs blob size here

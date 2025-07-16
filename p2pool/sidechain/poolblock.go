@@ -303,7 +303,7 @@ func (b *PoolBlock) ExtraNonce() uint32 {
 // FastSideTemplateId Returns SideTemplateId from either coinbase extra tags or pruned data, or main block if not pruned
 func (b *PoolBlock) FastSideTemplateId(consensus *Consensus) types.Hash {
 	if b.ShareVersion() >= ShareVersion_V3 {
-		if b.Main.Coinbase.AuxiliaryData.WasPruned {
+		if b.Main.Coinbase.AuxiliaryData.TemplateId != types.ZeroHash {
 			return b.Main.Coinbase.AuxiliaryData.TemplateId
 		} else {
 			// not merge mining, hash should be equal
@@ -676,11 +676,10 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 		}
 	}
 
-	if b.ShareVersion() >= ShareVersion_V3 && b.Main.Coinbase.AuxiliaryData.WasPruned && b.Main.Coinbase.AuxiliaryData.TemplateId == types.ZeroHash {
+	if b.ShareVersion() >= ShareVersion_V3 && b.Main.Coinbase.AuxiliaryData.TemplateId == types.ZeroHash {
 		// Fill template id for pruned broadcasts
 		templateId := b.SideTemplateId(consensus)
 		b.Main.Coinbase.AuxiliaryData.TemplateId = templateId
-		b.Main.Coinbase.AuxiliaryData.WasPruned = false
 	}
 
 	return nil, nil
