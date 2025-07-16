@@ -32,7 +32,7 @@ type CoinbaseTransaction struct {
 
 type CoinbaseTransactionAuxiliaryData struct {
 	// WasPruned TODO: use this in encoding instead of flags?
-	WasPruned bool `json:"-"`
+	WasPruned bool `json:"was_pruned,omitempty"`
 	// OutputsBlobSize length of serialized Outputs. Used by p2pool serialized pruned blocks, filled regardless
 	OutputsBlobSize uint64 `json:"outputs_blob_size"`
 	// TotalReward amount of reward existing Outputs. Used by p2pool serialized pruned blocks, filled regardless

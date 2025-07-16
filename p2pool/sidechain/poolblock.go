@@ -680,6 +680,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 		// Fill template id for pruned broadcasts
 		templateId := b.SideTemplateId(consensus)
 		b.Main.Coinbase.AuxiliaryData.TemplateId = templateId
+		b.Main.Coinbase.AuxiliaryData.WasPruned = false
 	}
 
 	return nil, nil
