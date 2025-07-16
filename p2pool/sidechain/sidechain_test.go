@@ -101,8 +101,17 @@ func xzDecompress(r io.ReadCloser) (io.Reader, error) {
 	return xz.NewReader(r)
 }
 
-var DefaultTestSideChainData = testSideChains[0]
-var MiniTestSideChainData = testSideChains[4]
+var DefaultTestSideChainData = getTestSideChain("Default_V4_2")
+var MiniTestSideChainData = getTestSideChain("Mini_V4_2")
+
+func getTestSideChain(name string) TestSideChainData {
+	if i := slices.IndexFunc(testSideChains, func(data TestSideChainData) bool {
+		return data.Name == name
+	}); i != -1 {
+		return testSideChains[i]
+	}
+	panic("no test side chain found")
+}
 
 var testSideChains = []TestSideChainData{
 	{
@@ -114,9 +123,16 @@ var testSideChains = []TestSideChainData{
 		TipMainHeight: 3456189,
 	},
 	{
-		Name:          "Default_V4",
-		Path:          "testdata/v4_sidechain_dump.dat.gz",
-		Decompress:    gzipDecompress,
+		Name:       "Default_V4",
+		Path:       "testdata/v4_sidechain_dump.dat.gz",
+		Decompress: gzipDecompress,
+		PatchedBlocks: []string{
+			//patch in missing blocks that are needed to reach sync range on newer limits
+			"testdata/v4_sidechain_dump_9439439.dat",
+			"testdata/v4_sidechain_dump_9439438.dat",
+			"testdata/v4_sidechain_dump_9439438_1.dat",
+			"testdata/v4_sidechain_dump_9439437.dat",
+		},
 		Consensus:     ConsensusDefault,
 		TipSideHeight: 9443762,
 		TipMainHeight: 3258121,
@@ -146,9 +162,15 @@ var testSideChains = []TestSideChainData{
 		TipMainHeight: 3456189,
 	},
 	{
-		Name:          "Mini_V4",
-		Path:          "testdata/v4_sidechain_dump_mini.dat.gz",
-		Decompress:    gzipDecompress,
+		Name:       "Mini_V4",
+		Path:       "testdata/v4_sidechain_dump_mini.dat.gz",
+		Decompress: gzipDecompress,
+		PatchedBlocks: []string{
+			//patch in missing blocks that are needed to reach sync range on newer limits
+			"testdata/v4_sidechain_dump_mini_8907744.dat",
+			"testdata/v4_sidechain_dump_mini_8907743.dat",
+			"testdata/v4_sidechain_dump_mini_8907742.dat",
+		},
 		Consensus:     ConsensusMini,
 		TipSideHeight: 8912067,
 		TipMainHeight: 3258121,
@@ -168,6 +190,9 @@ var testSideChains = []TestSideChainData{
 			//patch in missing blocks that are needed to reach sync range on newer limits
 			"testdata/v1_sidechain_dump_mini_2420028.dat",
 			"testdata/v1_sidechain_dump_mini_2420027.dat",
+			"testdata/v1_sidechain_dump_mini_2420026.dat",
+			"testdata/v1_sidechain_dump_mini_2420025.dat",
+			"testdata/v1_sidechain_dump_mini_2420024.dat",
 		},
 		Consensus:     ConsensusMini,
 		TipSideHeight: 2424349,
@@ -183,9 +208,14 @@ var testSideChains = []TestSideChainData{
 		TipMainHeight: 3456189,
 	},
 	{
-		Name:          "Nano_V4",
-		Path:          "testdata/v4_sidechain_dump_nano.dat.gz",
-		Decompress:    gzipDecompress,
+		Name:       "Nano_V4",
+		Path:       "testdata/v4_sidechain_dump_nano.dat.gz",
+		Decompress: gzipDecompress,
+		PatchedBlocks: []string{
+			//patch in missing blocks that are needed to reach sync range on newer limits
+			"testdata/v4_sidechain_dump_nano_112327.dat",
+			"testdata/v4_sidechain_dump_nano_112326.dat",
+		},
 		Consensus:     ConsensusNano,
 		TipSideHeight: 116651,
 		TipMainHeight: 3438036,
@@ -673,6 +703,10 @@ func TestSideChain(t *testing.T) {
 			tip := s.GetChainTip()
 
 			if tip == nil {
+				missing := s.GetMissingBlocks()
+				for _, b := range missing {
+					t.Errorf("missing block %x", b.Slice())
+				}
 				t.Fatalf("GetChainTip() returned nil")
 			}
 
@@ -804,14 +838,7 @@ func TestMain(m *testing.M) {
 
 	if isBenchmark {
 
-		sideChainData := TestSideChainData{
-			Name:          "Default_V2",
-			Path:          "testdata/v2_sidechain_dump.dat.gz",
-			Decompress:    gzipDecompress,
-			Consensus:     ConsensusDefault,
-			TipSideHeight: 4957203,
-			TipMainHeight: 2870010,
-		}
+		sideChainData := getTestSideChain("Default_V2")
 
 		server, blocks, err := sideChainData.Load()
 		if err != nil {
