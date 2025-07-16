@@ -9,6 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	types2 "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	unsafeRandom "math/rand/v2"
 	"net/netip"
 	"os"
@@ -250,6 +251,74 @@ func FuzzPoolBlockRoundTrip(f *testing.F) {
 		}
 
 		if b.BufferLength() != len(buf) {
+			t.Fatal("buffer length mismatch")
+		}
+
+	})
+}
+
+func FuzzPoolBlockRoundTripJSON(f *testing.F) {
+	for _, path := range fuzzPoolBlocks {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			f.Fatal(err)
+		}
+		f.Add(data)
+	}
+
+	f.Fuzz(func(t *testing.T, buf []byte) {
+		b := &PoolBlock{}
+		reader := bytes.NewReader(buf)
+		err := b.FromReader(ConsensusDefault, &NilDerivationCache{}, reader)
+		if err != nil {
+			t.Skipf("leftover error: %s", err)
+		}
+		if reader.Len() > 0 {
+			//clamp comparison
+			buf = buf[:len(buf)-reader.Len()]
+		}
+
+		bId := b.FastSideTemplateId(ConsensusDefault)
+
+		if bId != b.SideTemplateId(ConsensusDefault) {
+			t.Skipf("mismatched side template ids")
+		}
+		_ = b.FullId(ConsensusDefault)
+		_ = b.CalculateTransactionPrivateKeySeed()
+		_ = b.MainId()
+
+		blockJSON, err := utils.MarshalJSON(b)
+		if err != nil {
+			t.Fatalf("failed to marshal block: %s", err)
+		}
+
+		b2 := &PoolBlock{}
+		err = utils.UnmarshalJSON(blockJSON, b2)
+		if err != nil {
+			t.Fatalf("failed to unmarshal block: %s", err)
+		}
+
+		if b2.FastSideTemplateId(ConsensusDefault) != b2.SideTemplateId(ConsensusDefault) {
+			t.Logf("mismatched side template ids")
+		}
+		if b.FastSideTemplateId(ConsensusDefault) != b2.FastSideTemplateId(ConsensusDefault) {
+			t.Fatalf("mismatched side template ids from blocks")
+		}
+		_ = b2.FullId(ConsensusDefault)
+		_ = b2.CalculateTransactionPrivateKeySeed()
+		_ = b2.MainId()
+
+		data, err := b2.MarshalBinary()
+		if err != nil {
+			t.Fatalf("failed to marshal decoded block: %s", err)
+		}
+		if !bytes.Equal(data, buf) {
+			t.Logf("EXPECTED (len %d):\n%s", len(buf), hex.Dump(buf))
+			t.Logf("ACTUAL (len %d):\n%s", len(data), hex.Dump(data))
+			t.Fatalf("mismatched roundtrip")
+		}
+
+		if b2.BufferLength() != len(data) {
 			t.Fatal("buffer length mismatch")
 		}
 
