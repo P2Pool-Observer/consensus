@@ -176,7 +176,7 @@ func IterateBlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficulty
 		cur = cur.iteratorGetParent(getByTemplateId)
 
 		if cur == nil {
-			return fmt.Errorf("could not find parent %x", parentId)
+			return fmt.Errorf("could not find parent %x", parentId.Slice())
 		}
 	}
 	return nil
@@ -396,7 +396,7 @@ func GetDifficultyForNextBlock(tip *PoolBlock, consensus *Consensus, getByTempla
 		cur = cur.iteratorGetParent(getByTemplateId)
 
 		if cur == nil {
-			return types.ZeroDifficulty, fmt.Errorf("could not find parent %x", parentId), nil
+			return types.ZeroDifficulty, fmt.Errorf("could not find parent %x", parentId.Slice()), nil
 		}
 	}
 
