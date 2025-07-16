@@ -3,6 +3,7 @@ package sidechain
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/rand"
 	"encoding/binary"
 	"errors"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
@@ -683,8 +684,13 @@ func TestSideChain(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			var shuffleSeed types.Hash
+			_, _ = rand.Read(shuffleSeed[:])
+
+			t.Logf("shuffle seed = %x", shuffleSeed.Slice())
+
 			// Shuffle blocks. This allows testing proper reorg
-			unsafeRandom.Shuffle(len(blocks), func(i, j int) {
+			ShuffleSequence(ShareVersion_V2, shuffleSeed, len(blocks), func(i, j int) {
 				blocks[i], blocks[j] = blocks[j], blocks[i]
 			})
 
