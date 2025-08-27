@@ -4,57 +4,62 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 )
 
+/*
+OutProof = txPub, viewPub, nil, sharedSecret
+InProof = viewPub, txPub, spendPub, sharedSecret
+*/
+
 var TxProofV2DomainSeparatorHash = Keccak256([]byte("TXPROOF_V2")) // HASH_KEY_TXPROOF_V2
-func GenerateTxProofV2(prefixHash types.Hash, txKey PrivateKey, recipientViewPublicKey PublicKey, recipientSpendPublicKey PublicKey) (derivation PublicKey, signature *Signature) {
+func GenerateTxProofV2(prefixHash types.Hash, R, A, B, D PublicKey, r PrivateKey) (derivation PublicKey, signature *Signature) {
 	comm := &SignatureComm_2{}
 	comm.Message = prefixHash
 
 	//shared secret
-	comm.KeyDerivation = txKey.GetDerivation(recipientViewPublicKey)
+	comm.D = D
 
 	comm.Separator = TxProofV2DomainSeparatorHash
-	comm.TransactionPublicKey = txKey.PublicKey()
-	comm.RecipientViewPublicKey = recipientViewPublicKey
+	comm.R = R
+	comm.A = A
 
 	signature = CreateSignature(func(k PrivateKey) []byte {
-		if recipientSpendPublicKey == nil {
-			// compute RandomPublicKey = k*G
-			comm.RandomPublicKey = k.PublicKey()
-			comm.RecipientSpendPublicKey = nil
+		if B == nil {
+			// compute X = k*G
+			comm.X = k.PublicKey()
+			comm.B = nil
 		} else {
-			// compute RandomPublicKey = k*B
-			comm.RandomPublicKey = k.GetDerivation(recipientSpendPublicKey)
-			comm.RecipientSpendPublicKey = recipientSpendPublicKey
+			// compute X = k*B
+			comm.X = k.GetDerivation(B)
+			comm.B = B
 		}
 
-		comm.RandomDerivation = k.GetDerivation(recipientViewPublicKey)
+		comm.Y = k.GetDerivation(A)
 
 		return comm.Bytes()
-	}, txKey)
+	}, r)
 
-	return comm.KeyDerivation, signature
+	return comm.D, signature
 }
 
-func GenerateTxProofV1(prefixHash types.Hash, txKey PrivateKey, recipientViewPublicKey PublicKey, recipientSpendPublicKey PublicKey) (derivation PublicKey, signature *Signature) {
+func GenerateTxProofV1(prefixHash types.Hash, A, B, D PublicKey, r PrivateKey) (derivation PublicKey, signature *Signature) {
 	comm := &SignatureComm_2_V1{}
 	comm.Message = prefixHash
 
 	//shared secret
-	comm.KeyDerivation = txKey.GetDerivation(recipientViewPublicKey)
+	comm.D = D
 
 	signature = CreateSignature(func(k PrivateKey) []byte {
-		if recipientSpendPublicKey == nil {
-			// compute RandomPublicKey = k*G
-			comm.RandomPublicKey = k.PublicKey()
+		if B == nil {
+			// compute X = k*G
+			comm.X = k.PublicKey()
 		} else {
-			// compute RandomPublicKey = k*B
-			comm.RandomPublicKey = k.GetDerivation(recipientSpendPublicKey)
+			// compute X = k*B
+			comm.X = k.GetDerivation(B)
 		}
 
-		comm.RandomDerivation = k.GetDerivation(recipientViewPublicKey)
+		comm.Y = k.GetDerivation(A)
 
 		return comm.Bytes()
-	}, txKey)
+	}, r)
 
-	return comm.KeyDerivation, signature
+	return comm.D, signature
 }

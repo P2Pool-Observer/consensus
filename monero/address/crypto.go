@@ -2,13 +2,14 @@ package address
 
 import (
 	"encoding/binary"
+	"strings"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 	"git.gammaspectra.live/P2Pool/sha3"
-	"strings"
 )
 
 // ZeroPrivateKeyAddress Special address with private keys set to both zero.
@@ -32,6 +33,10 @@ func GetEphemeralPublicKey(a Interface, txKey crypto.PrivateKey, outputIndex uin
 	return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex))
 }
 
+func GetEphemeralPublicKeyWithViewKey(a Interface, txPubKey crypto.PublicKey, viewKey crypto.PrivateKey, outputIndex uint64) crypto.PublicKey {
+	return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(viewKey.GetDerivationCofactor(txPubKey), outputIndex))
+}
+
 func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *edwards25519.Scalar, outputIndex uint64, p *edwards25519.Point) {
 	//derivation
 	p.UnsafeVarTimeScalarMult(txKey, viewPub).MultByCofactor(p)
@@ -43,6 +48,11 @@ func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *e
 
 	//public key + add
 	p.UnsafeVarTimeScalarBaseMult(&sharedData).Add(p, spendPub)
+}
+
+func GetEphemeralPublicKeyAndViewTagWithViewKey(a Interface, txPubKey crypto.PublicKey, viewKey crypto.PrivateKey, outputIndex uint64) (crypto.PublicKey, uint8) {
+	pK, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(viewKey.GetDerivationCofactor(txPubKey), outputIndex)
+	return GetPublicKeyForSharedData(a, pK), viewTag
 }
 
 func GetEphemeralPublicKeyAndViewTag(a Interface, txKey crypto.PrivateKey, outputIndex uint64) (crypto.PublicKey, uint8) {
@@ -82,20 +92,56 @@ func GetDerivationNoAllocateTable(viewPublicKeyTable *edwards25519.PrecomputedTa
 	return crypto.PublicKeyBytes(derivation.Bytes())
 }
 
+// GetTxProofV2
+// Deprecated
 func GetTxProofV2(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
+	return GetOutProofV2(a, txId, txKey, message)
+}
+
+// GetTxProofV1
+// Deprecated
+func GetTxProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
+	return GetOutProofV1(a, txId, txKey, message)
+}
+
+func GetOutProofV2(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
 	prefixHash := crypto.Keccak256(txId[:], []byte(message))
 
-	sharedSecret, signature := crypto.GenerateTxProofV2(prefixHash, txKey, a.ViewPublicKey(), nil)
+	derivation := txKey.GetDerivation(a.ViewPublicKey())
+
+	sharedSecret, signature := crypto.GenerateTxProofV2(prefixHash, txKey.PublicKey(), a.ViewPublicKey(), nil, derivation, txKey)
 
 	return "OutProofV2" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
 }
 
-func GetTxProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
+func GetInProofV2(a Interface, txId types.Hash, viewKey crypto.PrivateKey, txPubKey crypto.PublicKey, message string) string {
 	prefixHash := crypto.Keccak256(txId[:], []byte(message))
 
-	sharedSecret, signature := crypto.GenerateTxProofV1(prefixHash, txKey, a.ViewPublicKey(), nil)
+	derivation := viewKey.GetDerivation(txPubKey)
+
+	sharedSecret, signature := crypto.GenerateTxProofV2(prefixHash, a.ViewPublicKey(), txPubKey, nil, derivation, viewKey)
+
+	return "InProofV2" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
+}
+
+func GetOutProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
+	prefixHash := crypto.Keccak256(txId[:], []byte(message))
+
+	derivation := txKey.GetDerivation(a.ViewPublicKey())
+
+	sharedSecret, signature := crypto.GenerateTxProofV1(prefixHash, a.ViewPublicKey(), nil, derivation, txKey)
 
 	return "OutProofV1" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
+}
+
+func GetInProofV1(txId types.Hash, viewKey crypto.PrivateKey, txPubKey crypto.PublicKey, message string) string {
+	prefixHash := crypto.Keccak256(txId[:], []byte(message))
+
+	derivation := viewKey.GetDerivation(txPubKey)
+
+	sharedSecret, signature := crypto.GenerateTxProofV1(prefixHash, txPubKey, nil, derivation, viewKey)
+
+	return "InProofV1" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
 }
 
 type SignatureVerifyResult int
