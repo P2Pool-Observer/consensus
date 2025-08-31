@@ -4,6 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
@@ -16,10 +21,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	fasthex "github.com/tmthrgd/go-hex"
-	"slices"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 const TimestampWindow = 60
@@ -118,6 +119,7 @@ func (c *MainChain) Listen() error {
 			if err := extraTags.UnmarshalBinary(extraDataRaw); err != nil {
 				//TODO: err
 				extraTags = nil
+				return
 			}
 
 			blockData := &mainblock.Block{
