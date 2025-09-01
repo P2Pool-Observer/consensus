@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	fasthex "github.com/tmthrgd/go-hex"
 	"net/netip"
+
+	fasthex "github.com/tmthrgd/go-hex"
 )
 
 func IsPeerVersionInformation(addr netip.AddrPort) bool {
@@ -128,7 +129,7 @@ func (v SoftwareVersion) SoftwareAwareString(id SoftwareId) string {
 const SupportedProtocolVersion = ProtocolVersion_1_3
 
 const CurrentSoftwareVersionMajor = 4 & 0xFFFF
-const CurrentSoftwareVersionMinor = 5 & 0xFF
+const CurrentSoftwareVersionMinor = 6 & 0xFF
 const CurrentSoftwareVersionPatch = 0 & 0xFF
 
 const CurrentSoftwareVersion SoftwareVersion = (CurrentSoftwareVersionMajor << 16) | (CurrentSoftwareVersionMinor << 8) | CurrentSoftwareVersionPatch
