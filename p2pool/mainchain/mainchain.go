@@ -68,102 +68,106 @@ func NewMainChain(s *sidechain.SideChain, p2pool P2PoolInterface) *MainChain {
 func (c *MainChain) Listen() error {
 	ctx := c.p2pool.Context()
 	err := c.p2pool.ClientZMQ().Listen(ctx,
-		func(fullChainMain *zmq.FullChainMain) {
-			if len(fullChainMain.MinerTx.Inputs) < 1 {
-				return
-			}
-			d := &sidechain.ChainMain{
-				Difficulty: types.ZeroDifficulty,
-				Height:     fullChainMain.MinerTx.Inputs[0].Gen.Height,
-				Timestamp:  uint64(fullChainMain.Timestamp),
-				Reward:     0,
-				Id:         types.ZeroHash,
-			}
-			for _, o := range fullChainMain.MinerTx.Outputs {
-				d.Reward += o.Amount
-			}
+		zmq.Listeners{
+			zmq.TopicFullChainMain: zmq.DecoderFullChainMain(func(mains []zmq.FullChainMain) {
+				for _, fullChainMain := range mains {
+					if len(fullChainMain.MinerTx.Inputs) < 1 {
+						continue
+					}
+					d := &sidechain.ChainMain{
+						Difficulty: types.ZeroDifficulty,
+						Height:     fullChainMain.MinerTx.Inputs[0].Gen.Height,
+						Timestamp:  uint64(fullChainMain.Timestamp),
+						Reward:     0,
+						Id:         types.ZeroHash,
+					}
+					for _, o := range fullChainMain.MinerTx.Outputs {
+						d.Reward += o.Amount
+					}
 
-			outputs := make(transaction.Outputs, 0, len(fullChainMain.MinerTx.Outputs))
-			var totalReward uint64
-			for i, o := range fullChainMain.MinerTx.Outputs {
-				if o.ToKey != nil {
-					outputs = append(outputs, transaction.Output{
-						Index:              uint64(i),
-						Reward:             o.Amount,
-						Type:               transaction.TxOutToKey,
-						EphemeralPublicKey: o.ToKey.Key,
-						ViewTag:            0,
-					})
-				} else if o.ToTaggedKey != nil {
-					tk, _ := fasthex.DecodeString(o.ToTaggedKey.ViewTag)
-					outputs = append(outputs, transaction.Output{
-						Index:              uint64(i),
-						Reward:             o.Amount,
-						Type:               transaction.TxOutToTaggedKey,
-						EphemeralPublicKey: o.ToTaggedKey.Key,
-						ViewTag:            tk[0],
-					})
-				} else {
-					//error
-					break
+					outputs := make(transaction.Outputs, 0, len(fullChainMain.MinerTx.Outputs))
+					var totalReward uint64
+					for i, o := range fullChainMain.MinerTx.Outputs {
+						if o.ToKey != nil {
+							outputs = append(outputs, transaction.Output{
+								Index:              uint64(i),
+								Reward:             o.Amount,
+								Type:               transaction.TxOutToKey,
+								EphemeralPublicKey: o.ToKey.Key,
+								ViewTag:            0,
+							})
+						} else if o.ToTaggedKey != nil {
+							tk, _ := fasthex.DecodeString(o.ToTaggedKey.ViewTag)
+							outputs = append(outputs, transaction.Output{
+								Index:              uint64(i),
+								Reward:             o.Amount,
+								Type:               transaction.TxOutToTaggedKey,
+								EphemeralPublicKey: o.ToTaggedKey.Key,
+								ViewTag:            tk[0],
+							})
+						} else {
+							//error
+							break
+						}
+						totalReward += o.Amount
+					}
+
+					if len(outputs) != len(fullChainMain.MinerTx.Outputs) {
+						continue
+					}
+
+					extraDataRaw, _ := fasthex.DecodeString(fullChainMain.MinerTx.Extra)
+					extraTags := transaction.ExtraTags{}
+					if err := extraTags.UnmarshalBinary(extraDataRaw); err != nil {
+						//TODO: err
+						extraTags = nil
+						continue
+					}
+
+					blockData := &mainblock.Block{
+						MajorVersion: uint8(fullChainMain.MajorVersion),
+						MinorVersion: uint8(fullChainMain.MinorVersion),
+						Timestamp:    uint64(fullChainMain.Timestamp),
+						PreviousId:   fullChainMain.PrevID,
+						Nonce:        uint32(fullChainMain.Nonce),
+						Coinbase: transaction.CoinbaseTransaction{
+							Version:      uint8(fullChainMain.MinerTx.Version),
+							UnlockTime:   uint64(fullChainMain.MinerTx.UnlockTime),
+							InputCount:   uint8(len(fullChainMain.MinerTx.Inputs)),
+							InputType:    transaction.TxInGen,
+							GenHeight:    fullChainMain.MinerTx.Inputs[0].Gen.Height,
+							Outputs:      outputs,
+							Extra:        extraTags,
+							ExtraBaseRCT: 0,
+							AuxiliaryData: transaction.CoinbaseTransactionAuxiliaryData{
+								OutputsBlobSize: 0,
+								TotalReward:     totalReward,
+							},
+						},
+						Transactions:             fullChainMain.TxHashes,
+						TransactionParentIndices: nil,
+					}
+					c.HandleMainBlock(blockData)
 				}
-				totalReward += o.Amount
-			}
-
-			if len(outputs) != len(fullChainMain.MinerTx.Outputs) {
-				return
-			}
-
-			extraDataRaw, _ := fasthex.DecodeString(fullChainMain.MinerTx.Extra)
-			extraTags := transaction.ExtraTags{}
-			if err := extraTags.UnmarshalBinary(extraDataRaw); err != nil {
-				//TODO: err
-				extraTags = nil
-				return
-			}
-
-			blockData := &mainblock.Block{
-				MajorVersion: uint8(fullChainMain.MajorVersion),
-				MinorVersion: uint8(fullChainMain.MinorVersion),
-				Timestamp:    uint64(fullChainMain.Timestamp),
-				PreviousId:   fullChainMain.PrevID,
-				Nonce:        uint32(fullChainMain.Nonce),
-				Coinbase: transaction.CoinbaseTransaction{
-					Version:      uint8(fullChainMain.MinerTx.Version),
-					UnlockTime:   uint64(fullChainMain.MinerTx.UnlockTime),
-					InputCount:   uint8(len(fullChainMain.MinerTx.Inputs)),
-					InputType:    transaction.TxInGen,
-					GenHeight:    fullChainMain.MinerTx.Inputs[0].Gen.Height,
-					Outputs:      outputs,
-					Extra:        extraTags,
-					ExtraBaseRCT: 0,
-					AuxiliaryData: transaction.CoinbaseTransactionAuxiliaryData{
-						OutputsBlobSize: 0,
-						TotalReward:     totalReward,
-					},
-				},
-				Transactions:             fullChainMain.TxHashes,
-				TransactionParentIndices: nil,
-			}
-			c.HandleMainBlock(blockData)
+			}),
+			zmq.TopicFullMinerData: zmq.DecoderFullMinerData(func(fullMinerData *zmq.FullMinerData) {
+				c.HandleMinerData(&p2pooltypes.MinerData{
+					MajorVersion:          fullMinerData.MajorVersion,
+					Height:                fullMinerData.Height,
+					PrevId:                fullMinerData.PrevId,
+					SeedHash:              fullMinerData.SeedHash,
+					Difficulty:            fullMinerData.Difficulty,
+					MedianWeight:          fullMinerData.MedianWeight,
+					AlreadyGeneratedCoins: fullMinerData.AlreadyGeneratedCoins,
+					MedianTimestamp:       fullMinerData.MedianTimestamp,
+					TxBacklog:             fullMinerData.TxBacklog,
+					TimeReceived:          time.Now(),
+				})
+			}),
+			zmq.TopicMinimalTxPoolAdd: zmq.DecoderMinimalTxPoolAdd(func(txs mempool.Mempool) {
+				c.p2pool.UpdateMempoolData(txs)
+			}),
 		},
-		func(txs []zmq.FullTxPoolAdd) {},
-		func(fullMinerData *zmq.FullMinerData) {
-			c.HandleMinerData(&p2pooltypes.MinerData{
-				MajorVersion:          fullMinerData.MajorVersion,
-				Height:                fullMinerData.Height,
-				PrevId:                fullMinerData.PrevId,
-				SeedHash:              fullMinerData.SeedHash,
-				Difficulty:            fullMinerData.Difficulty,
-				MedianWeight:          fullMinerData.MedianWeight,
-				AlreadyGeneratedCoins: fullMinerData.AlreadyGeneratedCoins,
-				MedianTimestamp:       fullMinerData.MedianTimestamp,
-				TxBacklog:             fullMinerData.TxBacklog,
-				TimeReceived:          time.Now(),
-			})
-		},
-		func(chainMain *zmq.MinimalChainMain) {},
-		c.p2pool.UpdateMempoolData,
 	)
 	if err != nil {
 		return err

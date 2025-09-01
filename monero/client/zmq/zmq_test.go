@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/zmq"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/zmq"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
 )
 
 func TestJSONFromFrame(t *testing.T) {
@@ -52,7 +53,7 @@ func TestJSONFromFrame(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			aTopic, aJSON, err := zmq.JSONFromFrame(tc.input)
+			aTopic, aJSON, err := zmq.JSONFromFrame([]zmq.Topic{tc.expectedTopic}, tc.input)
 			if tc.err != "" {
 				if err == nil {
 					t.Fatal("expected error")
@@ -79,20 +80,27 @@ func TestJSONFromFrame(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
-	client := zmq.NewClient(os.Getenv("MONEROD_ZMQ_URL"), zmq.TopicFullChainMain, zmq.TopicFullTxPoolAdd, zmq.TopicFullMinerData, zmq.TopicMinimalChainMain, zmq.TopicMinimalTxPoolAdd)
+	client := zmq.NewClient(os.Getenv("MONEROD_ZMQ_URL"))
 	ctx, ctxFunc := context.WithTimeout(context.Background(), time.Second*10)
 	defer ctxFunc()
-	err := client.Listen(ctx, func(chainMain *zmq.FullChainMain) {
-		t.Log(chainMain)
-	}, func(txs []zmq.FullTxPoolAdd) {
-		t.Log(txs)
-	}, func(main *zmq.FullMinerData) {
-		t.Log(main)
-	}, func(chainMain *zmq.MinimalChainMain) {
-		t.Log(chainMain)
-	}, func(txs mempool.Mempool) {
-
-		t.Log(txs)
+	err := client.Listen(ctx, zmq.Listeners{
+		zmq.TopicFullChainMain: zmq.DecoderFullChainMain(func(mains []zmq.FullChainMain) {
+			for _, chainMain := range mains {
+				t.Log(chainMain)
+			}
+		}),
+		zmq.TopicFullTxPoolAdd: zmq.DecoderFullTxPoolAdd(func(txs []zmq.FullTxPoolAdd) {
+			t.Log(txs)
+		}),
+		zmq.TopicFullMinerData: zmq.DecoderFullMinerData(func(data *zmq.FullMinerData) {
+			t.Log(data)
+		}),
+		zmq.TopicMinimalChainMain: zmq.DecoderMinimalChainMain(func(main *zmq.MinimalChainMain) {
+			t.Log(main)
+		}),
+		zmq.TopicMinimalTxPoolAdd: zmq.DecoderMinimalTxPoolAdd(func(txs mempool.Mempool) {
+			t.Log(txs)
+		}),
 	})
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal(err)
