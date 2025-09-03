@@ -5,11 +5,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"io"
 )
 
 type CoinbaseTransaction struct {
@@ -137,9 +138,6 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 
 	if txExtraSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
-	}
-	if txExtraSize > 65536 {
-		return errors.New("tx extra too large")
 	}
 
 	limitReader := utils.LimitByteReader(reader, int64(txExtraSize))
