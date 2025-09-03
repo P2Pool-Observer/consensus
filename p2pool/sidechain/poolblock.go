@@ -5,6 +5,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"math"
+	"net/netip"
+	"slices"
+	"sync/atomic"
+	"time"
+	"unsafe"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
@@ -17,13 +25,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	fasthex "github.com/tmthrgd/go-hex"
-	"io"
-	"math"
-	"net/netip"
-	"slices"
-	"sync/atomic"
-	"time"
-	"unsafe"
 )
 
 type CoinbaseExtraTag int
@@ -589,6 +590,17 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 
 	if err = b.consensusMergeMiningTag(); err != nil {
 		return err
+	}
+
+	// verify number and order of tags
+	if extra := b.Main.Coinbase.Extra; len(extra) != 3 {
+		return errors.New("wrong coinbase extra tag count")
+	} else if extra[0].Tag != transaction.TxExtraTagPubKey {
+		return errors.New("wrong coinbase extra tag at index 0")
+	} else if extra[1].Tag != transaction.TxExtraTagNonce {
+		return errors.New("wrong coinbase extra tag at index 1")
+	} else if extra[2].Tag != transaction.TxExtraTagMergeMining {
+		return errors.New("wrong coinbase extra tag at index 2")
 	}
 
 	if err = b.Side.FromReader(reader, b.ShareVersion()); err != nil {
