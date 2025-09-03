@@ -1,6 +1,10 @@
 package crypto
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"math/big"
+	"slices"
+)
 
 // limit = 2^252 + 27742317777372353535851937790883648493.
 // limit fits 15 times in 32 bytes (iow, 15 l is the highest multiple of l that fits in 32 bytes)
@@ -21,30 +25,48 @@ func lessLimit32(a []byte) bool {
 	return false
 }
 
+//go:nosplit
 func load3(in []byte) (result int64) {
 	_ = in[2] // bounds check hint to compiler; see golang.org/issue/14808
 	result = int64(in[0]) | (int64(in[1]) << 8) | (int64(in[2]) << 16)
 	return
 }
 
+//go:nosplit
 func load4(in []byte) (result int64) {
 	return int64(binary.LittleEndian.Uint32(in))
 }
 
+func scReduce32_Int(s []byte) {
+	// l = 2^252 + 27742317777372353535851937790883648493
+	var lAdd, _ = new(big.Int).SetString("27742317777372353535851937790883648493", 10)
+	var l = new(big.Int).Add(new(big.Int).Exp(big.NewInt(2), big.NewInt(252), nil), lAdd)
+
+	slices.Reverse(s)
+	i := new(big.Int).SetBytes(s)
+	i.Mod(i, l)
+	i.FillBytes(s)
+	slices.Reverse(s)
+	return
+}
+
+// scReduce32
+// 256-bit s integer modulo l
+// equivalent to scReduce32_Int
 func scReduce32(s []byte) {
 	_ = s[31] // bounds check hint to compiler; see golang.org/issue/14808
 
-	s0 := 2097151 & load3(s[:])
-	s1 := 2097151 & (load4(s[2:]) >> 5)
-	s2 := 2097151 & (load3(s[5:]) >> 2)
-	s3 := 2097151 & (load4(s[7:]) >> 7)
-	s4 := 2097151 & (load4(s[10:]) >> 4)
-	s5 := 2097151 & (load3(s[13:]) >> 1)
-	s6 := 2097151 & (load4(s[15:]) >> 6)
-	s7 := 2097151 & (load3(s[18:]) >> 3)
-	s8 := 2097151 & load3(s[21:])
-	s9 := 2097151 & (load4(s[23:]) >> 5)
-	s10 := 2097151 & (load3(s[26:]) >> 2)
+	s0 := 0x1FFFFF & load3(s[:])
+	s1 := 0x1FFFFF & (load4(s[2:]) >> 5)
+	s2 := 0x1FFFFF & (load3(s[5:]) >> 2)
+	s3 := 0x1FFFFF & (load4(s[7:]) >> 7)
+	s4 := 0x1FFFFF & (load4(s[10:]) >> 4)
+	s5 := 0x1FFFFF & (load3(s[13:]) >> 1)
+	s6 := 0x1FFFFF & (load4(s[15:]) >> 6)
+	s7 := 0x1FFFFF & (load3(s[18:]) >> 3)
+	s8 := 0x1FFFFF & load3(s[21:])
+	s9 := 0x1FFFFF & (load4(s[23:]) >> 5)
+	s10 := 0x1FFFFF & (load3(s[26:]) >> 2)
 	s11 := load4(s[28:]) >> 7
 	s12 := int64(0)
 	var carry [12]int64
@@ -126,6 +148,7 @@ func scReduce32(s []byte) {
 	carry[10] = s10 >> 21
 	s11 += carry[10]
 	s10 -= carry[10] << 21
+
 	carry[11] = s11 >> 21
 	s12 += carry[11]
 	s11 -= carry[11] << 21
@@ -137,6 +160,7 @@ func scReduce32(s []byte) {
 	s4 += s12 * 136657
 	s5 -= s12 * 683901
 
+	// same as above
 	carry[0] = s0 >> 21
 	s1 += carry[0]
 	s0 -= carry[0] << 21
