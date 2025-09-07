@@ -228,21 +228,39 @@ func (c *CoinbaseTransaction) SideChainHashingBlob(preAllocatedBuf []byte, zeroT
 	return buf, nil
 }
 
+var baseRCTZeroHash = crypto.PooledKeccak256([]byte{0})
+
 func (c *CoinbaseTransaction) CalculateId() (hash types.Hash) {
 
 	txBytes, _ := c.AppendBinaryFlags(make([]byte, 0, c.BufferLength()), false, false)
 
-	return crypto.PooledKeccak256(
-		// remove base RCT
-		hashKeccak(txBytes[:len(txBytes)-1]),
-		// Base RCT, single 0 byte in miner tx
-		hashKeccak([]byte{c.ExtraBaseRCT}),
-		// Prunable RCT, empty in miner tx
-		types.ZeroHash[:],
-	)
-}
+	hasher := crypto.GetKeccak256Hasher()
+	defer crypto.PutKeccak256Hasher(hasher)
 
-func hashKeccak(data ...[]byte) []byte {
-	d := crypto.PooledKeccak256(data...)
-	return d[:]
+	// coinbase id, base RCT hash, prunable RCT hash
+	var txHashingBlob [3 * types.HashSize]byte
+
+	// remove base RCT
+	_, _ = hasher.Write(txBytes[:len(txBytes)-1])
+	crypto.HashFastSum(hasher, txHashingBlob[:])
+	hasher.Reset()
+
+	if c.ExtraBaseRCT == 0 {
+		// Base RCT, single 0 byte in miner tx
+		copy(txHashingBlob[1*types.HashSize:], baseRCTZeroHash[:])
+	} else {
+		// fallback, but should never be hit
+		hasher.Reset()
+		_, _ = hasher.Write([]byte{c.ExtraBaseRCT})
+		crypto.HashFastSum(hasher, txHashingBlob[1*types.HashSize:])
+	}
+
+	// Prunable RCT, empty in miner tx
+	//copy(txHashingBlob[2*types.HashSize:], types.ZeroHash[:])
+
+	hasher.Reset()
+	_, _ = hasher.Write(txHashingBlob[:])
+	crypto.HashFastSum(hasher, hash[:])
+
+	return hash
 }
