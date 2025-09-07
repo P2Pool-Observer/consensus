@@ -555,6 +555,10 @@ func (b *PoolBlock) consensusMergeMiningTag() (err error) {
 		return errors.New("missing merge mining tag")
 	}
 
+	if mergeMineTag.VarInt > transaction.TxExtraTagMergeMiningMaxCount {
+		return errors.New("merge mining is too big")
+	}
+
 	if b.ShareVersion() <= ShareVersion_V2 {
 		//TODO: this is to comply with non-standard p2pool serialization, see https://github.com/SChernykh/p2pool/issues/249
 		if mergeMineTag.VarInt != types.HashSize {

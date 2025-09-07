@@ -5,10 +5,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"io"
 )
 
 const TxExtraTagPadding = 0x00
@@ -20,7 +21,7 @@ const TxExtraTagMysteriousMinergate = 0xde
 
 const TxExtraPaddingMaxCount = 255
 const TxExtraNonceMaxCount = 255
-const TxExtraAdditionalPubKeysMaxCount = 4096
+
 const TxExtraTagMergeMiningMaxCount = types.HashSize + 9
 
 const TxExtraTemplateNonceSize = 4
@@ -229,44 +230,23 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 				return err
 			}
 		}
-	case TxExtraTagMergeMining:
-		t.HasVarInt = true
-		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
-			return err
-		} else {
-			if t.VarInt > TxExtraTagMergeMiningMaxCount {
-				return errors.New("merge mining is too big")
-			}
-			t.Data = make([]byte, t.VarInt)
-			if _, err = io.ReadFull(reader, t.Data); err != nil {
-				return err
-			}
-		}
 	case TxExtraTagAdditionalPubKeys:
 		t.HasVarInt = true
 		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else {
-			if t.VarInt > TxExtraAdditionalPubKeysMaxCount {
-				return errors.New("too many public keys")
-			}
-
-			t.Data = make([]byte, types.HashSize*t.VarInt)
-			if _, err = io.ReadFull(reader, t.Data); err != nil {
+			_, err = utils.ReadFullProgressive(io.LimitReader(reader, int64(types.HashSize*t.VarInt)), &t.Data, int(types.HashSize*t.VarInt))
+			if err != nil {
 				return err
 			}
 		}
-	case TxExtraTagMysteriousMinergate:
+	case TxExtraTagMergeMining, TxExtraTagMysteriousMinergate:
 		t.HasVarInt = true
 		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else {
-			if t.VarInt > TxExtraNonceMaxCount {
-				return errors.New("nonce is too big")
-			}
-
-			t.Data = make([]byte, t.VarInt)
-			if _, err = io.ReadFull(reader, t.Data); err != nil {
+			_, err = utils.ReadFullProgressive(io.LimitReader(reader, int64(t.VarInt)), &t.Data, int(t.VarInt))
+			if err != nil {
 				return err
 			}
 		}
