@@ -3,12 +3,13 @@ package sidechain
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"sync"
 )
 
 type FakeServer struct {
@@ -42,6 +43,9 @@ func (s *FakeServer) UpdateTip(tip *PoolBlock) {
 
 }
 func (s *FakeServer) Broadcast(block *PoolBlock) {
+
+}
+func (s *FakeServer) BroadcastMoneroBlock(block *mainblock.Block) {
 
 }
 func (s *FakeServer) ClientRPC() *client.Client {

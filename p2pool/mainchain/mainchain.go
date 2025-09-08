@@ -261,6 +261,14 @@ func (c *MainChain) HandleMainBlock(b *mainblock.Block) {
 
 	defer c.updateTip()
 
+	var isP2Pool bool
+	defer func() {
+		if !isP2Pool {
+			// broadcast block to other clients!
+			go c.sidechain.Server().BroadcastMoneroBlock(b)
+		}
+	}()
+
 	mergeMineTag := b.Coinbase.Extra.GetTag(transaction.TxExtraTagMergeMining)
 	if mergeMineTag == nil {
 		return
@@ -282,6 +290,7 @@ func (c *MainChain) HandleMainBlock(b *mainblock.Block) {
 
 		if block := c.sidechain.GetPoolBlockByTemplateId(sidechainId); block != nil {
 			c.p2pool.UpdateBlockFound(mainData, block)
+			isP2Pool = true
 		} else {
 			c.sidechain.WatchMainChainBlock(mainData, sidechainId)
 		}
@@ -296,8 +305,9 @@ func (c *MainChain) HandleMainBlock(b *mainblock.Block) {
 			return
 		}
 
-		if block := c.sidechain.GetPoolBlockByTemplateId(mergeMiningTag.RootHash); block != nil {
+		if block := c.sidechain.GetPoolBlockByMerkleRoot(mergeMiningTag.RootHash); block != nil {
 			c.p2pool.UpdateBlockFound(mainData, block)
+			isP2Pool = true
 		} else {
 			c.sidechain.WatchMainChainBlock(mainData, mergeMiningTag.RootHash)
 		}

@@ -6,6 +6,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"slices"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
@@ -17,11 +23,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
-	"io"
-	"slices"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 type Cache interface {
@@ -35,6 +36,7 @@ type P2PoolInterface interface {
 	Cache
 	Context() context.Context
 	UpdateTip(tip *PoolBlock)
+	BroadcastMoneroBlock(block *mainblock.Block)
 	Broadcast(block *PoolBlock)
 	ClientRPC() *client.Client
 	GetChainMainByHeight(height uint64) *ChainMain
