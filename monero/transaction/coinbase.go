@@ -243,7 +243,6 @@ func (c *CoinbaseTransaction) CalculateId() (hash types.Hash) {
 	// remove base RCT
 	_, _ = hasher.Write(txBytes[:len(txBytes)-1])
 	crypto.HashFastSum(hasher, txHashingBlob[:])
-	hasher.Reset()
 
 	if c.ExtraBaseRCT == 0 {
 		// Base RCT, single 0 byte in miner tx
