@@ -6,12 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
-	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	fasthex "github.com/tmthrgd/go-hex"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"net"
@@ -21,6 +15,16 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	fasthex "github.com/tmthrgd/go-hex"
 )
 
 const DefaultBanTime = time.Second * 600
@@ -609,7 +613,7 @@ func (c *Client) OnConnection() {
 			}
 
 		case MessageBlockBroadcast, MessageBlockBroadcastCompact:
-			block := &sidechain.PoolBlock{
+			poolBlock := &sidechain.PoolBlock{
 				Metadata: sidechain.PoolBlockReceptionMetadata{
 					LocalTime:       time.Now().UTC(),
 					AddressPort:     c.PreferredAddressPort(),
@@ -629,7 +633,7 @@ func (c *Client) OnConnection() {
 				break
 			} else if messageId == MessageBlockBroadcastCompact {
 				reader := bufio.NewReaderSize(io.LimitReader(c, int64(blockSize)), int(blockSize))
-				if err = block.FromCompactReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
+				if err = poolBlock.FromCompactReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
 					c.Ban(DefaultBanTime, err)
 					return
@@ -639,7 +643,7 @@ func (c *Client) OnConnection() {
 				}
 			} else {
 				reader := bufio.NewReaderSize(io.LimitReader(c, int64(blockSize)), int(blockSize))
-				if err = block.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
+				if err = poolBlock.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
 					c.Ban(DefaultBanTime, err)
 					return
@@ -650,7 +654,7 @@ func (c *Client) OnConnection() {
 			}
 
 			//Atomic max, not necessary as no external writers exist
-			topHeight := max(c.BroadcastMaxHeight.Load(), block.Side.Height)
+			topHeight := max(c.BroadcastMaxHeight.Load(), poolBlock.Side.Height)
 			for {
 				if oldHeight := c.BroadcastMaxHeight.Swap(topHeight); oldHeight <= topHeight {
 					break
@@ -661,29 +665,29 @@ func (c *Client) OnConnection() {
 
 			//utils.Logf("P2PClient", "Peer %s broadcast tip is at id = %s, height = %d, main height = %d", c.AddressPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.GenHeight)
 
-			if missingBlocks, err := c.Owner.SideChain().PreprocessBlock(block); err != nil {
+			if missingBlocks, err := c.Owner.SideChain().PreprocessBlock(poolBlock); err != nil {
 				for _, id := range missingBlocks {
 					c.SendMissingBlockRequest(id)
 				}
 				//TODO: ban here, but sort blocks properly, maybe a queue to re-try?
 				break
 			} else {
-				tipHash := block.FastSideTemplateId(c.Owner.Consensus())
+				tipHash := poolBlock.FastSideTemplateId(c.Owner.Consensus())
 
 				c.BroadcastedHashes.Push(tipHash)
 
 				c.LastBroadcastTimestamp.Store(uint64(time.Now().Unix()))
 
-				if lastTip := c.LastKnownTip.Load(); lastTip == nil || lastTip.Side.Height <= block.Side.Height {
-					c.LastKnownTip.Store(block)
+				if lastTip := c.LastKnownTip.Load(); lastTip == nil || lastTip.Side.Height <= poolBlock.Side.Height {
+					c.LastKnownTip.Store(poolBlock)
 				}
 
 				ourMinerData := c.Owner.MainChain().GetMinerDataTip()
 
-				if block.Main.PreviousId != ourMinerData.PrevId {
+				if poolBlock.Main.PreviousId != ourMinerData.PrevId {
 					// This peer is mining on top of a different Monero block, investigate it
 
-					peerHeight := block.Main.Coinbase.GenHeight
+					peerHeight := poolBlock.Main.Coinbase.GenHeight
 					ourHeight := ourMinerData.Height
 
 					if peerHeight < ourHeight {
@@ -701,21 +705,21 @@ func (c *Client) OnConnection() {
 							utils.Logf("P2PClient", "Peer %s is ahead on mainchain (mainchain height %d, your height %d). Is monerod stuck or lagging?", c.AddressPort.String(), peerHeight, ourHeight)
 						}
 					} else {
-						utils.Logf("P2PClient", "Peer %s is mining on an alternative mainchain tip (mainchain height %d, previous_id = %s)", c.AddressPort.String(), peerHeight, block.Main.PreviousId)
+						utils.Logf("P2PClient", "Peer %s is mining on an alternative mainchain tip (mainchain height %d, previous_id = %s)", c.AddressPort.String(), peerHeight, poolBlock.Main.PreviousId)
 					}
 				}
 
-				if c.Owner.SideChain().BlockSeen(block) {
+				if c.Owner.SideChain().BlockSeen(poolBlock) {
 					//utils.Logf("P2PClient", "Peer %s block id = %s, height = %d (nonce %d, extra_nonce %d) was received before, skipping it", c.AddressPort.String(), types.HashFromBytes(block.CoinbaseExtra(sidechain.SideIdentifierHash)), block.Side.Height, block.Main.Nonce, block.ExtraNonce())
 					break
 				}
 
-				block.WantBroadcast.Store(true)
-				if missingBlocks, err, ban := c.Owner.SideChain().AddPoolBlockExternal(block); err != nil {
+				poolBlock.WantBroadcast.Store(true)
+				if missingBlocks, err, ban := c.Owner.SideChain().AddPoolBlockExternal(poolBlock); err != nil {
 					if ban {
 						c.Ban(DefaultBanTime, err)
 					} else {
-						utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.AddressPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.GenHeight, block.Main.Timestamp)
+						utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.AddressPort.String(), tipHash, poolBlock.Side.Height, poolBlock.Main.Coinbase.GenHeight, poolBlock.Main.Timestamp)
 					}
 					return
 				} else {
@@ -905,6 +909,83 @@ func (c *Client) OnConnection() {
 			}
 
 			//TODO: broadcast/save data signatures
+		case MessageMoneroBlockBroadcast:
+			var dataSize uint32
+			if err := binary.Read(c, binary.LittleEndian, &dataSize); err != nil {
+				//TODO warn
+				c.Ban(DefaultBanTime, err)
+				return
+			} else if dataSize == 0 {
+				break
+			}
+
+			r := bufio.NewReaderSize(io.LimitReader(c, int64(dataSize)), int(dataSize))
+			var hdr MoneroBlockBroadcastHeader
+
+			err := hdr.FromReader(r)
+			if err != nil {
+				c.Ban(DefaultBanTime, err)
+				return
+			}
+
+			if hdr.HeaderSize < 43 || hdr.HeaderSize > 128 || hdr.MinerTransactionSize < 64 || hdr.TotalSize() >= uint64(dataSize) {
+				c.Ban(DefaultBanTime, errors.New("invalid MONERO_BLOCK_BROADCAST header"))
+				return
+			}
+
+			b := &block.Block{}
+			if err = b.FromReader(r, false, nil); err != nil {
+				if errors.Is(err, transaction.ErrInvalidTransactionExtra) {
+					// allow these as blocks with invalid tx extra could be published. Thanks Tari
+					break
+				}
+				c.Ban(DefaultBanTime, err)
+				return
+			}
+
+			minerData := c.Owner.MainChain().GetMinerDataTip()
+			if b.Coinbase.UnlockTime < minerData.Height {
+				// outdated monero block
+				break
+			}
+
+			if !c.Owner.BroadcastedMoneroBlocks.PushUnique(b.Id()) {
+				// repeated block
+				break
+			}
+
+			var diff types.Difficulty
+
+			if cm := c.Owner.MainChain().GetChainMainByHeight(b.Coinbase.GenHeight); cm != nil {
+				diff = cm.Difficulty
+			} else {
+				diff = minerData.Difficulty
+			}
+
+			// Use 90% of this height's difficulty to account for possible altchain deviations
+			diff = diff.Sub(diff.Div64(10))
+
+			if powHash, err := b.PowHashWithError(c.Owner.Consensus().GetHasher(), func(height uint64) (hash types.Hash) {
+				if h := c.Owner.MainChain().GetChainMainByHeight(randomx.SeedHeight(height)); h != nil {
+					return h.Id
+				}
+				return types.ZeroHash
+			}); err != nil {
+				if errors.Is(err, block.ErrNoSeed) {
+					// cannot get seed
+					break
+				}
+				c.Ban(DefaultBanTime, err)
+				return
+			} else if !diff.CheckPoW(powHash) {
+				c.Ban(DefaultBanTime, fmt.Errorf("diff check failed, PoW hash = %x", powHash.Slice()))
+				return
+			}
+
+			c.Owner.BroadcastMoneroBlock(c, b)
+
+			// submit to monero
+			go c.Owner.SideChain().Server().SubmitBlock(b)
 
 		case MessageInternal:
 			internalMessageId, err := utils.ReadCanonicalUvarint(c)

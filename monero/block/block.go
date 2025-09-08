@@ -5,14 +5,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"math"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"io"
-	"math"
 )
 
 const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize
@@ -306,10 +307,12 @@ func (b *Block) Difficulty(f GetDifficultyByHeightFunc) types.Difficulty {
 	return f(b.Coinbase.GenHeight)
 }
 
+var ErrNoSeed = errors.New("could not get seed")
+
 func (b *Block) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeightFunc) (types.Hash, error) {
 	//not cached
 	if seed := f(b.Coinbase.GenHeight); seed == types.ZeroHash {
-		return types.ZeroHash, errors.New("could not get seed")
+		return types.ZeroHash, ErrNoSeed
 	} else {
 		return hasher.Hash(seed[:], b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength())))
 	}

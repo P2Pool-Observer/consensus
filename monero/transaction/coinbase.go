@@ -53,6 +53,8 @@ func (c *CoinbaseTransaction) UnmarshalBinary(data []byte, canBePruned, contains
 	return nil
 }
 
+var ErrInvalidTransactionExtra = errors.New("invalid transaction extra")
+
 func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBePruned, containsAuxiliaryTemplateId bool) (err error) {
 	var (
 		txExtraSize uint64
@@ -142,7 +144,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 
 	limitReader := utils.LimitByteReader(reader, int64(txExtraSize))
 	if err = c.Extra.FromReader(limitReader); err != nil {
-		return err
+		return errors.Join(ErrInvalidTransactionExtra, err)
 	}
 	if limitReader.Left() > 0 {
 		return errors.New("bytes leftover in extra data")

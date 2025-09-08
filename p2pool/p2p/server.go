@@ -6,12 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mainchain"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
-	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	unsafeRandom "math/rand/v2"
 	"net"
 	"net/netip"
@@ -20,6 +14,14 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mainchain"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 )
 
 type P2PoolInterface interface {
@@ -105,6 +107,8 @@ type Server struct {
 	cachedBlocksLock sync.RWMutex
 	cachedBlocks     map[types.Hash]*sidechain.PoolBlock
 
+	BroadcastedMoneroBlocks *utils.CircularBuffer[types.Hash]
+
 	ctx context.Context
 }
 
@@ -133,10 +137,11 @@ func NewServer(p2pool P2PoolInterface, listenAddress string, externalListenPort 
 			SoftwareVersion: p2pooltypes.CurrentSoftwareVersion,
 			Protocol:        p2pooltypes.SupportedProtocolVersion,
 		},
-		useIPv4: useIPv4,
-		useIPv6: useIPv6,
-		ctx:     ctx,
-		bans:    make(map[[16]byte]BanEntry),
+		useIPv4:                 useIPv4,
+		useIPv6:                 useIPv6,
+		ctx:                     ctx,
+		bans:                    make(map[[16]byte]BanEntry),
+		BroadcastedMoneroBlocks: utils.NewCircularBuffer[types.Hash](720),
 	}
 
 	s.PendingOutgoingConnections = utils.NewCircularBuffer[string](int(s.MaxOutgoingPeers))
@@ -807,6 +812,50 @@ func (s *Server) SideChain() *sidechain.SideChain {
 
 func (s *Server) MainChain() *mainchain.MainChain {
 	return s.p2pool.MainChain()
+}
+
+func (s *Server) BroadcastMoneroBlock(source *Client, b *block.Block) {
+
+	if b != nil {
+		supportsMoneroBlockBroadcast := s.versionInformation.SupportsFeature(p2pooltypes.FeatureMoneroBlockBroadcast)
+		if !supportsMoneroBlockBroadcast {
+			return
+		}
+
+		blockLen := b.BufferLength()
+		txLen := b.Coinbase.BufferLength()
+		hdr := MoneroBlockBroadcastHeader{
+			HeaderSize:           uint32(blockLen - txLen - utils.UVarInt64Size(len(b.Transactions)) + types.HashSize*len(b.Transactions)),
+			MinerTransactionSize: uint32(txLen),
+		}
+
+		// reserve 4 bytes for length
+		buf := make([]byte, 4, 4+hdr.BufferLength()+blockLen)
+
+		var err error
+
+		buf, _ = hdr.AppendBinary(buf)
+		buf, err = b.AppendBinaryFlags(buf, false, false, false)
+		if err != nil {
+			return
+		}
+		binary.LittleEndian.PutUint32(buf, uint32(len(buf)-4))
+
+		message := &ClientMessage{
+			MessageId: MessageMoneroBlockBroadcast,
+			Buffer:    buf,
+		}
+
+		go func() {
+			for _, c := range s.Clients() {
+				if c.IsGood() && c != source {
+					if c.VersionInformation.SupportsFeature(p2pooltypes.FeatureMoneroBlockBroadcast) {
+						c.SendMessage(message)
+					}
+				}
+			}
+		}()
+	}
 }
 
 func (s *Server) Broadcast(block *sidechain.PoolBlock) {
