@@ -130,10 +130,10 @@ func (v SoftwareVersion) SoftwareAwareString(id SoftwareId) string {
 	return SemanticVersion(v).String()
 }
 
-const SupportedProtocolVersion = ProtocolVersion_1_3
+const SupportedProtocolVersion = ProtocolVersion_1_4
 
 const CurrentSoftwareVersionMajor = 4 & 0xFFFF
-const CurrentSoftwareVersionMinor = 6 & 0xFF
+const CurrentSoftwareVersionMinor = 7 & 0xFF
 const CurrentSoftwareVersionPatch = 0 & 0xFF
 
 const CurrentSoftwareVersion SoftwareVersion = (CurrentSoftwareVersionMajor << 16) | (CurrentSoftwareVersionMinor << 8) | CurrentSoftwareVersionPatch
