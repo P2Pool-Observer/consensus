@@ -17,6 +17,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mainchain"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
@@ -819,6 +820,11 @@ func (s *Server) BroadcastMoneroBlock(source *Client, b *block.Block) {
 	if b != nil {
 		supportsMoneroBlockBroadcast := s.versionInformation.SupportsFeature(p2pooltypes.FeatureMoneroBlockBroadcast)
 		if !supportsMoneroBlockBroadcast {
+			return
+		}
+
+		if b.Coinbase.Extra.GetTag(transaction.TxExtraTagPubKey) == nil {
+			// must have at least a pubkey
 			return
 		}
 
