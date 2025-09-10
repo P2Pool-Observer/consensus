@@ -831,7 +831,7 @@ func (s *Server) BroadcastMoneroBlock(source *Client, b *block.Block) {
 		blockLen := b.BufferLength()
 		txLen := b.Coinbase.BufferLength()
 		hdr := MoneroBlockBroadcastHeader{
-			HeaderSize:           uint32(blockLen - txLen - utils.UVarInt64Size(len(b.Transactions)) + types.HashSize*len(b.Transactions)),
+			HeaderSize:           uint32(blockLen - txLen - (utils.UVarInt64Size(len(b.Transactions)) + types.HashSize*len(b.Transactions))),
 			MinerTransactionSize: uint32(txLen),
 		}
 
