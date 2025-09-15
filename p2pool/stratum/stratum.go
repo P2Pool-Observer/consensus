@@ -1140,7 +1140,6 @@ func (s *Server) Listen(listen string) error {
 																if err := s.SubmitMainFunc(&b.Main); err != nil {
 																	return fmt.Errorf("submit main error: %w", err), false
 																}
-															} else {
 																return nil, false
 															}
 														}
