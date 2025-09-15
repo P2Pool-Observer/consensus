@@ -63,7 +63,8 @@ type NewTemplateData struct {
 }
 
 type Server struct {
-	SubmitFunc func(block *sidechain.PoolBlock) error
+	SubmitFunc     func(block *sidechain.PoolBlock) error
+	SubmitMainFunc func(b *block.Block) error
 
 	refreshDuration time.Duration
 
@@ -116,9 +117,10 @@ func (c *Client) Write(b []byte) (int, error) {
 	return c.Conn.Write(b)
 }
 
-func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBlock) error) *Server {
+func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBlock) error, submitMain func(b *block.Block) error) *Server {
 	server := &Server{
 		SubmitFunc:                        submitFunc,
+		SubmitMainFunc:                    submitMain,
 		sidechain:                         s,
 		preAllocatedDifficultyData:        make([]sidechain.DifficultyData, s.Consensus().ChainWindowSize*2),
 		preAllocatedDifficultyDifferences: make([]uint32, s.Consensus().ChainWindowSize*2),
@@ -422,9 +424,9 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 				e.LastJob = time.Now()
 
 				targetDiff := tpl.SideDifficulty
-				/*if s.minerData.Difficulty.Cmp(targetDiff) < 0 {
+				if s.minerData.Difficulty.Cmp(targetDiff) < 0 {
 					targetDiff = s.minerData.Difficulty
-				}*/
+				}
 
 				return tpl, jobCounter, targetDiff, s.minerData.SeedHash, nil
 			}
@@ -1117,13 +1119,31 @@ func (s *Server) Listen(listen string) error {
 												} else if err := b.UnmarshalBinary(s.sidechain.Consensus(), s.sidechain.DerivationCache(), blob); err != nil {
 													return err, true
 												} else {
-													if b.Side.Difficulty.CheckPoW(resultHash) {
+													powDiff := types.DifficultyFromPoW(resultHash)
+													if powDiff.Cmp(b.Side.Difficulty) >= 0 {
 														//passes difficulty
 														if err := s.SubmitFunc(b); err != nil {
 															return fmt.Errorf("submit error: %w", err), true
 														}
 													} else {
-
+														// explicitly allow low diff shares that pass main difficulty but not sidechain one, useful for testnet
+														if s.SubmitMainFunc != nil && powDiff.Cmp64(s.sidechain.Consensus().MinimumDifficulty) < 0 {
+															if mainDiff := func() types.Difficulty {
+																s.lock.RLock()
+																defer s.lock.RUnlock()
+																if s.minerData == nil {
+																	return types.ZeroDifficulty
+																}
+																return s.minerData.Difficulty
+															}(); mainDiff != types.ZeroDifficulty && mainDiff.CheckPoW(resultHash) {
+																//passes main difficulty
+																if err := s.SubmitMainFunc(&b.Main); err != nil {
+																	return fmt.Errorf("submit main error: %w", err), false
+																}
+															} else {
+																return nil, false
+															}
+														}
 														return errors.New("low difficulty share"), true
 													}
 												}
