@@ -1000,10 +1000,25 @@ func (s *Server) Listen(listen string) error {
 										if str, ok := m["login"].(string); ok {
 											//TODO: support merge mining addresses
 											a := address.FromBase58(str)
-											if a != nil && a.TypeNetwork == addressNetwork {
-												client.Address = a.ToPackedAddress()
+											if a == nil {
+												return errors.New("invalid address in user, integrated addresses not supported")
+											} else if a.BaseNetwork() != addressNetwork {
+												return errors.New("invalid address in user, wrong network")
+											} else if a.IsSubaddress() {
+												if h, err := types.HashFromString(client.Password); err == nil {
+													viewKey := crypto.PrivateKeyBytes(h)
+													fa := address.GetSubaddressFakeAddress(a, &viewKey)
+													if fa == nil {
+														return errors.New("invalid address in user, invalid subaddress conversion")
+													}
+													client.Address = fa.ToPackedAddress()
+													// cleanup
+													client.Password = ""
+												} else {
+													return errors.New("invalid address in user, subaddress specified but no valid viewkey on pass field")
+												}
 											} else {
-												return errors.New("invalid address in user")
+												client.Address = a.ToPackedAddress()
 											}
 										}
 										var hasRx0 bool

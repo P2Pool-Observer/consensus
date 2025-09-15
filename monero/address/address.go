@@ -53,6 +53,19 @@ func (a *Address) ToAddress(network uint8, err ...error) *Address {
 	return a
 }
 
+func (a *Address) BaseNetwork() uint8 {
+	switch a.TypeNetwork {
+	case monero.MainNetwork, monero.IntegratedMainNetwork, monero.SubAddressMainNetwork:
+		return monero.MainNetwork
+	case monero.TestNetwork, monero.IntegratedTestNetwork, monero.SubAddressTestNetwork:
+		return monero.TestNetwork
+	case monero.StageNetwork, monero.IntegratedStageNetwork, monero.SubAddressStageNetwork:
+		return monero.StageNetwork
+	default:
+		return 0
+	}
+}
+
 func (a *Address) IsSubaddress() bool {
 	return a.TypeNetwork == monero.SubAddressMainNetwork || a.TypeNetwork == monero.SubAddressTestNetwork || a.TypeNetwork == monero.SubAddressStageNetwork
 }
