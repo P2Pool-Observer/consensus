@@ -1020,7 +1020,12 @@ func (s *Server) Listen(listen string) error {
 													return errors.New("invalid address in user, subaddress specified but no valid viewkey on pass field")
 												}
 											} else {
-												client.Address = a.ToPackedAddress()
+												if sa := address.FromBase58(client.Password); sa != nil && sa.BaseNetwork() == a.BaseNetwork() && sa.IsSubaddress() {
+													// allow sending to subaddress when specified
+													client.Address = address.PackedAddress{sa.SpendPublicKey().AsBytes(), a.ViewPublicKey().AsBytes()}
+												} else {
+													client.Address = a.ToPackedAddress()
+												}
 											}
 										}
 										var hasRx0 bool
