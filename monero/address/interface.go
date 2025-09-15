@@ -15,3 +15,8 @@ type Interface interface {
 	ToAddress(network uint8, err ...error) *Address
 	ToPackedAddress() PackedAddress
 }
+
+type InterfaceSubaddress interface {
+	Interface
+	IsSubaddress() bool
+}

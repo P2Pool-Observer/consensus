@@ -4,6 +4,14 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
+	unsafeRandom "math/rand/v2"
+	"net"
+	"net/netip"
+	"slices"
+	"sync"
+	"time"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
@@ -17,13 +25,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	gojson "git.gammaspectra.live/P2Pool/go-json"
 	fasthex "github.com/tmthrgd/go-hex"
-	"math"
-	unsafeRandom "math/rand/v2"
-	"net"
-	"net/netip"
-	"slices"
-	"sync"
-	"time"
 )
 
 // HighFeeValue 0.006 XMR
@@ -999,7 +1000,7 @@ func (s *Server) Listen(listen string) error {
 										if str, ok := m["login"].(string); ok {
 											//TODO: support merge mining addresses
 											a := address.FromBase58(str)
-											if a != nil && a.Network == addressNetwork {
+											if a != nil && a.TypeNetwork == addressNetwork {
 												client.Address = a.ToPackedAddress()
 											} else {
 												return errors.New("invalid address in user")

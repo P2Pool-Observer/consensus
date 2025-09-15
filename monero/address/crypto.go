@@ -104,44 +104,130 @@ func GetTxProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message
 	return GetOutProofV1(a, txId, txKey, message)
 }
 
-func GetOutProofV2(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
+func GetOutProofV2(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string, additionalTxKeys ...crypto.PrivateKey) string {
 	prefixHash := crypto.Keccak256(txId[:], []byte(message))
 
-	derivation := txKey.GetDerivation(a.ViewPublicKey())
+	sharedSecret := make([]crypto.PublicKey, 1, 1+len(additionalTxKeys))
+	signature := make([]*crypto.Signature, 1, 1+len(additionalTxKeys))
 
-	sharedSecret, signature := crypto.GenerateTxProofV2(prefixHash, txKey.PublicKey(), a.ViewPublicKey(), nil, derivation, txKey)
+	sharedSecret[0] = txKey.GetDerivation(a.ViewPublicKey())
+	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+		pub := txKey.GetDerivation(sa.SpendPublicKey())
+		signature[0] = crypto.GenerateTxProofV2(prefixHash, pub, sa.ViewPublicKey(), sa.SpendPublicKey(), sharedSecret[0], txKey)
+	} else {
+		signature[0] = crypto.GenerateTxProofV2(prefixHash, txKey.PublicKey(), a.ViewPublicKey(), nil, sharedSecret[0], txKey)
+	}
 
-	return "OutProofV2" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
+	for i, additionalTxKey := range additionalTxKeys {
+		sharedSecret[i+1] = additionalTxKey.GetDerivation(a.ViewPublicKey())
+		if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+			pub := additionalTxKey.GetDerivation(sa.SpendPublicKey())
+			signature[i+1] = crypto.GenerateTxProofV2(prefixHash, pub, sa.ViewPublicKey(), sa.SpendPublicKey(), sharedSecret[i+1], additionalTxKey)
+		} else {
+			signature[i+1] = crypto.GenerateTxProofV2(prefixHash, additionalTxKey.PublicKey(), a.ViewPublicKey(), nil, sharedSecret[i+1], additionalTxKey)
+		}
+	}
+
+	output := make([]string, 1, 1+len(sharedSecret)*2)
+	output[0] = "OutProofV2"
+	for i := range sharedSecret {
+		output = append(output, string(base58.EncodeMoneroBase58(sharedSecret[i].AsSlice())))
+		output = append(output, string(base58.EncodeMoneroBase58(signature[i].Bytes())))
+	}
+	return strings.Join(output, "")
 }
 
-func GetInProofV2(a Interface, txId types.Hash, viewKey crypto.PrivateKey, txPubKey crypto.PublicKey, message string) string {
+func GetOutProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string, additionalTxKeys ...crypto.PrivateKey) string {
 	prefixHash := crypto.Keccak256(txId[:], []byte(message))
 
-	derivation := viewKey.GetDerivation(txPubKey)
+	sharedSecret := make([]crypto.PublicKey, 1, 1+len(additionalTxKeys))
+	signature := make([]*crypto.Signature, 1, 1+len(additionalTxKeys))
 
-	sharedSecret, signature := crypto.GenerateTxProofV2(prefixHash, a.ViewPublicKey(), txPubKey, nil, derivation, viewKey)
+	sharedSecret[0] = txKey.GetDerivation(a.ViewPublicKey())
+	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+		signature[0] = crypto.GenerateTxProofV1(prefixHash, sa.ViewPublicKey(), sa.SpendPublicKey(), sharedSecret[0], txKey)
+	} else {
+		signature[0] = crypto.GenerateTxProofV1(prefixHash, a.ViewPublicKey(), nil, sharedSecret[0], txKey)
+	}
 
-	return "InProofV2" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
+	for i, additionalTxKey := range additionalTxKeys {
+		sharedSecret[i+1] = additionalTxKey.GetDerivation(a.ViewPublicKey())
+		if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+			signature[i+1] = crypto.GenerateTxProofV1(prefixHash, sa.ViewPublicKey(), sa.SpendPublicKey(), sharedSecret[i+1], additionalTxKey)
+		} else {
+			signature[i+1] = crypto.GenerateTxProofV1(prefixHash, a.ViewPublicKey(), nil, sharedSecret[i+1], additionalTxKey)
+		}
+	}
+
+	output := make([]string, 1, 1+len(sharedSecret)*2)
+	output[0] = "OutProofV1"
+	for i := range sharedSecret {
+		output = append(output, string(base58.EncodeMoneroBase58(sharedSecret[i].AsSlice())))
+		output = append(output, string(base58.EncodeMoneroBase58(signature[i].Bytes())))
+	}
+	return strings.Join(output, "")
 }
 
-func GetOutProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string) string {
+func GetInProofV2(a Interface, txId types.Hash, viewKey crypto.PrivateKey, txPubKey crypto.PublicKey, message string, additionalTxPubKeys ...crypto.PublicKey) string {
 	prefixHash := crypto.Keccak256(txId[:], []byte(message))
 
-	derivation := txKey.GetDerivation(a.ViewPublicKey())
+	sharedSecret := make([]crypto.PublicKey, 1, 1+len(additionalTxPubKeys))
+	signature := make([]*crypto.Signature, 1, 1+len(additionalTxPubKeys))
 
-	sharedSecret, signature := crypto.GenerateTxProofV1(prefixHash, a.ViewPublicKey(), nil, derivation, txKey)
+	sharedSecret[0] = viewKey.GetDerivation(txPubKey)
+	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+		signature[0] = crypto.GenerateTxProofV2(prefixHash, sa.ViewPublicKey(), txPubKey, sa.SpendPublicKey(), sharedSecret[0], viewKey)
+	} else {
+		signature[0] = crypto.GenerateTxProofV2(prefixHash, a.ViewPublicKey(), txPubKey, nil, sharedSecret[0], viewKey)
+	}
 
-	return "OutProofV1" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
+	for i, additionalTxPubKey := range additionalTxPubKeys {
+		sharedSecret[i+1] = viewKey.GetDerivation(additionalTxPubKey)
+		if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+			signature[i+1] = crypto.GenerateTxProofV2(prefixHash, sa.ViewPublicKey(), additionalTxPubKey, sa.SpendPublicKey(), sharedSecret[i+1], viewKey)
+		} else {
+			signature[i+1] = crypto.GenerateTxProofV2(prefixHash, a.ViewPublicKey(), additionalTxPubKey, nil, sharedSecret[i+1], viewKey)
+		}
+	}
+
+	output := make([]string, 1, 1+len(sharedSecret)*2)
+	output[0] = "InProofV2"
+	for i := range sharedSecret {
+		output = append(output, string(base58.EncodeMoneroBase58(sharedSecret[i].AsSlice())))
+		output = append(output, string(base58.EncodeMoneroBase58(signature[i].Bytes())))
+	}
+	return strings.Join(output, "")
 }
 
-func GetInProofV1(txId types.Hash, viewKey crypto.PrivateKey, txPubKey crypto.PublicKey, message string) string {
+func GetInProofV1(a Interface, txId types.Hash, viewKey crypto.PrivateKey, txPubKey crypto.PublicKey, message string, additionalTxPubKeys ...crypto.PublicKey) string {
 	prefixHash := crypto.Keccak256(txId[:], []byte(message))
 
-	derivation := viewKey.GetDerivation(txPubKey)
+	sharedSecret := make([]crypto.PublicKey, 1, 1+len(additionalTxPubKeys))
+	signature := make([]*crypto.Signature, 1, 1+len(additionalTxPubKeys))
 
-	sharedSecret, signature := crypto.GenerateTxProofV1(prefixHash, txPubKey, nil, derivation, viewKey)
+	sharedSecret[0] = viewKey.GetDerivation(txPubKey)
+	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+		signature[0] = crypto.GenerateTxProofV1(prefixHash, txPubKey, sa.SpendPublicKey(), sharedSecret[0], viewKey)
+	} else {
+		signature[0] = crypto.GenerateTxProofV1(prefixHash, txPubKey, nil, sharedSecret[0], viewKey)
+	}
 
-	return "InProofV1" + string(base58.EncodeMoneroBase58(sharedSecret.AsSlice())) + string(base58.EncodeMoneroBase58(signature.Bytes()))
+	for i, additionalTxPubKey := range additionalTxPubKeys {
+		sharedSecret[i+1] = viewKey.GetDerivation(additionalTxPubKey)
+		if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+			signature[i+1] = crypto.GenerateTxProofV1(prefixHash, txPubKey, sa.SpendPublicKey(), sharedSecret[i+1], viewKey)
+		} else {
+			signature[i+1] = crypto.GenerateTxProofV1(prefixHash, txPubKey, nil, sharedSecret[i+1], viewKey)
+		}
+	}
+
+	output := make([]string, 1, 1+len(sharedSecret)*2)
+	output[0] = "InProofV1"
+	for i := range sharedSecret {
+		output = append(output, string(base58.EncodeMoneroBase58(sharedSecret[i].AsSlice())))
+		output = append(output, string(base58.EncodeMoneroBase58(signature[i].Bytes())))
+	}
+	return strings.Join(output, "")
 }
 
 type SignatureVerifyResult int

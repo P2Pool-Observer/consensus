@@ -3,16 +3,17 @@ package address
 import (
 	"bytes"
 	"errors"
+	"slices"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
-	"slices"
 )
 
 type Address struct {
 	SpendPub    crypto.PublicKeyBytes
 	ViewPub     crypto.PublicKeyBytes
-	Network     uint8
+	TypeNetwork uint8
 	hasChecksum bool
 	checksum    Checksum
 }
@@ -46,10 +47,14 @@ func (a *Address) ViewPublicKey() *crypto.PublicKeyBytes {
 }
 
 func (a *Address) ToAddress(network uint8, err ...error) *Address {
-	if a.Network != network || (len(err) > 0 && err[0] != nil) {
+	if a.TypeNetwork != network || (len(err) > 0 && err[0] != nil) {
 		return nil
 	}
 	return a
+}
+
+func (a *Address) IsSubaddress() bool {
+	return a.TypeNetwork == monero.SubAddressMainNetwork || a.TypeNetwork == monero.SubAddressTestNetwork || a.TypeNetwork == monero.SubAddressStageNetwork
 }
 
 func (a *Address) ToPackedAddress() PackedAddress {
@@ -70,14 +75,15 @@ func FromBase58(address string) *Address {
 	case monero.IntegratedMainNetwork, monero.IntegratedTestNetwork, monero.IntegratedStageNetwork:
 		return nil
 	case monero.SubAddressMainNetwork, monero.SubAddressTestNetwork, monero.SubAddressStageNetwork:
-		return nil
+		// allow
+		break
 	default:
 		return nil
 	}
 
 	checksum := crypto.PooledKeccak256(raw[:65])
 	a := &Address{
-		Network: raw[0],
+		TypeNetwork: raw[0],
 	}
 	copy(a.checksum[:], checksum[:ChecksumLength])
 	a.hasChecksum = true
@@ -112,7 +118,7 @@ func FromBase58NoChecksumCheck(address []byte) *Address {
 	}
 
 	a := &Address{
-		Network: raw[0],
+		TypeNetwork: raw[0],
 	}
 	copy(a.checksum[:], slices.Clone(raw[65:]))
 	a.hasChecksum = true
@@ -123,16 +129,16 @@ func FromBase58NoChecksumCheck(address []byte) *Address {
 	return a
 }
 
-func FromRawAddress(network uint8, spend, view crypto.PublicKey) *Address {
+func FromRawAddress(typeNetwork uint8, spend, view crypto.PublicKey) *Address {
 	var nice [69]byte
-	nice[0] = network
+	nice[0] = typeNetwork
 	copy(nice[1:], spend.AsSlice())
 	copy(nice[33:], view.AsSlice())
 
 	//TODO: cache checksum?
 	checksum := crypto.PooledKeccak256(nice[:65])
 	a := &Address{
-		Network: nice[0],
+		TypeNetwork: nice[0],
 	}
 	copy(a.checksum[:], checksum[:ChecksumLength])
 	a.hasChecksum = true
@@ -146,7 +152,7 @@ func FromRawAddress(network uint8, spend, view crypto.PublicKey) *Address {
 func (a *Address) verifyChecksum() {
 	if !a.hasChecksum {
 		var nice [69]byte
-		nice[0] = a.Network
+		nice[0] = a.TypeNetwork
 		copy(nice[1:], a.SpendPub.AsSlice())
 		copy(nice[1+crypto.PublicKeySize:], a.ViewPub.AsSlice())
 		sum := crypto.PooledKeccak256(nice[:65])
@@ -159,14 +165,14 @@ func (a *Address) verifyChecksum() {
 func (a *Address) ToBase58() []byte {
 	a.verifyChecksum()
 	buf := make([]byte, 0, 95)
-	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{a.Network}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
+	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{a.TypeNetwork}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
 }
 
 func (a *Address) MarshalJSON() ([]byte, error) {
 	a.verifyChecksum()
 	buf := make([]byte, 95+2)
 	buf[0] = '"'
-	base58.EncodeMoneroBase58PreAllocated(buf[1:1], []byte{a.Network}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
+	base58.EncodeMoneroBase58PreAllocated(buf[1:1], []byte{a.TypeNetwork}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
 	buf[len(buf)-1] = '"'
 	return buf, nil
 }
@@ -177,7 +183,7 @@ func (a *Address) UnmarshalJSON(b []byte) error {
 	}
 
 	if addr := FromBase58NoChecksumCheck(b[1 : len(b)-1]); addr != nil {
-		a.Network = addr.Network
+		a.TypeNetwork = addr.TypeNetwork
 		a.SpendPub = addr.SpendPub
 		a.ViewPub = addr.ViewPub
 		a.checksum = addr.checksum

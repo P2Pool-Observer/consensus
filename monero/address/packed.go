@@ -1,10 +1,11 @@
 package address
 
 import (
+	"unsafe"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
-	"unsafe"
 )
 
 var PackedAddressGlobalNetwork uint8 = monero.MainNetwork
@@ -66,22 +67,22 @@ func (p *PackedAddress) ComparePacked(other *PackedAddress) int {
 	return crypto.CompareConsensusPublicKeyBytes(&p[PackedAddressView], &other[PackedAddressView])
 }
 
-func (p *PackedAddress) ToAddress(network uint8, err ...error) *Address {
+func (p *PackedAddress) ToAddress(typeNetwork uint8, err ...error) *Address {
 	if len(err) > 0 && err[0] != nil {
 		return nil
 	}
-	return FromRawAddress(network, p.SpendPublicKey(), p.ViewPublicKey())
+	return FromRawAddress(typeNetwork, p.SpendPublicKey(), p.ViewPublicKey())
 }
 
-func (p PackedAddress) ToBase58(network uint8, err ...error) []byte {
+func (p PackedAddress) ToBase58(typeNetwork uint8, err ...error) []byte {
 	var nice [69]byte
-	nice[0] = network
+	nice[0] = typeNetwork
 	copy(nice[1:], p[PackedAddressSpend][:])
 	copy(nice[1+crypto.PublicKeySize:], p[PackedAddressView][:])
 	sum := crypto.PooledKeccak256(nice[:65])
 
 	buf := make([]byte, 0, 95)
-	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{network}, p[PackedAddressSpend][:], p[PackedAddressView][:], sum[:4])
+	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{typeNetwork}, p[PackedAddressSpend][:], p[PackedAddressView][:], sum[:4])
 }
 
 func (p PackedAddress) Reference() *PackedAddress {

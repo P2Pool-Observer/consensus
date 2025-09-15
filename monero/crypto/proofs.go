@@ -10,7 +10,7 @@ InProof = viewPub, txPub, spendPub, sharedSecret
 */
 
 var TxProofV2DomainSeparatorHash = Keccak256([]byte("TXPROOF_V2")) // HASH_KEY_TXPROOF_V2
-func GenerateTxProofV2(prefixHash types.Hash, R, A, B, D PublicKey, r PrivateKey) (derivation PublicKey, signature *Signature) {
+func GenerateTxProofV2(prefixHash types.Hash, R, A, B, D PublicKey, r PrivateKey) (signature *Signature) {
 	comm := &SignatureComm_2{}
 	comm.Message = prefixHash
 
@@ -37,10 +37,10 @@ func GenerateTxProofV2(prefixHash types.Hash, R, A, B, D PublicKey, r PrivateKey
 		return comm.Bytes()
 	}, r)
 
-	return comm.D, signature
+	return signature
 }
 
-func GenerateTxProofV1(prefixHash types.Hash, A, B, D PublicKey, r PrivateKey) (derivation PublicKey, signature *Signature) {
+func GenerateTxProofV1(prefixHash types.Hash, A, B, D PublicKey, r PrivateKey) (signature *Signature) {
 	comm := &SignatureComm_2_V1{}
 	comm.Message = prefixHash
 
@@ -61,5 +61,5 @@ func GenerateTxProofV1(prefixHash types.Hash, A, B, D PublicKey, r PrivateKey) (
 		return comm.Bytes()
 	}, r)
 
-	return comm.D, signature
+	return signature
 }
