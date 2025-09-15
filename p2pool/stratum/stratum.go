@@ -422,9 +422,9 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 				e.LastJob = time.Now()
 
 				targetDiff := tpl.SideDifficulty
-				if s.minerData.Difficulty.Cmp(targetDiff) < 0 {
+				/*if s.minerData.Difficulty.Cmp(targetDiff) < 0 {
 					targetDiff = s.minerData.Difficulty
-				}
+				}*/
 
 				return tpl, jobCounter, targetDiff, s.minerData.SeedHash, nil
 			}
