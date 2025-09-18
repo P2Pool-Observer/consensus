@@ -163,12 +163,13 @@ func (t *ExtraTag) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId b
 		// serialize zero hash or remaining data only
 		buf = append(buf, make([]byte, len(t.Data)-dataLen)...)
 	} else if t.Tag == TxExtraTagNonce {
-		b := make([]byte, len(t.Data))
 		//Replace only the first four bytes
+		buf = append(buf,
+			[]byte{0, 0, 0, 0}[:min(TxExtraTemplateNonceSize, len(t.Data))]...,
+		)
 		if len(t.Data) > TxExtraTemplateNonceSize {
-			copy(b[TxExtraTemplateNonceSize:], t.Data[TxExtraTemplateNonceSize:])
+			buf = append(buf, t.Data[TxExtraTemplateNonceSize:]...)
 		}
-		buf = append(buf, b...)
 	} else {
 		buf = append(buf, t.Data...)
 	}

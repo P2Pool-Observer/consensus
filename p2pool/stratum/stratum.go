@@ -97,12 +97,15 @@ type Server struct {
 }
 
 type Client struct {
-	Lock     sync.RWMutex
-	Conn     *net.TCPConn
-	encoder  *gojson.Encoder
-	decoder  *gojson.Decoder
-	Agent    string
-	Login    bool
+	Lock       sync.RWMutex
+	Conn       *net.TCPConn
+	encoder    *gojson.Encoder
+	decoder    *gojson.Decoder
+	Agent      string
+	Login      bool
+	Extensions struct {
+		Algo bool
+	}
 	Address  address.PackedAddress
 	Password string
 	RigId    string
@@ -495,7 +498,8 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("could not calculate rewards")
 			}
 
-			//TODO efficient, move elsewhere
+			// TODO efficient, move elsewhere
+			// This is deterministic. save this value
 			nonce, ok := merge_mining.FindAuxiliaryNonce([]types.Hash{s.sidechain.Consensus().Id}, math.MaxUint32)
 			if !ok {
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("could not find nonce")
@@ -779,7 +783,7 @@ func (s *Server) Update() {
 	if len(s.clients) > 0 {
 		utils.Logf("Stratum", "Sending new job to %d connection(s)", len(s.clients))
 		for _, c := range s.clients {
-			if err := s.SendTemplate(c); err != nil {
+			if err := s.SendTemplate(c, false); err != nil {
 				utils.Noticef("Stratum", "Closing connection %s: %s", c.Conn.RemoteAddr().String(), err)
 				closeClients = append(closeClients, c)
 			}
@@ -939,10 +943,12 @@ func (s *Server) Listen(listen string) error {
 					for rpcId == 0 {
 						rpcId = unsafeRandom.Uint32()
 					}
+					decoder := utils.NewJSONDecoder(conn)
+					decoder.UseNumber()
 					client := &Client{
 						RpcId:   rpcId,
 						Conn:    conn,
-						decoder: utils.NewJSONDecoder(conn),
+						decoder: decoder,
 
 						// Default to donation address if not specified
 						Address: address.FromBase58(types.DonationAddress).ToPackedAddress(),
@@ -980,9 +986,20 @@ func (s *Server) Listen(listen string) error {
 								return
 							}
 
+							if idStr, ok := msg.Id.(string); ok {
+								if len(idStr) == 0 || len(idStr) > 64 {
+									err = errors.New("invalid string id")
+									return
+								}
+							} else if _, ok := msg.Id.(gojson.Number); ok {
+
+							} else {
+								err = errors.New("invalid id format")
+								return
+							}
+
 							switch msg.Method {
 							case "login":
-
 								if err = func() error {
 									client.Lock.Lock()
 									defer client.Lock.Unlock()
@@ -991,14 +1008,30 @@ func (s *Server) Listen(listen string) error {
 									}
 									if m, ok := msg.Params.(map[string]any); ok {
 										if str, ok := m["agent"].(string); ok {
+											if len(str) > 512 {
+												return errors.New("agent too long")
+											}
 											client.Agent = str
 										}
 										if str, ok := m["pass"].(string); ok {
+											if len(str) > 512 {
+												return errors.New("pass too long")
+											}
 											client.Password = str
 										}
-										if str, ok := m["rig-id"].(string); ok {
+
+										if str, ok := m["rigid"].(string); ok {
+											if len(str) > 512 {
+												return errors.New("rigid too long")
+											}
+											client.RigId = str
+										} else if str, ok := m["rig-id"].(string); ok {
+											if len(str) > 512 {
+												return errors.New("rig-id too long")
+											}
 											client.RigId = str
 										}
+
 										if str, ok := m["login"].(string); ok {
 											//TODO: support merge mining addresses
 											a := address.FromBase58(str)
@@ -1028,6 +1061,7 @@ func (s *Server) Listen(listen string) error {
 												}
 											}
 										}
+										// algo extension
 										var hasRx0 bool
 										if algos, ok := m["algo"].([]any); ok {
 											for _, v := range algos {
@@ -1035,9 +1069,13 @@ func (s *Server) Listen(listen string) error {
 													return errors.New("invalid algo")
 												} else if str == "rx/0" {
 													hasRx0 = true
+													client.Extensions.Algo = true
 													break
 												}
 											}
+										} else {
+											// default rx0 true
+											hasRx0 = true
 										}
 
 										if !hasRx0 {
@@ -1061,7 +1099,7 @@ func (s *Server) Listen(listen string) error {
 										},
 									})
 									return
-								} else if err = s.SendTemplateResponse(client, msg.Id); err != nil {
+								} else if err = s.SendTemplateResponse(client, msg.Id, false); err != nil {
 									_ = client.encoder.Encode(JsonRpcResult{
 										Id:             msg.Id,
 										JsonRpcVersion: "2.0",
@@ -1071,7 +1109,42 @@ func (s *Server) Listen(listen string) error {
 										},
 									})
 								}
+							/*
+								// send new job directly
+								// TODO: is this even necessary?
+								case "getjob":
+									if submitError, ban := func() (error, bool) {
+										client.Lock.RLock()
+										defer client.Lock.RUnlock()
+										if !client.Login {
+											return errors.New("unauthenticated"), true
+										}
 
+										//TODO: limit cadence
+										return nil, false
+									}(); submitError != nil {
+										err = client.encoder.Encode(JsonRpcResult{
+											Id:             msg.Id,
+											JsonRpcVersion: "2.0",
+											Error: map[string]any{
+												"code":    int(-1),
+												"message": submitError.Error(),
+											},
+										})
+										if err != nil || ban {
+											return
+										}
+									} else if err = s.SendTemplateResponse(client, msg.Id); err != nil {
+										_ = client.encoder.Encode(JsonRpcResult{
+											Id:             msg.Id,
+											JsonRpcVersion: "2.0",
+											Error: map[string]any{
+												"code":    int(-1),
+												"message": err.Error(),
+											},
+										})
+									}
+							*/
 							case "submit":
 								if submitError, ban := func() (error, bool) {
 									client.Lock.RLock()
@@ -1220,7 +1293,7 @@ func (s *Server) Listen(listen string) error {
 	return nil
 }
 
-func (s *Server) SendTemplate(c *Client) (err error) {
+func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 	tpl, jobCounter, targetDifficulty, seedHash, err := s.BuildTemplate(c.Address, false)
@@ -1229,15 +1302,17 @@ func (s *Server) SendTemplate(c *Client) (err error) {
 		return err
 	}
 
-	job := copyBaseJob()
 	bufLen := tpl.HashingBlobBufferLength()
 	if cap(c.buf) < bufLen {
 		c.buf = make([]byte, 0, bufLen)
 	}
 
 	sideRandomNumber := unsafeRandom.Uint32()
-	extraNonce := unsafeRandom.Uint32()
-	sideExtraNonce := extraNonce
+	sideExtraNonce := unsafeRandom.Uint32()
+	extraNonce := uint32(0)
+	if !supportsTemplate {
+		extraNonce = sideExtraNonce
+	}
 
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
@@ -1245,9 +1320,10 @@ func (s *Server) SendTemplate(c *Client) (err error) {
 	var templateId types.Hash
 	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), sideRandomNumber, sideExtraNonce, &templateId)
 
-	job.Params.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, extraNonce, templateId))
-
 	jobId := JobIdentifierFromValues(jobCounter, extraNonce, sideRandomNumber, sideExtraNonce, templateId)
+
+	job := copyBaseJob()
+	job.Params.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, extraNonce, templateId))
 
 	job.Params.JobId = jobId.String()
 
@@ -1256,13 +1332,17 @@ func (s *Server) SendTemplate(c *Client) (err error) {
 	job.Params.Height = tpl.MainHeight
 	job.Params.SeedHash = seedHash
 
+	if !c.Extensions.Algo {
+		job.Params.Algo = ""
+	}
+
 	if err = c.encoder.EncodeWithOption(job, utils.JsonEncodeOptions...); err != nil {
 		return
 	}
 	return nil
 }
 
-func (s *Server) SendTemplateResponse(c *Client, id any) (err error) {
+func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) (err error) {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
 	tpl, jobCounter, targetDifficulty, seedHash, err := s.BuildTemplate(c.Address, false)
@@ -1271,7 +1351,6 @@ func (s *Server) SendTemplateResponse(c *Client, id any) (err error) {
 		return
 	}
 
-	job := copyBaseResponseJob()
 	bufLen := tpl.HashingBlobBufferLength()
 	if cap(c.buf) < bufLen {
 		c.buf = make([]byte, 0, bufLen)
@@ -1280,8 +1359,11 @@ func (s *Server) SendTemplateResponse(c *Client, id any) (err error) {
 	binary.LittleEndian.PutUint32(hexBuf[:], c.RpcId)
 
 	sideRandomNumber := unsafeRandom.Uint32()
-	extraNonce := unsafeRandom.Uint32()
-	sideExtraNonce := extraNonce
+	sideExtraNonce := unsafeRandom.Uint32()
+	extraNonce := uint32(0)
+	if !supportsTemplate {
+		extraNonce = sideExtraNonce
+	}
 
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
@@ -1289,11 +1371,12 @@ func (s *Server) SendTemplateResponse(c *Client, id any) (err error) {
 	var templateId types.Hash
 	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), sideRandomNumber, sideExtraNonce, &templateId)
 
+	jobId := JobIdentifierFromValues(jobCounter, extraNonce, sideRandomNumber, sideExtraNonce, templateId)
+
+	job := copyBaseResponseJob()
 	job.Id = id
 	job.Result.Id = fasthex.EncodeToString(hexBuf[:])
 	job.Result.Job.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, extraNonce, templateId))
-
-	jobId := JobIdentifierFromValues(jobCounter, extraNonce, sideRandomNumber, sideExtraNonce, templateId)
 
 	job.Result.Job.JobId = jobId.String()
 
@@ -1301,6 +1384,10 @@ func (s *Server) SendTemplateResponse(c *Client, id any) (err error) {
 	job.Result.Job.Target = TargetHex(target)
 	job.Result.Job.Height = tpl.MainHeight
 	job.Result.Job.SeedHash = seedHash
+
+	if !c.Extensions.Algo {
+		job.Result.Job.Algo = ""
+	}
 
 	if err = c.encoder.EncodeWithOption(job, utils.JsonEncodeOptions...); err != nil {
 		return
@@ -1310,6 +1397,8 @@ func (s *Server) SendTemplateResponse(c *Client, id any) (err error) {
 
 func (s *Server) CloseClient(c *Client) {
 	c.Conn.Close()
+
+	//TODO: ban bad clients after n failed attempts
 
 	s.clientsLock.Lock()
 	defer s.clientsLock.Unlock()

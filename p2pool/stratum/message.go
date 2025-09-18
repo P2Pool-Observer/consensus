@@ -38,7 +38,7 @@ type jsonRpcJobParams struct {
 	Target string `json:"target"`
 
 	// Algo always "rx/0"
-	Algo string `json:"algo"`
+	Algo string `json:"algo,omitempty"`
 
 	// Height main height
 	Height uint64 `json:"height"`
@@ -46,6 +46,7 @@ type jsonRpcJobParams struct {
 	// SeedHash
 	SeedHash types.Hash `json:"seed_hash"`
 }
+
 type JsonRpcResponseJob struct {
 	// Id set by client
 	Id any `json:"id,omitempty"`
@@ -57,7 +58,7 @@ type JsonRpcResponseJob struct {
 type jsonRpcResponseJobResult struct {
 	Id         string           `json:"id,omitempty"`
 	Job        jsonRpcJobParams `json:"job"`
-	Extensions []string         `json:"extensions"`
+	Extensions []string         `json:"extensions,omitempty"`
 	Status     string           `json:"status"`
 }
 
@@ -75,7 +76,7 @@ var baseRpcResponseJob = JsonRpcResponseJob{
 		Job: jsonRpcJobParams{
 			Algo: "rx/0",
 		},
-		Extensions: []string{"algo"},
+		Extensions: []string{"algo", "keepalive"},
 		Status:     "OK",
 	},
 }

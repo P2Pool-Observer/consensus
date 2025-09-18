@@ -1,8 +1,9 @@
 package utils
 
 import (
-	gojson "git.gammaspectra.live/P2Pool/go-json"
 	"io"
+
+	gojson "git.gammaspectra.live/P2Pool/go-json"
 )
 
 var JsonEncodeOptions = []gojson.EncodeOptionFunc{gojson.DisableHTMLEscape(), gojson.DisableNormalizeUTF8()}

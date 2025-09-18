@@ -2,15 +2,6 @@ package stratum
 
 import (
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
-	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"github.com/ulikunitz/xz"
 	unsafeRandom "math/rand/v2"
 	"os"
 	"path"
@@ -18,6 +9,17 @@ import (
 	"testing"
 	"time"
 	_ "unsafe"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"github.com/ulikunitz/xz"
 )
 
 var preLoadedMiniSideChain *sidechain.SideChain
@@ -26,6 +28,13 @@ var preLoadedPoolBlock *sidechain.PoolBlock
 
 var submitBlockFunc = func(block *sidechain.PoolBlock) (err error) {
 	if blob, err := block.MarshalBinary(); err == nil {
+		_, err = client.GetDefaultClient().SubmitBlock(blob)
+		return err
+	}
+	return err
+}
+var submitMainBlockFunc = func(b *block.Block) (err error) {
+	if blob, err := b.MarshalBinary(); err == nil {
 		_, err = client.GetDefaultClient().SubmitBlock(blob)
 		return err
 	}
@@ -115,7 +124,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestStratumServer(t *testing.T) {
-	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc)
+	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
 	minerData := getMinerData()
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.HandleMinerData(minerData)
@@ -175,7 +184,7 @@ func TestStratumServer_GenesisV2(t *testing.T) {
 
 	sideChain := sidechain.NewSideChain(sidechain.GetFakeTestServer(consensus))
 
-	stratumServer := NewServer(sideChain, submitBlockFunc)
+	stratumServer := NewServer(sideChain, submitBlockFunc, submitMainBlockFunc)
 	minerData := getMinerData()
 	stratumServer.HandleMinerData(minerData)
 
@@ -267,7 +276,7 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 
 	sideChain := sidechain.NewSideChain(sidechain.GetFakeTestServer(consensus))
 
-	stratumServer := NewServer(sideChain, submitBlockFunc)
+	stratumServer := NewServer(sideChain, submitBlockFunc, submitMainBlockFunc)
 	minerData := getMinerData()
 	stratumServer.HandleMinerData(minerData)
 
@@ -346,7 +355,7 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 }
 
 func BenchmarkServer_FillTemplate(b *testing.B) {
-	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc)
+	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
 	minerData := getMinerData()
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.minerData = minerData
@@ -375,7 +384,7 @@ func BenchmarkServer_FillTemplate(b *testing.B) {
 }
 
 func BenchmarkServer_BuildTemplate(b *testing.B) {
-	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc)
+	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
 	minerData := getMinerData()
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.minerData = minerData
