@@ -51,11 +51,6 @@ func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *e
 	p.UnsafeVarTimeScalarBaseMult(&sharedData).Add(p, spendPub)
 }
 
-func init() {
-	viewKey := crypto.PrivateKeyBytes(types.MustHashFromString("25e17dc24e996599dc2d8735a847677256aa778abee308dc674df628d661500d"))
-	GetSubaddressFakeAddress(FromBase58("Bdd6Xvzg31LXLwC7RV88U59MhFMVFqMHMeeQHc5ibPaiZ2VX36jtpxxWT4vToTfkedYMCvM17NWPZcfyokSU2LfxVpzbBiZ"), &viewKey)
-}
-
 func GetSubaddressFakeAddress(sa InterfaceSubaddress, viewKey crypto.PrivateKey) Interface {
 	if !sa.IsSubaddress() {
 		return sa
