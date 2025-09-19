@@ -2,18 +2,19 @@ package stratum
 
 import (
 	"bytes"
+	unsafeRandom "math/rand/v2"
+	"testing"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	fasthex "github.com/tmthrgd/go-hex"
-	unsafeRandom "math/rand/v2"
-	"testing"
 )
 
 func TestTemplate(t *testing.T) {
 	b := preLoadedPoolBlock
 	buf, _ := b.MarshalBinary()
-	tpl, err := TemplateFromPoolBlock(b)
+	tpl, err := TemplateFromPoolBlock(sidechain.ConsensusDefault, b)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +23,9 @@ func TestTemplate(t *testing.T) {
 
 	blockTemplateId := b.FastSideTemplateId(sidechain.ConsensusDefault)
 
-	if tplBuf := tpl.Blob(preAllocatedBuffer, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, blockTemplateId); bytes.Compare(tplBuf, buf) != 0 {
+	rootHash := b.MergeMiningTag().RootHash
+
+	if tplBuf := tpl.Blob(preAllocatedBuffer, sidechain.ConsensusDefault, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, rootHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion); bytes.Compare(tplBuf, buf) != 0 {
 		if len(tplBuf) == len(buf) {
 			for i := range buf {
 				if buf[i] != tplBuf[i] {
@@ -37,7 +40,7 @@ func TestTemplate(t *testing.T) {
 
 	writer := bytes.NewBuffer(nil)
 
-	if err := tpl.Write(writer, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, blockTemplateId); err != nil {
+	if err := tpl.Write(writer, sidechain.ConsensusDefault, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, rootHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion); err != nil {
 		t.Fatal(err)
 	} else if bytes.Compare(writer.Bytes(), buf) != 0 {
 		t.Fatal("not matching writer buffers")
@@ -85,7 +88,7 @@ func TestTemplate(t *testing.T) {
 	}
 
 	var templateId types.Hash
-	if tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, &templateId); templateId != blockTemplateId {
+	if tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion, &templateId); templateId != blockTemplateId {
 		t.Fatal("different template ids")
 	}
 
@@ -104,7 +107,7 @@ func TestTemplate(t *testing.T) {
 }
 
 func BenchmarkTemplate_CoinbaseId(b *testing.B) {
-	tpl, err := TemplateFromPoolBlock(preLoadedPoolBlock)
+	tpl, err := TemplateFromPoolBlock(sidechain.ConsensusDefault, preLoadedPoolBlock)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -124,7 +127,7 @@ func BenchmarkTemplate_CoinbaseId(b *testing.B) {
 }
 
 func BenchmarkTemplate_CoinbaseBlobId(b *testing.B) {
-	tpl, err := TemplateFromPoolBlock(preLoadedPoolBlock)
+	tpl, err := TemplateFromPoolBlock(sidechain.ConsensusDefault, preLoadedPoolBlock)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -145,7 +148,7 @@ func BenchmarkTemplate_CoinbaseBlobId(b *testing.B) {
 }
 
 func BenchmarkTemplate_HashingBlob(b *testing.B) {
-	tpl, err := TemplateFromPoolBlock(preLoadedPoolBlock)
+	tpl, err := TemplateFromPoolBlock(sidechain.ConsensusDefault, preLoadedPoolBlock)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -166,7 +169,7 @@ func BenchmarkTemplate_HashingBlob(b *testing.B) {
 }
 
 func BenchmarkTemplate_TemplateId(b *testing.B) {
-	tpl, err := TemplateFromPoolBlock(preLoadedPoolBlock)
+	tpl, err := TemplateFromPoolBlock(sidechain.ConsensusDefault, preLoadedPoolBlock)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -180,7 +183,7 @@ func BenchmarkTemplate_TemplateId(b *testing.B) {
 		var counter = unsafeRandom.Uint32()
 		var templateId types.Hash
 		for pb.Next() {
-			tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, counter, counter+1, &templateId)
+			tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, counter, counter+1, preLoadedPoolBlock.Side.MerkleProof, preLoadedPoolBlock.Side.MergeMiningExtra, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareId, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareVersion, &templateId)
 			counter++
 		}
 	})

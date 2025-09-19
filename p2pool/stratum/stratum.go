@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"slices"
 	"sync"
+	"syscall"
 	"time"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
@@ -94,30 +95,6 @@ type Server struct {
 	clients     []*Client
 
 	incomingChanges chan func() bool
-}
-
-type Client struct {
-	Lock       sync.RWMutex
-	Conn       *net.TCPConn
-	encoder    *gojson.Encoder
-	decoder    *gojson.Decoder
-	Agent      string
-	Login      bool
-	Extensions struct {
-		Algo bool
-	}
-	Address  address.PackedAddress
-	Password string
-	RigId    string
-	buf      []byte
-	RpcId    uint32
-}
-
-func (c *Client) Write(b []byte) (int, error) {
-	if err := c.Conn.SetWriteDeadline(time.Now().Add(time.Second * 5)); err != nil {
-		return 0, err
-	}
-	return c.Conn.Write(b)
 }
 
 func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBlock) error, submitMain func(b *block.Block) error) *Server {
@@ -514,7 +491,7 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 			}
 		}
 
-		tpl, err = TemplateFromPoolBlock(blockTemplate)
+		tpl, err = TemplateFromPoolBlock(s.sidechain.Consensus(), blockTemplate)
 		if err != nil {
 			return nil, 0, types.ZeroDifficulty, types.ZeroHash, err
 		}
@@ -843,8 +820,18 @@ func (s *Server) IsBanned(ip netip.Addr) (bool, *BanEntry) {
 	}
 }
 
+var ErrBannable = errors.New("banned")
+
+func BanError(err error) error {
+	return errors.Join(err, ErrBannable)
+}
+
 func (s *Server) Ban(ip netip.Addr, duration time.Duration, err error) {
 	if ok, _ := s.IsBanned(ip); ok {
+		return
+	}
+
+	if ip.IsLoopback() {
 		return
 	}
 
@@ -892,7 +879,7 @@ func (s *Server) processIncoming() {
 	}()
 }
 
-func (s *Server) Listen(listen string) error {
+func (s *Server) Listen(listen string, controlOpts ...func(network, address string, c syscall.RawConn) (err error)) error {
 
 	ctx := s.sidechain.Server().Context()
 	go func() {
@@ -900,10 +887,24 @@ func (s *Server) Listen(listen string) error {
 			s.CleanupMiners()
 		}
 	}()
+	go func() {
+		for range utils.ContextTick(ctx, time.Hour) {
+			s.CleanupBanList()
+		}
+	}()
 
 	s.processIncoming()
 
-	if listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", listen); err != nil {
+	if listener, err := (&net.ListenConfig{
+		Control: func(network, address string, c syscall.RawConn) error {
+			for _, opt := range controlOpts {
+				if err := opt(network, address, c); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}).Listen(ctx, "tcp", listen); err != nil {
 		return err
 	} else if tcpListener, ok := listener.(*net.TCPListener); !ok {
 		return errors.New("not a tcp listener")
@@ -916,18 +917,20 @@ func (s *Server) Listen(listen string) error {
 			if conn, err := tcpListener.AcceptTCP(); err != nil {
 				return err
 			} else {
-				if err = func() error {
-					if addrPort, err := netip.ParseAddrPort(conn.RemoteAddr().String()); err != nil {
-						return err
+				var addrPort netip.AddrPort
+				if addrPort, err = func() (netip.AddrPort, error) {
+					addrPort, err := netip.ParseAddrPort(conn.RemoteAddr().String())
+					if err != nil {
+						return addrPort, err
 					} else if !addrPort.Addr().IsLoopback() {
 						addr := addrPort.Addr().Unmap()
 
 						if ok, b := s.IsBanned(addr); ok {
-							return fmt.Errorf("peer is banned: %w", b.Error)
+							return addrPort, fmt.Errorf("peer is banned: %w", b.Error)
 						}
 					}
 
-					return nil
+					return addrPort, nil
 				}(); err != nil {
 					go func() {
 						defer conn.Close()
@@ -967,6 +970,9 @@ func (s *Server) Listen(listen string) error {
 						defer func() {
 							if err != nil {
 								utils.Noticef("Stratum", "Connection %s closed with error: %s", client.Conn.RemoteAddr().String(), err)
+								if errors.Is(err, ErrBannable) {
+									s.Ban(addrPort.Addr(), time.Minute*15, err)
+								}
 							} else {
 								utils.Noticef("Stratum", "Connection %s closed", client.Conn.RemoteAddr().String())
 							}
@@ -1047,6 +1053,7 @@ func (s *Server) Listen(listen string) error {
 														return errors.New("invalid address in user, invalid subaddress conversion")
 													}
 													client.Address = fa.ToPackedAddress()
+													client.SubaddressViewPub = a.ViewPub
 													// cleanup
 													client.Password = ""
 												} else {
@@ -1056,6 +1063,9 @@ func (s *Server) Listen(listen string) error {
 												if sa := address.FromBase58(client.Password); sa != nil && sa.BaseNetwork() == a.BaseNetwork() && sa.IsSubaddress() {
 													// allow sending to subaddress when specified
 													client.Address = address.PackedAddress{sa.SpendPublicKey().AsBytes(), a.ViewPublicKey().AsBytes()}
+													client.SubaddressViewPub = a.ViewPub
+													// cleanup
+													client.Password = ""
 												} else {
 													client.Address = a.ToPackedAddress()
 												}
@@ -1153,12 +1163,12 @@ func (s *Server) Listen(listen string) error {
 										return errors.New("unauthenticated"), true
 									}
 									var err error
-									var jobId JobIdentifier
+									var jobId Job
 									var resultHash types.Hash
 									var nonce uint32
 									if m, ok := msg.Params.(map[string]any); ok {
 										if str, ok := m["job_id"].(string); ok {
-											if jobId, err = JobIdentifierFromString(str); err != nil {
+											if jobId, err = JobFromString(str); err != nil {
 												return err, true
 											}
 										} else {
@@ -1192,7 +1202,7 @@ func (s *Server) Listen(listen string) error {
 												return e, ok
 											}(); ok {
 												b := &sidechain.PoolBlock{}
-												if blob := e.GetJobBlob(jobId, nonce); blob == nil {
+												if blob := e.GetJobBlob(client, s.sidechain.Consensus(), jobId, nonce); blob == nil {
 													return errors.New("invalid job id"), true
 												} else if err := b.UnmarshalBinary(s.sidechain.Consensus(), s.sidechain.DerivationCache(), blob); err != nil {
 													return err, true
@@ -1314,18 +1324,31 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 		extraNonce = sideExtraNonce
 	}
 
+	jobId := Job{
+		TemplateCounter:  jobCounter,
+		ExtraNonce:       extraNonce,
+		SideRandomNumber: sideRandomNumber,
+		SideExtraNonce:   sideExtraNonce,
+	}
+
+	// implicit addition
+	mmExtra := jobId.MergeMiningExtra
+	if c.SubaddressViewPub != crypto.ZeroPublicKeyBytes {
+		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, c.SubaddressViewPub[:])
+	}
+
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
 
+	// todo merkle root with merge mine
 	var templateId types.Hash
-	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), sideRandomNumber, sideExtraNonce, &templateId)
-
-	jobId := JobIdentifierFromValues(jobCounter, extraNonce, sideRandomNumber, sideExtraNonce, templateId)
+	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	jobId.MerkleRoot = templateId
 
 	job := copyBaseJob()
-	job.Params.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, extraNonce, templateId))
+	job.Params.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, jobId.ExtraNonce, jobId.MerkleRoot))
 
-	job.Params.JobId = jobId.String()
+	job.Params.JobId = jobId.Id()
 
 	target := targetDifficulty.Target()
 	job.Params.Target = TargetHex(target)
@@ -1365,20 +1388,33 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 		extraNonce = sideExtraNonce
 	}
 
+	jobId := Job{
+		TemplateCounter:  jobCounter,
+		ExtraNonce:       extraNonce,
+		SideRandomNumber: sideRandomNumber,
+		SideExtraNonce:   sideExtraNonce,
+	}
+
+	// implicit addition
+	mmExtra := jobId.MergeMiningExtra
+	if c.SubaddressViewPub != crypto.ZeroPublicKeyBytes {
+		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, c.SubaddressViewPub[:])
+	}
+
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
 
+	// todo merkle root with merge mine
 	var templateId types.Hash
-	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), sideRandomNumber, sideExtraNonce, &templateId)
-
-	jobId := JobIdentifierFromValues(jobCounter, extraNonce, sideRandomNumber, sideExtraNonce, templateId)
+	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	jobId.MerkleRoot = templateId
 
 	job := copyBaseResponseJob()
 	job.Id = id
 	job.Result.Id = fasthex.EncodeToString(hexBuf[:])
-	job.Result.Job.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, extraNonce, templateId))
+	job.Result.Job.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, jobId.ExtraNonce, jobId.MerkleRoot))
 
-	job.Result.Job.JobId = jobId.String()
+	job.Result.Job.JobId = jobId.Id()
 
 	target := targetDifficulty.Target()
 	job.Result.Job.Target = TargetHex(target)

@@ -228,30 +228,12 @@ func TestStratumServer_GenesisV2(t *testing.T) {
 		t.Fatal()
 	}
 
-	sideData, err := tpl.SideData(consensus)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if sideData.CoinbasePrivateKeySeed != consensus.Id {
-		t.Fatal()
-	}
-
-	if sideData.CumulativeDifficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
-		t.Fatal()
-	}
-
-	if sideData.Difficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
-		t.Fatal()
-	}
-
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
 
 	var templateId types.Hash
-	tpl.TemplateId(hasher, nil, consensus, 0, 0, &templateId)
-	blockData := tpl.Blob(nil, 0, 0, 0, 0, templateId)
+	tpl.TemplateId(hasher, nil, consensus, 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	blockData := tpl.Blob(nil, consensus, 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
 	var b sidechain.PoolBlock
 	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)
 	if err != nil {
@@ -259,6 +241,18 @@ func TestStratumServer_GenesisV2(t *testing.T) {
 	}
 	if b.SideTemplateId(consensus) != templateId {
 		t.Fatalf("mismatched template id, got %s expected %s", b.SideTemplateId(consensus), templateId)
+	}
+
+	if b.Side.CoinbasePrivateKeySeed != consensus.Id {
+		t.Fatal()
+	}
+
+	if b.Side.CumulativeDifficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+
+	if b.Side.Difficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
 	}
 }
 
@@ -320,30 +314,12 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 		t.Fatal()
 	}
 
-	sideData, err := tpl.SideData(consensus)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if sideData.CoinbasePrivateKeySeed != consensus.Id {
-		t.Fatal()
-	}
-
-	if sideData.CumulativeDifficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
-		t.Fatal()
-	}
-
-	if sideData.Difficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
-		t.Fatal()
-	}
-
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
 
 	var templateId types.Hash
-	tpl.TemplateId(hasher, nil, consensus, 0, 0, &templateId)
-	blockData := tpl.Blob(nil, 0, 0, 0, 0, templateId)
+	tpl.TemplateId(hasher, nil, consensus, 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	blockData := tpl.Blob(nil, consensus, 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
 	var b sidechain.PoolBlock
 	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)
 	if err != nil {
@@ -352,6 +328,19 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 	if b.SideTemplateId(consensus) != templateId {
 		t.Fatalf("mismatched template id, got %s expected %s", b.SideTemplateId(consensus), templateId)
 	}
+
+	if b.Side.CoinbasePrivateKeySeed != consensus.Id {
+		t.Fatal()
+	}
+
+	if b.Side.CumulativeDifficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+
+	if b.Side.Difficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+
 }
 
 func BenchmarkServer_FillTemplate(b *testing.B) {

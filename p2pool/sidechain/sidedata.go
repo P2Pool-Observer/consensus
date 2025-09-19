@@ -5,14 +5,16 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+	"math"
+	"slices"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"io"
-	"math"
 )
 
 const MaxUncleCount = uint64(math.MaxUint64) / types.HashSize
@@ -43,9 +45,38 @@ type SideData struct {
 
 type MergeMiningExtra []MergeMiningExtraData
 
-func (d MergeMiningExtra) BufferLength(version ShareVersion) (size int) {
+var ExtraChainKeySubaddressViewPub = crypto.Keccak256Single([]byte("subaddress_viewpub"))
+
+func (d MergeMiningExtra) Get(chainId types.Hash) ([]byte, bool) {
+	for _, e := range d {
+		if e.ChainId == chainId {
+			return e.Data, true
+		}
+	}
+	return nil, false
+}
+
+func (d MergeMiningExtra) Set(chainId types.Hash, data []byte) MergeMiningExtra {
+	for i, e := range d {
+		if e.ChainId == chainId {
+			d[i].Data = data
+			return d
+		}
+	}
+
+	newSlice := append(d, MergeMiningExtraData{
+		ChainId: chainId,
+		Data:    data,
+	})
+	slices.SortFunc(newSlice, func(a, b MergeMiningExtraData) int {
+		return a.ChainId.Compare(b.ChainId)
+	})
+	return newSlice
+}
+
+func (d MergeMiningExtra) BufferLength() (size int) {
 	for i := range d {
-		size += d[i].BufferLength(version)
+		size += d[i].BufferLength()
 	}
 	return size + utils.UVarInt64Size(len(d))
 }
@@ -55,7 +86,7 @@ type MergeMiningExtraData struct {
 	Data    types.Bytes `json:"data,omitempty"`
 }
 
-func (d MergeMiningExtraData) BufferLength(version ShareVersion) (size int) {
+func (d MergeMiningExtraData) BufferLength() (size int) {
 	return types.HashSize + utils.UVarInt64Size(len(d.Data)) + len(d.Data)
 }
 
@@ -81,7 +112,7 @@ func (b *SideData) BufferLength(version ShareVersion) (size int) {
 	}
 	if version >= ShareVersion_V3 {
 		// MerkleProof + MergeMiningExtra
-		size += utils.UVarInt64Size(len(b.MerkleProof)) + len(b.MerkleProof)*types.HashSize + b.MergeMiningExtra.BufferLength(version)
+		size += utils.UVarInt64Size(len(b.MerkleProof)) + len(b.MerkleProof)*types.HashSize + b.MergeMiningExtra.BufferLength()
 	}
 
 	return size

@@ -1,14 +1,15 @@
 package stratum
 
 import (
-	"bytes"
-	"encoding/binary"
-	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	fasthex "github.com/tmthrgd/go-hex"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
+	gojson "git.gammaspectra.live/P2Pool/go-json"
 )
 
 type MinerTrackingEntry struct {
@@ -19,68 +20,28 @@ type MinerTrackingEntry struct {
 	LastJob      time.Time
 }
 
-const JobIdentifierSize = 8 + 4 + 4 + 4 + types.HashSize
-
-type JobIdentifier [JobIdentifierSize]byte
-
-func JobIdentifierFromString(s string) (JobIdentifier, error) {
-	var h JobIdentifier
-	if buf, err := fasthex.DecodeString(s); err != nil {
-		return h, err
-	} else {
-		if len(buf) != JobIdentifierSize {
-			return h, errors.New("wrong job id size")
-		}
-		copy(h[:], buf)
-		return h, nil
+type Client struct {
+	Lock       sync.RWMutex
+	Conn       *net.TCPConn
+	encoder    *gojson.Encoder
+	decoder    *gojson.Decoder
+	Agent      string
+	Login      bool
+	Extensions struct {
+		Algo bool
 	}
-}
-func JobIdentifierFromValues(templateCounter uint64, extraNonce, sideRandomNumber, sideExtraNonce uint32, templateId types.Hash) JobIdentifier {
-	var h JobIdentifier
-	binary.LittleEndian.PutUint64(h[:], templateCounter)
-	binary.LittleEndian.PutUint32(h[8:], extraNonce)
-	binary.LittleEndian.PutUint32(h[8+4:], sideRandomNumber)
-	binary.LittleEndian.PutUint32(h[8+4+4:], sideExtraNonce)
-	copy(h[8+4+4+4:], templateId[:])
-	return h
+	MergeMiningExtra  sidechain.MergeMiningExtra
+	Address           address.PackedAddress
+	SubaddressViewPub crypto.PublicKeyBytes
+	Password          string
+	RigId             string
+	buf               []byte
+	RpcId             uint32
 }
 
-func (id JobIdentifier) TemplateCounter() uint64 {
-	return binary.LittleEndian.Uint64(id[:])
-}
-
-func (id JobIdentifier) ExtraNonce() uint32 {
-	return binary.LittleEndian.Uint32(id[8:])
-}
-
-func (id JobIdentifier) SideRandomNumber() uint32 {
-	return binary.LittleEndian.Uint32(id[8+4:])
-}
-
-func (id JobIdentifier) SideExtraNonce() uint32 {
-	return binary.LittleEndian.Uint32(id[8+4+4:])
-}
-
-func (id JobIdentifier) TemplateId() types.Hash {
-	return types.HashFromBytes(id[8+4+4+4 : 8+4+4+4+types.HashSize])
-}
-
-func (id JobIdentifier) String() string {
-	return fasthex.EncodeToString(id[:])
-}
-
-// GetJobBlob Gets old job data based on returned id
-func (e *MinerTrackingEntry) GetJobBlob(jobId JobIdentifier, nonce uint32) []byte {
-	e.Lock.RLock()
-	defer e.Lock.RUnlock()
-
-	if t, ok := e.Templates[jobId.TemplateCounter()]; ok {
-		buffer := bytes.NewBuffer(make([]byte, 0, len(t.Buffer)))
-		if err := t.Write(buffer, nonce, jobId.ExtraNonce(), jobId.SideRandomNumber(), jobId.SideExtraNonce(), jobId.TemplateId()); err != nil {
-			return nil
-		}
-		return buffer.Bytes()
-	} else {
-		return nil
+func (c *Client) Write(b []byte) (int, error) {
+	if err := c.Conn.SetWriteDeadline(time.Now().Add(time.Second * 5)); err != nil {
+		return 0, err
 	}
+	return c.Conn.Write(b)
 }
