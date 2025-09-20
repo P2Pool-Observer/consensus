@@ -48,7 +48,7 @@ type Template struct {
 func (tpl *Template) BufferLength(consensus *sidechain.Consensus, merkleProof crypto.MerkleProof, mmExtra sidechain.MergeMiningExtra) int {
 	if version := tpl.ShareVersion(consensus); version >= sidechain.ShareVersion_V3 {
 		return len(tpl.Buffer) + 4*4 +
-			1 + len(merkleProof)*types.HashSize + utils.UVarInt64Size(uint64(len(mmExtra))) + mmExtra.BufferLength()
+			1 + len(merkleProof)*types.HashSize + mmExtra.BufferLength()
 	} else if version >= sidechain.ShareVersion_V2 {
 		return len(tpl.Buffer) + 4*4
 	}
@@ -370,7 +370,9 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 
 	var bufOffset int
 	if version >= sidechain.ShareVersion_V3 {
-		bufOffset = utils.UVarInt64Size(len(b.Side.MerkleProof)) + len(b.Side.MerkleProof)*types.HashSize + utils.UVarInt64Size(len(b.Side.MergeMiningExtra)) + b.Side.MergeMiningExtra.BufferLength() + 4*4
+		bufOffset = utils.UVarInt64Size(len(b.Side.MerkleProof)) + len(b.Side.MerkleProof)*types.HashSize +
+			b.Side.MergeMiningExtra.BufferLength() +
+			4*4
 	} else if version >= sidechain.ShareVersion_V2 {
 		bufOffset = 4 * 4
 	}

@@ -29,8 +29,8 @@ type Job struct {
 }
 
 func (j Job) Id() string {
-	buf := make([]byte, 0, utils.UVarInt64Size(j.TemplateCounter)+4*3+types.HashSize+1+len(j.MerkleProof)*types.HashSize+utils.UVarInt64Size(uint64(len(j.MergeMiningExtra)))+j.MergeMiningExtra.BufferLength())
-	buf = binary.LittleEndian.AppendUint64(buf, j.TemplateCounter)
+	buf := make([]byte, 0, utils.UVarInt64Size(j.TemplateCounter)+4*3+types.HashSize+1+len(j.MerkleProof)*types.HashSize+j.MergeMiningExtra.BufferLength())
+	buf = binary.AppendUvarint(buf, j.TemplateCounter)
 	buf = binary.LittleEndian.AppendUint32(buf, j.ExtraNonce)
 	buf = binary.LittleEndian.AppendUint32(buf, j.SideRandomNumber)
 	buf = binary.LittleEndian.AppendUint32(buf, j.SideExtraNonce)
@@ -59,7 +59,7 @@ func JobFromString(s string) (j Job, err error) {
 		return j, err
 	}
 	reader := bytes.NewReader(buf)
-	if j.TemplateCounter, err = binary.ReadUvarint(reader); err != nil {
+	if j.TemplateCounter, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return j, err
 	}
 	if err = binary.Read(reader, binary.LittleEndian, &j.ExtraNonce); err != nil {
