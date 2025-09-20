@@ -1063,7 +1063,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 												if sa := address.FromBase58(client.Password); sa != nil && sa.BaseNetwork() == a.BaseNetwork() && sa.IsSubaddress() {
 													// allow sending to subaddress when specified
 													client.Address = address.PackedAddress{sa.SpendPublicKey().AsBytes(), a.ViewPublicKey().AsBytes()}
-													client.SubaddressViewPub = a.ViewPub
+													client.SubaddressViewPub = sa.ViewPub
 													// cleanup
 													client.Password = ""
 												} else {
