@@ -370,7 +370,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 
 	var bufOffset int
 	if version >= sidechain.ShareVersion_V3 {
-		bufOffset = utils.UVarInt64Size(len(b.Side.MerkleProof)) + len(b.Side.MerkleProof)*types.HashSize + b.Side.MergeMiningExtra.BufferLength() + 4*4
+		bufOffset = utils.UVarInt64Size(len(b.Side.MerkleProof)) + len(b.Side.MerkleProof)*types.HashSize + utils.UVarInt64Size(len(b.Side.MergeMiningExtra)) + b.Side.MergeMiningExtra.BufferLength() + 4*4
 	} else if version >= sidechain.ShareVersion_V2 {
 		bufOffset = 4 * 4
 	}
@@ -378,7 +378,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 	tpl.Buffer = buf[:len(buf)-bufOffset]
 
 	// Set places to zeroes where necessary
-	tpl.Buffer = tpl.Blob(make([]byte, 0, len(tpl.Buffer)), consensus, 0, 0, 0, 0, types.ZeroHash, nil, nil, 0, 0)[:len(buf)-bufOffset]
+	tpl.Buffer = tpl.Blob(make([]byte, 0, len(buf)), consensus, 0, 0, 0, 0, types.ZeroHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, 0, 0)[:len(buf)-bufOffset]
 
 	if len(b.Main.Transactions) > 1 {
 		merkleTree := make(crypto.BinaryTreeHash, len(b.Main.Transactions)+1)
