@@ -125,7 +125,8 @@ func FromBase58NoChecksumCheck(address []byte) *Address {
 	case monero.IntegratedMainNetwork, monero.IntegratedTestNetwork, monero.IntegratedStageNetwork:
 		return nil
 	case monero.SubAddressMainNetwork, monero.SubAddressTestNetwork, monero.SubAddressStageNetwork:
-		return nil
+		// allow
+		break
 	default:
 		return nil
 	}

@@ -375,7 +375,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	}
 
 	if block.Side.Difficulty.Cmp64(c.Consensus().MinimumDifficulty) < 0 {
-		return nil, fmt.Errorf("block mined by %s has invalid difficulty %s, expected >= %d", block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), block.Side.Difficulty.StringNumeric(), c.Consensus().MinimumDifficulty), true
+		return nil, fmt.Errorf("block mined by %s has invalid difficulty %s, expected >= %d", block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.Difficulty.StringNumeric(), c.Consensus().MinimumDifficulty), true
 	}
 
 	expectedDifficulty := c.Difficulty()
@@ -445,7 +445,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	}
 
 	if tooLowDiff {
-		return nil, fmt.Errorf("block mined by %s has too low difficulty %s, expected >= %s", block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), block.Side.Difficulty.StringNumeric(), expectedDifficulty.StringNumeric()), false
+		return nil, fmt.Errorf("block mined by %s has too low difficulty %s, expected >= %s", block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.Difficulty.StringNumeric(), expectedDifficulty.StringNumeric()), false
 	}
 
 	// This check is not always possible to perform because of mainchain reorgs
@@ -605,7 +605,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 		}
 
 		if verification, invalid := c.verifyBlock(block); invalid != nil {
-			utils.Logf("SideChain", "block at height = %d, id = %x, mainchain height = %d, mined by %s is invalid: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), invalid.Error())
+			utils.Logf("SideChain", "block at height = %d, id = %x, mainchain height = %d, mined by %s is invalid: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), invalid.Error())
 			block.Invalid.Store(true)
 			block.Verified.Store(verification == nil)
 			if block == blockToVerify {
@@ -615,7 +615,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 		} else if verification != nil {
 			// specific check here to prevent format calls
 			if utils.IsLogLevelDebug() {
-				utils.Debugf("SideChain", "can't verify block at height = %d, id = %x, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), verification.Error())
+				utils.Debugf("SideChain", "can't verify block at height = %d, id = %x, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), verification.Error())
 			}
 			block.Verified.Store(false)
 			block.Invalid.Store(false)
@@ -624,12 +624,12 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 			block.Invalid.Store(false)
 
 			if block.ShareVersion() >= ShareVersion_V2 {
-				utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s via %s %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), block.Side.ExtraBuffer.SoftwareId, block.Side.ExtraBuffer.SoftwareVersion)
+				utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s via %s %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.ExtraBuffer.SoftwareId, block.Side.ExtraBuffer.SoftwareVersion)
 			} else {
 				if signalingVersion := block.ShareVersionSignaling(); signalingVersion > ShareVersion_None {
-					utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s, signaling v%d", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()), signalingVersion)
+					utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s, signaling v%d", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), signalingVersion)
 				} else {
-					utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetAddress().ToBase58(c.Consensus().NetworkType.AddressNetwork()))
+					utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58())
 				}
 			}
 
