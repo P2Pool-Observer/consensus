@@ -3,12 +3,13 @@ package sidechain
 import (
 	"errors"
 	"fmt"
+	"strconv"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"strconv"
 )
 
 type NetworkType int
@@ -41,6 +42,20 @@ func (n NetworkType) String() string {
 		return "stagenet"
 	}
 	return ""
+}
+
+func (n NetworkType) SubaddressNetwork() (uint8, error) {
+	switch n {
+	case NetworkInvalid:
+		return 0, errors.New("invalid network")
+	case NetworkMainnet:
+		return monero.SubAddressMainNetwork, nil
+	case NetworkTestnet:
+		return monero.SubAddressTestNetwork, nil
+	case NetworkStagenet:
+		return monero.SubAddressStageNetwork, nil
+	}
+	return 0, errors.New("unknown network")
 }
 
 func (n NetworkType) AddressNetwork() (uint8, error) {

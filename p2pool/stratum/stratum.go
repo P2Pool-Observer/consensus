@@ -911,7 +911,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 	} else {
 		defer tcpListener.Close()
 
-		addressNetwork, _ := s.sidechain.Consensus().NetworkType.AddressNetwork()
+		addressNetwork := s.sidechain.Consensus().NetworkType.MustAddressNetwork()
 
 		for {
 			if conn, err := tcpListener.AcceptTCP(); err != nil {

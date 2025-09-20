@@ -787,16 +787,10 @@ func (b *PoolBlock) GetAddress() address.PackedAddress {
 // GetPayoutAddress Special function that checks if a subaddress has been specified, on the right network
 func (b *PoolBlock) GetPayoutAddress(networkType NetworkType) *address.Address {
 	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) == crypto.PublicKeySize {
+		// subaddress
 		viewPub := crypto.PublicKeyBytes(d)
-		switch networkType {
-		case NetworkMainnet:
-			return address.FromRawAddress(monero.SubAddressMainNetwork, b.Side.PublicKey.SpendPublicKey(), &viewPub)
-		case NetworkTestnet:
-			return address.FromRawAddress(monero.SubAddressTestNetwork, b.Side.PublicKey.SpendPublicKey(), &viewPub)
-		case NetworkStagenet:
-			return address.FromRawAddress(monero.SubAddressStageNetwork, b.Side.PublicKey.SpendPublicKey(), &viewPub)
-		default:
-			return nil
+		if n, err := networkType.SubaddressNetwork(); err == nil {
+			return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), &viewPub)
 		}
 	}
 	if n, err := networkType.AddressNetwork(); err == nil {

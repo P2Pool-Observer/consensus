@@ -3,7 +3,6 @@ package address
 import (
 	"bytes"
 	"errors"
-	"slices"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
@@ -94,12 +93,11 @@ func FromBase58(address string) *Address {
 		return nil
 	}
 
-	checksum := crypto.PooledKeccak256(raw[:65])
 	a := &Address{
 		TypeNetwork: raw[0],
+		checksum:    checksumHash(raw[:65]),
+		hasChecksum: true,
 	}
-	copy(a.checksum[:], checksum[:ChecksumLength])
-	a.hasChecksum = true
 
 	if bytes.Compare(a.checksum[:], raw[65:]) != 0 {
 		return nil
@@ -134,7 +132,7 @@ func FromBase58NoChecksumCheck(address []byte) *Address {
 	a := &Address{
 		TypeNetwork: raw[0],
 	}
-	copy(a.checksum[:], slices.Clone(raw[65:]))
+	copy(a.checksum[:], raw[65:])
 	a.hasChecksum = true
 
 	copy(a.SpendPub[:], raw[1:33])
@@ -143,24 +141,27 @@ func FromBase58NoChecksumCheck(address []byte) *Address {
 	return a
 }
 
+func checksumHash(data []byte) (sum [ChecksumLength]byte) {
+	h := crypto.GetKeccak256Hasher()
+	defer crypto.PutKeccak256Hasher(h)
+	_, _ = h.Write(data)
+	_, _ = h.Read(sum[:])
+	return sum
+}
+
 func FromRawAddress(typeNetwork uint8, spend, view crypto.PublicKey) *Address {
 	var nice [69]byte
 	nice[0] = typeNetwork
 	copy(nice[1:], spend.AsSlice())
 	copy(nice[33:], view.AsSlice())
 
-	//TODO: cache checksum?
-	checksum := crypto.PooledKeccak256(nice[:65])
-	a := &Address{
+	return &Address{
 		TypeNetwork: nice[0],
+		checksum:    checksumHash(nice[:65]),
+		hasChecksum: true,
+		SpendPub:    spend.AsBytes(),
+		ViewPub:     view.AsBytes(),
 	}
-	copy(a.checksum[:], checksum[:ChecksumLength])
-	a.hasChecksum = true
-
-	a.SpendPub = spend.AsBytes()
-	a.ViewPub = view.AsBytes()
-
-	return a
 }
 
 func (a *Address) verifyChecksum() {
@@ -169,9 +170,8 @@ func (a *Address) verifyChecksum() {
 		nice[0] = a.TypeNetwork
 		copy(nice[1:], a.SpendPub.AsSlice())
 		copy(nice[1+crypto.PublicKeySize:], a.ViewPub.AsSlice())
-		sum := crypto.PooledKeccak256(nice[:65])
 		//this race is ok
-		copy(a.checksum[:], sum[:ChecksumLength])
+		a.checksum = checksumHash(nice[:65])
 		a.hasChecksum = true
 	}
 }
