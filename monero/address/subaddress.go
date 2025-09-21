@@ -37,6 +37,12 @@ func GetSubaddress(a *Address, viewKey crypto.PrivateKey, index SubaddressIndex)
 		// cannot derive
 		return nil
 	}
+
+	// special case
+	if index == ZeroSubaddressIndex {
+		return a
+	}
+
 	m := index.SecretKey(viewKey)
 
 	// spend pub
