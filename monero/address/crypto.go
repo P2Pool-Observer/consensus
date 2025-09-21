@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"strings"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
@@ -49,33 +48,6 @@ func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *e
 
 	//public key + add
 	p.UnsafeVarTimeScalarBaseMult(&sharedData).Add(p, spendPub)
-}
-
-func GetSubaddressFakeAddress(sa InterfaceSubaddress, viewKey crypto.PrivateKey) Interface {
-	if !sa.IsSubaddress() {
-		return sa
-	}
-
-	// mismatched view key
-	if viewKey.GetDerivation(sa.SpendPublicKey()).AsBytes() != sa.ViewPublicKey().AsBytes() {
-		return nil
-	}
-
-	switch t := sa.(type) {
-	case *Address:
-		switch t.TypeNetwork {
-		case monero.SubAddressMainNetwork:
-			return FromRawAddress(monero.MainNetwork, sa.SpendPublicKey(), viewKey.PublicKey())
-		case monero.SubAddressTestNetwork:
-			return FromRawAddress(monero.TestNetwork, sa.SpendPublicKey(), viewKey.PublicKey())
-		case monero.SubAddressStageNetwork:
-			return FromRawAddress(monero.StageNetwork, sa.SpendPublicKey(), viewKey.PublicKey())
-		default:
-			return nil
-		}
-	default:
-		return &PackedAddress{sa.SpendPublicKey().AsBytes(), viewKey.PublicKey().AsBytes()}
-	}
 }
 
 func GetEphemeralPublicKeyAndViewTagWithViewKey(a Interface, txPubKey crypto.PublicKey, viewKey crypto.PrivateKey, outputIndex uint64) (crypto.PublicKey, uint8) {
