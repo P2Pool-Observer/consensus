@@ -134,7 +134,7 @@ const SupportedProtocolVersion = ProtocolVersion_1_4
 
 const CurrentSoftwareVersionMajor = 4 & 0xFFFF
 const CurrentSoftwareVersionMinor = 9 & 0xFF
-const CurrentSoftwareVersionPatch = 0 & 0xFF
+const CurrentSoftwareVersionPatch = 1 & 0xFF
 
 const CurrentSoftwareVersion SoftwareVersion = (CurrentSoftwareVersionMajor << 16) | (CurrentSoftwareVersionMinor << 8) | CurrentSoftwareVersionPatch
 const CurrentSoftwareId = SoftwareIdGoObserver
