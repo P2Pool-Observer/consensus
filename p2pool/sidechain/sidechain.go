@@ -333,6 +333,10 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		}
 	}
 
+	if !block.Side.PublicKey.Valid() {
+		return nil, errors.New("invalid wallet address"), true
+	}
+
 	// Both tx types are allowed by Monero consensus during v15 because it needs to process pre-fork mempool transactions,
 	// but P2Pool can switch to using only TXOUT_TO_TAGGED_KEY for miner payouts starting from v15
 	expectedTxType := block.GetTransactionOutputType()

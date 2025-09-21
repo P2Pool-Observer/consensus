@@ -786,10 +786,10 @@ func (b *PoolBlock) GetAddress() address.PackedAddress {
 
 // GetPayoutAddress Special function that checks if a subaddress has been specified, on the right network
 func (b *PoolBlock) GetPayoutAddress(networkType NetworkType) *address.Address {
-	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) == crypto.PublicKeySize {
+	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) >= crypto.PublicKeySize {
 		// subaddress
-		viewPub := crypto.PublicKeyBytes(d)
-		if n, err := networkType.SubaddressNetwork(); err == nil {
+		viewPub := crypto.PublicKeyBytes(d[:crypto.PublicKeySize])
+		if n, err := networkType.SubaddressNetwork(); err == nil && viewPub.AsPoint() != nil {
 			return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), &viewPub)
 		}
 	}

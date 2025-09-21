@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	gojson "git.gammaspectra.live/P2Pool/go-json"
 )
@@ -32,7 +31,7 @@ type Client struct {
 	}
 	MergeMiningExtra  sidechain.MergeMiningExtra
 	Address           address.PackedAddress
-	SubaddressViewPub crypto.PublicKeyBytes
+	SubaddressViewPub [33]byte
 	Password          string
 	RigId             string
 	buf               []byte

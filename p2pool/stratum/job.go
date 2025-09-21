@@ -134,7 +134,7 @@ func (e *MinerTrackingEntry) GetJobBlob(c *Client, consensus *sidechain.Consensu
 	if t, ok := e.Templates[job.TemplateCounter]; ok {
 
 		mmExtra := job.MergeMiningExtra
-		if c.SubaddressViewPub != crypto.ZeroPublicKeyBytes {
+		if c.SubaddressViewPub != [33]byte{} {
 			mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, c.SubaddressViewPub[:])
 		}
 

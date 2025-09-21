@@ -176,6 +176,10 @@ func (a *Address) verifyChecksum() {
 	}
 }
 
+func (a *Address) Valid() bool {
+	return a.ViewPublicKey().AsPoint() != nil && a.SpendPublicKey().AsPoint() != nil
+}
+
 func (a *Address) ToBase58() []byte {
 	a.verifyChecksum()
 	buf := make([]byte, 0, 95)

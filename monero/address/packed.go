@@ -85,6 +85,10 @@ func (p PackedAddress) ToBase58(typeNetwork uint8, err ...error) []byte {
 	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{typeNetwork}, p[PackedAddressSpend][:], p[PackedAddressView][:], sum[:4])
 }
 
+func (p PackedAddress) Valid() bool {
+	return p.ViewPublicKey().AsPoint() != nil && p.SpendPublicKey().AsPoint() != nil
+}
+
 func (p PackedAddress) Reference() *PackedAddress {
 	return &p
 }

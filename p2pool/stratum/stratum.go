@@ -1041,8 +1041,8 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 										if str, ok := m["login"].(string); ok {
 											//TODO: support merge mining addresses
 											a := address.FromBase58(str)
-											if a == nil {
-												return errors.New("invalid address in user, integrated addresses not supported")
+											if a == nil || !a.Valid() {
+												return errors.New("invalid address in user, or integrated addresses not supported")
 											} else if a.BaseNetwork() != addressNetwork {
 												return errors.New("invalid address in user, wrong network")
 											} else if a.IsSubaddress() {
@@ -1053,7 +1053,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 														return errors.New("invalid address in user, invalid subaddress conversion")
 													}
 													client.Address = fa.ToPackedAddress()
-													client.SubaddressViewPub = a.ViewPub
+													copy(client.SubaddressViewPub[:], a.ViewPub[:])
 													// cleanup
 													client.Password = ""
 												} else {
@@ -1061,9 +1061,12 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 												}
 											} else {
 												if sa := address.FromBase58(client.Password); sa != nil && sa.BaseNetwork() == a.BaseNetwork() && sa.IsSubaddress() {
+													if !sa.Valid() {
+														return errors.New("invalid subaddress in pass")
+													}
 													// allow sending to subaddress when specified
 													client.Address = address.PackedAddress{sa.SpendPublicKey().AsBytes(), a.ViewPublicKey().AsBytes()}
-													client.SubaddressViewPub = sa.ViewPub
+													copy(client.SubaddressViewPub[:], sa.ViewPub[:])
 													// cleanup
 													client.Password = ""
 												} else {
@@ -1333,7 +1336,7 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 
 	// implicit addition
 	mmExtra := jobId.MergeMiningExtra
-	if c.SubaddressViewPub != crypto.ZeroPublicKeyBytes {
+	if c.SubaddressViewPub != [33]byte{} {
 		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, c.SubaddressViewPub[:])
 	}
 
@@ -1397,7 +1400,7 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 
 	// implicit addition
 	mmExtra := jobId.MergeMiningExtra
-	if c.SubaddressViewPub != crypto.ZeroPublicKeyBytes {
+	if c.SubaddressViewPub != [33]byte{} {
 		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, c.SubaddressViewPub[:])
 	}
 
