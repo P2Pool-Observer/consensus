@@ -4,10 +4,11 @@ import (
 	"crypto/ed25519"
 	"encoding/binary"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"io"
 	"time"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 )
 
 type AuxiliaryJob struct {

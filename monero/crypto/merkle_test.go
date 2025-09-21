@@ -204,7 +204,7 @@ var transactionHashes = []types.Hash{
 }
 
 func TestBinaryTreeHash_RootHash(t *testing.T) {
-	merkleTree := make(BinaryTreeHash, len(transactionHashes)+1)
+	merkleTree := make(MerkleTree, len(transactionHashes)+1)
 	merkleTree[0] = coinbaseHash
 	copy(merkleTree[1:], transactionHashes)
 
@@ -218,7 +218,7 @@ func TestBinaryTreeHash_RootHash(t *testing.T) {
 }
 
 func BenchmarkBinaryTreeHash_RootHash(b *testing.B) {
-	merkleTree := make(BinaryTreeHash, len(transactionHashes)+1)
+	merkleTree := make(MerkleTree, len(transactionHashes)+1)
 	merkleTree[0] = coinbaseHash
 	copy(merkleTree[1:], transactionHashes)
 
@@ -245,7 +245,7 @@ func FuzzBinaryTreeHash(f *testing.F) {
 		if len(buf) == 0 || len(buf)%types.HashSize != 0 {
 			t.SkipNow()
 		}
-		var tree BinaryTreeHash
+		var tree MerkleTree
 		for i := 0; i < len(buf); i += types.HashSize {
 			tree = append(tree, types.HashFromBytes(buf[i:]))
 		}

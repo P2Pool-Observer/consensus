@@ -290,7 +290,7 @@ func (b *Block) HashingBlobBufferLength() int {
 func (b *Block) HashingBlob(preAllocatedBuf []byte) []byte {
 	buf := b.HeaderBlob(preAllocatedBuf)
 
-	merkleTree := make(crypto.BinaryTreeHash, len(b.Transactions)+1)
+	merkleTree := make(crypto.MerkleTree, len(b.Transactions)+1)
 	//TODO: cache?
 	merkleTree[0] = b.Coinbase.CalculateId()
 	copy(merkleTree[1:], b.Transactions)

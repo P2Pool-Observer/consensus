@@ -4,20 +4,23 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"io"
 	"net/http"
 	"net/url"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 )
 
 type Client interface {
 	GetChainId() (id types.Hash, err error)
 	GetJob(chainAddress string, auxiliaryHash types.Hash, height uint64, prevId types.Hash) (job AuxiliaryJob, same bool, err error)
-	SubmitSolution(job AuxiliaryJob, blob []byte, proof crypto.MerkleProof) (status string, err error)
+	SubmitSolution(job AuxiliaryJob, blob []byte, proof crypto.MerkleProof, proofPath uint32, seedHash types.Hash) (status string, err error)
 }
 
+// GenericClient Implements the RPC proposed api
+// See https://github.com/SChernykh/p2pool/blob/master/docs/MERGE_MINING.MD#proposed-rpc-api
 type GenericClient struct {
 	Address *url.URL
 	Client  *http.Client
@@ -85,6 +88,12 @@ type MergeMiningSubmitSolutionJSON struct {
 
 	// MerkleProof A proof that aux_hash was included when calculating Merkle root hash from the merge mining tag
 	MerkleProof crypto.MerkleProof `json:"merkle_proof"`
+
+	// Path bitmap (32-bit unsigned integer) that complements MerkleProof
+	Path uint32 `json:"path"`
+
+	// SeedHash Key that is used to initialize RandomX dataset
+	SeedHash types.Hash `json:"seed_hash"`
 }
 
 type MergeMiningSubmitSolutionResult struct {
@@ -108,7 +117,7 @@ func (c *GenericClient) GetChainId() (id types.Hash, err error) {
 		Method: "POST",
 		URL:    c.Address,
 		Header: http.Header{
-			"Content-Type": []string{"application/json-rpc"},
+			"Content-Type": []string{"application/json"},
 		},
 		Body:          io.NopCloser(bytes.NewBuffer(data)),
 		ContentLength: int64(len(data)),
@@ -158,7 +167,7 @@ func (c *GenericClient) GetJob(chainAddress string, auxiliaryHash types.Hash, he
 		Method: "POST",
 		URL:    c.Address,
 		Header: http.Header{
-			"Content-Type": []string{"application/json-rpc"},
+			"Content-Type": []string{"application/json"},
 		},
 		Body:          io.NopCloser(bytes.NewBuffer(data)),
 		ContentLength: int64(len(data)),
@@ -200,7 +209,7 @@ func (c *GenericClient) GetJob(chainAddress string, auxiliaryHash types.Hash, he
 	return result.Result, false, nil
 }
 
-func (c *GenericClient) SubmitSolution(job AuxiliaryJob, blob []byte, proof crypto.MerkleProof) (status string, err error) {
+func (c *GenericClient) SubmitSolution(job AuxiliaryJob, blob []byte, proof crypto.MerkleProof, proofPath uint32, seedHash types.Hash) (status string, err error) {
 	data, err := utils.MarshalJSON(RPCJSON{
 		JSONRPC: "2.0",
 		Id:      "0",
@@ -210,6 +219,8 @@ func (c *GenericClient) SubmitSolution(job AuxiliaryJob, blob []byte, proof cryp
 			AuxiliaryHash: job.Hash,
 			Blob:          blob,
 			MerkleProof:   proof,
+			Path:          proofPath,
+			SeedHash:      seedHash,
 		},
 	})
 	if err != nil {
@@ -220,7 +231,7 @@ func (c *GenericClient) SubmitSolution(job AuxiliaryJob, blob []byte, proof cryp
 		Method: "POST",
 		URL:    c.Address,
 		Header: http.Header{
-			"Content-Type": []string{"application/json-rpc"},
+			"Content-Type": []string{"application/json"},
 		},
 		Body:          io.NopCloser(bytes.NewBuffer(data)),
 		ContentLength: int64(len(data)),

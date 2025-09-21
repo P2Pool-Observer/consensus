@@ -6,7 +6,8 @@ import (
 	"git.gammaspectra.live/P2Pool/sha3"
 )
 
-type BinaryTreeHash []types.Hash
+// MerkleTree Used for block merkle root and similar
+type MerkleTree []types.Hash
 
 func leafHash(data []types.Hash, hasher *sha3.HasherState) (rootHash types.Hash) {
 	switch len(data) {
@@ -24,8 +25,28 @@ func leafHash(data []types.Hash, hasher *sha3.HasherState) (rootHash types.Hash)
 	}
 }
 
+func pairHash(index int, h, p types.Hash, hasher *sha3.HasherState) (out types.Hash) {
+	hasher.Reset()
+
+	if index&1 > 0 {
+		_, _ = hasher.Write(p[:])
+		_, _ = hasher.Write(h[:])
+	} else {
+		_, _ = hasher.Write(h[:])
+		_, _ = hasher.Write(p[:])
+	}
+
+	HashFastSum(hasher, out[:])
+	return out
+}
+
+// Depth The Merkle Tree depth
+func (t MerkleTree) Depth() int {
+	return utils.PreviousPowerOfTwo(uint64(len(t)))
+}
+
 // RootHash Calculates the Merkle root hash of the tree
-func (t BinaryTreeHash) RootHash() (rootHash types.Hash) {
+func (t MerkleTree) RootHash() (rootHash types.Hash) {
 	hasher := GetKeccak256Hasher()
 	defer PutKeccak256Hasher(hasher)
 
@@ -34,22 +55,22 @@ func (t BinaryTreeHash) RootHash() (rootHash types.Hash) {
 		return leafHash(t, hasher)
 	}
 
-	pow2cnt := utils.PreviousPowerOfTwo(uint64(count))
-	offset := pow2cnt*2 - count
+	depth := t.Depth()
+	offset := depth*2 - count
 
-	temporaryTree := make(BinaryTreeHash, pow2cnt)
+	temporaryTree := make(MerkleTree, depth)
 	copy(temporaryTree, t[:offset])
 
 	//TODO: maybe can be done zero-alloc
-	//temporaryTree := t[:max(pow2cnt, offset)]
+	//temporaryTree := t[:max(depth, offset)]
 
 	offsetTree := temporaryTree[offset:]
 	for i := range offsetTree {
 		offsetTree[i] = leafHash(t[offset+i*2:], hasher)
 	}
 
-	for pow2cnt >>= 1; pow2cnt > 1; pow2cnt >>= 1 {
-		for i := range temporaryTree[:pow2cnt] {
+	for depth >>= 1; depth > 1; depth >>= 1 {
+		for i := range temporaryTree[:depth] {
 			temporaryTree[i] = leafHash(temporaryTree[i*2:], hasher)
 		}
 	}
@@ -59,7 +80,7 @@ func (t BinaryTreeHash) RootHash() (rootHash types.Hash) {
 	return
 }
 
-func (t BinaryTreeHash) MainBranch() (mainBranch []types.Hash) {
+func (t MerkleTree) MainBranch() (mainBranch []types.Hash) {
 	count := len(t)
 	if count <= 2 {
 		return nil
@@ -68,10 +89,10 @@ func (t BinaryTreeHash) MainBranch() (mainBranch []types.Hash) {
 	hasher := GetKeccak256Hasher()
 	defer PutKeccak256Hasher(hasher)
 
-	pow2cnt := utils.PreviousPowerOfTwo(uint64(count))
-	offset := pow2cnt*2 - count
+	depth := t.Depth()
+	offset := depth*2 - count
 
-	temporaryTree := make(BinaryTreeHash, pow2cnt)
+	temporaryTree := make(MerkleTree, depth)
 	copy(temporaryTree, t[:offset])
 
 	offsetTree := temporaryTree[offset:]
@@ -83,8 +104,8 @@ func (t BinaryTreeHash) MainBranch() (mainBranch []types.Hash) {
 		offsetTree[i] = leafHash(t[offset+i*2:], hasher)
 	}
 
-	for pow2cnt >>= 1; pow2cnt > 1; pow2cnt >>= 1 {
-		for i := range temporaryTree[:pow2cnt] {
+	for depth >>= 1; depth > 1; depth >>= 1 {
+		for i := range temporaryTree[:depth] {
 			if i == 0 {
 				mainBranch = append(mainBranch, temporaryTree[1])
 			}
@@ -100,23 +121,16 @@ func (t BinaryTreeHash) MainBranch() (mainBranch []types.Hash) {
 
 type MerkleProof []types.Hash
 
+// Verify Verifies a merkle proof with the slot index and chain count
+// Equivalent to verify_merkle_proof(aux_hash, merkle_proof, get_aux_slot(unique_id, aux_nonce, n_aux_chains), n_aux_chains, merkle_root_hash)
 func (proof MerkleProof) Verify(h types.Hash, index, count int, rootHash types.Hash) bool {
 	return proof.GetRoot(h, index, count) == rootHash
 }
 
-func pairHash(index int, h, p types.Hash, hasher *sha3.HasherState) (out types.Hash) {
-	hasher.Reset()
-
-	if index&1 > 0 {
-		_, _ = hasher.Write(p[:])
-		_, _ = hasher.Write(h[:])
-	} else {
-		_, _ = hasher.Write(h[:])
-		_, _ = hasher.Write(p[:])
-	}
-
-	HashFastSum(hasher, out[:])
-	return out
+// VerifyPath Verifies a merkle proof with the path bitmap
+// verify_merkle_proof(aux_hash, merkle_proof, path, merkle_root_hash)
+func (proof MerkleProof) VerifyPath(h types.Hash, path uint32, rootHash types.Hash) bool {
+	return proof.GetRootPath(h, path) == rootHash
 }
 
 func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
@@ -166,5 +180,21 @@ func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
 		}
 	}
 
+	return h
+}
+
+func (proof MerkleProof) GetRootPath(h types.Hash, path uint32) types.Hash {
+	hasher := GetKeccak256Hasher()
+	defer PutKeccak256Hasher(hasher)
+
+	depth := len(proof)
+
+	if depth == 0 {
+		return h
+	}
+
+	for d := 0; d < depth; d++ {
+		h = pairHash(int(path>>(depth-d-1)), h, proof[d], hasher)
+	}
 	return h
 }

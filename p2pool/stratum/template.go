@@ -383,7 +383,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 	tpl.Buffer = tpl.Blob(make([]byte, 0, len(buf)), consensus, 0, 0, 0, 0, types.ZeroHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, 0, 0)[:len(buf)-bufOffset]
 
 	if len(b.Main.Transactions) > 1 {
-		merkleTree := make(crypto.BinaryTreeHash, len(b.Main.Transactions)+1)
+		merkleTree := make(crypto.MerkleTree, len(b.Main.Transactions)+1)
 		copy(merkleTree[1:], b.Main.Transactions)
 		tpl.MerkleTreeMainBranch = merkleTree.MainBranch()
 	}
