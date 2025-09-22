@@ -30,7 +30,11 @@ func GetPublicKeyForSharedData(a Interface, sharedData crypto.PrivateKey) crypto
 }
 
 func GetEphemeralPublicKey(a Interface, txKey crypto.PrivateKey, outputIndex uint64) crypto.PublicKey {
-	return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex))
+	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+		return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(sa.SpendPublicKey()), outputIndex))
+	} else {
+		return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex))
+	}
 }
 
 func GetEphemeralPublicKeyWithViewKey(a Interface, txPubKey crypto.PublicKey, viewKey crypto.PrivateKey, outputIndex uint64) crypto.PublicKey {
@@ -56,7 +60,14 @@ func GetEphemeralPublicKeyAndViewTagWithViewKey(a Interface, txPubKey crypto.Pub
 }
 
 func GetEphemeralPublicKeyAndViewTag(a Interface, txKey crypto.PrivateKey, outputIndex uint64) (crypto.PublicKey, uint8) {
-	pK, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex)
+	var pK crypto.PrivateKey
+	var viewTag uint8
+	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(sa.SpendPublicKey()), outputIndex)
+	} else {
+		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex)
+	}
+
 	return GetPublicKeyForSharedData(a, pK), viewTag
 }
 
