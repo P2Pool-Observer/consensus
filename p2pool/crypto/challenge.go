@@ -38,27 +38,4 @@ func GetDeterministicTransactionPrivateKey(seed types.Hash, previousMoneroId typ
 	copy(entropy[13:], seed[:])
 	copy(entropy[13+types.HashSize:], previousMoneroId[:])
 	return crypto.PrivateKeyFromScalar(crypto.DeterministicScalar(entropy[:13+types.HashSize+types.HashSize]))
-
-	/*
-
-		TODO Suggest upstream:
-		* Depend on previous Monero block id. This makes it change whenever a new block is found. (already done)
-		* Depend on consensus id, or an element that depends on consensus id. This makes such keys not be shared across sidechains.
-		* Depend on a rolling previous P2Pool template id. Using a randomx-like seed lookup (see randomx.SeedHeight), this id can change regularly but be able to use a smaller cache for longer.
-		* Some template ids are exposed on Coinbase extra data when a block is found, introduce its cumulative difficulty, and additionally the spend public key from the selected previous template.
-		* A counter is increased until the resulting hash fits the rules on deterministic scalar generation (already done)
-
-
-		k = H("tx_secret_key" | SeedTemplateId | SeedTemplateCumulativeDifficulty | SeedTemplateSpendPublicKey | PreviousMoneroId | uint32[counter])
-
-		For convenience the new data could be represented via a middle hash, to reuse the old formula:
-
-		TemplateEntropy = H(SeedTemplateId | SeedTemplateCumulativeDifficulty | SeedTemplateSpendPublicKey)
-		k = H("tx_secret_key" | TemplateEntropy | PreviousMoneroId | uint32[counter])
-
-		* This key would change on new monero blocks, or after a new seed is selected for the sidechain.
-		* An external observer (who only observes the Monero chain) can guess the coinbase private key only if they know the template ids and relevant exact cumulative difficulties on the sidechain, for past shares, and the relevant P2Pool miners.
-		* This is a consensus change, so it should be introduced on next P2Pool or Monero consensus change.
-
-	*/
 }
