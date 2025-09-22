@@ -61,7 +61,7 @@ func HashToScalarNoAllocateSingle(data []byte) edwards25519.Scalar {
 // HashFastSum sha3.Sum clones the state by allocating memory. prevent that. b must be pre-allocated to the expected size, or larger
 func HashFastSum(hash *sha3.HasherState, b []byte) []byte {
 	_ = b[31] // bounds check hint to compiler; see golang.org/issue/14808
-	_, _ = hash.Read(b[:hash.Size()])
+	_, _ = hash.Read(b[:types.HashSize])
 	return b
 }
 

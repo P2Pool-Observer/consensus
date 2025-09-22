@@ -20,19 +20,19 @@ type SubaddressIndex struct {
 var hashKeySubaddress = []byte("SubAddr\x00") // HASH_KEY_SUBADDRESS
 
 // SecretKey Hs(a || index_major || index_minor)
-func (index SubaddressIndex) SecretKey(viewKey crypto.PrivateKey) crypto.PrivateKey {
+func (index SubaddressIndex) SecretKey(viewKey crypto.PrivateKeyBytes) crypto.PrivateKey {
 	var major, minor [4]byte
 	binary.LittleEndian.PutUint32(major[:], index.Account)
 	binary.LittleEndian.PutUint32(minor[:], index.Offset)
 	return crypto.PrivateKeyFromScalar(crypto.HashToScalar(
 		hashKeySubaddress,
-		viewKey.AsSlice(),
+		viewKey[:],
 		major[:],
 		minor[:],
 	))
 }
 
-func GetSubaddress(a *Address, viewKey crypto.PrivateKey, index SubaddressIndex) *Address {
+func getSubaddress(a *Address, viewKeyScalar *crypto.PrivateKeyScalar, viewKeyBytes crypto.PrivateKeyBytes, index SubaddressIndex) *Address {
 	if a == nil || a.IsSubaddress() {
 		// cannot derive
 		return nil
@@ -43,7 +43,7 @@ func GetSubaddress(a *Address, viewKey crypto.PrivateKey, index SubaddressIndex)
 		return a
 	}
 
-	m := index.SecretKey(viewKey)
+	m := index.SecretKey(viewKeyBytes)
 
 	// spend pub
 	// M = m*G
@@ -53,7 +53,7 @@ func GetSubaddress(a *Address, viewKey crypto.PrivateKey, index SubaddressIndex)
 	D := a.SpendPublicKey().AsPoint().Add(M.AsPoint())
 
 	// view pub
-	C := viewKey.GetDerivation(D)
+	C := viewKeyScalar.GetDerivation(D)
 
 	switch a.BaseNetwork() {
 	case monero.MainNetwork:
@@ -65,6 +65,10 @@ func GetSubaddress(a *Address, viewKey crypto.PrivateKey, index SubaddressIndex)
 	default:
 		return nil
 	}
+}
+
+func GetSubaddress(a *Address, viewKey crypto.PrivateKey, index SubaddressIndex) *Address {
+	return getSubaddress(a, viewKey.AsScalar(), viewKey.AsBytes(), index)
 }
 
 func GetSubaddressFakeAddress(sa InterfaceSubaddress, viewKey crypto.PrivateKey) Interface {

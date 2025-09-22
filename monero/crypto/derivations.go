@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"encoding/binary"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	"git.gammaspectra.live/P2Pool/sha3"
@@ -28,6 +29,19 @@ func GetDerivationSharedDataAndViewTagForOutputIndex(derivation PublicKey, outpu
 	n := binary.PutUvarint(varIntBuf[:], outputIndex)
 	pK := PrivateKeyFromScalar(HashToScalar(k[:], varIntBuf[:n]))
 	return pK, PooledKeccak256(viewTagDomain, k[:], varIntBuf[:n])[0]
+}
+
+var encryptedAmountKey = []byte("amount")
+
+// DecryptOutputAmount Decrypts an encrypted amount field from ECDH Info
+func DecryptOutputAmount(k PrivateKey, ciphertext uint64) uint64 {
+	var key [8]byte
+	h := GetKeccak256Hasher()
+	defer PutKeccak256Hasher(h)
+	_, _ = h.Write(encryptedAmountKey)
+	_, _ = h.Write(k.AsSlice())
+	_, _ = h.Read(key[:])
+	return ciphertext ^ binary.LittleEndian.Uint64(key[:])
 }
 
 // GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate Special version of GetDerivationSharedDataAndViewTagForOutputIndex
