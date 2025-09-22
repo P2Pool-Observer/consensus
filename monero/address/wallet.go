@@ -100,3 +100,7 @@ func (w *ViewWallet) HasSpend(spendPub crypto.PublicKeyBytes) (SubaddressIndex, 
 func (w *ViewWallet) Get(index SubaddressIndex) *Address {
 	return getSubaddress(w.addr, w.viewKeyScalar, w.viewKeyBytes, index)
 }
+
+func (w *ViewWallet) ViewKey() crypto.PrivateKey {
+	return w.viewKeyScalar
+}
