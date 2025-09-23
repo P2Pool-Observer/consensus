@@ -29,13 +29,12 @@ type Client struct {
 	Extensions struct {
 		Algo bool
 	}
-	MergeMiningExtra  sidechain.MergeMiningExtra
-	Address           address.PackedAddress
-	SubaddressViewPub [33]byte
-	Password          string
-	RigId             string
-	buf               []byte
-	RpcId             uint32
+	MergeMiningExtra sidechain.MergeMiningExtra
+	Address          address.PackedAddress
+	Password         string
+	RigId            string
+	buf              []byte
+	RpcId            uint32
 }
 
 func (c *Client) Write(b []byte) (int, error) {

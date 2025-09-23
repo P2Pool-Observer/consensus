@@ -1053,7 +1053,12 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 														return errors.New("invalid address in user, invalid subaddress conversion")
 													}
 													client.Address = fa.ToPackedAddress()
-													copy(client.SubaddressViewPub[:], a.ViewPub[:])
+
+													// allow sending to subaddress when specified
+													var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
+													copy(subaddressViewPubBuf[:], a.ViewPub[:])
+													client.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
+
 													// cleanup
 													client.Password = ""
 												} else {
@@ -1064,9 +1069,12 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 													if !sa.Valid() {
 														return errors.New("invalid subaddress in pass")
 													}
+
 													// allow sending to subaddress when specified
-													client.Address = address.PackedAddress{sa.SpendPublicKey().AsBytes(), a.ViewPublicKey().AsBytes()}
-													copy(client.SubaddressViewPub[:], sa.ViewPub[:])
+													var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
+													copy(subaddressViewPubBuf[:], sa.ViewPub[:])
+													client.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
+
 													// cleanup
 													client.Password = ""
 												} else {
@@ -1335,10 +1343,7 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 	}
 
 	// implicit addition
-	mmExtra := jobId.MergeMiningExtra
-	if c.SubaddressViewPub != [33]byte{} {
-		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, c.SubaddressViewPub[:])
-	}
+	mmExtra := jobId.MergeMiningExtra.Merge(c.MergeMiningExtra)
 
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
@@ -1399,10 +1404,7 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 	}
 
 	// implicit addition
-	mmExtra := jobId.MergeMiningExtra
-	if c.SubaddressViewPub != [33]byte{} {
-		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, c.SubaddressViewPub[:])
-	}
+	mmExtra := jobId.MergeMiningExtra.Merge(c.MergeMiningExtra)
 
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)

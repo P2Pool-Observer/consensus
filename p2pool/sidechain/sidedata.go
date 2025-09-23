@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"slices"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
@@ -42,54 +41,6 @@ type SideData struct {
 	// ExtraBuffer Arbitrary extra data, available in ShareVersion ShareVersion_V2 and above
 	ExtraBuffer SideDataExtraBuffer `json:"extra_buffer,omitempty"`
 }
-
-type MergeMiningExtra []MergeMiningExtraData
-
-var ExtraChainKeySubaddressViewPub = crypto.Keccak256Single([]byte("subaddress_viewpub"))
-
-func (d MergeMiningExtra) Get(chainId types.Hash) ([]byte, bool) {
-	for _, e := range d {
-		if e.ChainId == chainId {
-			return e.Data, true
-		}
-	}
-	return nil, false
-}
-
-func (d MergeMiningExtra) Set(chainId types.Hash, data []byte) MergeMiningExtra {
-	for i, e := range d {
-		if e.ChainId == chainId {
-			d[i].Data = data
-			return d
-		}
-	}
-
-	newSlice := append(d, MergeMiningExtraData{
-		ChainId: chainId,
-		Data:    data,
-	})
-	slices.SortFunc(newSlice, func(a, b MergeMiningExtraData) int {
-		return a.ChainId.Compare(b.ChainId)
-	})
-	return newSlice
-}
-
-func (d MergeMiningExtra) BufferLength() (size int) {
-	for i := range d {
-		size += d[i].BufferLength()
-	}
-	return size + utils.UVarInt64Size(len(d))
-}
-
-type MergeMiningExtraData struct {
-	ChainId types.Hash  `json:"chain_id"`
-	Data    types.Bytes `json:"data,omitempty"`
-}
-
-func (d MergeMiningExtraData) BufferLength() (size int) {
-	return types.HashSize + utils.UVarInt64Size(len(d.Data)) + len(d.Data)
-}
-
 type SideDataExtraBuffer struct {
 	SoftwareId          p2pooltypes.SoftwareId      `json:"software_id"`
 	SoftwareVersion     p2pooltypes.SoftwareVersion `json:"software_version"`

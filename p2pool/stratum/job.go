@@ -133,10 +133,7 @@ func (e *MinerTrackingEntry) GetJobBlob(c *Client, consensus *sidechain.Consensu
 
 	if t, ok := e.Templates[job.TemplateCounter]; ok {
 
-		mmExtra := job.MergeMiningExtra
-		if c.SubaddressViewPub != [33]byte{} {
-			mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, c.SubaddressViewPub[:])
-		}
+		mmExtra := job.MergeMiningExtra.Merge(c.MergeMiningExtra)
 
 		buffer := bytes.NewBuffer(make([]byte, 0, t.BufferLength(consensus, job.MerkleProof, mmExtra)))
 		if err := t.Write(buffer, consensus, nonce, job.ExtraNonce, job.SideRandomNumber, job.SideExtraNonce, job.MerkleRoot, job.MerkleProof, mmExtra, types2.CurrentSoftwareId, types2.CurrentSoftwareVersion); err != nil {
