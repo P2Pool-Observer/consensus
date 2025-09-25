@@ -696,17 +696,14 @@ func (s *Server) HandleMinerData(minerData *p2pooltypes.MinerData) {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 
-		if s.minerData == nil || s.minerData.Height <= minerData.Height {
-			s.minerData = minerData
-			s.mempool.Swap(minerData.TxBacklog)
-			s.lastMempoolRefresh = time.Now()
-			if err := s.fillNewTemplateData(types.ZeroDifficulty); err != nil {
-				utils.Errorf("Stratum", "Error building new template data: %s", err)
-				return false
-			}
-			return true
+		s.minerData = minerData
+		s.mempool.Swap(minerData.TxBacklog)
+		s.lastMempoolRefresh = time.Now()
+		if err := s.fillNewTemplateData(types.ZeroDifficulty); err != nil {
+			utils.Errorf("Stratum", "Error building new template data: %s", err)
+			return false
 		}
-		return false
+		return true
 	}
 }
 
