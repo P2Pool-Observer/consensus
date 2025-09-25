@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql/driver"
 	"errors"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -56,6 +57,14 @@ func (p *PrivateKeyScalar) Scalar() *edwards25519.Scalar {
 
 func (p *PrivateKeyScalar) PublicKey() PublicKey {
 	return PublicKeyFromPoint(GetEdwards25519Point().ScalarBaseMult(p.Scalar()))
+}
+
+func (p *PrivateKeyScalar) Add(private PrivateKey) PrivateKey {
+	return PrivateKeyFromScalar(GetEdwards25519Scalar().Add(p.Scalar(), private.AsScalar().Scalar()))
+}
+
+func (p *PrivateKeyScalar) Subtract(private PrivateKey) PrivateKey {
+	return PrivateKeyFromScalar(GetEdwards25519Scalar().Subtract(p.Scalar(), private.AsScalar().Scalar()))
 }
 
 func (p *PrivateKeyScalar) GetDerivation(public PublicKey) PublicKey {

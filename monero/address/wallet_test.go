@@ -16,13 +16,14 @@ func TestViewWallet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if sa := vw.Get(SubaddressIndex{0, 70}); sa.Compare(testGeneralFundDonationAddr) != 0 {
+	sa := vw.Get(SubaddressIndex{0, 70})
+	if sa.Compare(testGeneralFundDonationAddr) != 0 {
 		t.Fatalf("expected %s, got %s", string(testGeneralFundDonationAddr.ToBase58()), string(sa.ToBase58()))
 	}
 
 	var ecdhInfo []uint64
 
-	// from 0b0ff5efc5e1a277f256501a4df8e86eb3387828c1cf235a93702a9c16548965
+	txId := types.MustHashFromString("0b0ff5efc5e1a277f256501a4df8e86eb3387828c1cf235a93702a9c16548965")
 
 	for _, o := range []string{"46cd3b24cca1aa6c", "bbb7ce98edb2d678"} {
 		buf, err := hex.DecodeString(o)
@@ -65,5 +66,13 @@ func TestViewWallet(t *testing.T) {
 	const expected = 3284260000
 	if amount := crypto.DecryptOutputAmount(sharedData, ecdhInfo[i]); amount != expected {
 		t.Fatalf("expected %d, got %d", expected, amount)
+	}
+
+	inProof := GetInProofV2(sa, txId, vw.ViewKey(), &pub, "")
+	t.Logf("tx proof: %s", inProof)
+
+	pI, pOk := VerifyTxProof(inProof, sa, txId, &pub, "")
+	if pI == -1 || !pOk {
+		t.Fatal("expected to verify proof")
 	}
 }
