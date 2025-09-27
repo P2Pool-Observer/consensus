@@ -784,14 +784,18 @@ type TransactionJSON struct {
 	Vin        []struct {
 		Key struct {
 			Amount     int        `json:"amount"`
-			KeyOffsets []uint     `json:"key_offsets"`
+			KeyOffsets []uint64   `json:"key_offsets"`
 			KImage     types.Hash `json:"k_image"`
 		} `json:"key"`
 	} `json:"vin"`
 	Vout []struct {
 		Amount uint64 `json:"amount"`
 		Target struct {
-			Key types.Hash `json:"key"`
+			Key       types.Hash `json:"key"`
+			TaggedKey struct {
+				Key     types.Hash `json:"key"`
+				ViewTag string     `json:"view_tag"`
+			} `json:"tagged_key"`
 		} `json:"target"`
 	} `json:"vout"`
 	Extra         []byte `json:"extra"`
@@ -801,7 +805,7 @@ type TransactionJSON struct {
 		Ecdhinfo []struct {
 			Amount string `json:"amount"`
 		} `json:"ecdhInfo"`
-		Outpk []string `json:"outPk"`
+		Outpk []types.Hash `json:"outPk"`
 	} `json:"rct_signatures"`
 	RctsigPrunable struct {
 		Nbp int `json:"nbp"`
