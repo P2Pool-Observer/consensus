@@ -437,20 +437,22 @@ func (c *MainChain) HandleMinerData(minerData *p2pooltypes.MinerData) {
 			mainData = existingMainData
 		}
 
-		prevMainData := &sidechain.ChainMain{
-			Height: minerData.Height - 1,
-			Id:     minerData.PrevId,
+		if minerData.Height > 0 {
+			prevMainData := &sidechain.ChainMain{
+				Height: minerData.Height - 1,
+				Id:     minerData.PrevId,
+			}
+
+			if existingPrevMainData, ok := c.mainchainByHeight[prevMainData.Height]; !ok {
+				c.mainchainByHeight[prevMainData.Height] = prevMainData
+			} else {
+				existingPrevMainData.Id = prevMainData.Id
+
+				prevMainData = existingPrevMainData
+			}
+
+			c.mainchainByHash[prevMainData.Id] = prevMainData
 		}
-
-		if existingPrevMainData, ok := c.mainchainByHeight[prevMainData.Height]; !ok {
-			c.mainchainByHeight[prevMainData.Height] = prevMainData
-		} else {
-			existingPrevMainData.Id = prevMainData.Id
-
-			prevMainData = existingPrevMainData
-		}
-
-		c.mainchainByHash[prevMainData.Id] = prevMainData
 
 		c.cleanup(minerData.Height)
 
