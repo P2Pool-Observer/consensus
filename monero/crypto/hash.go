@@ -6,15 +6,6 @@ import (
 	"git.gammaspectra.live/P2Pool/sha3"
 )
 
-func BytesToScalar(buf []byte) *edwards25519.Scalar {
-	_ = buf[31] // bounds check hint to compiler; see golang.org/issue/14808
-	var bytes [32]byte
-	copy(bytes[:], buf[:])
-	scReduce32(bytes[:])
-	c, _ := GetEdwards25519Scalar().SetCanonicalBytes(bytes[:])
-	return c
-}
-
 func Keccak256(data ...[]byte) (result types.Hash) {
 	h := sha3.NewLegacyKeccak256()
 	for _, b := range data {
@@ -35,26 +26,26 @@ func Keccak256Single(data []byte) (result types.Hash) {
 
 func HashToScalar(data ...[]byte) *edwards25519.Scalar {
 	h := PooledKeccak256(data...)
-	scReduce32(h[:])
-	c, _ := GetEdwards25519Scalar().SetCanonicalBytes(h[:])
+
+	c := GetEdwards25519Scalar()
+	BytesToScalar32(h, c)
+
 	return c
 }
 
 func HashToScalarNoAllocate(data ...[]byte) edwards25519.Scalar {
 	h := Keccak256(data...)
-	scReduce32(h[:])
 
 	var c edwards25519.Scalar
-	_, _ = c.SetCanonicalBytes(h[:])
+	BytesToScalar32(h, &c)
 	return c
 }
 
 func HashToScalarNoAllocateSingle(data []byte) edwards25519.Scalar {
 	h := Keccak256Single(data)
-	scReduce32(h[:])
 
 	var c edwards25519.Scalar
-	_, _ = c.SetCanonicalBytes(h[:])
+	BytesToScalar32(h, &c)
 	return c
 }
 

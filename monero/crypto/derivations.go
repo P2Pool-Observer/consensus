@@ -54,10 +54,9 @@ func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(k PublicKeyBytes,
 	hasher.Reset()
 	_, _ = hasher.Write(buf[:PublicKeySize+n])
 	HashFastSum(hasher, h[:])
-	scReduce32(h[:])
 
 	var c edwards25519.Scalar
-	_, _ = c.SetCanonicalBytes(h[:])
+	BytesToScalar32(h, &c)
 
 	hasher.Reset()
 	_, _ = hasher.Write(viewTagDomain)

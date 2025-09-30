@@ -3,22 +3,23 @@ package crypto
 import (
 	"crypto/rand"
 	"encoding/binary"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func RandomScalar() *edwards25519.Scalar {
-	buf := make([]byte, 32)
+	var buf [32]byte
 	for {
-		if _, err := rand.Read(buf); err != nil {
+		if _, err := rand.Read(buf[:]); err != nil {
 			return nil
 		}
 
-		if !lessLimit32(buf) {
+		if !IsReduced32(buf) {
 			continue
 		}
 
-		scalar := BytesToScalar(buf)
+		scalar, _ := GetEdwards25519Scalar().SetCanonicalBytes(buf[:])
 		if scalar.Equal(zeroScalar) == 0 {
 			return scalar
 		}
@@ -47,11 +48,10 @@ func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
 		binary.LittleEndian.PutUint32(entropy[n:], counter)
 		_, _ = h.Write(entropy)
 		HashFastSum(h, hash[:])
-		if !lessLimit32(hash[:]) {
+		if !IsLimit32(hash) {
 			continue
 		}
-		scReduce32(hash[:])
-		scalar, _ = scalar.SetCanonicalBytes(hash[:])
+		BytesToScalar32(hash, scalar)
 
 		if scalar.Equal(zeroScalar) == 0 {
 			return scalar
