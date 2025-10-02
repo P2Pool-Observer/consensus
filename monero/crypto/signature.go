@@ -43,13 +43,16 @@ func (s *Signature) Bytes() []byte {
 
 // Verify checks a Schnorr Signature using H = keccak
 func (s *Signature) Verify(handler SignatureVerificationHandler, publicKey PublicKey) (ok bool, r *PublicKeyPoint) {
+	if s == nil {
+		return false, nil
+	}
 	//s = C * k, R * G
 	sp := GetEdwards25519Point().VarTimeDoubleScalarBaseMult(s.C, publicKey.AsPoint().Point(), s.R)
 	if sp.Equal(infinityPoint) == 1 {
 		return false, nil
 	}
 	r = PublicKeyFromPoint(sp)
-	return s.C.Equal(HashToScalar(handler(r))) == 1, r
+	return s.C.Equal(ScalarDeriveLegacy(handler(r))) == 1, r
 }
 
 // CreateSignature produces a Schnorr Signature using H = keccak
@@ -58,7 +61,7 @@ func CreateSignature(handler SignatureSigningHandler, privateKey PrivateKey) *Si
 
 	signature := &Signature{
 		// e
-		C: HashToScalar(handler(k)),
+		C: ScalarDeriveLegacy(handler(k)),
 		R: &edwards25519.Scalar{},
 	}
 
