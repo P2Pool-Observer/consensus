@@ -438,15 +438,12 @@ var (
 	//        normally)
 	GeneratorH = HopefulHashToPoint(GeneratorG.Bytes())
 
-	// BiasedGeneratorT H_p^2(Keccak256("Monero Generator T"))
-	BiasedGeneratorT = BiasedHashToPoint(inlineKeccak("Monero Generator T"))
-
-	// GeneratorT H_p^3(Keccak256("Monero Generator T"))
+	// GeneratorT H_p^2(Keccak256("Monero Generator T"))
 	GeneratorT = UnbiasedHashToPoint(inlineKeccak("Monero Generator T"))
 
-	// GeneratorU H_p^3(Keccak256("Monero FCMP++ Generator U"))
+	// GeneratorU H_p^2(Keccak256("Monero FCMP++ Generator U"))
 	GeneratorU = UnbiasedHashToPoint(inlineKeccak("Monero FCMP++ Generator U"))
 
-	// GeneratorV H_p^3(Keccak256("Monero FCMP++ Generator V"))
+	// GeneratorV H_p^2(Keccak256("Monero FCMP++ Generator V"))
 	GeneratorV = UnbiasedHashToPoint(inlineKeccak("Monero FCMP++ Generator V"))
 )

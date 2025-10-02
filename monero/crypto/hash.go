@@ -72,7 +72,6 @@ func HopefulHashToPoint(data []byte) *edwards25519.Point {
 }
 
 // BiasedHashToPoint Monero's `hash_to_ec` / `biased_hash_to_ec` function.
-// Defined as H_p^2 in Carrot
 //
 // Similar to https://github.com/monero-oxide/monero-oxide/blob/71be6f9180f78675dee7cab48fbee38134688574/monero-oxide/generators/src/hash_to_point.rs
 //
@@ -104,7 +103,7 @@ func BiasedHashToPoint(data []byte) *edwards25519.Point {
 }
 
 // UnbiasedHashToPoint Monero's `unbiased_hash_to_ec` function.
-// Defined as H_p^3 in FCMP++
+// Defined as H_p^2 in Carrot
 //
 // Similar to https://github.com/seraphis-migration/monero/blob/74a254f8c215986042c40e6875a0f97bd6169a1e/src/crypto/crypto.cpp#L622
 func UnbiasedHashToPoint(preimage []byte) *edwards25519.Point {

@@ -18,9 +18,7 @@ func TestReproduceGenerators(t *testing.T) {
 	for _, e := range []pointTestData{
 		{"GeneratorG", GeneratorG, "5866666666666666666666666666666666666666666666666666666666666666"},
 		{"GeneratorH", GeneratorH, "8b655970153799af2aeadc9ff1add0ea6c7251d54154cfa92c173a0dd39c1f94"},
-		{"BiasedGeneratorT", BiasedGeneratorT, "966fc66b82cd56cf85eaec801c42845f5f408878d1561e00d3d7ded2794d094f"},
-		{"GeneratorT", GeneratorT, types.Hash{97, 183, 54, 206, 147, 182, 42, 61, 55, 120, 171, 32, 77, 168, 93, 59, 76,
-			220, 7, 37, 15, 93, 167, 227, 223, 38, 41, 146, 129, 52, 213, 38}.String()},
+		{"GeneratorT", GeneratorT, "61b736ce93b62a3d3778ab204da85d3b4cdc07250f5da7e3df2629928134d526"},
 		{"GeneratorU", GeneratorU, types.Hash{80, 107, 35, 246, 214, 229, 48, 153, 122, 188, 172, 198, 253, 52, 119, 52,
 			177, 76, 43, 215, 155, 234, 0, 238, 176, 72, 87, 232, 234, 221, 26, 138}.String()},
 		{"GeneratorV", GeneratorV, types.Hash{105, 53, 244, 19, 248, 49, 9, 19, 138, 122, 20, 180, 9, 85, 45, 59, 118,
