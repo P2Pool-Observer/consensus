@@ -66,6 +66,6 @@ func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(k PublicKeyBytes,
 	return c, h[0]
 }
 
-func GetKeyImage(hasher *sha3.HasherState, pair *KeyPair) PublicKey {
-	return PublicKeyFromPoint(BiasedHashToPoint(hasher, pair.PublicKey.AsSlice())).Multiply(pair.PrivateKey.AsScalar())
+func GetKeyImage(pair *KeyPair) PublicKey {
+	return PublicKeyFromPoint(BiasedHashToPoint(pair.PublicKey.AsSlice())).Multiply(pair.PrivateKey.AsScalar())
 }

@@ -59,13 +59,8 @@ func HashFastSum(hash *sha3.HasherState, b []byte) []byte {
 
 // HopefulHashToPoint
 // Defined as H_p^1 in Carrot
-func HopefulHashToPoint(hasher *sha3.HasherState, data []byte) *edwards25519.Point {
-	_, _ = hasher.Write(data[:])
-	var h types.Hash
-	HashFastSum(hasher, h[:])
-	hasher.Reset()
-
-	result := DecodeCompressedPoint(new(edwards25519.Point), h)
+func HopefulHashToPoint(data []byte) *edwards25519.Point {
+	result := DecodeCompressedPoint(new(edwards25519.Point), Keccak256Single(data))
 	if result == nil {
 		return nil
 	}
@@ -99,13 +94,8 @@ func HopefulHashToPoint(hasher *sha3.HasherState, data []byte) *edwards25519.Poi
 // As this only applies Elligator 2 once, it's limited to a subset of points where a certain
 // derivative of their `u` coordinates (in Montgomery form) are quadratic residues. It's biased
 // accordingly.
-func BiasedHashToPoint(hasher *sha3.HasherState, data []byte) *edwards25519.Point {
-	_, _ = hasher.Write(data[:])
-	var h types.Hash
-	HashFastSum(hasher, h[:])
-	hasher.Reset()
-
-	result := elligator2WithUniformBytes(h)
+func BiasedHashToPoint(data []byte) *edwards25519.Point {
+	result := elligator2WithUniformBytes(Keccak256Single(data))
 
 	// Ensure points lie within the prime-order subgroup
 	result.MultByCofactor(result)

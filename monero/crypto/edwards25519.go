@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto/subtle"
 	"encoding/binary"
 	"math/big"
 	"slices"
@@ -49,7 +50,7 @@ func DecodeCompressedPoint(r *edwards25519.Point, buf [PublicKeySize]byte) *edwa
 	}
 
 	// Ban points which are either unreduced or -0
-	if [PublicKeySize]byte(p.Bytes()) != buf {
+	if subtle.ConstantTimeCompare(p.Bytes(), buf[:]) == 0 {
 		return nil
 	}
 	return p
@@ -290,33 +291,6 @@ func BytesToScalar32(buf [32]byte, c *edwards25519.Scalar) {
 	_, _ = c.SetCanonicalBytes(buf[:])
 }
 
-func elementFromLimbs(l0, l1, l2, l3, l4 uint64) *field.Element {
-
-	var out [32]byte
-	// Pack five 51-bit limbs into four 64-bit words:
-	//
-	//  255    204    153    102     51      0
-	//    ├──l4──┼──l3──┼──l2──┼──l1──┼──l0──┤
-	//   ├───u3───┼───u2───┼───u1───┼───u0───┤
-	// 256      192      128       64        0
-
-	u0 := l1<<51 | l0
-	u1 := l2<<(102-64) | l1>>(64-51)
-	u2 := l3<<(153-128) | l2>>(128-102)
-	u3 := l4<<(204-192) | l3>>(192-153)
-
-	binary.LittleEndian.PutUint64(out[0*8:], u0)
-	binary.LittleEndian.PutUint64(out[1*8:], u1)
-	binary.LittleEndian.PutUint64(out[2*8:], u2)
-	binary.LittleEndian.PutUint64(out[3*8:], u3)
-
-	e, err := new(field.Element).SetBytes(out[:])
-	if err != nil {
-		panic(err)
-	}
-	return e
-}
-
 func elementFromUint64(x uint64) *field.Element {
 	var b [32]byte
 	binary.LittleEndian.PutUint64(b[:], x)
@@ -333,15 +307,11 @@ var (
 	_NEGATIVE_ONE = new(field.Element).Negate(_ONE)
 	_A            = elementFromUint64(486662)
 	_NEGATIVE_A   = new(field.Element).Negate(_A)
-
-	_MOD_3_8 = new(field.Element).Multiply(elementFromUint64(3), new(field.Element).Invert(elementFromUint64(8)))
-
-	// _SQRT_M1 is 2^((p-1)/4), which squared is equal to -1 by Euler's Criterion.
-	_SQRT_M1 = elementFromLimbs(1718705420411056, 234908883556509, 2233514472574048, 2117202627021982, 765476049583133)
 )
 
 // elligator2WithUniformBytes
 // Equivalent to ge_fromfe_frombytes_vartime
+// constant time
 func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 	/*
 	   Curve25519 is a Montgomery curve with equation `v^2 = u^3 + 486662 u^2 + u`.
@@ -423,6 +393,8 @@ func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 	return montgomeryToEdwards(u, epsilon)
 }
 
+// montgomeryToEdwards
+// constant time
 func montgomeryToEdwards(u *field.Element, sign int) *edwards25519.Point {
 	if u == nil || u.Equal(_NEGATIVE_ONE) == 1 {
 		return nil
@@ -461,10 +433,10 @@ var (
 	//       input bytes as a compressed point (this can fail, so should not be used generically)
 	// note2: to_point(keccak(G)) is known to succeed for the canonical value of G (it will fail 7/8ths of the time
 	//        normally)
-	GeneratorH = HopefulHashToPoint(_hasher, GeneratorG.Bytes())
+	GeneratorH = HopefulHashToPoint(GeneratorG.Bytes())
 
 	// BiasedGeneratorT H_p^2(Keccak256("Monero Generator T"))
-	BiasedGeneratorT = BiasedHashToPoint(_hasher, inlineKeccak("Monero Generator T"))
+	BiasedGeneratorT = BiasedHashToPoint(inlineKeccak("Monero Generator T"))
 
 	// GeneratorT H_p^3(Keccak256("Monero Generator T"))
 	GeneratorT = UnbiasedHashToPoint(inlineKeccak("Monero Generator T"))

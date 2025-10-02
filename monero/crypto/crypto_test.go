@@ -156,13 +156,12 @@ func TestHashToEC(t *testing.T) {
 	if results == nil {
 		t.Fatal()
 	}
-	hasher := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(hasher)
+
 	for e := range results {
 		key := PublicKeyBytes(types.MustHashFromString(e[0]))
 		expected := PublicKeyBytes(types.MustHashFromString(e[1]))
 
-		point := BiasedHashToPoint(hasher, key.AsSlice())
+		point := BiasedHashToPoint(key.AsSlice())
 		if point == nil {
 			t.Errorf("point is nil")
 		}
