@@ -66,8 +66,6 @@ func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(k PublicKeyBytes,
 	return c, h[0]
 }
 
-func GetKeyImage(pair *KeyPair) PublicKey {
-	hasher := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(hasher)
+func GetKeyImage(hasher *sha3.HasherState, pair *KeyPair) PublicKey {
 	return PublicKeyFromPoint(BiasedHashToPoint(hasher, pair.PublicKey.AsSlice())).Multiply(pair.PrivateKey.AsScalar())
 }
