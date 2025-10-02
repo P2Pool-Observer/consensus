@@ -1,14 +1,15 @@
 package crypto
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	fasthex "github.com/tmthrgd/go-hex"
 	"os"
 	"path"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	fasthex "github.com/tmthrgd/go-hex"
 )
 
 func init() {
@@ -23,7 +24,7 @@ func init() {
 }
 
 func GetTestEntries(name string, n int) chan []string {
-	buf, err := os.ReadFile("testdata/v2_crypto_tests.txt")
+	buf, err := os.ReadFile("testdata/monero_crypto_tests.txt")
 	if err != nil {
 		return nil
 	}
@@ -62,13 +63,13 @@ func TestGenerateKeyDerivation(t *testing.T) {
 			//expected failure
 			continue
 		} else if point == nil || scalar == nil {
-			t.Fatalf("invalid point %s / scalar %s", key1.String(), key2.String())
+			t.Errorf("invalid point %s / scalar %s", key1.String(), key2.String())
 		}
 
 		derivation := scalar.GetDerivationCofactor(point)
 		if result {
 			if expectedDerivation.String() != derivation.String() {
-				t.Fatalf("expected %s, got %s", expectedDerivation.String(), derivation.String())
+				t.Errorf("expected %s, got %s", expectedDerivation.String(), derivation.String())
 			}
 		}
 	}
@@ -125,8 +126,75 @@ func FuzzDeriveViewTag(f *testing.F) {
 		_, viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivationBytes, outputIndex, hasher)
 
 		if viewTag != viewTag2 {
-			t.Fatalf("derive_view_tag differs from no_allocate: %d != %d", viewTag, &viewTag2)
+			t.Errorf("derive_view_tag differs from no_allocate: %d != %d", viewTag, &viewTag2)
 		}
 	})
 
+}
+
+func TestCheckKey(t *testing.T) {
+	results := GetTestEntries("check_key", 2)
+	if results == nil {
+		t.Fatal()
+	}
+	for e := range results {
+		key := PublicKeyBytes(types.MustHashFromString(e[0]))
+		result := e[1] == "true"
+
+		if key.AsPoint() == nil {
+			if result {
+				t.Fatalf("expected not nil")
+			}
+		} else if !result {
+			t.Errorf("expected nil, got %s\n", key.AsPoint().String())
+		}
+	}
+}
+
+func TestHashToEC(t *testing.T) {
+	results := GetTestEntries("hash_to_ec", 2)
+	if results == nil {
+		t.Fatal()
+	}
+	hasher := GetKeccak256Hasher()
+	defer PutKeccak256Hasher(hasher)
+	for e := range results {
+		key := PublicKeyBytes(types.MustHashFromString(e[0]))
+		expected := PublicKeyBytes(types.MustHashFromString(e[1]))
+
+		point := BiasedHashToPoint(hasher, key.AsSlice())
+		if point == nil {
+			t.Errorf("point is nil")
+		}
+
+		image := PublicKeyFromPoint(point).AsBytes()
+
+		if image != expected {
+			t.Errorf("expected %s, got %s", expected.String(), image.String())
+		}
+	}
+}
+
+func TestHashToPoint(t *testing.T) {
+	results := GetTestEntries("hash_to_point", 2)
+	if results == nil {
+		t.Fatal()
+	}
+	hasher := GetKeccak256Hasher()
+	defer PutKeccak256Hasher(hasher)
+	for e := range results {
+		key := PublicKeyBytes(types.MustHashFromString(e[0]))
+		expected := PublicKeyBytes(types.MustHashFromString(e[1]))
+
+		point := elligator2WithUniformBytes(key)
+		if point == nil {
+			t.Errorf("point is nil")
+		}
+
+		image := PublicKeyFromPoint(point).AsBytes()
+
+		if image != expected {
+			t.Errorf("%s: expected %s, got %s", key.String(), expected.String(), image.String())
+		}
+	}
 }

@@ -4,12 +4,13 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	"git.gammaspectra.live/P2Pool/sha3"
+	"golang.org/x/crypto/blake2b"
 )
 
 func Keccak256(data ...[]byte) (result types.Hash) {
 	h := sha3.NewLegacyKeccak256()
 	for _, b := range data {
-		h.Write(b)
+		_, _ = h.Write(b)
 	}
 	HashFastSum(h, result[:])
 
@@ -18,7 +19,7 @@ func Keccak256(data ...[]byte) (result types.Hash) {
 
 func Keccak256Single(data []byte) (result types.Hash) {
 	h := sha3.NewLegacyKeccak256()
-	h.Write(data)
+	_, _ = h.Write(data)
 	HashFastSum(h, result[:])
 
 	return
@@ -56,58 +57,77 @@ func HashFastSum(hash *sha3.HasherState, b []byte) []byte {
 	return b
 }
 
-/* TODO: wait for HashToPoint in edwards25519
+// HopefulHashToPoint
+// Defined as H_p^1 in Carrot
+func HopefulHashToPoint(hasher *sha3.HasherState, data []byte) *edwards25519.Point {
+	_, _ = hasher.Write(data[:])
+	var h types.Hash
+	HashFastSum(hasher, h[:])
+	hasher.Reset()
 
-// HashToPoint Equivalent of Monero's HashToEC
-func HashToPointOld(publicKey PublicKey) *edwards25519.Point {
-
-	p := moneroutil.Key(publicKey.AsBytes())
-	var key moneroutil.Key
-
-	result := new(moneroutil.ExtendedGroupElement)
-	var p1 moneroutil.ProjectiveGroupElement
-	var p2 moneroutil.CompletedGroupElement
-	h := moneroutil.Key(Keccak256(p[:]))
-
-	log.Printf("old %s", hex.EncodeToString(h[:]))
-
-	p1.FromBytes(&h)
-
-	p1.ToBytes(&key)
-	log.Printf("old t %s", hex.EncodeToString(key[:]))
-
-	moneroutil.GeMul8(&p2, &p1)
-	p2.ToExtended(result)
-
-	result.ToBytes(&key)
-	log.Printf("old c %s", hex.EncodeToString(key[:]))
-	out, _ := GetEdwards25519Point().SetBytes(key[:])
-	return out
-}
-
-var cofactor = new(field.Element).Mult32(new(field.Element).One(), 8)
-
-// HashToPoint Equivalent of Monero's HashToEC
-func HashToPoint(publicKey PublicKey) *edwards25519.Point {
-	//TODO: make this work with existing edwards25519 library
-	h := Keccak256Single(publicKey.AsSlice())
-
-	log.Printf("new %s", hex.EncodeToString(h[:]))
-
-	e, err := new(field.Element).SetBytes(h[:])
-	if err != nil {
-		panic("hash to point failed")
+	result := DecodeCompressedPoint(new(edwards25519.Point), h)
+	if result == nil {
+		return nil
 	}
-	log.Printf("new t %s", hex.EncodeToString(e.Bytes()))
-	e.Multiply(cofactor, e)
 
-	log.Printf("new c %s", hex.EncodeToString(e.Bytes()))
-	p, _ := GetEdwards25519Point().SetBytes(e.Bytes())
-	return p
+	// Ensure this point lies within the prime-order subgroup
+	result.MultByCofactor(result)
 
-	var p1 edwards25519.Point
-	p1.MultByCofactor(&p1)
-	return p
+	return result
 }
 
-*/
+// BiasedHashToPoint Monero's `hash_to_ec` / `biased_hash_to_ec` function.
+// Defined as H_p^2 in Carrot
+//
+// Similar to https://github.com/monero-oxide/monero-oxide/blob/71be6f9180f78675dee7cab48fbee38134688574/monero-oxide/generators/src/hash_to_point.rs
+//
+// This achieves parity with https://github.com/monero-project/monero/blob/389e3ba1df4a6df4c8f9d116aa239d4c00f5bc78/src/crypto/crypto.cpp#L611, inlining the
+// `ge_fromfe_frombytes_vartime` function (https://github.com/monero-project/monero/blob/389e3ba1df4a6df4c8f9d116aa239d4c00f5bc78/src/crypto/crypto-ops.c#L2309).
+// This implementation runs in constant time.
+//
+// According to the original authors
+// (https://web.archive.org/web/20201028121818/https://cryptonote.org/whitepaper.pdf), this would
+// implement https://arxiv.org/abs/0706.1448. Shen Noether also describes the algorithm
+// (https://web.getmonero.org/resources/research-lab/pubs/ge_fromfe.pdf), yet without reviewing
+// its security and in a very straight-forward fashion.
+//
+// In reality, this implements Elligator 2 as detailed in
+// "Elligator: Elliptic-curve points indistinguishable from uniform random strings"
+// (https://eprint.iacr.org/2013/325). Specifically, Section 5.5 details the application of
+// Elligator 2 to Curve25519, after which the result is mapped to Ed25519.
+//
+// As this only applies Elligator 2 once, it's limited to a subset of points where a certain
+// derivative of their `u` coordinates (in Montgomery form) are quadratic residues. It's biased
+// accordingly.
+func BiasedHashToPoint(hasher *sha3.HasherState, data []byte) *edwards25519.Point {
+	_, _ = hasher.Write(data[:])
+	var h types.Hash
+	HashFastSum(hasher, h[:])
+	hasher.Reset()
+
+	result := elligator2WithUniformBytes(h)
+
+	// Ensure points lie within the prime-order subgroup
+	result.MultByCofactor(result)
+
+	return result
+}
+
+// UnbiasedHashToPoint Monero's `unbiased_hash_to_ec` function.
+// Defined as H_p^3 in FCMP++
+//
+// Similar to https://github.com/seraphis-migration/monero/blob/74a254f8c215986042c40e6875a0f97bd6169a1e/src/crypto/crypto.cpp#L622
+func UnbiasedHashToPoint(preimage []byte) *edwards25519.Point {
+	h := blake2b.Sum512(preimage)
+
+	first := elligator2WithUniformBytes([32]byte(h[:32]))
+	second := elligator2WithUniformBytes([32]byte(h[32:]))
+
+	// Ensure points lie within the prime-order subgroup
+	first.MultByCofactor(first)
+	second.MultByCofactor(second)
+
+	point := new(edwards25519.Point).Add(first, second)
+
+	return point
+}

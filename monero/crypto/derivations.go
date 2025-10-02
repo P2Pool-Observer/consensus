@@ -66,8 +66,8 @@ func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(k PublicKeyBytes,
 	return c, h[0]
 }
 
-/* TODO: wait for HashToPoint in edwards25519
 func GetKeyImage(pair *KeyPair) PublicKey {
-	return PublicKeyFromPoint(HashToPoint(pair.PublicKey)).Multiply(pair.PrivateKey.AsScalar())
+	hasher := GetKeccak256Hasher()
+	defer PutKeccak256Hasher(hasher)
+	return PublicKeyFromPoint(BiasedHashToPoint(hasher, pair.PublicKey.AsSlice())).Multiply(pair.PrivateKey.AsScalar())
 }
-*/

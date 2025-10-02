@@ -5,7 +5,10 @@ import (
 	"math/big"
 	"slices"
 
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
+	"git.gammaspectra.live/P2Pool/edwards25519/field"
+	"git.gammaspectra.live/P2Pool/sha3"
 )
 
 // l = 2^252 + 27742317777372353535851937790883648493.
@@ -25,6 +28,31 @@ func ScalarReduce32_BigInt(s []byte) {
 	i.FillBytes(s)
 	slices.Reverse(s)
 	return
+}
+
+// DecodeCompressedPoint Decompress a canonically-encoded Ed25519 point.
+//
+// Ed25519 is of order `8 * l`. This function ensures each of those `8 * l` points have a
+// singular encoding by checking points aren't encoded with an unreduced field element,
+// and aren't negative when the negative is equivalent (0 == -0).
+//
+// Since this decodes an Ed25519 point, it does not check the point is in the prime-order
+// subgroup. Torsioned points do have a canonical encoding, and only aren't canonical when
+// considered in relation to the prime-order subgroup.
+func DecodeCompressedPoint(r *edwards25519.Point, buf [PublicKeySize]byte) *edwards25519.Point {
+	if r == nil {
+		return nil
+	}
+	p, err := r.SetBytes(buf[:])
+	if err != nil {
+		return nil
+	}
+
+	// Ban points which are either unreduced or -0
+	if [PublicKeySize]byte(p.Bytes()) != buf {
+		return nil
+	}
+	return p
 }
 
 //go:nosplit
@@ -261,3 +289,189 @@ func BytesToScalar32(buf [32]byte, c *edwards25519.Scalar) {
 	ScalarReduce32(buf[:])
 	_, _ = c.SetCanonicalBytes(buf[:])
 }
+
+func elementFromLimbs(l0, l1, l2, l3, l4 uint64) *field.Element {
+
+	var out [32]byte
+	// Pack five 51-bit limbs into four 64-bit words:
+	//
+	//  255    204    153    102     51      0
+	//    ├──l4──┼──l3──┼──l2──┼──l1──┼──l0──┤
+	//   ├───u3───┼───u2───┼───u1───┼───u0───┤
+	// 256      192      128       64        0
+
+	u0 := l1<<51 | l0
+	u1 := l2<<(102-64) | l1>>(64-51)
+	u2 := l3<<(153-128) | l2>>(128-102)
+	u3 := l4<<(204-192) | l3>>(192-153)
+
+	binary.LittleEndian.PutUint64(out[0*8:], u0)
+	binary.LittleEndian.PutUint64(out[1*8:], u1)
+	binary.LittleEndian.PutUint64(out[2*8:], u2)
+	binary.LittleEndian.PutUint64(out[3*8:], u3)
+
+	e, err := new(field.Element).SetBytes(out[:])
+	if err != nil {
+		panic(err)
+	}
+	return e
+}
+
+func elementFromUint64(x uint64) *field.Element {
+	var b [32]byte
+	binary.LittleEndian.PutUint64(b[:], x)
+
+	e, err := new(field.Element).SetBytes(b[:])
+	if err != nil {
+		panic(err)
+	}
+	return e
+}
+
+var (
+	_ONE          = new(field.Element).One()
+	_NEGATIVE_ONE = new(field.Element).Negate(_ONE)
+	_A            = elementFromUint64(486662)
+	_NEGATIVE_A   = new(field.Element).Negate(_A)
+
+	_MOD_3_8 = new(field.Element).Multiply(elementFromUint64(3), new(field.Element).Invert(elementFromUint64(8)))
+
+	// _SQRT_M1 is 2^((p-1)/4), which squared is equal to -1 by Euler's Criterion.
+	_SQRT_M1 = elementFromLimbs(1718705420411056, 234908883556509, 2233514472574048, 2117202627021982, 765476049583133)
+)
+
+// elligator2WithUniformBytes
+// Equivalent to ge_fromfe_frombytes_vartime
+func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
+	/*
+	   Curve25519 is a Montgomery curve with equation `v^2 = u^3 + 486662 u^2 + u`.
+
+	   A Curve25519 point `(u, v)` may be mapped to an Ed25519 point `(x, y)` with the map
+	   `(sqrt(-(A + 2)) u / v, (u - 1) / (u + 1))`.
+	*/
+
+	// Convert the uniform bytes to a FieldElement
+	/*
+	   This isn't a wide reduction, implying it'd be biased, yet the bias should only be negligible
+	   due to the shape of the prime number. All elements within the prime field field have a
+	   `2 / 2^{256}` chance of being selected, except for the first 19 which have a `3 / 2^256`
+	   chance of being selected. In order for this 'third chance' (the bias) to be relevant, the
+	   hash function would have to output a number greater than or equal to:
+
+	     0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffda
+
+	   which is of negligible probability.
+	*/
+	// necessary to have it not ignore the top bit compared to SetBytes
+	var wideBuf [64]byte
+	copy(wideBuf[:], buf[:])
+	var r field.Element
+	_, _ = r.SetWideBytes(wideBuf[:])
+
+	// Per Section 5.5, take `u = 2`. This is the smallest quadratic non-residue in the field
+	urSquare := new(field.Element).Square(&r)
+	urSquareDouble := new(field.Element).Add(urSquare, urSquare)
+
+	/*
+	   We know this is non-zero as:
+
+	   ```sage
+	   p = 2**255 - 19
+	   Mod((p - 1) * inverse_mod(2, p), p).is_square() == False
+	   ```
+	*/
+	onePlusUrSquare := new(field.Element).Add(_ONE, urSquareDouble)
+	onePlusUrSquareInverted := new(field.Element).Invert(onePlusUrSquare)
+
+	upsilon := new(field.Element).Multiply(_NEGATIVE_A, onePlusUrSquareInverted)
+
+	/*
+	   Quoting section 5.5,
+	   "then \epsilon = 1 and x = \upsilon. Otherwise \epsilon = -1, x = \upsilon u r^2"
+
+	   Whereas in the specification present in Section 5.2, the expansion of the `u` coordinate when
+	   `\epsilon = -1` is `-\upsilon - A`. Per Section 5.2, in the "Second case",
+	   `= -\upsilon - A = \upsilon u r^2`. These two values are equivalent, yet the negation and
+	   subtract outperform a multiplication.
+	*/
+	otherCandidate := new(field.Element).Subtract(new(field.Element).Negate(upsilon), _A)
+
+	/*
+	   Check if `\upsilon` is a valid `u` coordinate by checking for a solution for the square root
+	   of `\upsilon^3 + A \upsilon^2 + \upsilon`.
+	*/
+	_, epsilon := new(field.Element).SqrtRatio(
+		new(field.Element).Add(
+			new(field.Element).Multiply(
+				new(field.Element).Add(upsilon, _A),
+				new(field.Element).Square(upsilon),
+			),
+			upsilon,
+		),
+		_ONE,
+	)
+
+	// select upsilon when epsilon is 1 (isSquare)
+	u := new(field.Element).Select(upsilon, otherCandidate, epsilon)
+
+	// Map from Curve25519 to Ed25519
+	/*
+	   Elligator 2's specification in section 5.2 says to choose the negative square root as the
+	   `v` coordinate if `\upsilon` was chosen (as signaled by `\epsilon = 1`). The following
+	   chooses the odd `y` coordinate if `\upsilon` was chosen, which is functionally equivalent.
+	*/
+	return montgomeryToEdwards(u, epsilon)
+}
+
+func montgomeryToEdwards(u *field.Element, sign int) *edwards25519.Point {
+	if u == nil || u.Equal(_NEGATIVE_ONE) == 1 {
+		return nil
+	}
+
+	// The birational map is y = (u-1)/(u+1).
+	y := new(field.Element).Multiply(
+		new(field.Element).Subtract(u, _ONE),
+		new(field.Element).Invert(new(field.Element).Add(u, _ONE)),
+	)
+
+	yBytes := y.Bytes()
+	yBytes[31] ^= byte(sign << 7)
+
+	return DecodeCompressedPoint(new(edwards25519.Point), [32]byte(yBytes))
+}
+
+func inlineKeccak[T ~[]byte | ~string](data T) []byte {
+	_, _ = _hasher.Write([]byte(data))
+	var h types.Hash
+	HashFastSum(_hasher, h[:])
+	_hasher.Reset()
+	return h[:]
+}
+
+var (
+	_hasher = sha3.NewLegacyKeccak256()
+
+	// GeneratorG generator of 𝔾E
+	// G = {x, 4/5 mod q}
+	GeneratorG = edwards25519.NewGeneratorPoint()
+
+	// GeneratorH H_p^1(G)
+	// H = 8*to_point(keccak(G))
+	// note: this does not use the point_from_bytes() function found in H_p(), instead directly interpreting the
+	//       input bytes as a compressed point (this can fail, so should not be used generically)
+	// note2: to_point(keccak(G)) is known to succeed for the canonical value of G (it will fail 7/8ths of the time
+	//        normally)
+	GeneratorH = HopefulHashToPoint(_hasher, GeneratorG.Bytes())
+
+	// BiasedGeneratorT H_p^2(Keccak256("Monero Generator T"))
+	BiasedGeneratorT = BiasedHashToPoint(_hasher, inlineKeccak("Monero Generator T"))
+
+	// GeneratorT H_p^3(Keccak256("Monero Generator T"))
+	GeneratorT = UnbiasedHashToPoint(inlineKeccak("Monero Generator T"))
+
+	// GeneratorU H_p^3(Keccak256("Monero FCMP++ Generator U"))
+	GeneratorU = UnbiasedHashToPoint(inlineKeccak("Monero FCMP++ Generator U"))
+
+	// GeneratorV H_p^3(Keccak256("Monero FCMP++ Generator V"))
+	GeneratorV = UnbiasedHashToPoint(inlineKeccak("Monero FCMP++ Generator V"))
+)

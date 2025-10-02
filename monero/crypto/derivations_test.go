@@ -1,6 +1,12 @@
 package crypto
 
-/* TODO: wait for HashToPoint in edwards25519
+import (
+	"testing"
+
+	"git.gammaspectra.live/P2Pool/edwards25519"
+	fasthex "github.com/tmthrgd/go-hex"
+)
+
 func TestKeyImageRaw(t *testing.T) {
 	sec, _ := fasthex.DecodeString("981d477fb18897fa1f784c89721a9d600bf283f06b89cb018a077f41dcefef0f")
 
@@ -11,4 +17,3 @@ func TestKeyImageRaw(t *testing.T) {
 		t.Fatalf("key image expected %s, got %s", "a637203ec41eab772532d30420eac80612fce8e44f1758bc7e2cb1bdda815887", keyImage.String())
 	}
 }
-*/

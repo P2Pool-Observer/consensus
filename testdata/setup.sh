@@ -5,6 +5,15 @@ pushd "${SCRIPT_DIR}"
 
 ARCHIVE_URL="https://git.gammaspectra.live/P2Pool/p2pool/raw/commit/"
 
+
+TESTS_MONERO_COMMIT_ID=ac02af92867590ca80b2779a7bbeafa99ff94dcb
+function download_test_monero() {
+    if [ -f "./monero_${1}_${2}" ]; then
+      return
+    fi
+    curl --progress-bar --output "./monero_${1}_${2}" "https://raw.githubusercontent.com/monero-project/monero/${TESTS_MONERO_COMMIT_ID}/tests/${1}/${2}"
+}
+
 # Pre-v2 p2pool hardfork
 TESTS_COMMIT_ID_V1=b9eb66e2b3e02a5ec358ff8a0c5169a5606d9fde
 function download_test_v1() {
@@ -35,11 +44,13 @@ function download_test_v4() {
 # Post-v4 p2pool hardfork, updated tests
 TESTS_COMMIT_ID_V4_2=0755a9dcf199b9568dee06cf24117c59b92d8a1d
 function download_test_v4_2() {
-    if [ -f "./v4_${1}" ]; then
+    if [ -f "./v4_2_${1}" ]; then
       return
     fi
     curl --progress-bar --output "./v4_2_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V4_2}/tests/src/${1}"
 }
+
+download_test_monero crypto tests.txt
 
 download_test_v4_2 sidechain_dump.dat.xz
 download_test_v4_2 sidechain_dump_mini.dat.xz
@@ -51,7 +62,6 @@ download_test_v4 sidechain_dump_mini.dat.gz
 download_test_v4 sidechain_dump_nano.dat.gz
 
 download_test_v2 block.dat
-download_test_v2 crypto_tests.txt
 download_test_v2 sidechain_dump.dat.gz
 download_test_v2 sidechain_dump_mini.dat.gz
 

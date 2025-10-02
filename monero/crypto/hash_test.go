@@ -1,6 +1,8 @@
 package crypto
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestHash(t *testing.T) {
 	h := PooledKeccak256([]byte("test")).String()

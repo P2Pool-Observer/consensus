@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql/driver"
 	"errors"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -102,7 +103,7 @@ func (k *PublicKeyBytes) AsBytes() PublicKeyBytes {
 }
 
 func (k *PublicKeyBytes) AsPoint() *PublicKeyPoint {
-	return PublicKeyFromPoint(GetEdwards25519Point().SetBytes(k.AsSlice()))
+	return PublicKeyFromPoint(DecodeCompressedPoint(GetEdwards25519Point(), k.AsBytes()))
 }
 
 func (k *PublicKeyBytes) String() string {
@@ -170,7 +171,7 @@ func (k *PublicKeySlice) AsBytes() (buf PublicKeyBytes) {
 }
 
 func (k *PublicKeySlice) AsPoint() *PublicKeyPoint {
-	return PublicKeyFromPoint(GetEdwards25519Point().SetBytes(*k))
+	return PublicKeyFromPoint(DecodeCompressedPoint(GetEdwards25519Point(), k.AsBytes()))
 }
 
 func (k *PublicKeySlice) String() string {

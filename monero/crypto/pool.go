@@ -1,16 +1,19 @@
 package crypto
 
 import (
+	"runtime"
+	"sync"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	"git.gammaspectra.live/P2Pool/sha3"
-	"runtime"
-	"sync"
 )
 
 var hasherPool, pointPool, scalarPool sync.Pool
 
 func init() {
+	// separate init, breaks the cycle
+
 	hasherPool.New = func() any {
 		return sha3.NewLegacyKeccak256()
 	}
