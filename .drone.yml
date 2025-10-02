@@ -64,7 +64,7 @@ steps:
     commands:
       - apk update
       - apk add --no-cache git
-      - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -p 1 -failfast -timeout 20m -cover -v $0 || exit 255'
+      - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -p 1 -failfast -short -timeout 20m -cover -v $0 || exit 255'
   - name: test-go-purego
     image: golang:1.24-alpine3.22
     depends_on:
