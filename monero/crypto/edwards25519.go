@@ -332,15 +332,15 @@ func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 
 	   which is of negligible probability.
 	*/
-	// necessary to have it not ignore the top bit compared to SetBytes
+	// SetWideBytes necessary to have it not ignore the top bit compared to SetBytes
 	var wideBuf [64]byte
 	copy(wideBuf[:], buf[:])
-	var r field.Element
+	var r, o, tmp1, tmp2, tmp3 field.Element
 	_, _ = r.SetWideBytes(wideBuf[:])
 
 	// Per Section 5.5, take `u = 2`. This is the smallest quadratic non-residue in the field
-	urSquare := new(field.Element).Square(&r)
-	urSquareDouble := new(field.Element).Add(urSquare, urSquare)
+	urSquare := r.Square(&r)
+	urSquareDouble := urSquare.Add(urSquare, urSquare)
 
 	/*
 	   We know this is non-zero as:
@@ -350,10 +350,10 @@ func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 	   Mod((p - 1) * inverse_mod(2, p), p).is_square() == False
 	   ```
 	*/
-	onePlusUrSquare := new(field.Element).Add(_ONE, urSquareDouble)
-	onePlusUrSquareInverted := new(field.Element).Invert(onePlusUrSquare)
+	onePlusUrSquare := urSquareDouble.Add(_ONE, urSquareDouble)
+	onePlusUrSquareInverted := onePlusUrSquare.Invert(onePlusUrSquare)
 
-	upsilon := new(field.Element).Multiply(_NEGATIVE_A, onePlusUrSquareInverted)
+	upsilon := onePlusUrSquareInverted.Multiply(_NEGATIVE_A, onePlusUrSquareInverted)
 
 	/*
 	   Quoting section 5.5,
@@ -364,17 +364,17 @@ func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 	   `= -\upsilon - A = \upsilon u r^2`. These two values are equivalent, yet the negation and
 	   subtract outperform a multiplication.
 	*/
-	otherCandidate := new(field.Element).Subtract(new(field.Element).Negate(upsilon), _A)
+	otherCandidate := o.Subtract(tmp1.Negate(upsilon), _A)
 
 	/*
 	   Check if `\upsilon` is a valid `u` coordinate by checking for a solution for the square root
 	   of `\upsilon^3 + A \upsilon^2 + \upsilon`.
 	*/
-	_, epsilon := new(field.Element).SqrtRatio(
-		new(field.Element).Add(
-			new(field.Element).Multiply(
-				new(field.Element).Add(upsilon, _A),
-				new(field.Element).Square(upsilon),
+	_, epsilon := tmp2.SqrtRatio(
+		tmp1.Add(
+			tmp3.Multiply(
+				tmp1.Add(upsilon, _A),
+				tmp2.Square(upsilon),
 			),
 			upsilon,
 		),
@@ -382,7 +382,7 @@ func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 	)
 
 	// select upsilon when epsilon is 1 (isSquare)
-	u := new(field.Element).Select(upsilon, otherCandidate, epsilon)
+	u := r.Select(upsilon, otherCandidate, epsilon)
 
 	// Map from Curve25519 to Ed25519
 	/*
@@ -400,16 +400,19 @@ func montgomeryToEdwards(u *field.Element, sign int) *edwards25519.Point {
 		return nil
 	}
 
+	var tmp1, tmp2, tmp3 field.Element
+
 	// The birational map is y = (u-1)/(u+1).
-	y := new(field.Element).Multiply(
-		new(field.Element).Subtract(u, _ONE),
-		new(field.Element).Invert(new(field.Element).Add(u, _ONE)),
+	y := u.Multiply(
+		tmp1.Subtract(u, _ONE),
+		tmp2.Invert(tmp3.Add(u, _ONE)),
 	)
 
-	yBytes := y.Bytes()
+	var yBytes [32]byte
+	copy(yBytes[:], y.Bytes())
 	yBytes[31] ^= byte(sign << 7)
 
-	return DecodeCompressedPoint(new(edwards25519.Point), [32]byte(yBytes))
+	return DecodeCompressedPoint(new(edwards25519.Point), yBytes)
 }
 
 func inlineKeccak[T ~[]byte | ~string](data T) []byte {
