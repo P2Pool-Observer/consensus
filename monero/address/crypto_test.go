@@ -1,14 +1,15 @@
 package address
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"os"
 	"path"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 )
 
 func init() {
@@ -23,7 +24,7 @@ func init() {
 }
 
 func GetTestEntries(name string, n int) chan []string {
-	buf, err := os.ReadFile("testdata/v2_crypto_tests.txt")
+	buf, err := os.ReadFile("testdata/monero_crypto_tests.txt")
 	if err != nil {
 		return nil
 	}

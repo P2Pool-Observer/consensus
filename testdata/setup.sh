@@ -61,6 +61,7 @@ download_test_v4 sidechain_dump.dat.gz
 download_test_v4 sidechain_dump_mini.dat.gz
 download_test_v4 sidechain_dump_nano.dat.gz
 
+download_test_v2 crypto_tests.txt
 download_test_v2 block.dat
 download_test_v2 sidechain_dump.dat.gz
 download_test_v2 sidechain_dump_mini.dat.gz
