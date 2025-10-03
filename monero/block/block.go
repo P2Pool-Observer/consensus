@@ -308,6 +308,11 @@ func (b *Block) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId bool
 		buf = append(buf, txId[:]...)
 	}
 
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		buf = append(buf, b.FCMPTreeLayers)
+		buf = append(buf, b.FCMPTreeRoot[:]...)
+	}
+
 	return buf, nil
 }
 
