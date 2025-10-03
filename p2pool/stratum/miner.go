@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	gojson "git.gammaspectra.live/P2Pool/go-json"
@@ -31,10 +32,19 @@ type Client struct {
 	}
 	MergeMiningExtra sidechain.MergeMiningExtra
 	Address          address.PackedAddress
+	Subaddress       *address.PackedAddress
 	Password         string
 	RigId            string
 	buf              []byte
 	RpcId            uint32
+	InternalId       uint64
+}
+
+func (c *Client) GetAddress(majorVersion uint8) address.PackedAddressWithSubaddress {
+	if c.Subaddress != nil && majorVersion >= monero.HardForkCarrotVersion {
+		return address.NewPackedAddressWithSubaddress(c.Subaddress, true)
+	}
+	return address.NewPackedAddressWithSubaddress(&c.Address, false)
 }
 
 func (c *Client) Write(b []byte) (int, error) {

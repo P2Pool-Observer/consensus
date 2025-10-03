@@ -1,16 +1,17 @@
 package sidechain
 
 import (
+	"slices"
+	"sync"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"slices"
-	"sync"
 )
 
 type Shares []*Share
 
-func (s Shares) Index(addr address.PackedAddress) int {
+func (s Shares) Index(addr address.PackedAddressWithSubaddress) int {
 	return slices.IndexFunc(s, func(share *Share) bool {
 		return share.Address == addr
 	})
@@ -18,7 +19,7 @@ func (s Shares) Index(addr address.PackedAddress) int {
 
 func fastShareCompare(a *Share, b *Share) int {
 	// Fast tests first. Skips further checks
-	if diff := int(a.Address[address.PackedAddressSpend][crypto.PublicKeySize-1]) - int(b.Address[address.PackedAddressSpend][crypto.PublicKeySize-1]); diff != 0 {
+	if diff := int(a.Address.SpendPublicKey()[crypto.PublicKeySize-1]) - int(b.Address.SpendPublicKey()[crypto.PublicKeySize-1]); diff != 0 {
 		return diff
 	}
 	if a.Address == b.Address {
@@ -100,6 +101,6 @@ func PreAllocateShares[T uint64 | int](n T) Shares {
 }
 
 type Share struct {
-	Address address.PackedAddress
+	Address address.PackedAddressWithSubaddress
 	Weight  types.Difficulty
 }

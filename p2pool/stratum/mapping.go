@@ -1,9 +1,10 @@
 package stratum
 
 import (
+	"slices"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"slices"
 )
 
 const ShuffleMappingZeroKeyIndex = 0
@@ -19,7 +20,7 @@ type ShuffleMapping struct {
 // BuildShuffleMapping Creates a mapping of source to destination miner output post shuffle
 // This uses two mappings, one where a new miner is added to the list, and one where the count stays the same
 // Usual usage will place Zero key in index 0
-func BuildShuffleMapping(n int, shareVersion sidechain.ShareVersion, transactionPrivateKeySeed types.Hash, oldMappings ShuffleMapping) (mappings ShuffleMapping) {
+func BuildShuffleMapping(n int, majorVersion uint8, shareVersion sidechain.ShareVersion, transactionPrivateKeySeed types.Hash, oldMappings ShuffleMapping) (mappings ShuffleMapping) {
 	if n <= 1 {
 		return ShuffleMapping{
 			Including: []int{0},
@@ -35,10 +36,10 @@ func BuildShuffleMapping(n int, shareVersion sidechain.ShareVersion, transaction
 		shuffleSequence2[i] = i
 	}
 
-	sidechain.ShuffleSequence(shareVersion, transactionPrivateKeySeed, n, func(i, j int) {
+	sidechain.ShuffleSequence(majorVersion, shareVersion, transactionPrivateKeySeed, n, func(i, j int) {
 		shuffleSequence1[i], shuffleSequence1[j] = shuffleSequence1[j], shuffleSequence1[i]
 	})
-	sidechain.ShuffleSequence(shareVersion, transactionPrivateKeySeed, n-1, func(i, j int) {
+	sidechain.ShuffleSequence(majorVersion, shareVersion, transactionPrivateKeySeed, n-1, func(i, j int) {
 		shuffleSequence2[i], shuffleSequence2[j] = shuffleSequence2[j], shuffleSequence2[i]
 	})
 

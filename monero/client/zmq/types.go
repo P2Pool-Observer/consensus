@@ -117,4 +117,7 @@ type FullMinerData struct {
 	AlreadyGeneratedCoins uint64           `json:"already_generated_coins"`
 	MedianTimestamp       uint64           `json:"median_timestamp"`
 	TxBacklog             []*mempool.Entry `json:"tx_backlog"`
+
+	FCMPTreeLayers uint8                 `json:"fcmp_pp_n_tree_layers,omitempty"`
+	FCMPTreeRoot   crypto.PublicKeyBytes `json:"fcmp_pp_tree_root,omitempty"`
 }

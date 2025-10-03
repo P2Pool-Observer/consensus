@@ -18,6 +18,10 @@ import (
 
 const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize
 
+// FCMPPlusPlusMaxLayers Restricting n layers keeps the proof_len table size very small and portable
+// 12 layers means the tree can support over 100 quadrillion outputs
+const FCMPPlusPlusMaxLayers = 12
+
 type Block struct {
 	MajorVersion uint8 `json:"major_version"`
 	MinorVersion uint8 `json:"minor_version"`
@@ -33,6 +37,9 @@ type Block struct {
 	Transactions []types.Hash `json:"transactions,omitempty"`
 	// TransactionParentIndices amount of reward existing Outputs. Used by p2pool serialized compact broadcasted blocks in protocol >= 1.1, filled only in compact blocks or by pre-processing.
 	TransactionParentIndices []uint64 `json:"transaction_parent_indices,omitempty"`
+
+	FCMPTreeLayers uint8                 `json:"fcmp_pp_n_tree_layers,omitempty"`
+	FCMPTreeRoot   crypto.PublicKeyBytes `json:"fcmp_pp_tree_root,omitempty"`
 }
 
 type Header struct {
@@ -55,13 +62,17 @@ func (b *Block) MarshalBinary() (buf []byte, err error) {
 }
 
 func (b *Block) BufferLength() int {
-	return utils.UVarInt64Size(b.MajorVersion) +
+	size := utils.UVarInt64Size(b.MajorVersion) +
 		utils.UVarInt64Size(b.MinorVersion) +
 		utils.UVarInt64Size(b.Timestamp) +
 		types.HashSize +
 		4 +
 		b.Coinbase.BufferLength() +
 		utils.UVarInt64Size(len(b.Transactions)) + types.HashSize*len(b.Transactions)
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		size += 1 + types.HashSize
+	}
+	return size
 }
 
 func (b *Block) MarshalBinaryFlags(compact, pruned, containsAuxiliaryTemplateId bool) (buf []byte, err error) {
@@ -104,6 +115,11 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, conta
 		for _, txId := range b.Transactions {
 			buf = append(buf, txId[:]...)
 		}
+	}
+
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		buf = append(buf, b.FCMPTreeLayers)
+		buf = append(buf, b.FCMPTreeRoot[:]...)
 	}
 
 	return buf, nil
@@ -187,6 +203,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 	if txCount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	} else if txCount > MaxTransactionCount {
+		//TODO: #define CRYPTONOTE_MAX_TX_PER_BLOCK                     0x10000000
 		return fmt.Errorf("transaction count count too large: %d > %d", txCount, MaxTransactionCount)
 	} else if txCount > 0 {
 		if compact {
@@ -223,6 +240,18 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 				}
 				b.Transactions = append(b.Transactions, transactionHash)
 			}
+		}
+	}
+
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		if b.FCMPTreeLayers, err = reader.ReadByte(); err != nil {
+			return err
+		}
+		if b.FCMPTreeLayers > FCMPPlusPlusMaxLayers {
+			return fmt.Errorf("FCMP++ layer count too large: %d > %d", b.FCMPTreeLayers, FCMPPlusPlusMaxLayers)
+		}
+		if _, err = io.ReadFull(reader, b.FCMPTreeRoot[:]); err != nil {
+			return err
 		}
 	}
 
@@ -279,6 +308,11 @@ func (b *Block) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId bool
 		buf = append(buf, txId[:]...)
 	}
 
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		buf = append(buf, b.FCMPTreeLayers)
+		buf = append(buf, b.FCMPTreeRoot[:]...)
+	}
+
 	return buf, nil
 }
 
@@ -290,10 +324,24 @@ func (b *Block) HashingBlobBufferLength() int {
 func (b *Block) HashingBlob(preAllocatedBuf []byte) []byte {
 	buf := b.HeaderBlob(preAllocatedBuf)
 
-	merkleTree := make(crypto.MerkleTree, len(b.Transactions)+1)
-	//TODO: cache?
-	merkleTree[0] = b.Coinbase.CalculateId()
-	copy(merkleTree[1:], b.Transactions)
+	reserve := 1
+	reserveOffset := 0
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		reserve += 2
+	}
+
+	merkleTree := make(crypto.MerkleTree, len(b.Transactions)+reserve)
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		merkleTree[reserveOffset][0] = b.FCMPTreeLayers
+		reserveOffset++
+		merkleTree[reserveOffset] = types.Hash(b.FCMPTreeRoot)
+		reserveOffset++
+	}
+
+	merkleTree[reserveOffset] = b.Coinbase.CalculateId()
+	reserveOffset++
+
+	copy(merkleTree[reserveOffset:], b.Transactions)
 	txTreeHash := merkleTree.RootHash()
 	buf = append(buf, txTreeHash[:]...)
 

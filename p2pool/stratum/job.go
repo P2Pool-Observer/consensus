@@ -9,6 +9,7 @@ import (
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	types2 "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
@@ -133,10 +134,14 @@ func (e *MinerTrackingEntry) GetJobBlob(c *Client, consensus *sidechain.Consensu
 
 	if t, ok := e.Templates[job.TemplateCounter]; ok {
 
-		mmExtra := job.MergeMiningExtra.Merge(c.MergeMiningExtra)
+		mmExtra := job.MergeMiningExtra
+		if t.MajorVersion() < monero.HardForkCarrotVersion {
+			// explicit addition in non carrot
+			mmExtra = mmExtra.Merge(c.MergeMiningExtra)
+		}
 
 		buffer := bytes.NewBuffer(make([]byte, 0, t.BufferLength(consensus, job.MerkleProof, mmExtra)))
-		if err := t.Write(buffer, consensus, nonce, job.ExtraNonce, job.SideRandomNumber, job.SideExtraNonce, job.MerkleRoot, job.MerkleProof, mmExtra, types2.CurrentSoftwareId, types2.CurrentSoftwareVersion); err != nil {
+		if err := t.Write(buffer, consensus, c.GetAddress(uint8(t.MajorVersion())), nonce, job.ExtraNonce, job.SideRandomNumber, job.SideExtraNonce, job.MerkleRoot, job.MerkleProof, mmExtra, types2.CurrentSoftwareId, types2.CurrentSoftwareVersion); err != nil {
 			return nil
 		}
 		return buffer.Bytes()

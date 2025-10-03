@@ -1,9 +1,11 @@
 package stratum
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	"slices"
 	"testing"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 )
 
 func TestShuffleMapping(t *testing.T) {
@@ -12,7 +14,7 @@ func TestShuffleMapping(t *testing.T) {
 	// TODO: whenever different consensus shuffle is added, add test for it
 	const shareVersion = sidechain.ShareVersion_V2
 	var seed = zeroExtraBaseRCTHash
-	mappings := BuildShuffleMapping(n, shareVersion, seed, ShuffleMapping{})
+	mappings := BuildShuffleMapping(n, monero.HardForkViewTagsVersion, shareVersion, seed, ShuffleMapping{})
 
 	seq := make([]int, n)
 	for i := range seq {
@@ -22,7 +24,7 @@ func TestShuffleMapping(t *testing.T) {
 	seq1 := slices.Clone(seq)
 
 	//test that regular shuffle will correspond to a mapping applied shuffle
-	sidechain.ShuffleShares(seq1, shareVersion, seed)
+	sidechain.ShuffleShares(seq1, monero.HardForkViewTagsVersion, shareVersion, seed)
 	seq2 := ApplyShuffleMapping(seq, mappings)
 
 	if slices.Compare(seq1, seq2) != 0 {

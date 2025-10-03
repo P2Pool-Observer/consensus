@@ -1,0 +1,124 @@
+package carrot
+
+import (
+	"crypto/subtle"
+	"encoding/binary"
+	"errors"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+)
+
+type PaymentProposalV1 struct {
+	Destination DestinationV1 `json:"destination"`
+
+	Amount uint64 `json:"amount"`
+	// Randomness secret 16-byte randomness for Janus anchor
+	Randomness [monero.JanusAnchorSize]byte `json:"randomness"`
+}
+
+// ECDHParts get_normal_proposal_ecdh_parts
+func (p *PaymentProposalV1) ECDHParts(inputContext []byte) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey) {
+	// 1. d_e = H_n(anchor_norm, input_context, K^j_s, pid))
+	ephemeralPrivateKey := p.EnoteEphemeralPrivateKey(inputContext)
+
+	// 2. make D_e
+	ephemeralPubkey = p.EnoteEphemeralPublicKey(ephemeralPrivateKey)
+
+	// 3. s_sr = d_e ConvertPointE(K^j_v)
+	senderReceiverUnctx = makeUncontextualizedSharedKeySender(ephemeralPrivateKey, *p.Destination.Address.ViewPublicKey())
+
+	return ephemeralPubkey, senderReceiverUnctx
+}
+
+func (p *PaymentProposalV1) EnoteEphemeralPrivateKey(inputContext []byte) crypto.PrivateKey {
+	// d_e = H_n(anchor_norm, input_context, K^j_s, pid))
+	return makeEnoteEphemeralPrivateKey(p.Randomness[:], inputContext, p.Destination.Address.SpendPublicKey(), p.Destination.PaymentId)
+}
+
+func (p *PaymentProposalV1) EnoteEphemeralPublicKey(key crypto.PrivateKey) (out crypto.X25519PublicKey) {
+	if p.Destination.Address.IsSubaddress() {
+		// D_e = d_e ConvertPointE(K^j_s)
+		return makeEnoteEphemeralPublicKeySubaddress(key, p.Destination.Address.SpendPublicKey())
+	} else {
+		// D_e = d_e B
+		return makeEnoteEphemeralPublicKeyCryptonote(key)
+	}
+}
+
+func (p *PaymentProposalV1) CoinbaseOutput(blockIndex uint64) (*CoinbaseEnoteV1, error) {
+	if p.Randomness == [monero.JanusAnchorSize]byte{} {
+		return nil, errors.New("invalid randomness for janus anchor (zero)")
+	}
+	if p.Destination.Address.IsSubaddress() {
+		// TODO :)
+		return nil, errors.New("subaddresses aren't allowed as destinations of coinbase outputs")
+	}
+	if p.Destination.PaymentId != [8]byte{} {
+		// TODO :)
+		return nil, errors.New("integrated addresses aren't allowed as destinations of coinbase outputs")
+	}
+
+	// 2. coinbase input context
+	// make_carrot_input_context_coinbase
+	var inputContext [1 + types.HashSize]byte
+	inputContext[0] = DomainSeparatorInputContextCoinbase
+	binary.LittleEndian.PutUint64(inputContext[1:], blockIndex)
+	// left bytes are 0
+
+	enote := &CoinbaseEnoteV1{}
+
+	var senderReceiverUnctx crypto.X25519PublicKey
+	// 3. make D_e and do external ECDH
+	enote.EphemeralPubKey, senderReceiverUnctx = p.ECDHParts(inputContext[:])
+
+	var secretSenderReceiver types.Hash
+	// 4. build the output enote address pieces
+	{
+		secretSenderReceiver = makeSenderReceiverSecret(senderReceiverUnctx, enote.EphemeralPubKey, inputContext[:])
+
+		// 2. get other parts: k_a, C_a, Ko, a_enc, pid_enc
+
+		{
+			var amountBlindingFactorOut crypto.PrivateKeyBytes
+			if true { // coinbase amount commitment
+				// 1. k_a = H_n(s^ctx_sr, a, K^j_s, enote_type) if !coinbase, else 1
+				amountBlindingFactorOut[0] = 1
+			}
+
+			// 2. C_a = k_a G + a H
+			amountCommitmentOut := crypto.RctCommit(p.Amount, &amountBlindingFactorOut)
+
+			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
+			enote.OneTimeAddress = makeOnetimeAddress(*p.Destination.Address.SpendPublicKey(), secretSenderReceiver, amountCommitmentOut)
+
+			/*
+				// 4. a_enc = a XOR m_a
+				{
+					var mask [8]byte
+					// m_a = H_8(s^ctx_sr, Ko)
+					{
+						transcript := FixedTranscript([]byte(DomainSeparatorEncryptionMaskAmount), enote.OneTimeAddress[:])
+						h := crypto.SecretDerive(transcript)
+						mask = [8]byte(h[:8])
+					}
+					enote.Amount
+				}
+			*/
+		}
+
+		// 3. vt = H_3(s_sr || input_context || Ko)
+		enote.ViewTag = makeViewTag(senderReceiverUnctx, inputContext[:], enote.OneTimeAddress)
+	}
+	// 5. anchor_enc = anchor XOR m_anchor
+	{
+		mask := makeAnchorEncryptionMask(secretSenderReceiver, enote.OneTimeAddress)
+		subtle.XORBytes(enote.EncryptedAnchor[:], p.Randomness[:], mask[:])
+	}
+	// 6. save the amount and block index
+	enote.Amount = p.Amount
+	enote.BlockIndex = blockIndex
+
+	return enote, nil
+}

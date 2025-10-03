@@ -4,9 +4,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"io"
 )
 
 type Outputs []Output
@@ -41,12 +43,22 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 					return err
 				}
 
-				if o.Type == TxOutToTaggedKey {
+				if o.Type == TxOutToTaggedKey || o.Type == TxOutToCarrotV1 {
 					if o.ViewTag, err = reader.ReadByte(); err != nil {
 						return err
 					}
 				} else {
 					o.ViewTag = 0
+				}
+			case TxOutToCarrotV1:
+				if _, err = io.ReadFull(reader, o.EphemeralPublicKey[:]); err != nil {
+					return err
+				}
+				if _, err = io.ReadFull(reader, o.CarrotViewTag[:]); err != nil {
+					return err
+				}
+				if _, err = io.ReadFull(reader, o.EncryptedJanusAnchor[:]); err != nil {
+					return err
 				}
 			default:
 				return fmt.Errorf("unknown %d TXOUT key", o.Type)
@@ -66,6 +78,8 @@ func (s *Outputs) BufferLength() (n int) {
 			crypto.PublicKeySize
 		if o.Type == TxOutToTaggedKey {
 			n++
+		} else if o.Type == TxOutToCarrotV1 {
+			n += monero.CarrotViewTagSize + monero.JanusAnchorSize
 		}
 	}
 	return n
@@ -91,6 +105,10 @@ func (s *Outputs) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) 
 			if o.Type == TxOutToTaggedKey {
 				data = append(data, o.ViewTag)
 			}
+		case TxOutToCarrotV1:
+			data = append(data, o.EphemeralPublicKey[:]...)
+			data = append(data, o.CarrotViewTag[:]...)
+			data = append(data, o.EncryptedJanusAnchor[:]...)
 		default:
 			return nil, errors.New("unknown output type")
 		}
@@ -105,8 +123,11 @@ type Output struct {
 	// https://github.com/SChernykh/p2pool/blob/10d583adb67d0566af6c36a6c97fed69545421a2/src/pool_block.h#L104-L106
 	Reward uint64 `json:"reward"`
 	// Type would be here
-	EphemeralPublicKey crypto.PublicKeyBytes `json:"ephemeral_public_key"`
+	EphemeralPublicKey   crypto.PublicKeyBytes         `json:"ephemeral_public_key"`
+	EncryptedJanusAnchor [monero.JanusAnchorSize]uint8 `json:"encrypted_janus_anchor,omitempty"`
+
 	// Type re-arranged here to improve memory layout space
-	Type    uint8 `json:"type"`
-	ViewTag uint8 `json:"view_tag"`
+	Type          uint8                          `json:"type"`
+	ViewTag       uint8                          `json:"view_tag"`
+	CarrotViewTag [monero.CarrotViewTagSize]byte `json:"carrot_view_tag"`
 }
