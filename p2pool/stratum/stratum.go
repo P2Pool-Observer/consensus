@@ -225,7 +225,9 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 				GenHeight: s.minerData.Height,
 			},
 			//TODO:
-			Transactions: nil,
+			Transactions:   nil,
+			FCMPTreeLayers: s.minerData.FCMPTreeLayers,
+			FCMPTreeRoot:   s.minerData.FCMPTreeRoot,
 		},
 		Side: sidechain.SideData{
 			//Zero Spend/View key
@@ -414,12 +416,14 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 
 		blockTemplate := &sidechain.PoolBlock{
 			Main: block.Block{
-				MajorVersion: s.minerData.MajorVersion,
-				MinorVersion: monero.HardForkSupportedVersion,
-				Timestamp:    s.newTemplateData.Timestamp,
-				PreviousId:   s.minerData.PrevId,
-				Nonce:        0,
-				Transactions: s.newTemplateData.Transactions,
+				MajorVersion:   s.minerData.MajorVersion,
+				MinorVersion:   monero.HardForkSupportedVersion,
+				Timestamp:      s.newTemplateData.Timestamp,
+				PreviousId:     s.minerData.PrevId,
+				Nonce:          0,
+				Transactions:   s.newTemplateData.Transactions,
+				FCMPTreeLayers: s.minerData.FCMPTreeLayers,
+				FCMPTreeRoot:   s.minerData.FCMPTreeRoot,
 			},
 			Side: sidechain.SideData{
 				PublicKey:              addr,

@@ -161,6 +161,8 @@ func (c *MainChain) Listen() error {
 					AlreadyGeneratedCoins: fullMinerData.AlreadyGeneratedCoins,
 					MedianTimestamp:       fullMinerData.MedianTimestamp,
 					TxBacklog:             fullMinerData.TxBacklog,
+					FCMPTreeLayers:        fullMinerData.FCMPTreeLayers,
+					FCMPTreeRoot:          fullMinerData.FCMPTreeRoot,
 					TimeReceived:          time.Now(),
 				})
 			}),
