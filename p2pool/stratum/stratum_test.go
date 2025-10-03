@@ -41,6 +41,12 @@ var submitMainBlockFunc = func(b *block.Block) (err error) {
 	return err
 }
 
+var donationAddrFunc = func(majorVersion uint8) address.PackedAddressWithSubaddress {
+	addr := address.FromBase58(types.DonationAddress)
+	pa := addr.ToPackedAddress()
+	return address.NewPackedAddressWithSubaddress(&pa, addr.IsSubaddress())
+}
+
 func init() {
 	utils.GlobalLogLevel = 0
 
@@ -144,7 +150,7 @@ func TestStratumServer(t *testing.T) {
 		}
 	}()
 
-	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(address.FromBase58(types.DonationAddress).ToPackedAddress(), false)
+	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(0, donationAddrFunc, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +208,7 @@ func TestStratumServer_GenesisV2(t *testing.T) {
 		}
 	}()
 
-	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(address.FromBase58(types.DonationAddress).ToPackedAddress(), false)
+	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(0, donationAddrFunc, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,8 +238,8 @@ func TestStratumServer_GenesisV2(t *testing.T) {
 	defer crypto.PutKeccak256Hasher(hasher)
 
 	var templateId types.Hash
-	tpl.TemplateId(hasher, nil, consensus, 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
-	blockData := tpl.Blob(nil, consensus, 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
+	tpl.TemplateId(hasher, nil, consensus, donationAddrFunc(0), 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	blockData := tpl.Blob(nil, consensus, donationAddrFunc(0), 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
 	var b sidechain.PoolBlock
 	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)
 	if err != nil {
@@ -288,7 +294,7 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 		}
 	}()
 
-	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(address.FromBase58(types.DonationAddress).ToPackedAddress(), false)
+	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(0, donationAddrFunc, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,8 +324,8 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 	defer crypto.PutKeccak256Hasher(hasher)
 
 	var templateId types.Hash
-	tpl.TemplateId(hasher, nil, consensus, 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
-	blockData := tpl.Blob(nil, consensus, 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
+	tpl.TemplateId(hasher, nil, consensus, donationAddrFunc(0), 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	blockData := tpl.Blob(nil, consensus, donationAddrFunc(0), 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
 	var b sidechain.PoolBlock
 	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)
 	if err != nil {
@@ -401,7 +407,9 @@ func BenchmarkServer_BuildTemplate(b *testing.B) {
 			counter := unsafeRandom.IntN(randomPoolSize)
 			for pb.Next() {
 				a := randomKeys[counter%randomPoolSize]
-				if _, _, _, _, err := stratumServer.BuildTemplate(a, false); err != nil {
+				if _, _, _, _, err := stratumServer.BuildTemplate(uint64(counter%randomPoolSize), func(majorVersion uint8) address.PackedAddressWithSubaddress {
+					return address.NewPackedAddressWithSubaddress(&a, false)
+				}, false); err != nil {
 					b.Fatal(err)
 				}
 				counter++
@@ -415,7 +423,9 @@ func BenchmarkServer_BuildTemplate(b *testing.B) {
 			counter := unsafeRandom.IntN(randomPoolSize)
 			for pb.Next() {
 				a := randomKeys[counter%randomPoolSize]
-				if _, _, _, _, err := stratumServer.BuildTemplate(a, true); err != nil {
+				if _, _, _, _, err := stratumServer.BuildTemplate(uint64(counter%randomPoolSize), func(majorVersion uint8) address.PackedAddressWithSubaddress {
+					return address.NewPackedAddressWithSubaddress(&a, false)
+				}, true); err != nil {
 					b.Fatal(err)
 				}
 				counter++

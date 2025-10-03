@@ -104,6 +104,8 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 	} else if len(c.Outputs) != 0 {
 		for _, o := range c.Outputs {
 			switch o.Type {
+			case TxOutToCarrotV1:
+				c.AuxiliaryData.OutputsBlobSize += 1 + types.HashSize + monero.CarrotViewTagSize + monero.JanusAnchorSize
 			case TxOutToTaggedKey:
 				c.AuxiliaryData.OutputsBlobSize += 1 + types.HashSize + 1
 			case TxOutToKey:

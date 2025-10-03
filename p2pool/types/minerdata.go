@@ -1,9 +1,11 @@
 package types
 
 import (
+	"time"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"time"
 )
 
 type MinerData struct {
@@ -16,6 +18,9 @@ type MinerData struct {
 	AlreadyGeneratedCoins uint64           `json:"already_generated_coins"`
 	MedianTimestamp       uint64           `json:"median_timestamp"`
 	TxBacklog             mempool.Mempool  `json:"tx_backlog"`
+
+	FCMPTreeLayers uint8                 `json:"fcmp_pp_n_tree_layers,omitempty"`
+	FCMPTreeRoot   crypto.PublicKeyBytes `json:"fcmp_pp_tree_root,omitempty"`
 
 	TimeReceived time.Time `json:"time_received"`
 

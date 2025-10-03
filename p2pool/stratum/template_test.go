@@ -5,6 +5,7 @@ import (
 	unsafeRandom "math/rand/v2"
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
@@ -25,7 +26,9 @@ func TestTemplate(t *testing.T) {
 
 	rootHash := b.MergeMiningTag().RootHash
 
-	if tplBuf := tpl.Blob(preAllocatedBuffer, sidechain.ConsensusDefault, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, rootHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion); bytes.Compare(tplBuf, buf) != 0 {
+	addr := address.NewPackedAddressWithSubaddress(&b.Side.PublicKey, false)
+
+	if tplBuf := tpl.Blob(preAllocatedBuffer, sidechain.ConsensusDefault, addr, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, rootHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion); bytes.Compare(tplBuf, buf) != 0 {
 		if len(tplBuf) == len(buf) {
 			for i := range buf {
 				if buf[i] != tplBuf[i] {
@@ -40,7 +43,7 @@ func TestTemplate(t *testing.T) {
 
 	writer := bytes.NewBuffer(nil)
 
-	if err := tpl.Write(writer, sidechain.ConsensusDefault, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, rootHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion); err != nil {
+	if err := tpl.Write(writer, sidechain.ConsensusDefault, addr, b.Main.Nonce, b.ExtraNonce(), b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, rootHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion); err != nil {
 		t.Fatal(err)
 	} else if bytes.Compare(writer.Bytes(), buf) != 0 {
 		t.Fatal("not matching writer buffers")
@@ -88,7 +91,7 @@ func TestTemplate(t *testing.T) {
 	}
 
 	var templateId types.Hash
-	if tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion, &templateId); templateId != blockTemplateId {
+	if tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, addr, b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion, &templateId); templateId != blockTemplateId {
 		t.Fatal("different template ids")
 	}
 
@@ -183,7 +186,7 @@ func BenchmarkTemplate_TemplateId(b *testing.B) {
 		var counter = unsafeRandom.Uint32()
 		var templateId types.Hash
 		for pb.Next() {
-			tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, counter, counter+1, preLoadedPoolBlock.Side.MerkleProof, preLoadedPoolBlock.Side.MergeMiningExtra, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareId, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareVersion, &templateId)
+			tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, donationAddrFunc(0), counter, counter+1, preLoadedPoolBlock.Side.MerkleProof, preLoadedPoolBlock.Side.MergeMiningExtra, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareId, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareVersion, &templateId)
 			counter++
 		}
 	})

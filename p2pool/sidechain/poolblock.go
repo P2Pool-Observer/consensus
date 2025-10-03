@@ -33,8 +33,7 @@ const SideExtraNonceSize = 4
 const SideExtraNonceMaxSize = SideExtraNonceSize + 10
 
 const (
-	SideCoinbasePublicKey = transaction.TxExtraTagPubKey
-	SideExtraNonce        = transaction.TxExtraTagNonce
+	SideExtraNonce = transaction.TxExtraTagNonce
 
 	// SideIdentifierHash Depending on version, this can be a PoolBlock TemplateId or Merkle Root Hash
 	SideIdentifierHash = transaction.TxExtraTagMergeMining
@@ -321,6 +320,63 @@ func (b *PoolBlock) FastSideTemplateId(consensus *Consensus) types.Hash {
 	}
 }
 
+func (b *PoolBlock) fillCoinbasePublicKeys(pubs []crypto.PublicKeyBytes) error {
+	if len(pubs) == 0 {
+		return nil
+	}
+	if b.Main.MajorVersion < monero.HardForkCarrotVersion {
+		return errors.New("invalid major version")
+	}
+
+	if len(b.CoinbasePublicKeys()) > 0 {
+		return errors.New("public keys already filled")
+	}
+
+	extra := b.Main.Coinbase.Extra
+
+	if len(extra) != 2 {
+		return errors.New("unexpected coinbase extra length")
+	}
+
+	tag := transaction.ExtraTag{
+		Tag:       transaction.TxExtraTagAdditionalPubKeys,
+		HasVarInt: true,
+		VarInt:    uint64(len(pubs)),
+		Data:      make(types.Bytes, crypto.PublicKeySize*(len(pubs))),
+	}
+
+	for i, pub := range pubs {
+		copy(tag.Data[i*crypto.PublicKeySize:], pub[:])
+	}
+	// add last
+	extra = append(extra, tag)
+
+	b.Main.Coinbase.Extra = extra
+
+	return nil
+}
+
+func (b *PoolBlock) CoinbasePublicKeys() (result []crypto.PublicKeyBytes) {
+	// first tag
+	if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagPubKey); t != nil {
+		if len(t.Data) != crypto.PublicKeySize {
+			return nil
+		}
+		return []crypto.PublicKeyBytes{crypto.PublicKeyBytes(t.Data)}
+	}
+
+	if b.Main.MajorVersion >= monero.HardForkCarrotVersion {
+		if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys); t != nil {
+			if len(t.Data)%crypto.PublicKeySize != 0 || len(t.Data) == 0 {
+				return nil
+			}
+			return unsafe.Slice((*crypto.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(t.Data))), len(t.Data)/crypto.PublicKeySize)
+		}
+	}
+
+	return nil
+}
+
 func (b *PoolBlock) CoinbaseExtra(tag CoinbaseExtraTag) []byte {
 	switch tag {
 	case SideExtraNonce:
@@ -347,13 +403,6 @@ func (b *PoolBlock) CoinbaseExtra(tag CoinbaseExtraTag) []byte {
 				}
 				return t.Data
 			}
-		}
-	case SideCoinbasePublicKey:
-		if t := b.Main.Coinbase.Extra.GetTag(uint8(tag)); t != nil {
-			if len(t.Data) != crypto.PublicKeySize {
-				return nil
-			}
-			return t.Data
 		}
 	}
 
@@ -577,7 +626,47 @@ func (b *PoolBlock) consensusMergeMiningTag() (err error) {
 	return nil
 }
 
+func (b *PoolBlock) consensusCheckTagOrder() (err error) {
+	// verify number and order of tags
+	if b.Main.MajorVersion >= monero.HardForkCarrotVersion {
+		if len(b.Main.Coinbase.Outputs) == 0 {
+			// pruned block, special filled later
+			if extra := b.Main.Coinbase.Extra; len(extra) != 2 {
+				return errors.New("wrong coinbase extra tag count")
+			} else if extra[0].Tag != transaction.TxExtraTagNonce {
+				return errors.New("wrong coinbase extra tag at pruned index 0")
+			} else if extra[1].Tag != transaction.TxExtraTagMergeMining {
+				return errors.New("wrong coinbase extra tag at pruned index 1")
+			}
+		} else {
+			if extra := b.Main.Coinbase.Extra; len(extra) != 3 {
+				return errors.New("wrong coinbase extra tag count")
+			} else if extra[0].Tag != transaction.TxExtraTagNonce {
+				return errors.New("wrong coinbase extra tag at index 0")
+			} else if extra[1].Tag != transaction.TxExtraTagMergeMining {
+				return errors.New("wrong coinbase extra tag at index 1")
+			} else if extra[2].Tag != transaction.TxExtraTagAdditionalPubKeys {
+				return errors.New("wrong coinbase extra tag at index 2")
+			}
+		}
+	} else {
+		if extra := b.Main.Coinbase.Extra; len(extra) != 3 {
+			return errors.New("wrong coinbase extra tag count")
+		} else if extra[0].Tag != transaction.TxExtraTagPubKey {
+			return errors.New("wrong coinbase extra tag at index 0")
+		} else if extra[1].Tag != transaction.TxExtraTagNonce {
+			return errors.New("wrong coinbase extra tag at index 1")
+		} else if extra[2].Tag != transaction.TxExtraTagMergeMining {
+			return errors.New("wrong coinbase extra tag at index 2")
+		}
+	}
+	return nil
+}
+
 func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
+	if len(b.Main.Coinbase.Outputs) == 0 {
+		return errors.New("no specified outputs")
+	}
 	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.NetworkType.MustAddressNetwork(), b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
 		return fmt.Errorf("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
 	}
@@ -596,15 +685,8 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 		return err
 	}
 
-	// verify number and order of tags
-	if extra := b.Main.Coinbase.Extra; len(extra) != 3 {
-		return errors.New("wrong coinbase extra tag count")
-	} else if extra[0].Tag != transaction.TxExtraTagPubKey {
-		return errors.New("wrong coinbase extra tag at index 0")
-	} else if extra[1].Tag != transaction.TxExtraTagNonce {
-		return errors.New("wrong coinbase extra tag at index 1")
-	} else if extra[2].Tag != transaction.TxExtraTagMergeMining {
-		return errors.New("wrong coinbase extra tag at index 2")
+	if err = b.consensusCheckTagOrder(); err != nil {
+		return err
 	}
 
 	if err = b.Side.FromReader(reader, b.ShareVersion()); err != nil {
@@ -618,13 +700,13 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 
 // PreProcessBlock processes and fills the block data from either pruned or compact modes
 func (b *PoolBlock) PreProcessBlock(consensus *Consensus, derivationCache DerivationCacheInterface, preAllocatedShares Shares, difficultyByHeight mainblock.GetDifficultyByHeightFunc, getTemplateById GetByTemplateIdFunc) (missingBlocks []types.Hash, err error) {
-	return b.PreProcessBlockWithOutputs(consensus, getTemplateById, func() (outputs transaction.Outputs, bottomHeight uint64, err error) {
+	return b.PreProcessBlockWithOutputs(consensus, getTemplateById, func() (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error) {
 		return CalculateOutputs(b, consensus, difficultyByHeight, getTemplateById, derivationCache, preAllocatedShares, nil)
 	})
 }
 
 // PreProcessBlockWithOutputs processes and fills the block data from either pruned or compact modes
-func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplateById GetByTemplateIdFunc, calculateOutputs func() (outputs transaction.Outputs, bottomHeight uint64, err error)) (missingBlocks []types.Hash, err error) {
+func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplateById GetByTemplateIdFunc, calculateOutputs func() (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error)) (missingBlocks []types.Hash, err error) {
 
 	getTemplateByIdFillingTx := func(h types.Hash) *PoolBlock {
 		chain := make(UniquePoolBlockSlice, 0, 1)
@@ -679,10 +761,18 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 	}
 
 	if len(b.Main.Coinbase.Outputs) == 0 {
-		if outputs, _, err := calculateOutputs(); err != nil {
+		if outputs, pubs, _, err := calculateOutputs(); err != nil {
 			return nil, fmt.Errorf("error filling outputs for block: %w", err)
 		} else {
 			b.Main.Coinbase.Outputs = outputs
+			if len(pubs) > 0 {
+				if err = b.fillCoinbasePublicKeys(pubs); err != nil {
+					return nil, fmt.Errorf("error filling outputs for block: %w", err)
+				}
+			}
+			if err = b.consensusCheckTagOrder(); err != nil {
+				return nil, fmt.Errorf("error filling outputs for block: %w", err)
+			}
 		}
 
 		if outputBlob, err := b.Main.Coinbase.Outputs.AppendBinary(make([]byte, 0, b.Main.Coinbase.Outputs.BufferLength())); err != nil {
@@ -711,14 +801,16 @@ func (b *PoolBlock) NeedsPostProcess() bool {
 }
 
 func (b *PoolBlock) FillPrivateKeys(derivationCache DerivationCacheInterface) {
-	if b.ShareVersion() >= ShareVersion_V2 {
-		if b.Side.CoinbasePrivateKey == crypto.ZeroPrivateKeyBytes {
-			//Fill Private Key
-			kP := derivationCache.GetDeterministicTransactionKey(b.GetPrivateKeySeed(), b.Main.PreviousId)
-			b.Side.CoinbasePrivateKey = kP.PrivateKey.AsBytes()
+	if b.Main.MajorVersion < monero.HardForkCarrotVersion {
+		if b.ShareVersion() >= ShareVersion_V2 {
+			if b.Side.CoinbasePrivateKey == crypto.ZeroPrivateKeyBytes {
+				//Fill Private Key
+				kP := derivationCache.GetDeterministicTransactionKey(b.GetPrivateKeySeed(), b.Main.PreviousId)
+				b.Side.CoinbasePrivateKey = kP.PrivateKey.AsBytes()
+			}
+		} else {
+			b.Side.CoinbasePrivateKeySeed = b.GetPrivateKeySeed()
 		}
-	} else {
-		b.Side.CoinbasePrivateKeySeed = b.GetPrivateKeySeed()
 	}
 }
 
@@ -784,27 +876,52 @@ func (b *PoolBlock) GetAddress() address.PackedAddress {
 	return b.Side.PublicKey
 }
 
-// GetPayoutAddress Special function that checks if a subaddress has been specified, on the right network
-func (b *PoolBlock) GetPayoutAddress(networkType NetworkType) *address.Address {
+func (b *PoolBlock) GetSubaddress() *address.PackedAddress {
 	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) >= crypto.PublicKeySize {
 		// subaddress
 		viewPub := crypto.PublicKeyBytes(d[:crypto.PublicKeySize])
-		if n, err := networkType.SubaddressNetwork(); err == nil && viewPub.AsPoint() != nil {
-			return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), &viewPub)
+		if viewPub.AsPoint() != nil {
+			return &address.PackedAddress{*b.Side.PublicKey.SpendPublicKey(), viewPub}
 		}
-	}
-	if n, err := networkType.AddressNetwork(); err == nil {
-		return b.Side.PublicKey.ToAddress(n)
 	}
 
 	return nil
+}
+
+func (b *PoolBlock) GetConsensusPackedAddress() address.PackedAddressWithSubaddress {
+	if sa := b.GetSubaddress(); sa != nil && b.Main.MajorVersion >= monero.HardForkCarrotVersion {
+		return address.NewPackedAddressWithSubaddress(sa, true)
+	}
+
+	return address.NewPackedAddressWithSubaddress(&b.Side.PublicKey, false)
+}
+
+// GetPayoutAddress Special function that checks if a subaddress has been specified, on the right network
+// Not consensus
+func (b *PoolBlock) GetPayoutAddress(networkType NetworkType) *address.Address {
+
+	if sa := b.GetSubaddress(); sa != nil {
+		if n, err := networkType.SubaddressNetwork(); err == nil {
+			return address.FromRawAddress(n, sa.SpendPublicKey(), sa.ViewPublicKey())
+		} else {
+			return nil
+		}
+	}
+
+	if n, err := networkType.AddressNetwork(); err == nil {
+		return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), b.Side.PublicKey.ViewPublicKey())
+	} else {
+		return nil
+	}
 }
 
 func (b *PoolBlock) GetTransactionOutputType() uint8 {
 	// Both tx types are allowed by Monero consensus during v15 because it needs to process pre-fork mempool transactions,
 	// but P2Pool can switch to using only TXOUT_TO_TAGGED_KEY for miner payouts starting from v15
 	expectedTxType := uint8(transaction.TxOutToKey)
-	if b.Main.MajorVersion >= monero.HardForkViewTagsVersion {
+	if b.Main.MajorVersion >= monero.HardForkCarrotVersion {
+		expectedTxType = transaction.TxOutToCarrotV1
+	} else if b.Main.MajorVersion >= monero.HardForkViewTagsVersion {
 		expectedTxType = transaction.TxOutToTaggedKey
 	}
 

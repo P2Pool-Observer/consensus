@@ -14,6 +14,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address/carrot"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
@@ -204,7 +205,11 @@ func (c *SideChain) fillPoolBlockTransactionParentIndices(block *PoolBlock) {
 
 func (c *SideChain) isPoolBlockTransactionKeyIsDeterministic(block *PoolBlock) bool {
 	kP := c.derivationCache.GetDeterministicTransactionKey(block.GetPrivateKeySeed(), block.Main.PreviousId)
-	return bytes.Compare(block.CoinbaseExtra(SideCoinbasePublicKey), kP.PublicKey.AsSlice()) == 0 && block.Side.CoinbasePrivateKey == kP.PrivateKey.AsBytes()
+	pubs := block.CoinbasePublicKeys()
+	if len(pubs) != 1 {
+		return false
+	}
+	return bytes.Compare(pubs[0].AsSlice(), kP.PublicKey.AsSlice()) == 0 && block.Side.CoinbasePrivateKey == kP.PrivateKey.AsBytes()
 }
 
 func (c *SideChain) getSeedByHeightFunc() mainblock.GetSeedByHeightFunc {
@@ -326,8 +331,8 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		return nil, errors.New("block reward too low"), true
 	}
 
-	// Enforce deterministic tx keys starting from v15
-	if block.Main.MajorVersion >= monero.HardForkViewTagsVersion {
+	// Enforce deterministic tx keys starting from v15 up to v17
+	if block.Main.MajorVersion >= monero.HardForkViewTagsVersion && block.Main.MajorVersion < monero.HardForkCarrotVersion {
 		if !c.isPoolBlockTransactionKeyIsDeterministic(block) {
 			return nil, errors.New("invalid deterministic transaction keys"), true
 		}
@@ -339,6 +344,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 
 	// Both tx types are allowed by Monero consensus during v15 because it needs to process pre-fork mempool transactions,
 	// but P2Pool can switch to using only TXOUT_TO_TAGGED_KEY for miner payouts starting from v15
+	// same for carrot outputs
 	expectedTxType := block.GetTransactionOutputType()
 
 	if missingBlocks, err = c.PreprocessBlock(block); err != nil {
@@ -909,23 +915,76 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				}
 			}()
 
+			pubs := block.CoinbasePublicKeys()
+
+			if block.GetTransactionOutputType() == transaction.TxOutToCarrotV1 {
+				if len(pubs) != len(block.Main.Coinbase.Outputs) {
+					return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), len(block.Main.Coinbase.Outputs))
+				}
+			} else if len(pubs) != 1 {
+				return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), 1)
+			}
+
+			// todo: cache buf
+			var carrotEnotes []*carrot.CoinbaseEnoteV1
+			if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
+				carrotEnotes = make([]*carrot.CoinbaseEnoteV1, len(rewards))
+			}
+
 			if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
 				out := block.Main.Coinbase.Outputs[workIndex]
-				if rewards[workIndex] != out.Reward {
-					return fmt.Errorf("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
+
+				if out.Type == transaction.TxOutToCarrotV1 /* this is fine, all should be same type */ {
+					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, workIndex, rewards[workIndex])
+				} else {
+					if rewards[workIndex] != out.Reward {
+						return fmt.Errorf("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
+					}
+					addr := &shares[workIndex].Address
+					if addr.IsSubaddress() {
+						return fmt.Errorf("is not main address at index %d", workIndex)
+					}
+					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, out.Reward, hashers[workerIndex])
+					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
+						return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
+					} else if out.Type == transaction.TxOutToTaggedKey && calculated.ViewTag != out.ViewTag {
+						return fmt.Errorf("has incorrect view tag at index %d, got %d, expected %d", workIndex, out.ViewTag, calculated.ViewTag)
+					}
 				}
 
-				if ephPublicKey, viewTag := c.derivationCache.GetEphemeralPublicKey(&shares[workIndex].Address, txPrivateKeySlice, txPrivateKeyScalar, workIndex, hashers[workerIndex]); ephPublicKey != out.EphemeralPublicKey {
-					return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), ephPublicKey.String())
-				} else if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag {
-					return fmt.Errorf("has incorrect view tag at index %d, got %d, expected %d", workIndex, out.ViewTag, viewTag)
-				}
 				return nil
 			}, func(routines, routineIndex int) error {
 				hashers = append(hashers, crypto.GetKeccak256Hasher())
 				return nil
 			}); err != nil {
 				return nil, err
+			}
+
+			if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
+				// sort
+				slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
+					return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
+				})
+
+				for i, enote := range carrotEnotes {
+					out := block.Main.Coinbase.Outputs[i]
+
+					if enote.Amount != out.Reward {
+						return nil, fmt.Errorf("has invalid reward at index %d, got %d, expected %d", i, out.Reward, enote.Amount)
+					}
+
+					if enote.OneTimeAddress != out.EphemeralPublicKey {
+						return nil, fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", i, out.EphemeralPublicKey.String(), enote.OneTimeAddress.String())
+					} else if enote.ViewTag != out.CarrotViewTag {
+						return nil, fmt.Errorf("has incorrect view tag at index %d, got %x, expected %x", i, out.CarrotViewTag, enote.ViewTag)
+					} else if enote.EncryptedAnchor != out.EncryptedJanusAnchor {
+						return nil, fmt.Errorf("has incorrect janus anchor at index %d, got %x, expected %x", i, out.EncryptedJanusAnchor, enote.EncryptedAnchor)
+					}
+
+					if !bytes.Equal(pubs[i][:], enote.EphemeralPubKey[:]) {
+						return nil, fmt.Errorf("has incorrect public key at index %d, got %x, expected %s", i, enote.EphemeralPubKey[:], pubs[i].String())
+					}
+				}
 			}
 		}
 
@@ -1287,7 +1346,7 @@ func (c *SideChain) GetMissingBlocks() []types.Hash {
 
 // calculateOutputs
 // Deprecated
-func (c *SideChain) calculateOutputs(block *PoolBlock) (outputs transaction.Outputs, bottomHeight uint64, err error) {
+func (c *SideChain) calculateOutputs(block *PoolBlock) (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error) {
 	preAllocatedShares := c.preAllocatedSharesPool.Get()
 	defer c.preAllocatedSharesPool.Put(preAllocatedShares)
 	return CalculateOutputs(block, c.Consensus(), c.server.GetDifficultyByHeight, c.getPoolBlockByTemplateId, c.derivationCache, preAllocatedShares, c.preAllocatedRewards)

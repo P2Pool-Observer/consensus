@@ -1,8 +1,12 @@
 package monero
 
 const (
-	HardForkViewTagsVersion  = 15
-	HardForkSupportedVersion = 16
+	HardForkViewTagsVersion        = 15
+	HardForkFCMPPlusPlusVersion    = 17
+	HardForkCarrotVersion          = 17
+	HardForkRejectLargeExtra       = 17
+	HardForkRejectManyMinerOutputs = 17
+	HardForkSupportedVersion       = 18
 )
 
 type HardFork struct {

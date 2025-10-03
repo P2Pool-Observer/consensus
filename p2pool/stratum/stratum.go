@@ -1,6 +1,7 @@
 package stratum
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -10,12 +11,14 @@ import (
 	"net/netip"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
@@ -46,21 +49,27 @@ type NewTemplateData struct {
 	CumulativeDifficulty      types.Difficulty
 	TransactionPrivateKeySeed types.Hash
 	// TransactionPrivateKey Generated from TransactionPrivateKeySeed
-	TransactionPrivateKey  crypto.PrivateKeyBytes
-	TransactionPublicKey   crypto.PublicKeySlice
-	Timestamp              uint64
-	TotalReward            uint64
-	Transactions           []types.Hash
-	MaxRewardAmountsWeight uint64
-	ShareVersion           sidechain.ShareVersion
-	Uncles                 []types.Hash
-	Ready                  bool
-	Window                 struct {
+	TransactionPrivateKey crypto.PrivateKeyBytes
+	TransactionPublicKey  crypto.PublicKeySlice
+	Timestamp             uint64
+	TotalReward           uint64
+	// Weights List of weights, first with zero index, second without
+	Weights      [2]WeightEntries
+	ShareVersion sidechain.ShareVersion
+	Uncles       []types.Hash
+	Ready        bool
+	Window       struct {
 		ReservedShareIndex   int
 		Shares               sidechain.Shares
 		ShuffleMapping       ShuffleMapping
 		EphemeralPubKeyCache map[ephemeralPubKeyCacheKey]*ephemeralPubKeyCacheEntry
 	}
+}
+
+type WeightEntries struct {
+	MaxRewardAmounts    uint64
+	CoinbaseTransaction uint64
+	Transactions        []types.Hash
 }
 
 type Server struct {
@@ -86,7 +95,7 @@ type Server struct {
 	preAllocatedBuffer     []byte
 
 	minersLock sync.RWMutex
-	miners     map[address.PackedAddress]*MinerTrackingEntry
+	miners     map[uint64]*MinerTrackingEntry
 
 	bansLock sync.RWMutex
 	bans     map[[16]byte]BanEntry
@@ -106,7 +115,7 @@ func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBloc
 		preAllocatedDifficultyDifferences: make([]uint32, s.Consensus().ChainWindowSize*2),
 		preAllocatedSharesPool:            sidechain.NewPreAllocatedSharesPool(s.Consensus().ChainWindowSize * 2),
 		preAllocatedBuffer:                make([]byte, 0, sidechain.PoolBlockMaxTemplateSize),
-		miners:                            make(map[address.PackedAddress]*MinerTrackingEntry),
+		miners:                            make(map[uint64]*MinerTrackingEntry),
 		mempool:                           (MiningMempool)(make(map[types.Hash]*mempool.Entry, 512)),
 		// buffer 4 at a time for non-blocking source
 		incomingChanges: make(chan func() bool, 4),
@@ -225,7 +234,9 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 				GenHeight: s.minerData.Height,
 			},
 			//TODO:
-			Transactions: nil,
+			Transactions:   nil,
+			FCMPTreeLayers: s.minerData.FCMPTreeLayers,
+			FCMPTreeRoot:   s.minerData.FCMPTreeRoot,
 		},
 		Side: sidechain.SideData{
 			//Zero Spend/View key
@@ -252,7 +263,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 
 	s.newTemplateData.Window.Shares = slices.Clone(shares)
-	s.newTemplateData.Window.ReservedShareIndex = s.newTemplateData.Window.Shares.Index(fakeTemplateTipBlock.GetAddress())
+	s.newTemplateData.Window.ReservedShareIndex = s.newTemplateData.Window.Shares.Index(fakeTemplateTipBlock.GetConsensusPackedAddress())
 
 	if s.newTemplateData.Window.ReservedShareIndex == -1 {
 		return errors.New("could not find reserved share index")
@@ -269,54 +280,63 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 	maxReward := baseReward + totalFees
 
-	rewards := sidechain.SplitRewardAllocate(maxReward, s.newTemplateData.Window.Shares)
+	for weightIndex := range len(s.newTemplateData.Weights) {
+		shares := slices.Clone(s.newTemplateData.Window.Shares)
+		if weightIndex == 1 {
+			// remove reserve
+			shares = slices.Delete(shares, s.newTemplateData.Window.ReservedShareIndex, s.newTemplateData.Window.ReservedShareIndex+1)
+		}
 
-	s.newTemplateData.MaxRewardAmountsWeight = uint64(utils.UVarInt64SliceSize(rewards))
+		rewards := sidechain.SplitRewardAllocate(maxReward, shares)
 
-	//TODO efficient, move elsewhere
-	nonce, ok := merge_mining.FindAuxiliaryNonce([]types.Hash{s.sidechain.Consensus().Id}, math.MaxUint32)
-	if !ok {
-		return errors.New("could not find nonce")
+		s.newTemplateData.Weights[weightIndex].MaxRewardAmounts = uint64(utils.UVarInt64SliceSize(rewards))
+
+		//TODO efficient, move elsewhere
+		nonce, ok := merge_mining.FindAuxiliaryNonce([]types.Hash{s.sidechain.Consensus().Id}, math.MaxUint32)
+		if !ok {
+			return errors.New("could not find nonce")
+		}
+		tag := merge_mining.Tag{
+			NumberAuxiliaryChains: 1,
+			Nonce:                 nonce,
+		}
+
+		tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, s.newTemplateData.Weights[weightIndex].MaxRewardAmounts, false)
+		if err != nil {
+			return err
+		}
+		coinbaseTransactionWeight := uint64(tx.BufferLength())
+
+		var pickedMempool mempool.Mempool
+
+		if totalWeight+coinbaseTransactionWeight <= s.minerData.MedianWeight {
+			// if a block doesn't get into the penalty zone, just pick all transactions
+			pickedMempool = selectedMempool
+		} else {
+			pickedMempool = selectedMempool.Pick(baseReward, coinbaseTransactionWeight, s.minerData.MedianWeight)
+		}
+
+		//shuffle transactions
+		unsafeRandom.Shuffle(len(pickedMempool), func(i, j int) {
+			pickedMempool[i], pickedMempool[j] = pickedMempool[j], pickedMempool[i]
+		})
+
+		s.newTemplateData.Weights[weightIndex].Transactions = make([]types.Hash, len(pickedMempool))
+
+		for i, entry := range pickedMempool {
+			s.newTemplateData.Weights[weightIndex].Transactions[i] = entry.Id
+		}
+
+		finalReward := mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, pickedMempool.Fees(), coinbaseTransactionWeight+pickedMempool.Weight())
+
+		if finalReward < baseReward {
+			return errors.New("final reward < base reward, should never happen")
+		}
+		s.newTemplateData.TotalReward = finalReward
+		s.newTemplateData.Weights[weightIndex].CoinbaseTransaction = coinbaseTransactionWeight
 	}
-	tag := merge_mining.Tag{
-		NumberAuxiliaryChains: 1,
-		Nonce:                 nonce,
-	}
 
-	tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), s.newTemplateData.Window.Shares, rewards, s.newTemplateData.MaxRewardAmountsWeight, false)
-	if err != nil {
-		return err
-	}
-	coinbaseTransactionWeight := uint64(tx.BufferLength())
-
-	var pickedMempool mempool.Mempool
-
-	if totalWeight+coinbaseTransactionWeight <= s.minerData.MedianWeight {
-		// if a block doesn't get into the penalty zone, just pick all transactions
-		pickedMempool = selectedMempool
-	} else {
-		pickedMempool = selectedMempool.Pick(baseReward, coinbaseTransactionWeight, s.minerData.MedianWeight)
-	}
-
-	//shuffle transactions
-	unsafeRandom.Shuffle(len(pickedMempool), func(i, j int) {
-		pickedMempool[i], pickedMempool[j] = pickedMempool[j], pickedMempool[i]
-	})
-
-	s.newTemplateData.Transactions = make([]types.Hash, len(pickedMempool))
-
-	for i, entry := range pickedMempool {
-		s.newTemplateData.Transactions[i] = entry.Id
-	}
-
-	finalReward := mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, pickedMempool.Fees(), coinbaseTransactionWeight+pickedMempool.Weight())
-
-	if finalReward < baseReward {
-		return errors.New("final reward < base reward, should never happen")
-	}
-	s.newTemplateData.TotalReward = finalReward
-
-	s.newTemplateData.Window.ShuffleMapping = BuildShuffleMapping(len(s.newTemplateData.Window.Shares), s.newTemplateData.ShareVersion, s.newTemplateData.TransactionPrivateKeySeed, s.newTemplateData.Window.ShuffleMapping)
+	s.newTemplateData.Window.ShuffleMapping = BuildShuffleMapping(len(s.newTemplateData.Window.Shares), s.minerData.MajorVersion, s.newTemplateData.ShareVersion, s.newTemplateData.TransactionPrivateKeySeed, s.newTemplateData.Window.ShuffleMapping)
 
 	s.newTemplateData.Window.EphemeralPubKeyCache = make(map[ephemeralPubKeyCacheKey]*ephemeralPubKeyCacheEntry)
 
@@ -350,9 +370,9 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		}
 
 		share := s.newTemplateData.Window.Shares[i]
-		generateEphPubKeyForIndex(ix0, &share.Address)
-		generateEphPubKeyForIndex(ix1, &share.Address)
-		generateEphPubKeyForIndex(ix2, &share.Address)
+		generateEphPubKeyForIndex(ix0, share.Address.PackedAddress())
+		generateEphPubKeyForIndex(ix1, share.Address.PackedAddress())
+		generateEphPubKeyForIndex(ix2, share.Address.PackedAddress())
 	})
 
 	s.newTemplateData.Ready = true
@@ -361,17 +381,13 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 }
 
-func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool) (tpl *Template, jobCounter uint64, difficultyTarget types.Difficulty, seedHash types.Hash, err error) {
+func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8) address.PackedAddressWithSubaddress, forceNewTemplate bool) (tpl *Template, jobCounter uint64, difficultyTarget types.Difficulty, seedHash types.Hash, err error) {
 
-	var zeroAddress address.PackedAddress
-	if addr == zeroAddress {
-		return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("nil address")
-	}
-
+	var addr address.PackedAddressWithSubaddress
 	e, ok := func() (*MinerTrackingEntry, bool) {
 		s.minersLock.RLock()
 		defer s.minersLock.RUnlock()
-		e, ok := s.miners[addr]
+		e, ok := s.miners[minerId]
 		return e, ok
 	}()
 
@@ -381,6 +397,13 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 
 		if s.minerData == nil {
 			return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("nil miner data")
+		}
+
+		addr = addrFunc(s.minerData.MajorVersion)
+
+		var zeroAddress address.PackedAddressWithSubaddress
+		if addr == zeroAddress || *addr.PackedAddress() == (address.PackedAddress{}) {
+			return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("nil address")
 		}
 
 		if !s.newTemplateData.Ready {
@@ -412,17 +435,43 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 			}
 		}
 
+		shares := s.newTemplateData.Window.Shares.Clone()
+
+		weightIndex := 0
+
+		// It exists, replace
+		if i := shares.Index(addr); i != -1 {
+			shares[i] = &sidechain.Share{
+				Address: addr,
+				Weight:  shares[i].Weight.Add(shares[s.newTemplateData.Window.ReservedShareIndex].Weight),
+			}
+			shares = slices.Delete(shares, s.newTemplateData.Window.ReservedShareIndex, s.newTemplateData.Window.ReservedShareIndex+1)
+			weightIndex = 1
+		} else {
+			// Replace reserved address
+			shares[s.newTemplateData.Window.ReservedShareIndex] = &sidechain.Share{
+				Weight:  shares[s.newTemplateData.Window.ReservedShareIndex].Weight,
+				Address: addr,
+			}
+		}
+		shares = shares.Compact()
+
+		// Apply consensus shuffle
+		shares = ApplyShuffleMapping(shares, s.newTemplateData.Window.ShuffleMapping)
+
 		blockTemplate := &sidechain.PoolBlock{
 			Main: block.Block{
-				MajorVersion: s.minerData.MajorVersion,
-				MinorVersion: monero.HardForkSupportedVersion,
-				Timestamp:    s.newTemplateData.Timestamp,
-				PreviousId:   s.minerData.PrevId,
-				Nonce:        0,
-				Transactions: s.newTemplateData.Transactions,
+				MajorVersion:   s.minerData.MajorVersion,
+				MinorVersion:   monero.HardForkSupportedVersion,
+				Timestamp:      s.newTemplateData.Timestamp,
+				PreviousId:     s.minerData.PrevId,
+				Nonce:          0,
+				Transactions:   s.newTemplateData.Weights[weightIndex].Transactions,
+				FCMPTreeLayers: s.minerData.FCMPTreeLayers,
+				FCMPTreeRoot:   s.minerData.FCMPTreeRoot,
 			},
 			Side: sidechain.SideData{
-				PublicKey:              addr,
+				PublicKey:              *addr.PackedAddress(),
 				CoinbasePrivateKeySeed: s.newTemplateData.TransactionPrivateKeySeed,
 				CoinbasePrivateKey:     s.newTemplateData.TransactionPrivateKey,
 				Parent:                 s.newTemplateData.PreviousTemplateId,
@@ -442,29 +491,16 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 			CachedShareVersion: s.newTemplateData.ShareVersion,
 		}
 
+		if blockTemplate.Main.MajorVersion >= monero.HardForkCarrotVersion && addr.IsSubaddress() {
+			// add subaddress
+			// TODO!!!
+			var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
+			copy(subaddressViewPubBuf[:], addr.ViewPublicKey()[:])
+			blockTemplate.Side.MergeMiningExtra = blockTemplate.Side.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
+		}
+
 		preAllocatedShares := s.preAllocatedSharesPool.Get()
 		defer s.preAllocatedSharesPool.Put(preAllocatedShares)
-
-		shares := s.newTemplateData.Window.Shares.Clone()
-
-		// It exists, replace
-		if i := shares.Index(addr); i != -1 {
-			shares[i] = &sidechain.Share{
-				Address: addr,
-				Weight:  shares[i].Weight.Add(shares[s.newTemplateData.Window.ReservedShareIndex].Weight),
-			}
-			shares = slices.Delete(shares, s.newTemplateData.Window.ReservedShareIndex, s.newTemplateData.Window.ReservedShareIndex+1)
-		} else {
-			// Replace reserved address
-			shares[s.newTemplateData.Window.ReservedShareIndex] = &sidechain.Share{
-				Weight:  shares[s.newTemplateData.Window.ReservedShareIndex].Weight,
-				Address: addr,
-			}
-		}
-		shares = shares.Compact()
-
-		// Apply consensus shuffle
-		shares = ApplyShuffleMapping(shares, s.newTemplateData.Window.ShuffleMapping)
 
 		// Allocate rewards
 		{
@@ -486,8 +522,16 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 				Nonce:                 nonce,
 			}
 
-			if blockTemplate.Main.Coinbase, err = s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), blockTemplate.GetTransactionOutputType(), shares, rewards, s.newTemplateData.MaxRewardAmountsWeight, true); err != nil {
+			if blockTemplate.Main.Coinbase, err = s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), blockTemplate.GetTransactionOutputType(), shares, rewards, s.newTemplateData.Weights[weightIndex].MaxRewardAmounts, true); err != nil {
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, err
+			}
+
+			minerTx, _ := blockTemplate.Main.Coinbase.MarshalBinary()
+			if uint64(blockTemplate.Main.Coinbase.BufferLength()) != s.newTemplateData.Weights[weightIndex].CoinbaseTransaction {
+				return nil, 0, types.ZeroDifficulty, types.ZeroHash, fmt.Errorf("miner tx size changed after adjusting reward: %d != %d", blockTemplate.Main.Coinbase.BufferLength(), s.newTemplateData.Weights[weightIndex].CoinbaseTransaction)
+			}
+			if uint64(len(minerTx)) != s.newTemplateData.Weights[weightIndex].CoinbaseTransaction {
+				return nil, 0, types.ZeroDifficulty, types.ZeroHash, fmt.Errorf("miner tx size changed after adjusting reward: %d != %d", len(minerTx), s.newTemplateData.Weights[weightIndex].CoinbaseTransaction)
 			}
 		}
 
@@ -537,7 +581,7 @@ func (s *Server) BuildTemplate(addr address.PackedAddress, forceNewTemplate bool
 		e.Templates[newJobCounter] = tpl
 		e.LastTemplate.Store(newJobCounter)
 		e.LastJob = time.Now()
-		s.miners[addr] = e
+		s.miners[minerId] = e
 		return tpl, newJobCounter, targetDiff, seedHash, nil
 	}
 }
@@ -584,9 +628,8 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 		},
 		Extra: transaction.ExtraTags{
 			transaction.ExtraTag{
-				Tag:    transaction.TxExtraTagPubKey,
-				VarInt: 0,
-				Data:   types.Bytes(s.newTemplateData.TransactionPublicKey),
+				Tag:  transaction.TxExtraTagPubKey,
+				Data: types.Bytes(s.newTemplateData.TransactionPublicKey),
 			},
 			transaction.ExtraTag{
 				Tag:       transaction.TxExtraTagNonce,
@@ -599,27 +642,64 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 		ExtraBaseRCT: 0,
 	}
 
+	if txType == transaction.TxOutToCarrotV1 {
+		// remove tx extra
+		tx.Extra = slices.Delete(tx.Extra, 0, 1)
+		// additional pubkeys, on index 2 now
+		tx.Extra = append(tx.Extra, transaction.ExtraTag{
+			Tag:       transaction.TxExtraTagAdditionalPubKeys,
+			VarInt:    uint64(len(shares)),
+			HasVarInt: true,
+			Data:      make(types.Bytes, crypto.PublicKeySize*len(shares)),
+		})
+
+	}
+
 	tx.Outputs = make(transaction.Outputs, len(shares))
 
 	if final {
 		txPrivateKeySlice := s.newTemplateData.TransactionPrivateKey.AsSlice()
 		txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.AsScalar()
 
-		hasher := crypto.GetKeccak256Hasher()
-		defer crypto.PutKeccak256Hasher(hasher)
+		if txType == transaction.TxOutToCarrotV1 {
+			carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(shares))
+			for i := range len(shares) {
+				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, uint64(i), rewards[i])
+			}
 
-		var k ephemeralPubKeyCacheKey
-		for i := range tx.Outputs {
-			outputIndex := uint64(i)
-			tx.Outputs[outputIndex].Index = outputIndex
-			tx.Outputs[outputIndex].Type = txType
-			tx.Outputs[outputIndex].Reward = rewards[outputIndex]
-			copy(k[:], shares[outputIndex].Address.Bytes())
-			binary.LittleEndian.PutUint64(k[crypto.PublicKeySize*2:], outputIndex)
-			if e, ok := s.newTemplateData.Window.EphemeralPubKeyCache[k]; ok {
-				tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = e.PublicKey, e.ViewTag
-			} else {
-				tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(&shares[outputIndex].Address, txPrivateKeySlice, txPrivateKeyScalar, outputIndex, hasher)
+			// sort
+			slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
+				return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
+			})
+			for i, enote := range carrotEnotes {
+				//TODO: cache
+				outputIndex := uint64(i)
+				tx.Outputs[outputIndex] = sidechain.CalculateOutputCarrot(enote, txType, outputIndex)
+
+				//ephemeral pubkeys: D_e
+				copy(tx.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys).Data[crypto.PublicKeySize*outputIndex:], enote.EphemeralPubKey[:])
+			}
+		} else {
+			hasher := crypto.GetKeccak256Hasher()
+			defer crypto.PutKeccak256Hasher(hasher)
+
+			var k ephemeralPubKeyCacheKey
+			for i := range tx.Outputs {
+				outputIndex := uint64(i)
+				addr := &shares[outputIndex].Address
+				if addr.IsSubaddress() {
+					return transaction.CoinbaseTransaction{}, errors.New("unsupported subaddress")
+				}
+				tx.Outputs[outputIndex].Index = outputIndex
+				tx.Outputs[outputIndex].Type = txType
+				tx.Outputs[outputIndex].Reward = rewards[outputIndex]
+				copy(k[:], shares[outputIndex].Address.PackedAddress().Bytes())
+				binary.LittleEndian.PutUint64(k[crypto.PublicKeySize*2:], outputIndex)
+				if e, ok := s.newTemplateData.Window.EphemeralPubKeyCache[k]; ok {
+					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = e.PublicKey, e.ViewTag
+				} else {
+					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, outputIndex, hasher)
+				}
 			}
 		}
 	} else {
@@ -645,11 +725,12 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 
 	if correctedExtraNonceSize > sidechain.SideExtraNonceSize {
 		if correctedExtraNonceSize > sidechain.SideExtraNonceMaxSize {
+			//TODO: handle this case!!!!
 			return transaction.CoinbaseTransaction{}, fmt.Errorf("corrected extra_nonce size is too large, %d > %d", correctedExtraNonceSize, sidechain.SideExtraNonceMaxSize)
 		}
 		//Increase size to maintain transaction weight
-		tx.Extra[1].Data = make(types.Bytes, correctedExtraNonceSize)
-		tx.Extra[1].VarInt = correctedExtraNonceSize
+		tx.Extra.GetTag(transaction.TxExtraTagNonce).Data = make(types.Bytes, correctedExtraNonceSize)
+		tx.Extra.GetTag(transaction.TxExtraTagNonce).VarInt = correctedExtraNonceSize
 	}
 
 	return tx, nil
@@ -666,12 +747,11 @@ func (s *Server) HandleMempoolData(data mempool.Mempool) {
 		for _, tx := range data {
 
 			if s.mempool.Add(tx) {
+				//prevent a lot of calls if not needed
+				if utils.GlobalLogLevel&utils.LogLevelDebug > 0 {
+					utils.Debugf("Stratum", "new tx id = %s, size = %d, weight = %d, fee = %s XMR", tx.Id, tx.BlobSize, tx.Weight, utils.XMRUnits(tx.Fee))
+				}
 				if tx.Fee >= HighFeeValue {
-					//prevent a lot of calls if not needed
-					if utils.GlobalLogLevel&utils.LogLevelDebug > 0 {
-						utils.Debugf("Stratum", "new tx id = %s, size = %d, weight = %d, fee = %s XMR", tx.Id, tx.BlobSize, tx.Weight, utils.XMRUnits(tx.Fee))
-					}
-
 					highFeeReceived = true
 					utils.Noticef("Stratum", "high fee tx received: %s, %s XMR - updating template", tx.Id, utils.XMRUnits(tx.Fee))
 				}
@@ -910,6 +990,8 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 
 		addressNetwork := s.sidechain.Consensus().NetworkType.MustAddressNetwork()
 
+		var idCounter atomic.Uint64
+
 		for {
 			if conn, err := tcpListener.AcceptTCP(); err != nil {
 				return err
@@ -946,9 +1028,10 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 					decoder := utils.NewJSONDecoder(conn)
 					decoder.UseNumber()
 					client := &Client{
-						RpcId:   rpcId,
-						Conn:    conn,
-						decoder: decoder,
+						RpcId:      rpcId,
+						Conn:       conn,
+						decoder:    decoder,
+						InternalId: idCounter.Add(1),
 
 						// Default to donation address if not specified
 						Address: address.FromBase58(types.DonationAddress).ToPackedAddress(),
@@ -1035,10 +1118,12 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 											client.RigId = str
 										}
 
-										if str, ok := m["login"].(string); ok {
+										if str, ok := m["login"].(string); ok && str != "" {
 											//TODO: support merge mining addresses
 											a := address.FromBase58(str)
-											if a == nil || !a.Valid() {
+											if a == nil {
+												// do nothing
+											} else if !a.Valid() {
 												return errors.New("invalid address in user, or integrated addresses not supported")
 											} else if a.BaseNetwork() != addressNetwork {
 												return errors.New("invalid address in user, wrong network")
@@ -1050,11 +1135,13 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 														return errors.New("invalid address in user, invalid subaddress conversion")
 													}
 													client.Address = fa.ToPackedAddress()
+													pa := a.ToPackedAddress()
+													client.Subaddress = &pa
 
 													// allow sending to subaddress when specified
 													var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
 													copy(subaddressViewPubBuf[:], a.ViewPub[:])
-													client.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
+													client.MergeMiningExtra = client.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 
 													// cleanup
 													client.Password = ""
@@ -1067,10 +1154,14 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 														return errors.New("invalid subaddress in pass")
 													}
 
+													pa := sa.ToPackedAddress()
+													client.Subaddress = &pa
+													client.Address = address.NewPackedAddress(sa.SpendPublicKey(), a.ViewPublicKey())
+
 													// allow sending to subaddress when specified
 													var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
 													copy(subaddressViewPubBuf[:], sa.ViewPub[:])
-													client.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
+													client.MergeMiningExtra = client.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 
 													// cleanup
 													client.Password = ""
@@ -1206,7 +1297,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 											if e, ok := func() (*MinerTrackingEntry, bool) {
 												s.minersLock.RLock()
 												defer s.minersLock.RUnlock()
-												e, ok := s.miners[client.Address]
+												e, ok := s.miners[client.InternalId]
 												return e, ok
 											}(); ok {
 												b := &sidechain.PoolBlock{}
@@ -1314,7 +1405,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
-	tpl, jobCounter, targetDifficulty, seedHash, err := s.BuildTemplate(c.Address, false)
+	tpl, jobCounter, targetDifficulty, seedHash, err := s.BuildTemplate(c.InternalId, c.GetAddress, false)
 
 	if err != nil {
 		return err
@@ -1339,15 +1430,18 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 		SideExtraNonce:   sideExtraNonce,
 	}
 
-	// implicit addition
-	mmExtra := jobId.MergeMiningExtra.Merge(c.MergeMiningExtra)
+	mmExtra := jobId.MergeMiningExtra
+	if tpl.MajorVersion() < monero.HardForkCarrotVersion {
+		// explicit addition in non carrot
+		mmExtra = mmExtra.Merge(c.MergeMiningExtra)
+	}
 
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
 
 	// todo merkle root with merge mine
 	var templateId types.Hash
-	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), c.GetAddress(uint8(tpl.MajorVersion())), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
 	jobId.MerkleRoot = templateId
 
 	job := copyBaseJob()
@@ -1373,7 +1467,7 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) (err error) {
 	c.Lock.Lock()
 	defer c.Lock.Unlock()
-	tpl, jobCounter, targetDifficulty, seedHash, err := s.BuildTemplate(c.Address, false)
+	tpl, jobCounter, targetDifficulty, seedHash, err := s.BuildTemplate(c.InternalId, c.GetAddress, false)
 
 	if err != nil {
 		return
@@ -1400,15 +1494,18 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 		SideExtraNonce:   sideExtraNonce,
 	}
 
-	// implicit addition
-	mmExtra := jobId.MergeMiningExtra.Merge(c.MergeMiningExtra)
+	mmExtra := jobId.MergeMiningExtra
+	if tpl.MajorVersion() < monero.HardForkCarrotVersion {
+		// explicit addition in non carrot
+		mmExtra = mmExtra.Merge(c.MergeMiningExtra)
+	}
 
 	hasher := crypto.GetKeccak256Hasher()
 	defer crypto.PutKeccak256Hasher(hasher)
 
 	// todo merkle root with merge mine
 	var templateId types.Hash
-	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), c.GetAddress(uint8(tpl.MajorVersion())), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
 	jobId.MerkleRoot = templateId
 
 	job := copyBaseResponseJob()

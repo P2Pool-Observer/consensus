@@ -96,3 +96,48 @@ func (p PackedAddress) Reference() *PackedAddress {
 func (p PackedAddress) Bytes() []byte {
 	return (*[crypto.PublicKeySize * 2]byte)(unsafe.Pointer(&p))[:]
 }
+
+type PackedAddressWithSubaddress [crypto.PublicKeySize*2 + 1]byte
+
+func NewPackedAddressWithSubaddress(a *PackedAddress, isSubaddress bool) (out PackedAddressWithSubaddress) {
+	copy(out[:], a.SpendPublicKey()[:])
+	copy(out[crypto.PublicKeySize:], a.ViewPublicKey()[:])
+	if isSubaddress {
+		out[crypto.PublicKeySize*2] = 1
+	}
+	return out
+}
+
+func (p *PackedAddressWithSubaddress) SpendPublicKey() *crypto.PublicKeyBytes {
+	return (*crypto.PublicKeyBytes)(unsafe.Pointer(p))
+}
+
+func (p *PackedAddressWithSubaddress) ViewPublicKey() *crypto.PublicKeyBytes {
+	return (*crypto.PublicKeyBytes)(unsafe.Pointer(&p[crypto.PublicKeySize]))
+}
+
+func (p *PackedAddressWithSubaddress) IsSubaddress() bool {
+	return p[crypto.PublicKeySize*2] == 1
+}
+
+func (p *PackedAddressWithSubaddress) PackedAddress() *PackedAddress {
+	return (*PackedAddress)(unsafe.Pointer(p))
+}
+
+func (p *PackedAddressWithSubaddress) ComparePacked(other *PackedAddressWithSubaddress) int {
+	//compare spend key
+
+	resultSpendKey := crypto.CompareConsensusPublicKeyBytes(p.SpendPublicKey(), other.SpendPublicKey())
+	if resultSpendKey != 0 {
+		return resultSpendKey
+	}
+
+	// compare view key
+	resultViewKey := crypto.CompareConsensusPublicKeyBytes(p.ViewPublicKey(), other.ViewPublicKey())
+	if resultViewKey != 0 {
+		return resultViewKey
+	}
+
+	// compare subaddress
+	return int(p[crypto.PublicKeySize*2]) - int(other[crypto.PublicKeySize*2])
+}
