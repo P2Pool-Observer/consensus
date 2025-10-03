@@ -24,7 +24,7 @@ func (index SubaddressIndex) SecretKey(viewKey crypto.PrivateKeyBytes) crypto.Pr
 	var major, minor [4]byte
 	binary.LittleEndian.PutUint32(major[:], index.Account)
 	binary.LittleEndian.PutUint32(minor[:], index.Offset)
-	return crypto.PrivateKeyFromScalar(crypto.HashToScalar(
+	return crypto.PrivateKeyFromScalar(crypto.ScalarDeriveLegacy(
 		hashKeySubaddress,
 		viewKey[:],
 		major[:],

@@ -18,16 +18,16 @@ var l = [32]byte{0xe3, 0x6a, 0x67, 0x72, 0x8b, 0xce, 0x13, 0x29, 0x8f, 0x30, 0x8
 // limit = l * 15, l fits 15 times in 32 bytes (iow, 15 l is the highest multiple of l that fits in 32 bytes)
 var limit = [32]byte{0xe3, 0x6a, 0x67, 0x72, 0x8b, 0xce, 0x13, 0x29, 0x8f, 0x30, 0x82, 0x8c, 0x0b, 0xa4, 0x10, 0x39, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0}
 
-func ScalarReduce32_BigInt(s []byte) {
+func ScalarReduce32_BigInt(s *[32]byte) {
 	// l = 2^252 + 27742317777372353535851937790883648493
 	var lAdd, _ = new(big.Int).SetString("27742317777372353535851937790883648493", 10)
 	var l = new(big.Int).Add(new(big.Int).Exp(big.NewInt(2), big.NewInt(252), nil), lAdd)
 
-	slices.Reverse(s)
-	i := new(big.Int).SetBytes(s)
+	slices.Reverse(s[:])
+	i := new(big.Int).SetBytes(s[:])
 	i.Mod(i, l)
-	i.FillBytes(s)
-	slices.Reverse(s)
+	i.FillBytes(s[:])
+	slices.Reverse(s[:])
 	return
 }
 
@@ -92,20 +92,23 @@ func load4(in []byte) (result int64) {
 	return int64(binary.LittleEndian.Uint32(in))
 }
 
+func ScalarReduce32_Wide(s *[32]byte) {
+	var x edwards25519.Scalar
+	var data [64]byte
+	copy(data[:], s[:])
+	_, _ = x.SetUniformBytes(data[:])
+	copy(s[:], x.Bytes())
+}
+
 // ScalarReduce32
 // also called sc_reduce32
 // 256-bit s integer modulo l
 // equivalent to ScalarReduce32_BigInt
+// equivalent to ScalarReduce32_Wide
 //
 //go:nosplit
-func ScalarReduce32(s []byte) {
+func ScalarReduce32(s *[32]byte) {
 	_ = s[31] // bounds check hint to compiler; see golang.org/issue/14808
-
-	var x edwards25519.Scalar
-	var data [64]byte
-	copy(data[:], s)
-	_, _ = x.SetUniformBytes(data[:])
-	copy(s, x.Bytes())
 
 	s0 := 0x1FFFFF & load3(s[:])
 	s1 := 0x1FFFFF & (load4(s[2:]) >> 5)
@@ -282,12 +285,12 @@ func ScalarReduce32(s []byte) {
 
 //go:nosplit
 func BytesToScalar64(buf [64]byte, c *edwards25519.Scalar) {
-	_, _ = GetEdwards25519Scalar().SetUniformBytes(buf[:])
+	_, _ = c.SetUniformBytes(buf[:])
 }
 
 //go:nosplit
 func BytesToScalar32(buf [32]byte, c *edwards25519.Scalar) {
-	ScalarReduce32(buf[:])
+	ScalarReduce32(&buf)
 	_, _ = c.SetCanonicalBytes(buf[:])
 }
 
@@ -332,11 +335,9 @@ func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 
 	   which is of negligible probability.
 	*/
-	// SetWideBytes necessary to have it not ignore the top bit compared to SetBytes
-	var wideBuf [64]byte
-	copy(wideBuf[:], buf[:])
+
 	var r, o, tmp1, tmp2, tmp3 field.Element
-	_, _ = r.SetWideBytes(wideBuf[:])
+	_, _ = r.SetBytesPropagate(buf[:])
 
 	// Per Section 5.5, take `u = 2`. This is the smallest quadratic non-residue in the field
 	urSquare := r.Square(&r)
@@ -370,8 +371,8 @@ func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 	   Check if `\upsilon` is a valid `u` coordinate by checking for a solution for the square root
 	   of `\upsilon^3 + A \upsilon^2 + \upsilon`.
 	*/
-	_, epsilon := tmp2.SqrtRatio(
-		tmp1.Add(
+	_, epsilon := tmp3.SqrtRatio(
+		tmp3.Add(
 			tmp3.Multiply(
 				tmp1.Add(upsilon, _A),
 				tmp2.Square(upsilon),
@@ -400,12 +401,12 @@ func montgomeryToEdwards(u *field.Element, sign int) *edwards25519.Point {
 		return nil
 	}
 
-	var tmp1, tmp2, tmp3 field.Element
+	var tmp1, tmp2 field.Element
 
 	// The birational map is y = (u-1)/(u+1).
 	y := u.Multiply(
 		tmp1.Subtract(u, _ONE),
-		tmp2.Invert(tmp3.Add(u, _ONE)),
+		tmp2.Invert(tmp2.Add(u, _ONE)),
 	)
 
 	var yBytes [32]byte

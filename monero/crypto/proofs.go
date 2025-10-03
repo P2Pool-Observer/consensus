@@ -256,7 +256,7 @@ func VerifyTxProof(prefixHash types.Hash, R, A, B, D PublicKey, sig *Signature, 
 			Y:       Y,
 		}
 
-		C = HashToScalar(comm.Bytes())
+		C = ScalarDeriveLegacy(comm.Bytes())
 	case 2:
 		comm := SignatureComm_2{
 			Message:   prefixHash,
@@ -269,7 +269,7 @@ func VerifyTxProof(prefixHash types.Hash, R, A, B, D PublicKey, sig *Signature, 
 			Y:         Y,
 		}
 
-		C = HashToScalar(comm.Bytes())
+		C = ScalarDeriveLegacy(comm.Bytes())
 
 	default:
 		return false

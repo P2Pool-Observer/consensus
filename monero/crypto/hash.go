@@ -25,31 +25,6 @@ func Keccak256Single(data []byte) (result types.Hash) {
 	return
 }
 
-func HashToScalar(data ...[]byte) *edwards25519.Scalar {
-	h := PooledKeccak256(data...)
-
-	c := GetEdwards25519Scalar()
-	BytesToScalar32(h, c)
-
-	return c
-}
-
-func HashToScalarNoAllocate(data ...[]byte) edwards25519.Scalar {
-	h := Keccak256(data...)
-
-	var c edwards25519.Scalar
-	BytesToScalar32(h, &c)
-	return c
-}
-
-func HashToScalarNoAllocateSingle(data []byte) edwards25519.Scalar {
-	h := Keccak256Single(data)
-
-	var c edwards25519.Scalar
-	BytesToScalar32(h, &c)
-	return c
-}
-
 // HashFastSum sha3.Sum clones the state by allocating memory. prevent that. b must be pre-allocated to the expected size, or larger
 func HashFastSum(hash *sha3.HasherState, b []byte) []byte {
 	_ = b[31] // bounds check hint to compiler; see golang.org/issue/14808

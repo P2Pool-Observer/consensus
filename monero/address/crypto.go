@@ -48,7 +48,8 @@ func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *e
 	derivationAsBytes := p.Bytes()
 	var varIntBuf [binary.MaxVarintLen64]byte
 
-	sharedData := crypto.HashToScalarNoAllocate(derivationAsBytes, varIntBuf[:binary.PutUvarint(varIntBuf[:], outputIndex)])
+	var sharedData edwards25519.Scalar
+	crypto.ScalarDeriveLegacyNoAllocate(&sharedData, derivationAsBytes, varIntBuf[:binary.PutUvarint(varIntBuf[:], outputIndex)])
 
 	//public key + add
 	p.UnsafeVarTimeScalarBaseMult(&sharedData).Add(p, spendPub)
