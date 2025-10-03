@@ -1,8 +1,14 @@
 package monero
 
 const (
-	HardForkViewTagsVersion  = 15
-	HardForkSupportedVersion = 16
+	HardForkViewTagsVersion     = 15
+	HardForkFCMPPlusPlusVersion = 17
+	HardForkCarrotVersion       = 17
+	//TODO: HF_VERSION_REJECT_UNLOCK_TIME
+	//TODO: HF_VERSION_REJECT_UNMIXABLE_V1
+	//TODO: HF_VERSION_REJECT_LARGE_EXTRA
+	//TODO: HF_VERSION_REJECT_MANY_MINER_OUTPUTS
+	HardForkSupportedVersion = 18
 )
 
 type HardFork struct {
@@ -86,6 +92,10 @@ var testNetHardForks = []HardFork{
 	{14, 1544659, 0, 1599069377},
 	{15, 1982800, 0, 1652727000},
 	{16, 1983520, 0, 1652813400},
+
+	// FCMP++/Carrot alpha stressnet hardfork
+	{17, 2847330, 0, 1759510900},
+	{18, 2848050, 0, 1759597300},
 }
 
 var stageNetHardForks = []HardFork{

@@ -3,16 +3,20 @@ package sidechain
 import (
 	"errors"
 	"fmt"
+	"math/bits"
+	"slices"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
+	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/sha3"
-	"math/bits"
-	"slices"
 )
 
 type GetByMainIdFunc func(h types.Hash) *PoolBlock
@@ -23,10 +27,51 @@ type GetBySideHeightFunc func(height uint64) UniquePoolBlockSlice
 // GetChainMainByHashFunc if h = types.ZeroHash, return tip
 type GetChainMainByHashFunc func(h types.Hash) *ChainMain
 
-func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, derivationCache DerivationCacheInterface, preAllocatedShares Shares, preAllocatedRewards []uint64) (outputs transaction.Outputs, bottomHeight uint64, err error) {
+func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType uint8, a *address.PackedAddress, txPrivateKeySlice crypto.PrivateKeySlice, txPrivateKeyScalar *crypto.PrivateKeyScalar, outputIndex, amount uint64, hasher *sha3.HasherState) transaction.Output {
+	ephemeralPubKey, viewTag := derivationCache.GetEphemeralPublicKey(a, txPrivateKeySlice, txPrivateKeyScalar, outputIndex, hasher)
+	return transaction.Output{
+		Index:              outputIndex,
+		Type:               txType,
+		Reward:             amount,
+		EphemeralPublicKey: ephemeralPubKey,
+		ViewTag:            viewTag,
+	}
+}
+
+func CalculateEnoteCarrot(derivationCache DerivationCacheInterface, a *address.PackedAddress, seed types.Hash, blockIndex, outputIndex, amount uint64) *carrot.CoinbaseEnoteV1 {
+	proposal := carrot.PaymentProposalV1{
+		Destination: carrot.DestinationV1{
+			Address: *a,
+			//TODO
+			IsSubaddress: false,
+		},
+		Amount:     amount,
+		Randomness: p2poolcrypto.GetDeterministicCarrotOutputRandomness(seed, blockIndex, a.SpendPublicKey(), a.ViewPublicKey()),
+	}
+
+	out, err := proposal.Output(blockIndex)
+	if err != nil {
+		panic(fmt.Errorf("unexpected error: %w", err))
+	}
+
+	return out
+}
+
+func CalculateOutputCarrot(enote *carrot.CoinbaseEnoteV1, txType uint8, outputIndex uint64) transaction.Output {
+	return transaction.Output{
+		Index:                outputIndex,
+		Type:                 txType,
+		Reward:               enote.Amount,
+		EphemeralPublicKey:   enote.OneTimeAddress,
+		CarrotViewTag:        enote.ViewTag,
+		EncryptedJanusAnchor: enote.EncryptedAnchor,
+	}
+}
+
+func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, derivationCache DerivationCacheInterface, preAllocatedShares Shares, preAllocatedRewards []uint64) (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error) {
 	tmpShares, bottomHeight, err := GetShares(block, consensus, difficultyByHeight, getByTemplateId, preAllocatedShares)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 	if preAllocatedRewards == nil {
 		preAllocatedRewards = make([]uint64, 0, len(tmpShares))
@@ -34,14 +79,18 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 	tmpRewards := SplitReward(preAllocatedRewards, block.Main.Coinbase.AuxiliaryData.TotalReward, tmpShares)
 
 	if tmpShares == nil || tmpRewards == nil || len(tmpRewards) != len(tmpShares) {
-		return nil, 0, errors.New("could not calculate outputs")
+		return nil, nil, 0, errors.New("could not calculate outputs")
 	}
 
 	n := uint64(len(tmpShares))
 
+	txType := block.GetTransactionOutputType()
+
 	outputs = make(transaction.Outputs, n)
 
-	txType := block.GetTransactionOutputType()
+	if txType == transaction.TxOutToCarrotV1 {
+		pubs = make([]crypto.PublicKeyBytes, n)
+	}
 
 	txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
 	txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
@@ -55,14 +104,13 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 	}()
 
 	err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
-		output := transaction.Output{
-			Index: workIndex,
-			Type:  txType,
+		if txType == transaction.TxOutToCarrotV1 {
+			enote := CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, workIndex, tmpRewards[workIndex])
+			pubs[workIndex] = crypto.PublicKeyBytes(enote.EphemeralPubKey)
+			outputs[workIndex] = CalculateOutputCarrot(enote, txType, workIndex)
+		} else {
+			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, &tmpShares[workIndex].Address, txPrivateKeySlice, txPrivateKeyScalar, workIndex, tmpRewards[workIndex], hashers[workerIndex])
 		}
-		output.Reward = tmpRewards[output.Index]
-		output.EphemeralPublicKey, output.ViewTag = derivationCache.GetEphemeralPublicKey(&tmpShares[output.Index].Address, txPrivateKeySlice, txPrivateKeyScalar, output.Index, hashers[workerIndex])
-
-		outputs[output.Index] = output
 
 		return nil
 	}, func(routines, routineIndex int) error {
@@ -71,10 +119,10 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 	})
 
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, 0, err
 	}
 
-	return outputs, bottomHeight, nil
+	return outputs, pubs, bottomHeight, nil
 }
 
 type PoolBlockWindowSlot struct {

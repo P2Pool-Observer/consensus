@@ -8,6 +8,9 @@ const (
 
 	TailEmissionReward = 600000000000
 
+	JanusAnchorSize   = 16
+	CarrotViewTagSize = 3
+
 	RequiredMajor         = 3
 	RequiredMinor         = 10
 	RequiredMoneroVersion = (RequiredMajor << 16) | RequiredMinor

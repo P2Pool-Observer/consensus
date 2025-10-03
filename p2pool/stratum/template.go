@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
@@ -31,6 +32,9 @@ type Template struct {
 
 	// TransactionsOffset Start of transactions section
 	TransactionsOffset int
+
+	// FCMPOffset Start of FCMP++ section
+	FCMPOffset int
 
 	// TemplateSideDataOffset Start of side data section
 	TemplateSideDataOffset int
@@ -229,6 +233,11 @@ func (tpl *Template) MainBlock() (b mainblock.Block, err error) {
 	return b, nil
 }
 
+func (tpl *Template) MainVersion() uint64 {
+	t, _ := utils.CanonicalUvarint(tpl.Buffer)
+	return t
+}
+
 func (tpl *Template) Timestamp() uint64 {
 	t, _ := utils.CanonicalUvarint(tpl.Buffer[2:])
 	return t
@@ -299,7 +308,7 @@ func CoinbaseIdHash(hasher *sha3.HasherState, coinbaseBlobMinusBaseRTC types.Has
 func (tpl *Template) HashingBlobBufferLength() int {
 	_, n := utils.CanonicalUvarint(tpl.Buffer[tpl.TransactionsOffset:])
 
-	return tpl.NonceOffset + 4 + types.HashSize + n
+	return tpl.NonceOffset + 4 + types.HashSize + utils.UVarInt64Size(n)
 }
 
 func (tpl *Template) HashingBlob(hasher *sha3.HasherState, preAllocatedBuffer []byte, nonce, extraNonce uint32, merkleRoot types.Hash) []byte {
@@ -312,18 +321,31 @@ func (tpl *Template) HashingBlob(hasher *sha3.HasherState, preAllocatedBuffer []
 
 	numTransactions, n := utils.CanonicalUvarint(tpl.Buffer[tpl.TransactionsOffset:])
 
-	if numTransactions < 1 {
-	} else if numTransactions < 2 {
-		_, _ = hasher.Write(rootHash[:])
-		_, _ = hasher.Write(tpl.Buffer[tpl.TransactionsOffset+n : tpl.TransactionsOffset+n+types.HashSize])
-		crypto.HashFastSum(hasher, rootHash[:])
-		hasher.Reset()
+	if tpl.MainVersion() >= monero.HardForkFCMPPlusPlusVersion {
+		//TODO: make this efficient
+		merkleTree := make(crypto.MerkleTree, numTransactions+3)
+		merkleTree[0][0] = tpl.Buffer[tpl.FCMPOffset]
+		merkleTree[1] = types.Hash(tpl.Buffer[tpl.FCMPOffset+1 : tpl.FCMPOffset+1+types.HashSize])
+		merkleTree[2] = rootHash
+		for i := range int(numTransactions) {
+			merkleTree[3+i] = types.Hash(tpl.Buffer[tpl.TransactionsOffset+n+types.HashSize*i : tpl.TransactionsOffset+n+types.HashSize*i+types.HashSize])
+		}
+
+		rootHash = merkleTree.RootHash()
 	} else {
-		for i := range tpl.MerkleTreeMainBranch {
+		if numTransactions < 1 {
+		} else if numTransactions < 2 {
 			_, _ = hasher.Write(rootHash[:])
-			_, _ = hasher.Write(tpl.MerkleTreeMainBranch[i][:])
+			_, _ = hasher.Write(tpl.Buffer[tpl.TransactionsOffset+n : tpl.TransactionsOffset+n+types.HashSize])
 			crypto.HashFastSum(hasher, rootHash[:])
 			hasher.Reset()
+		} else {
+			for i := range tpl.MerkleTreeMainBranch {
+				_, _ = hasher.Write(rootHash[:])
+				_, _ = hasher.Write(tpl.MerkleTreeMainBranch[i][:])
+				crypto.HashFastSum(hasher, rootHash[:])
+				hasher.Reset()
+			}
 		}
 	}
 
@@ -352,16 +374,29 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 
 	mainBufferLength := b.Main.BufferLength()
 	coinbaseLength := b.Main.Coinbase.BufferLength()
-	tpl.NonceOffset = mainBufferLength - (4 + coinbaseLength + utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions))
 
-	tpl.CoinbaseOffset = mainBufferLength - (coinbaseLength + utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions))
+	fcmpOffset := 0
+	fcmpMerkleRootOffset := 0
+	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		fcmpOffset = 1 + types.HashSize
+		if len(b.Main.Coinbase.Outputs) > 1 {
+			// remove the additional pub keys
+			fcmpMerkleRootOffset = 1 + utils.UVarInt64Size(len(b.Main.Coinbase.Outputs)-1) + crypto.PublicKeySize*(len(b.Main.Coinbase.Outputs)-1)
+		}
+	}
 
-	tpl.TransactionsOffset = mainBufferLength - (utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions))
+	tpl.NonceOffset = mainBufferLength - (4 + coinbaseLength + utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions) + fcmpOffset)
+
+	tpl.CoinbaseOffset = mainBufferLength - (coinbaseLength + utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions) + fcmpOffset)
+
+	tpl.TransactionsOffset = mainBufferLength - (utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions) + fcmpOffset)
+
+	tpl.FCMPOffset = mainBufferLength - fcmpOffset
 
 	tpl.ExtraNonceOffset = tpl.NonceOffset + 4 + (coinbaseLength - (b.Main.Coinbase.Extra[CoinbaseExtraNonceIndex].BufferLength() + b.Main.Coinbase.Extra[CoinbaseExtraMergeMiningIndex].BufferLength() + 1)) + 1 + utils.UVarInt64Size(b.Main.Coinbase.Extra[CoinbaseExtraNonceIndex].VarInt)
 
 	if version >= sidechain.ShareVersion_V3 {
-		tpl.MerkleRootOffset = tpl.NonceOffset + 4 + (coinbaseLength - 1 /*extra base rct*/ - types.HashSize)
+		tpl.MerkleRootOffset = tpl.NonceOffset + 4 + (coinbaseLength - 1 /*extra base rct*/ - types.HashSize - fcmpMerkleRootOffset)
 	} else {
 		tpl.MerkleRootOffset = tpl.NonceOffset + 4 + (coinbaseLength - (b.Main.Coinbase.Extra[CoinbaseExtraMergeMiningIndex].BufferLength() + 1)) + 1 + utils.UVarInt64Size(b.Main.Coinbase.Extra[CoinbaseExtraMergeMiningIndex].VarInt)
 	}
@@ -382,9 +417,27 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 	// Set places to zeroes where necessary
 	tpl.Buffer = tpl.Blob(make([]byte, 0, len(buf)), consensus, 0, 0, 0, 0, types.ZeroHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, 0, 0)[:len(buf)-bufOffset]
 
-	if len(b.Main.Transactions) > 1 {
-		merkleTree := make(crypto.MerkleTree, len(b.Main.Transactions)+1)
-		copy(merkleTree[1:], b.Main.Transactions)
+	{
+		reserve := 1
+		reserveOffset := 0
+		if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+			reserve += 2
+		}
+
+		merkleTree := make(crypto.MerkleTree, len(b.Main.Transactions)+reserve)
+		if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+			merkleTree[reserveOffset][0] = b.Main.FCMPTreeLayers
+			reserveOffset++
+			merkleTree[reserveOffset] = types.Hash(b.Main.FCMPTreeRoot)
+			reserveOffset++
+		}
+
+		merkleTree[reserveOffset] = types.ZeroHash
+		reserveOffset++
+
+		copy(merkleTree[reserveOffset:], b.Main.Transactions)
+
+		//TODO: fix this
 		tpl.MerkleTreeMainBranch = merkleTree.MainBranch()
 	}
 

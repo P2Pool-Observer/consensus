@@ -204,7 +204,11 @@ func (c *SideChain) fillPoolBlockTransactionParentIndices(block *PoolBlock) {
 
 func (c *SideChain) isPoolBlockTransactionKeyIsDeterministic(block *PoolBlock) bool {
 	kP := c.derivationCache.GetDeterministicTransactionKey(block.GetPrivateKeySeed(), block.Main.PreviousId)
-	return bytes.Compare(block.CoinbaseExtra(SideCoinbasePublicKey), kP.PublicKey.AsSlice()) == 0 && block.Side.CoinbasePrivateKey == kP.PrivateKey.AsBytes()
+	pubs := block.CoinbasePublicKeys()
+	if len(pubs) != 1 {
+		return false
+	}
+	return bytes.Compare(pubs[0].AsSlice(), kP.PublicKey.AsSlice()) == 0 && block.Side.CoinbasePrivateKey == kP.PrivateKey.AsBytes()
 }
 
 func (c *SideChain) getSeedByHeightFunc() mainblock.GetSeedByHeightFunc {
@@ -326,8 +330,8 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		return nil, errors.New("block reward too low"), true
 	}
 
-	// Enforce deterministic tx keys starting from v15
-	if block.Main.MajorVersion >= monero.HardForkViewTagsVersion {
+	// Enforce deterministic tx keys starting from v15 up to v17
+	if block.Main.MajorVersion >= monero.HardForkViewTagsVersion && block.Main.MajorVersion < monero.HardForkCarrotVersion {
 		if !c.isPoolBlockTransactionKeyIsDeterministic(block) {
 			return nil, errors.New("invalid deterministic transaction keys"), true
 		}
@@ -339,6 +343,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 
 	// Both tx types are allowed by Monero consensus during v15 because it needs to process pre-fork mempool transactions,
 	// but P2Pool can switch to using only TXOUT_TO_TAGGED_KEY for miner payouts starting from v15
+	// same for carrot outputs
 	expectedTxType := block.GetTransactionOutputType()
 
 	if missingBlocks, err = c.PreprocessBlock(block); err != nil {
@@ -909,17 +914,46 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				}
 			}()
 
+			pubs := block.CoinbasePublicKeys()
+
+			if block.GetTransactionOutputType() == transaction.TxOutToCarrotV1 {
+				if len(pubs) != len(block.Main.Coinbase.Outputs) {
+					return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), len(block.Main.Coinbase.Outputs))
+				}
+			} else if len(pubs) != 1 {
+				return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), 1)
+			}
+
 			if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
 				out := block.Main.Coinbase.Outputs[workIndex]
 				if rewards[workIndex] != out.Reward {
 					return fmt.Errorf("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
 				}
 
-				if ephPublicKey, viewTag := c.derivationCache.GetEphemeralPublicKey(&shares[workIndex].Address, txPrivateKeySlice, txPrivateKeyScalar, workIndex, hashers[workerIndex]); ephPublicKey != out.EphemeralPublicKey {
-					return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), ephPublicKey.String())
-				} else if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag {
-					return fmt.Errorf("has incorrect view tag at index %d, got %d, expected %d", workIndex, out.ViewTag, viewTag)
+				if out.Type == transaction.TxOutToCarrotV1 {
+					enote := CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, workIndex, out.Reward)
+
+					calculated := CalculateOutputCarrot(enote, out.Type, workIndex)
+					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
+						return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
+					} else if calculated.CarrotViewTag != out.CarrotViewTag {
+						return fmt.Errorf("has incorrect view tag at index %d, got %x, expected %x", workIndex, out.CarrotViewTag, calculated.CarrotViewTag)
+					} else if calculated.EncryptedJanusAnchor != out.EncryptedJanusAnchor {
+						return fmt.Errorf("has incorrect janus anchor at index %d, got %x, expected %x", workIndex, out.EncryptedJanusAnchor, calculated.EncryptedJanusAnchor)
+					}
+
+					if !bytes.Equal(pubs[workIndex], enote.EphemeralPubKey[:]) {
+						return fmt.Errorf("has incorrect public key at index %d, got %x, expected %s", workIndex, enote.EphemeralPubKey[:], pubs[workIndex].String())
+					}
+				} else {
+					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, &shares[workIndex].Address, txPrivateKeySlice, txPrivateKeyScalar, workIndex, out.Reward, hashers[workerIndex])
+					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
+						return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
+					} else if out.Type == transaction.TxOutToTaggedKey && calculated.ViewTag != out.ViewTag {
+						return fmt.Errorf("has incorrect view tag at index %d, got %d, expected %d", workIndex, out.ViewTag, calculated.ViewTag)
+					}
 				}
+
 				return nil
 			}, func(routines, routineIndex int) error {
 				hashers = append(hashers, crypto.GetKeccak256Hasher())
@@ -1287,7 +1321,7 @@ func (c *SideChain) GetMissingBlocks() []types.Hash {
 
 // calculateOutputs
 // Deprecated
-func (c *SideChain) calculateOutputs(block *PoolBlock) (outputs transaction.Outputs, bottomHeight uint64, err error) {
+func (c *SideChain) calculateOutputs(block *PoolBlock) (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error) {
 	preAllocatedShares := c.preAllocatedSharesPool.Get()
 	defer c.preAllocatedSharesPool.Put(preAllocatedShares)
 	return CalculateOutputs(block, c.Consensus(), c.server.GetDifficultyByHeight, c.getPoolBlockByTemplateId, c.derivationCache, preAllocatedShares, c.preAllocatedRewards)

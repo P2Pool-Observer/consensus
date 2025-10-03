@@ -21,7 +21,7 @@ const MaxUncleCount = uint64(math.MaxUint64) / types.HashSize
 type SideData struct {
 	PublicKey              address.PackedAddress `json:"public_key"`
 	CoinbasePrivateKeySeed types.Hash            `json:"coinbase_private_key_seed,omitempty"`
-	// CoinbasePrivateKey filled or calculated on decoding
+	// CoinbasePrivateKey filled or calculated on decoding,
 	CoinbasePrivateKey crypto.PrivateKeyBytes `json:"coinbase_private_key"`
 	// Parent Template Id of the parent of this share, or zero if genesis
 	Parent types.Hash `json:"parent"`

@@ -71,9 +71,22 @@ func GetKeyImage(pair *KeyPair) PublicKey {
 	return PublicKeyFromPoint(BiasedHashToPoint(pair.PublicKey.AsSlice())).Multiply(pair.PrivateKey.AsScalar())
 }
 
+// SecretDeriveN As defined in Carrot = SecretDerive(x) = H_n(x)
+func SecretDeriveN(n int, key []byte, data ...[]byte) []byte {
+	hasher, _ := blake2b.New(n, key)
+	if hasher == nil {
+		panic("unreachable")
+	}
+	for _, b := range data {
+		_, _ = hasher.Write(b)
+	}
+	h := make([]byte, n)
+	return hasher.Sum(h[:0])
+}
+
 // SecretDerive As defined in Carrot = SecretDerive(x) = H_32(x)
-func SecretDerive(data ...[]byte) types.Hash {
-	hasher, _ := blake2b.New256(nil)
+func SecretDerive(key []byte, data ...[]byte) types.Hash {
+	hasher, _ := blake2b.New256(key)
 	for _, b := range data {
 		_, _ = hasher.Write(b)
 	}
@@ -84,8 +97,8 @@ func SecretDerive(data ...[]byte) types.Hash {
 }
 
 // ScalarDerive As defined in Carrot = BytesToInt512(H_64(x)) mod ℓ
-func ScalarDerive(data ...[]byte) *edwards25519.Scalar {
-	hasher, _ := blake2b.New512(nil)
+func ScalarDerive(key []byte, data ...[]byte) *edwards25519.Scalar {
+	hasher, _ := blake2b.New512(key)
 	for _, b := range data {
 		_, _ = hasher.Write(b)
 	}

@@ -6,12 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"git.gammaspectra.live/P2Pool/go-json"
-	"github.com/ulikunitz/xz"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"os"
@@ -20,6 +14,13 @@ import (
 	"runtime/debug"
 	"slices"
 	"testing"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/go-json"
+	"github.com/ulikunitz/xz"
 )
 
 func init() {
@@ -908,7 +909,8 @@ func BenchmarkSideChainDefault_CalculateOutputs(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		outputs, _, _ := CalculateOutputs(tip, benchLoadedSideChain.Consensus(), benchLoadedSideChain.server.GetDifficultyByHeight, benchLoadedSideChain.getPoolBlockByTemplateId, benchLoadedSideChain.derivationCache, benchLoadedSideChain.preAllocatedShares, benchLoadedSideChain.preAllocatedRewards)
+		outputs, _, _, _ := CalculateOutputs(tip, benchLoadedSideChain.Consensus(), benchLoadedSideChain.server.GetDifficultyByHeight, benchLoadedSideChain.getPoolBlockByTemplateId, benchLoadedSideChain.derivationCache, benchLoadedSideChain.preAllocatedShares, benchLoadedSideChain.preAllocatedRewards)
+		//todo pubs
 		if outputs == nil {
 			b.Error("nil outputs")
 			return
