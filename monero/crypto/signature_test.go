@@ -3,7 +3,7 @@ package crypto
 import (
 	"testing"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"github.com/tmthrgd/go-hex"
 )
 

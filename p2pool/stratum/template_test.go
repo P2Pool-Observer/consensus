@@ -5,9 +5,9 @@ import (
 	unsafeRandom "math/rand/v2"
 	"testing"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 

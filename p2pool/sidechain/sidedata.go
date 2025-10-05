@@ -8,12 +8,12 @@ import (
 	"io"
 	"math"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/merge_mining"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 const MaxUncleCount = uint64(math.MaxUint64) / types.HashSize

@@ -16,14 +16,14 @@ import (
 	"time"
 	"unsafe"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
-	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/merge_mining"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 

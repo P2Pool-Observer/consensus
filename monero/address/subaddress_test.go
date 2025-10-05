@@ -3,8 +3,8 @@ package address
 import (
 	"testing"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 var testGeneralFundAddr = FromBase58("44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A")

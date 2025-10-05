@@ -3,7 +3,7 @@ package p2p
 import (
 	"encoding/binary"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 type MessageId uint8

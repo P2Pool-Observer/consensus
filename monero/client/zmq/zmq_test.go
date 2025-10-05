@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/zmq"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client/zmq"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/mempool"
 )
 
 func TestJSONFromFrame(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"strings"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 )

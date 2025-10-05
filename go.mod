@@ -1,4 +1,4 @@
-module git.gammaspectra.live/P2Pool/consensus/v4
+module git.gammaspectra.live/P2Pool/consensus/v5
 
 go 1.25.1
 

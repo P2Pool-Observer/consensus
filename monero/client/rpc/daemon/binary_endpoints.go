@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/levin"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client/levin"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"io"
 )
 
