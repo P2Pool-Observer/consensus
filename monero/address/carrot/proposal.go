@@ -27,7 +27,7 @@ func (p *PaymentProposalV1) ECDHParts(inputContext []byte) (ephemeralPubkey, sen
 	ephemeralPubkey = p.EnoteEphemeralPublicKey(ephemeralPrivateKey)
 
 	// 3. s_sr = d_e ConvertPointE(K^j_v)
-	senderReceiverUnctx = makeUncontextualizedSharedKeySender(ephemeralPrivateKey, *p.Destination.Address.ViewPublicKey())
+	senderReceiverUnctx = makeUncontextualizedSharedKeySender(ephemeralPrivateKey, p.Destination.Address.ViewPublicKey())
 
 	return ephemeralPubkey, senderReceiverUnctx
 }

@@ -53,7 +53,7 @@ func makeEnoteEphemeralPublicKeyCryptonote(key crypto.PrivateKey) (out crypto.X2
 }
 
 // makeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
-func makeUncontextualizedSharedKeySender(ephemeralPrivKey crypto.PrivateKey, viewPub crypto.PublicKeyBytes) (senderReceiverUnctx crypto.X25519PublicKey) {
+func makeUncontextualizedSharedKeySender(ephemeralPrivKey crypto.PrivateKey, viewPub crypto.PublicKey) (senderReceiverUnctx crypto.X25519PublicKey) {
 	//TODO: implement checks
 	viewPubkeyX25519 := crypto.ConvertPointE(viewPub.AsPoint().Point())
 	crypto.X25519ScalarMult(&senderReceiverUnctx, ephemeralPrivKey.AsBytes(), viewPubkeyX25519)
