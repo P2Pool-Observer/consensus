@@ -33,8 +33,13 @@ type TxOutput struct {
 	} `json:"to_key,omitempty"`
 	ToTaggedKey *struct {
 		Key     crypto.PublicKeyBytes `json:"key"`
-		ViewTag string                `json:"view_tag"`
+		ViewTag types.Bytes           `json:"view_tag"`
 	} `json:"to_tagged_key,omitempty"`
+	ToCarrotV1 *struct {
+		Key                  crypto.PublicKeyBytes `json:"key"`
+		ViewTag              types.Bytes           `json:"view_tag"`
+		EncryptedJanusAnchor types.Bytes           `json:"encrypted_janus_anchor"`
+	} `json:"carrot_v1,omitempty"`
 }
 
 type FullChainMain struct {
@@ -62,6 +67,9 @@ type FullChainMain struct {
 		} `json:"ringct"`
 	} `json:"miner_tx"`
 	TxHashes []types.Hash `json:"tx_hashes"`
+
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
 }
 
 type FullTxPoolAdd struct {
@@ -118,6 +126,6 @@ type FullMinerData struct {
 	MedianTimestamp       uint64           `json:"median_timestamp"`
 	TxBacklog             []*mempool.Entry `json:"tx_backlog"`
 
-	FCMPTreeLayers uint8                 `json:"fcmp_pp_n_tree_layers,omitempty"`
-	FCMPTreeRoot   crypto.PublicKeyBytes `json:"fcmp_pp_tree_root,omitempty"`
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
 }

@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 )
@@ -290,8 +289,8 @@ type GetMinerDataResult struct {
 	MedianTimestamp       uint64           `json:"median_timestamp"`
 	TxBacklog             mempool.Mempool  `json:"tx_backlog"`
 
-	FCMPTreeLayers uint8                 `json:"fcmp_pp_n_tree_layers,omitempty"`
-	FCMPTreeRoot   crypto.PublicKeyBytes `json:"fcmp_pp_tree_root,omitempty"`
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
 }
 
 // SubmitBlockResult is the result of a call to the SubmitBlock RPC
@@ -601,12 +600,7 @@ type GetBlockResultJSON struct {
 
 		// Vout lists the transaction outputs.
 		//
-		Vout []struct {
-			Amount uint64 `json:"amount"`
-			Target struct {
-				Key types.Hash `json:"key"`
-			} `json:"target"`
-		} `json:"vout"`
+		Vout []TransactionOut `json:"vout"`
 		// Extra (aka the transaction id) can be used to include any
 		// random 32byte/64char hex string.
 		//
@@ -625,6 +619,9 @@ type GetBlockResultJSON struct {
 	// block.
 	//
 	TxHashes []types.Hash `json:"tx_hashes"`
+
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
 }
 
 func (c *GetBlockResultJSON) MinerOutputs() uint64 {
@@ -782,6 +779,22 @@ type GetTransactionsResult struct {
 	Untrusted bool                               `json:"untrusted"`
 }
 
+type TransactionOut struct {
+	Amount uint64 `json:"amount"`
+	Target struct {
+		Key       types.Hash `json:"key"`
+		TaggedKey struct {
+			Key     types.Hash `json:"key"`
+			ViewTag string     `json:"view_tag"`
+		} `json:"tagged_key"`
+		Carrot struct {
+			Key                  types.Hash `json:"key"`
+			ViewTag              string     `json:"view_tag"`
+			EncryptedJanusAnchor string     `json:"encrypted_janus_anchor"`
+		} `json:"carrot_v1"`
+	} `json:"target"`
+}
+
 type TransactionJSON struct {
 	Version    int `json:"version"`
 	UnlockTime int `json:"unlock_time"`
@@ -792,17 +805,8 @@ type TransactionJSON struct {
 			KImage     types.Hash `json:"k_image"`
 		} `json:"key"`
 	} `json:"vin"`
-	Vout []struct {
-		Amount uint64 `json:"amount"`
-		Target struct {
-			Key       types.Hash `json:"key"`
-			TaggedKey struct {
-				Key     types.Hash `json:"key"`
-				ViewTag string     `json:"view_tag"`
-			} `json:"tagged_key"`
-		} `json:"target"`
-	} `json:"vout"`
-	Extra         []byte `json:"extra"`
+	Vout          []TransactionOut `json:"vout"`
+	Extra         []byte           `json:"extra"`
 	RctSignatures struct {
 		Type     int    `json:"type"`
 		Txnfee   uint64 `json:"txnFee"`

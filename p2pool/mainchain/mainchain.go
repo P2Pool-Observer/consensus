@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client/zmq"
@@ -97,16 +98,23 @@ func (c *MainChain) Listen() error {
 								ViewTag:            0,
 							})
 						} else if o.ToTaggedKey != nil {
-							tk, _ := fasthex.DecodeString(o.ToTaggedKey.ViewTag)
 							outputs = append(outputs, transaction.Output{
 								Index:              uint64(i),
 								Reward:             o.Amount,
 								Type:               transaction.TxOutToTaggedKey,
 								EphemeralPublicKey: o.ToTaggedKey.Key,
-								ViewTag:            tk[0],
+								ViewTag:            o.ToTaggedKey.ViewTag[0],
+							})
+						} else if o.ToCarrotV1 != nil {
+							outputs = append(outputs, transaction.Output{
+								Index:                uint64(i),
+								Reward:               o.Amount,
+								Type:                 transaction.TxOutToCarrotV1,
+								EphemeralPublicKey:   o.ToCarrotV1.Key,
+								CarrotViewTag:        [monero.CarrotViewTagSize]uint8(o.ToCarrotV1.ViewTag),
+								EncryptedJanusAnchor: [monero.JanusAnchorSize]uint8(o.ToCarrotV1.EncryptedJanusAnchor),
 							})
 						} else {
-							// TODO: handle carrot
 							//error
 							break
 						}
@@ -147,6 +155,8 @@ func (c *MainChain) Listen() error {
 						},
 						Transactions:             fullChainMain.TxHashes,
 						TransactionParentIndices: nil,
+						FCMPTreeLayers:           fullChainMain.FCMPTreeLayers,
+						FCMPTreeRoot:             fullChainMain.FCMPTreeRoot,
 					}
 					c.HandleMainBlock(blockData)
 				}
