@@ -126,7 +126,7 @@ Note that reference calls via RPC or code to `get_miner_template` / `construct_m
 Alternative miners that generated their own block templates and coinbase transactions could pay to subaddresses as there
 was no technical limitation in the past, as long as derivations and relevant public keys in tx extra were included.
 
-To reduce the number of public keys in tx extra, P2Pool instead allows users to specify their main address and subaddress and pay to `{subaddress_spend_pub, main_view_pub}` abusing the 
+To reduce the number of public keys in tx extra, P2Pool instead allows users to specify their main address and subaddress and pay to `{subaddress_spend_pub, main_view_pub}` abusing the Janus trick.
 
 See relevant explanation logs:
 ```
