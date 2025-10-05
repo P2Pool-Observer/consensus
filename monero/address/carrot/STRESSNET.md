@@ -121,6 +121,13 @@ if (!is_main_address_spend_pubkey(address_spend_pubkey_out, main_addresss_spend_
 
 This entirely removes subaddresses as valid targets in coinbase outputs.
 
+Note that reference calls via RPC or code to `get_miner_template` / `construct_miner_tx` only allowed a main address to be passed.
+
+Alternative miners that generated their own block templates and coinbase transactions could pay to subaddresses as there
+was no technical limitation in the past, as long as derivations and relevant public keys in tx extra were included.
+
+To reduce the number of public keys in tx extra, P2Pool instead allows users to specify their main address and subaddress and pay to `{subaddress_spend_pub, main_view_pub}` abusing the 
+
 See relevant explanation logs:
 ```
 21:18:31 <DataHoarder> curious, on both implementations I have seen subaddresses are explicitly disallowed to be created on coinbase (though they could technically be derived?)
