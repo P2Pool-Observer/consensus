@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
-	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	mainblock "git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 type FakeServer struct {

@@ -7,16 +7,16 @@ import (
 	"math/bits"
 	"slices"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address/carrot"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
-	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 type GetByMainIdFunc func(h types.Hash) *PoolBlock

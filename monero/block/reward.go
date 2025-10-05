@@ -1,7 +1,7 @@
 package block
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"lukechampine.com/uint128"
 	"math"
 	"math/bits"

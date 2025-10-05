@@ -8,12 +8,12 @@ import (
 	"io"
 	"math"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize

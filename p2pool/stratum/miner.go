@@ -6,9 +6,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	gojson "git.gammaspectra.live/P2Pool/go-json"
 )
 

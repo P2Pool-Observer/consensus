@@ -1,7 +1,7 @@
 package carrot
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 )
 
 type DestinationV1 struct {

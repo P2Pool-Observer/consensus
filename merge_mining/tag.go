@@ -3,8 +3,8 @@ package merge_mining
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"io"
 )
 

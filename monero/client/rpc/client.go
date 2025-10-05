@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"io"
 	"net/http"
 	"net/url"

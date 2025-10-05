@@ -3,7 +3,7 @@ package types
 import (
 	"database/sql/driver"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	fasthex "github.com/tmthrgd/go-hex"
 	"io"
 	"lukechampine.com/uint128"

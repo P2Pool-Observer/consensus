@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 )

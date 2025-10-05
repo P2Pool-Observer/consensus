@@ -5,16 +5,16 @@ import (
 	"errors"
 	"io"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/merge_mining"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
-	mainblock "git.gammaspectra.live/P2Pool/consensus/v4/monero/block"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/transaction"
-	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
-	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
-	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
+	"git.gammaspectra.live/P2Pool/consensus/v5/merge_mining"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
+	mainblock "git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 type Template struct {
