@@ -57,9 +57,10 @@ func TestConverge(t *testing.T) {
 	t.Run("make_carrot_uncontextualized_shared_key_sender", func(t *testing.T) {
 		expected := crypto.X25519PublicKey(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451"))
 		priv := crypto.PrivateKeyBytes(types.MustHashFromString("f57ff2d7c898b755137b69e8d826801945ed72e9951850de908e9d645a0bb00d"))
+		viewPub := crypto.PublicKeyBytes(types.MustHashFromString("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2"))
 		result := makeUncontextualizedSharedKeySender(
 			&priv,
-			crypto.PublicKeyBytes(types.MustHashFromString("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2")),
+			&viewPub,
 		)
 		if result != expected {
 			t.Fatalf("expected: %x, got: %x", expected, result)
