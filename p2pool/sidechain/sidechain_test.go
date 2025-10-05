@@ -15,6 +15,7 @@ import (
 	"slices"
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
@@ -691,7 +692,7 @@ func TestSideChain(t *testing.T) {
 			t.Logf("shuffle seed = %x", shuffleSeed.Slice())
 
 			// Shuffle blocks. This allows testing proper reorg
-			ShuffleSequence(ShareVersion_V2, shuffleSeed, len(blocks), func(i, j int) {
+			ShuffleSequence(monero.HardForkViewTagsVersion, ShareVersion_V2, shuffleSeed, len(blocks), func(i, j int) {
 				blocks[i], blocks[j] = blocks[j], blocks[i]
 			})
 

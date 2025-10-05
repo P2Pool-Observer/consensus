@@ -903,64 +903,22 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			return nil, fmt.Errorf("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(rewards))
 		} else {
 
-			//prevent multiple allocations
-			txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
-			txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
-
-			var hashers []*sha3.HasherState
-
-			defer func() {
-				for _, h := range hashers {
-					crypto.PutKeccak256Hasher(h)
-				}
-			}()
-
 			pubs := block.CoinbasePublicKeys()
 
-			if block.GetTransactionOutputType() == transaction.TxOutToCarrotV1 {
+			if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
 				if len(pubs) != len(block.Main.Coinbase.Outputs) {
 					return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), len(block.Main.Coinbase.Outputs))
 				}
-			} else if len(pubs) != 1 {
-				return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), 1)
-			}
+				// todo: cache buf
+				carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(rewards))
 
-			// todo: cache buf
-			var carrotEnotes []*carrot.CoinbaseEnoteV1
-			if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
-				carrotEnotes = make([]*carrot.CoinbaseEnoteV1, len(rewards))
-			}
-
-			if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
-				out := block.Main.Coinbase.Outputs[workIndex]
-
-				if out.Type == transaction.TxOutToCarrotV1 /* this is fine, all should be same type */ {
+				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
 					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, workIndex, rewards[workIndex])
-				} else {
-					if rewards[workIndex] != out.Reward {
-						return fmt.Errorf("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
-					}
-					addr := &shares[workIndex].Address
-					if addr.IsSubaddress() {
-						return fmt.Errorf("is not main address at index %d", workIndex)
-					}
-					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, out.Reward, hashers[workerIndex])
-					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
-						return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
-					} else if out.Type == transaction.TxOutToTaggedKey && calculated.ViewTag != out.ViewTag {
-						return fmt.Errorf("has incorrect view tag at index %d, got %d, expected %d", workIndex, out.ViewTag, calculated.ViewTag)
-					}
+					return nil
+				}, nil); err != nil {
+					return nil, err
 				}
 
-				return nil
-			}, func(routines, routineIndex int) error {
-				hashers = append(hashers, crypto.GetKeccak256Hasher())
-				return nil
-			}); err != nil {
-				return nil, err
-			}
-
-			if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
 				// sort
 				slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
 					return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
@@ -984,6 +942,46 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 					if !bytes.Equal(pubs[i][:], enote.EphemeralPubKey[:]) {
 						return nil, fmt.Errorf("has incorrect public key at index %d, got %x, expected %s", i, enote.EphemeralPubKey[:], pubs[i].String())
 					}
+				}
+			} else {
+				//prevent multiple allocations
+				txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
+				txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
+
+				var hashers []*sha3.HasherState
+
+				defer func() {
+					for _, h := range hashers {
+						crypto.PutKeccak256Hasher(h)
+					}
+				}()
+
+				if len(pubs) != 1 {
+					return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), 1)
+				}
+				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
+					out := block.Main.Coinbase.Outputs[workIndex]
+
+					if rewards[workIndex] != out.Reward {
+						return fmt.Errorf("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
+					}
+					addr := &shares[workIndex].Address
+					if addr.IsSubaddress() {
+						return fmt.Errorf("is not main address at index %d", workIndex)
+					}
+					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, out.Reward, hashers[workerIndex])
+					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
+						return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
+					} else if out.Type == transaction.TxOutToTaggedKey && calculated.ViewTag != out.ViewTag {
+						return fmt.Errorf("has incorrect view tag at index %d, got %d, expected %d", workIndex, out.ViewTag, calculated.ViewTag)
+					}
+
+					return nil
+				}, func(routines, routineIndex int) error {
+					hashers = append(hashers, crypto.GetKeccak256Hasher())
+					return nil
+				}); err != nil {
+					return nil, err
 				}
 			}
 		}

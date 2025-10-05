@@ -88,44 +88,19 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 	outputs = make(transaction.Outputs, n)
 
 	var carrotEnotes []*carrot.CoinbaseEnoteV1
-	if txType == transaction.TxOutToCarrotV1 {
+	if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
 		pubs = make([]crypto.PublicKeyBytes, n)
 		carrotEnotes = make([]*carrot.CoinbaseEnoteV1, n)
-	}
 
-	txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
-	txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
-
-	var hashers []*sha3.HasherState
-
-	defer func() {
-		for _, h := range hashers {
-			crypto.PutKeccak256Hasher(h)
-		}
-	}()
-
-	err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
-		if txType == transaction.TxOutToCarrotV1 {
+		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
 			carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, workIndex, tmpRewards[workIndex])
-		} else {
-			addr := &tmpShares[workIndex].Address
-			if addr.IsSubaddress() {
-				return fmt.Errorf("is not main address at index %d", workIndex)
-			}
-			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, tmpRewards[workIndex], hashers[workerIndex])
+			return nil
+		}, nil)
+
+		if err != nil {
+			return nil, nil, 0, err
 		}
 
-		return nil
-	}, func(routines, routineIndex int) error {
-		hashers = append(hashers, crypto.GetKeccak256Hasher())
-		return nil
-	})
-
-	if err != nil {
-		return nil, nil, 0, err
-	}
-
-	if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
 		// sort
 		slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
 			return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
@@ -135,9 +110,38 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 			outputs[outputIndex] = CalculateOutputCarrot(enote, txType, outputIndex)
 			pubs[outputIndex] = crypto.PublicKeyBytes(enote.EphemeralPubKey)
 		}
-	}
 
-	return outputs, pubs, bottomHeight, nil
+		return outputs, pubs, bottomHeight, nil
+	} else {
+		txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
+		txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
+
+		var hashers []*sha3.HasherState
+
+		defer func() {
+			for _, h := range hashers {
+				crypto.PutKeccak256Hasher(h)
+			}
+		}()
+
+		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
+			addr := &tmpShares[workIndex].Address
+			if addr.IsSubaddress() {
+				return fmt.Errorf("is not main address at index %d", workIndex)
+			}
+			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, tmpRewards[workIndex], hashers[workerIndex])
+
+			return nil
+		}, func(routines, routineIndex int) error {
+			hashers = append(hashers, crypto.GetKeccak256Hasher())
+			return nil
+		})
+
+		if err != nil {
+			return nil, nil, 0, err
+		}
+		return outputs, nil, bottomHeight, nil
+	}
 }
 
 type PoolBlockWindowSlot struct {
