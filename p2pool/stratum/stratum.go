@@ -52,9 +52,9 @@ type NewTemplateData struct {
 	TransactionPrivateKey crypto.PrivateKeyBytes
 	TransactionPublicKey  crypto.PublicKeySlice
 	Timestamp             uint64
-	TotalReward           uint64
-	// Weights List of weights, first with zero index, second without
-	Weights      [2]WeightEntries
+
+	// Weights List of weights, first with zero index, second for all other entries
+	Weights      []WeightEntries
 	ShareVersion sidechain.ShareVersion
 	Uncles       []types.Hash
 	Ready        bool
@@ -68,6 +68,7 @@ type NewTemplateData struct {
 
 type WeightEntries struct {
 	MaxRewardAmounts    uint64
+	TotalReward         uint64
 	CoinbaseTransaction uint64
 	Transactions        []types.Hash
 }
@@ -233,7 +234,6 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			Coinbase: transaction.CoinbaseTransaction{
 				GenHeight: s.minerData.Height,
 			},
-			//TODO:
 			Transactions:   nil,
 			FCMPTreeLayers: s.minerData.FCMPTreeLayers,
 			FCMPTreeRoot:   s.minerData.FCMPTreeRoot,
@@ -280,60 +280,120 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 	maxReward := baseReward + totalFees
 
+	s.newTemplateData.Weights = make([]WeightEntries, len(s.newTemplateData.Window.Shares))
+
+	allShares := s.newTemplateData.Window.Shares
+	fewShares := slices.Clone(allShares)
+	fewShares = slices.Delete(fewShares, s.newTemplateData.Window.ReservedShareIndex, s.newTemplateData.Window.ReservedShareIndex+1)
+
+	//TODO efficient, move elsewhere
+	nonce, ok := merge_mining.FindAuxiliaryNonce([]types.Hash{s.sidechain.Consensus().Id}, math.MaxUint32)
+	if !ok {
+		return errors.New("could not find nonce")
+	}
+	tag := merge_mining.Tag{
+		NumberAuxiliaryChains: 1,
+		Nonce:                 nonce,
+	}
+
+	pickedMempools := make(map[uint64]mempool.Mempool)
+	pickedTxs := make(map[uint64][]types.Hash)
+
+	var txWeightNonZeroWithoutRewards uint64
+
 	for weightIndex := range len(s.newTemplateData.Weights) {
-		shares := slices.Clone(s.newTemplateData.Window.Shares)
-		if weightIndex == 1 {
+		// TODO: only allocate the ones we currently are mining, not entire PPLNS!!!
+		shares := allShares
+		var oldShare *sidechain.Share
+		var coinbaseTransactionWeight uint64
+		if weightIndex > 0 {
 			// remove reserve
-			shares = slices.Delete(shares, s.newTemplateData.Window.ReservedShareIndex, s.newTemplateData.Window.ReservedShareIndex+1)
+			shares = fewShares
+			oldShare = shares[weightIndex-1]
+
+			shares[weightIndex-1] = &sidechain.Share{
+				Address: oldShare.Address,
+				Weight:  oldShare.Weight.Add(s.newTemplateData.Difficulty),
+			}
 		}
 
 		rewards := sidechain.SplitRewardAllocate(maxReward, shares)
 
 		s.newTemplateData.Weights[weightIndex].MaxRewardAmounts = uint64(utils.UVarInt64SliceSize(rewards))
 
-		//TODO efficient, move elsewhere
-		nonce, ok := merge_mining.FindAuxiliaryNonce([]types.Hash{s.sidechain.Consensus().Id}, math.MaxUint32)
-		if !ok {
-			return errors.New("could not find nonce")
+		if weightIndex == 0 {
+			tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, s.newTemplateData.Weights[weightIndex].MaxRewardAmounts, false)
+			if err != nil {
+				return err
+			}
+			coinbaseTransactionWeight = uint64(tx.BufferLength())
+		} else if txWeightNonZeroWithoutRewards == 0 {
+			tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, s.newTemplateData.Weights[weightIndex].MaxRewardAmounts, false)
+			if err != nil {
+				return err
+			}
+			coinbaseTransactionWeight = uint64(tx.BufferLength())
+			txWeightNonZeroWithoutRewards = coinbaseTransactionWeight - s.newTemplateData.Weights[weightIndex].MaxRewardAmounts
+		} else {
+			coinbaseTransactionWeight = txWeightNonZeroWithoutRewards + s.newTemplateData.Weights[weightIndex].MaxRewardAmounts
 		}
-		tag := merge_mining.Tag{
-			NumberAuxiliaryChains: 1,
-			Nonce:                 nonce,
-		}
-
-		tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, s.newTemplateData.Weights[weightIndex].MaxRewardAmounts, false)
-		if err != nil {
-			return err
-		}
-		coinbaseTransactionWeight := uint64(tx.BufferLength())
 
 		var pickedMempool mempool.Mempool
+		var txs []types.Hash
 
 		if totalWeight+coinbaseTransactionWeight <= s.minerData.MedianWeight {
 			// if a block doesn't get into the penalty zone, just pick all transactions
 			pickedMempool = selectedMempool
-		} else {
+
+			//shuffle transactions
+			unsafeRandom.Shuffle(len(pickedMempool), func(i, j int) {
+				pickedMempool[i], pickedMempool[j] = pickedMempool[j], pickedMempool[i]
+			})
+
+			txs = make([]types.Hash, len(pickedMempool))
+			for i, entry := range pickedMempool {
+				txs[i] = entry.Id
+			}
+
+			pickedMempools[coinbaseTransactionWeight] = pickedMempool
+			pickedTxs[coinbaseTransactionWeight] = txs
+		} else if pickedMempool, ok = pickedMempools[coinbaseTransactionWeight]; !ok {
 			pickedMempool = selectedMempool.Pick(baseReward, coinbaseTransactionWeight, s.minerData.MedianWeight)
+
+			//shuffle transactions
+			unsafeRandom.Shuffle(len(pickedMempool), func(i, j int) {
+				pickedMempool[i], pickedMempool[j] = pickedMempool[j], pickedMempool[i]
+			})
+
+			txs = make([]types.Hash, len(pickedMempool))
+			for i, entry := range pickedMempool {
+				txs[i] = entry.Id
+			}
+			pickedMempools[coinbaseTransactionWeight] = pickedMempool
+			pickedTxs[coinbaseTransactionWeight] = txs
+		} else {
+			txs = pickedTxs[coinbaseTransactionWeight]
 		}
 
-		//shuffle transactions
-		unsafeRandom.Shuffle(len(pickedMempool), func(i, j int) {
-			pickedMempool[i], pickedMempool[j] = pickedMempool[j], pickedMempool[i]
-		})
+		s.newTemplateData.Weights[weightIndex].Transactions = txs
 
-		s.newTemplateData.Weights[weightIndex].Transactions = make([]types.Hash, len(pickedMempool))
+		pickedWeight, pickedFees := pickedMempool.WeightAndFees()
 
-		for i, entry := range pickedMempool {
-			s.newTemplateData.Weights[weightIndex].Transactions[i] = entry.Id
-		}
-
-		finalReward := mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, pickedMempool.Fees(), coinbaseTransactionWeight+pickedMempool.Weight())
+		finalReward := mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, pickedFees, coinbaseTransactionWeight+pickedWeight)
 
 		if finalReward < baseReward {
 			return errors.New("final reward < base reward, should never happen")
 		}
-		s.newTemplateData.TotalReward = finalReward
+		if finalReward > baseReward+pickedFees {
+			return errors.New("final reward > base reward + fees, should never happen")
+		}
+		s.newTemplateData.Weights[weightIndex].TotalReward = finalReward
 		s.newTemplateData.Weights[weightIndex].CoinbaseTransaction = coinbaseTransactionWeight
+
+		if weightIndex > 0 {
+			// restore
+			shares[weightIndex-1] = oldShare
+		}
 	}
 
 	s.newTemplateData.Window.ShuffleMapping = BuildShuffleMapping(len(s.newTemplateData.Window.Shares), s.minerData.MajorVersion, s.newTemplateData.ShareVersion, s.newTemplateData.TransactionPrivateKeySeed, s.newTemplateData.Window.ShuffleMapping)
@@ -446,7 +506,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 				Weight:  shares[i].Weight.Add(shares[s.newTemplateData.Window.ReservedShareIndex].Weight),
 			}
 			shares = slices.Delete(shares, s.newTemplateData.Window.ReservedShareIndex, s.newTemplateData.Window.ReservedShareIndex+1)
-			weightIndex = 1
+			weightIndex = i
 		} else {
 			// Replace reserved address
 			shares[s.newTemplateData.Window.ReservedShareIndex] = &sidechain.Share{
@@ -456,8 +516,10 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 		}
 		shares = shares.Compact()
 
-		// Apply consensus shuffle
-		shares = ApplyShuffleMapping(shares, s.newTemplateData.Window.ShuffleMapping)
+		if s.minerData.MajorVersion < monero.HardForkFCMPPlusPlusVersion {
+			// Apply consensus shuffle
+			shares = ApplyShuffleMapping(shares, s.newTemplateData.Window.ShuffleMapping)
+		}
 
 		blockTemplate := &sidechain.PoolBlock{
 			Main: block.Block{
@@ -466,7 +528,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 				Timestamp:      s.newTemplateData.Timestamp,
 				PreviousId:     s.minerData.PrevId,
 				Nonce:          0,
-				Transactions:   s.newTemplateData.Weights[weightIndex].Transactions,
+				Transactions:   slices.Clone(s.newTemplateData.Weights[weightIndex].Transactions),
 				FCMPTreeLayers: s.minerData.FCMPTreeLayers,
 				FCMPTreeRoot:   s.minerData.FCMPTreeRoot,
 			},
@@ -505,7 +567,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 		// Allocate rewards
 		{
 			preAllocatedRewards := make([]uint64, 0, len(shares))
-			rewards := sidechain.SplitReward(preAllocatedRewards, s.newTemplateData.TotalReward, shares)
+			rewards := sidechain.SplitReward(preAllocatedRewards, s.newTemplateData.Weights[weightIndex].TotalReward, shares)
 
 			if rewards == nil || len(rewards) != len(shares) {
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("could not calculate rewards")
@@ -671,13 +733,17 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
 				return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
 			})
+			pubs := tx.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys)
+			if pubs == nil {
+				return transaction.CoinbaseTransaction{}, errors.New("nil additional public keys")
+			}
 			for i, enote := range carrotEnotes {
 				//TODO: cache
 				outputIndex := uint64(i)
 				tx.Outputs[outputIndex] = sidechain.CalculateOutputCarrot(enote, txType, outputIndex)
 
 				//ephemeral pubkeys: D_e
-				copy(tx.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys).Data[crypto.PublicKeySize*outputIndex:], enote.EphemeralPubKey[:])
+				copy(pubs.Data[crypto.PublicKeySize*outputIndex:], enote.EphemeralPubKey[:])
 			}
 		} else {
 			hasher := crypto.GetKeccak256Hasher()
@@ -718,7 +784,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			return transaction.CoinbaseTransaction{}, fmt.Errorf("incorrect miner rewards during the dry run, %d != %d", rewardAmountsWeight, maxRewardsAmountsWeight)
 		}
 	} else if rewardAmountsWeight > maxRewardsAmountsWeight {
-		return transaction.CoinbaseTransaction{}, fmt.Errorf("incorrect miner rewards during the dry run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+		return transaction.CoinbaseTransaction{}, fmt.Errorf("incorrect miner rewards during the real run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
 	}
 
 	correctedExtraNonceSize := sidechain.SideExtraNonceSize + maxRewardsAmountsWeight - rewardAmountsWeight
