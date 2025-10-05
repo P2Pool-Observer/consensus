@@ -69,6 +69,9 @@ See relevant logs:
 ```
 
 
+> **NOTE**: [PR seraphis-migration/monero#137](https://github.com/seraphis-migration/monero/pull/137) has changed the order to put _miner_tx_id_ at 0, _fcmp_pp_n_tree_layers_ at 1, _fcmp_pp_tree_root_ at 2, then _tx_hashes_ 
+
+
 ## Miner Transaction
 
 ### Output types
@@ -199,3 +202,6 @@ See relevant logs:
 22:35:49 <DataHoarder> for a mini block, it'd be ~22 KiB of tx extra with 700 outputs
 22:36:01 <jeffro256:monero.social> Can be removed easily after this iteration of stressnet
 ```
+
+
+> **NOTE**: [PR seraphis-migration/monero#138](https://github.com/seraphis-migration/monero/pull/138) has increased the limit of miner_tx extra size to `MAX_TX_EXTRA_SIZE + b.miner_tx.vout.size() * 32` and leaves `MAX_TX_EXTRA_SIZE at 1060`
