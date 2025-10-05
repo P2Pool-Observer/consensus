@@ -18,7 +18,7 @@ func GetTxProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message
 }
 
 func GetOutProofV2(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string, additionalTxKeys ...crypto.PrivateKey) crypto.TxProof {
-	prefixHash := crypto.Keccak256(txId[:], []byte(message))
+	prefixHash := crypto.Keccak256Var(txId[:], []byte(message))
 
 	sharedSecret := make([]crypto.PublicKey, 1, 1+len(additionalTxKeys))
 	signature := make([]*crypto.Signature, 1, 1+len(additionalTxKeys))
@@ -45,7 +45,7 @@ func GetOutProofV2(a Interface, txId types.Hash, txKey crypto.PrivateKey, messag
 }
 
 func GetOutProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, message string, additionalTxKeys ...crypto.PrivateKey) crypto.TxProof {
-	prefixHash := crypto.Keccak256(txId[:], []byte(message))
+	prefixHash := crypto.Keccak256Var(txId[:], []byte(message))
 
 	sharedSecret := make([]crypto.PublicKey, 1, 1+len(additionalTxKeys))
 	signature := make([]*crypto.Signature, 1, 1+len(additionalTxKeys))
@@ -70,7 +70,7 @@ func GetOutProofV1(a Interface, txId types.Hash, txKey crypto.PrivateKey, messag
 }
 
 func GetInProofV2(a Interface, txId types.Hash, viewKey crypto.PrivateKey, txPubKey crypto.PublicKey, message string, additionalTxPubKeys ...crypto.PublicKey) crypto.TxProof {
-	prefixHash := crypto.Keccak256(txId[:], []byte(message))
+	prefixHash := crypto.Keccak256Var(txId[:], []byte(message))
 
 	sharedSecret := make([]crypto.PublicKey, 1, 1+len(additionalTxPubKeys))
 	signature := make([]*crypto.Signature, 1, 1+len(additionalTxPubKeys))
@@ -95,7 +95,7 @@ func GetInProofV2(a Interface, txId types.Hash, viewKey crypto.PrivateKey, txPub
 }
 
 func GetInProofV1(a Interface, txId types.Hash, viewKey crypto.PrivateKey, txPubKey crypto.PublicKey, message string, additionalTxPubKeys ...crypto.PublicKey) crypto.TxProof {
-	prefixHash := crypto.Keccak256(txId[:], []byte(message))
+	prefixHash := crypto.Keccak256Var(txId[:], []byte(message))
 
 	sharedSecret := make([]crypto.PublicKey, 1, 1+len(additionalTxPubKeys))
 	signature := make([]*crypto.Signature, 1, 1+len(additionalTxPubKeys))
@@ -120,7 +120,7 @@ func GetInProofV1(a Interface, txId types.Hash, viewKey crypto.PrivateKey, txPub
 }
 
 func VerifyTxProof(proof crypto.TxProof, a Interface, txId types.Hash, txPubKey crypto.PublicKey, message string, additionalTxPubKeys ...crypto.PublicKey) (index int, ok bool) {
-	prefixHash := crypto.Keccak256(txId[:], []byte(message))
+	prefixHash := crypto.Keccak256Var(txId[:], []byte(message))
 
 	pubs := []crypto.PublicKey{
 		txPubKey,

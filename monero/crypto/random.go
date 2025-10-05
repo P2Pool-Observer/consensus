@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
@@ -36,8 +37,7 @@ func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
 
 	entropy = append(entropy, 0, 0, 0, 0)
 
-	h := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(h)
+	h := newKeccak256()
 	var hash types.Hash
 
 	scalar := GetEdwards25519Scalar()
@@ -46,7 +46,7 @@ func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
 		h.Reset()
 		counter++
 		binary.LittleEndian.PutUint32(entropy[n:], counter)
-		_, _ = h.Write(entropy)
+		_, _ = utils.WriteNoEscape(h, entropy)
 		HashFastSum(h, hash[:])
 		if !IsLimit32(hash) {
 			continue

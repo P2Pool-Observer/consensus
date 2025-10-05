@@ -142,8 +142,7 @@ func FromBase58NoChecksumCheck(address []byte) *Address {
 }
 
 func checksumHash(data []byte) (sum [ChecksumLength]byte) {
-	h := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(h)
+	h := crypto.NewKeccak256()
 	_, _ = h.Write(data)
 	_, _ = h.Read(sum[:])
 	return sum

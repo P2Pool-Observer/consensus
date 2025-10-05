@@ -2,12 +2,12 @@ package sidechain
 
 import (
 	"encoding/binary"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
-	"git.gammaspectra.live/P2Pool/sha3"
 )
 
 type deterministicTransactionCacheKey [crypto.PublicKeySize + types.HashSize]byte
@@ -20,7 +20,7 @@ type ephemeralPublicKeyWithViewTag struct {
 }
 
 type DerivationCacheInterface interface {
-	GetEphemeralPublicKey(a *address.PackedAddress, txKeySlice crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64, hasher *sha3.HasherState) (crypto.PublicKeyBytes, uint8)
+	GetEphemeralPublicKey(a *address.PackedAddress, txKeySlice crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64) (crypto.PublicKeyBytes, uint8)
 	GetDeterministicTransactionKey(seed types.Hash, prevId types.Hash) *crypto.KeyPair
 }
 
@@ -73,7 +73,7 @@ func (d *DerivationCache) Clear() {
 	d.pubKeyToTableCache.Clear()
 }
 
-func (d *DerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, txKeySlice crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64, hasher *sha3.HasherState) (crypto.PublicKeyBytes, uint8) {
+func (d *DerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, txKeySlice crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64) (crypto.PublicKeyBytes, uint8) {
 	var key ephemeralPublicKeyCacheKey
 	copy(key[:], txKeySlice)
 	copy(key[crypto.PrivateKeySize:], a.ToPackedAddress().Bytes())
@@ -85,7 +85,7 @@ func (d *DerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, txKeyS
 		viewTable := d.getPublicKeyTable(*a.ViewPublicKey())
 		spendPoint := d.getPublicKeyPoint(*a.SpendPublicKey())
 		derivation := d.getDerivation(*a.ViewPublicKey(), txKeySlice, viewTable, txKeyScalar.Scalar())
-		pKB, viewTag := address.GetEphemeralPublicKeyAndViewTagNoAllocate(spendPoint, derivation, outputIndex, hasher)
+		pKB, viewTag := address.GetEphemeralPublicKeyAndViewTagNoAllocate(spendPoint, derivation, outputIndex)
 		d.ephemeralPublicKeyCache.Set(key, ephemeralPublicKeyWithViewTag{PublicKey: pKB, ViewTag: viewTag})
 		return pKB, viewTag
 	}

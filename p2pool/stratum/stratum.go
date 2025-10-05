@@ -404,8 +404,6 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.AsScalar()
 
 	//TODO: parallelize this
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
 	// generate ephemeral pubkeys based on indices
 
 	var tempPubKey ephemeralPubKeyCacheKey
@@ -419,7 +417,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = e
 		} else {
 			var e ephemeralPubKeyCacheEntry
-			e.PublicKey, e.ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr, txPrivateKeySlice, txPrivateKeyScalar, uint64(index), hasher)
+			e.PublicKey, e.ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr, txPrivateKeySlice, txPrivateKeyScalar, uint64(index))
 			s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = &e
 		}
 	}
@@ -746,9 +744,6 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 				copy(pubs.Data[crypto.PublicKeySize*outputIndex:], enote.EphemeralPubKey[:])
 			}
 		} else {
-			hasher := crypto.GetKeccak256Hasher()
-			defer crypto.PutKeccak256Hasher(hasher)
-
 			var k ephemeralPubKeyCacheKey
 			for i := range tx.Outputs {
 				outputIndex := uint64(i)
@@ -764,7 +759,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 				if e, ok := s.newTemplateData.Window.EphemeralPubKeyCache[k]; ok {
 					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = e.PublicKey, e.ViewTag
 				} else {
-					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, outputIndex, hasher)
+					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
 				}
 			}
 		}
@@ -1502,16 +1497,13 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 		mmExtra = mmExtra.Merge(c.MergeMiningExtra)
 	}
 
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
-
 	// todo merkle root with merge mine
 	var templateId types.Hash
-	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), c.GetAddress(uint8(tpl.MajorVersion())), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	tpl.TemplateId(c.buf, s.sidechain.Consensus(), c.GetAddress(uint8(tpl.MajorVersion())), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
 	jobId.MerkleRoot = templateId
 
 	job := copyBaseJob()
-	job.Params.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, jobId.ExtraNonce, jobId.MerkleRoot))
+	job.Params.Blob = fasthex.EncodeToString(tpl.HashingBlob(c.buf, 0, jobId.ExtraNonce, jobId.MerkleRoot))
 
 	job.Params.JobId = jobId.Id()
 
@@ -1566,18 +1558,15 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 		mmExtra = mmExtra.Merge(c.MergeMiningExtra)
 	}
 
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
-
 	// todo merkle root with merge mine
 	var templateId types.Hash
-	tpl.TemplateId(hasher, c.buf, s.sidechain.Consensus(), c.GetAddress(uint8(tpl.MajorVersion())), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	tpl.TemplateId(c.buf, s.sidechain.Consensus(), c.GetAddress(uint8(tpl.MajorVersion())), jobId.SideRandomNumber, jobId.SideExtraNonce, jobId.MerkleProof, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
 	jobId.MerkleRoot = templateId
 
 	job := copyBaseResponseJob()
 	job.Id = id
 	job.Result.Id = fasthex.EncodeToString(hexBuf[:])
-	job.Result.Job.Blob = fasthex.EncodeToString(tpl.HashingBlob(hasher, c.buf, 0, jobId.ExtraNonce, jobId.MerkleRoot))
+	job.Result.Job.Blob = fasthex.EncodeToString(tpl.HashingBlob(c.buf, 0, jobId.ExtraNonce, jobId.MerkleRoot))
 
 	job.Result.Job.JobId = jobId.Id()
 

@@ -9,7 +9,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
-	"git.gammaspectra.live/P2Pool/sha3"
 )
 
 // ZeroPrivateKeyAddress Special address with private keys set to both zero.
@@ -73,9 +72,10 @@ func GetEphemeralPublicKeyAndViewTag(a Interface, txKey crypto.PrivateKey, outpu
 }
 
 // GetEphemeralPublicKeyAndViewTagNoAllocate Special version of GetEphemeralPublicKeyAndViewTag
-func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519.Point, derivation crypto.PublicKeyBytes, outputIndex uint64, hasher *sha3.HasherState) (crypto.PublicKeyBytes, uint8) {
+func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519.Point, derivation crypto.PublicKeyBytes, outputIndex uint64) (crypto.PublicKeyBytes, uint8) {
 	var intermediatePublicKey, ephemeralPublicKey edwards25519.Point
-	derivationSharedData, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivation, outputIndex, hasher)
+	var derivationSharedData edwards25519.Scalar
+	viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&derivationSharedData, derivation, outputIndex)
 
 	intermediatePublicKey.UnsafeVarTimeScalarBaseMult(&derivationSharedData)
 	ephemeralPublicKey.Add(&intermediatePublicKey, spendPublicKeyPoint)
@@ -117,7 +117,7 @@ const (
 )
 
 func GetMessageHash(a Interface, message []byte, mode uint8) types.Hash {
-	return crypto.Keccak256(
+	return crypto.Keccak256Var(
 		[]byte("MoneroMessageSignature\x00"),
 		a.SpendPublicKey().AsSlice(),
 		a.ViewPublicKey().AsSlice(),

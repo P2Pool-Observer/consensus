@@ -37,7 +37,7 @@ steps:
       - cd /tmp
       - git clone --depth 1 --branch v1.2.1 https://github.com/tevador/RandomX.git && cd RandomX && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX:PATH=/drone/src/build_deps && make -j$(nproc) && make install && cd ../..
   - name: test-cgo
-    image: golang:1.24-alpine3.22
+    image: golang:1.25-alpine3.22
     depends_on:
       - init-tests
       - build-sources
@@ -52,7 +52,7 @@ steps:
       - apk add --no-cache git gcc g++ musl-dev pkgconfig
       - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -tags enable_randomx_library -p 1 -failfast -timeout 20m -cover -gcflags=-d=checkptr -v $0 || exit 255'
   - name: test-go-asm
-    image: golang:1.24-alpine3.22
+    image: golang:1.25-alpine3.22
     depends_on:
       - init-tests
     environment:
@@ -66,7 +66,7 @@ steps:
       - apk add --no-cache git
       - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -p 1 -failfast -short -timeout 20m -cover -v $0 || exit 255'
   - name: test-go-purego
-    image: golang:1.24-alpine3.22
+    image: golang:1.25-alpine3.22
     depends_on:
       - init-tests
     environment:
@@ -117,7 +117,7 @@ steps:
       - cd /tmp
       - git clone --depth 1 --branch v1.2.1 https://github.com/tevador/RandomX.git && cd RandomX && mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX:PATH=/drone/src/build_deps && make -j$(nproc) && make install && cd ../..
   - name: test-cgo
-    image: golang:1.24-alpine3.22
+    image: golang:1.25-alpine3.22
     depends_on:
       - init-tests
       - build-sources
@@ -132,7 +132,7 @@ steps:
       - apk add --no-cache git gcc g++ musl-dev pkgconfig
       - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -tags enable_randomx_library -p 1 -failfast -timeout 20m -cover -gcflags=-d=checkptr -v $0 || exit 255'
   - name: test-go
-    image: golang:1.24-alpine3.22
+    image: golang:1.25-alpine3.22
     depends_on:
       - init-tests
     environment:
@@ -146,7 +146,7 @@ steps:
       - apk add --no-cache git
       - go list -f '{{.Dir}}/...' -m | xargs -n 1 sh -c 'go test -p 1 -failfast -timeout 60m -cover -v $0 || exit 255'
   - name: test-go-purego
-    image: golang:1.24-alpine3.22
+    image: golang:1.25-alpine3.22
     depends_on:
       - init-tests
     environment:

@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
-	"git.gammaspectra.live/P2Pool/sha3"
 	"golang.org/x/crypto/blake2b"
 )
 
@@ -20,7 +20,7 @@ var viewTagDomain = []byte("view_tag")
 func GetDerivationViewTagForOutputIndex(derivation PublicKey, outputIndex uint64) uint8 {
 	var k = derivation.AsBytes()
 	var varIntBuf [binary.MaxVarintLen64]byte
-	return PooledKeccak256(viewTagDomain, k[:], varIntBuf[:binary.PutUvarint(varIntBuf[:], outputIndex)])[0]
+	return Keccak256Var(viewTagDomain, k[:], varIntBuf[:binary.PutUvarint(varIntBuf[:], outputIndex)])[0]
 }
 
 func GetDerivationSharedDataAndViewTagForOutputIndex(derivation PublicKey, outputIndex uint64) (PrivateKey, uint8) {
@@ -29,7 +29,7 @@ func GetDerivationSharedDataAndViewTagForOutputIndex(derivation PublicKey, outpu
 
 	n := binary.PutUvarint(varIntBuf[:], outputIndex)
 	pK := PrivateKeyFromScalar(ScalarDeriveLegacy(k[:], varIntBuf[:n]))
-	return pK, PooledKeccak256(viewTagDomain, k[:], varIntBuf[:n])[0]
+	return pK, Keccak256Var(viewTagDomain, k[:], varIntBuf[:n])[0]
 }
 
 var encryptedAmountKey = []byte("amount")
@@ -37,34 +37,33 @@ var encryptedAmountKey = []byte("amount")
 // DecryptOutputAmount Decrypts an encrypted amount field from ECDH Info
 func DecryptOutputAmount(k PrivateKey, ciphertext uint64) uint64 {
 	var key [8]byte
-	h := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(h)
-	_, _ = h.Write(encryptedAmountKey)
-	_, _ = h.Write(k.AsSlice())
-	_, _ = h.Read(key[:])
+	h := newKeccak256()
+	_, _ = utils.WriteNoEscape(h, encryptedAmountKey)
+	_, _ = utils.WriteNoEscape(h, k.AsSlice())
+	_, _ = utils.ReadNoEscape(h, key[:])
 	return ciphertext ^ binary.LittleEndian.Uint64(key[:])
 }
 
 // GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate Special version of GetDerivationSharedDataAndViewTagForOutputIndex
-func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(k PublicKeyBytes, outputIndex uint64, hasher *sha3.HasherState) (edwards25519.Scalar, uint8) {
+func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(dst *edwards25519.Scalar, k PublicKeyBytes, outputIndex uint64) (viewTag uint8) {
+	hasher := newKeccak256()
 	var buf [PublicKeySize + binary.MaxVarintLen64]byte
 	copy(buf[:], k[:])
 
 	n := binary.PutUvarint(buf[PublicKeySize:], outputIndex)
 	var h types.Hash
+
+	_, _ = utils.WriteNoEscape(hasher, buf[:PublicKeySize+n])
+	_, _ = utils.ReadNoEscape(hasher, h[:])
+
+	BytesToScalar32(h, dst)
+
 	hasher.Reset()
-	_, _ = hasher.Write(buf[:PublicKeySize+n])
-	HashFastSum(hasher, h[:])
+	_, _ = utils.WriteNoEscape(hasher, viewTagDomain)
+	_, _ = utils.WriteNoEscape(hasher, buf[:PublicKeySize+n])
+	_, _ = utils.ReadNoEscape(hasher, h[:1])
 
-	var c edwards25519.Scalar
-	BytesToScalar32(h, &c)
-
-	hasher.Reset()
-	_, _ = hasher.Write(viewTagDomain)
-	_, _ = hasher.Write(buf[:PublicKeySize+n])
-	HashFastSum(hasher, h[:])
-
-	return c, h[0]
+	return h[0]
 }
 
 func GetKeyImage(pair *KeyPair) PublicKey {
@@ -78,20 +77,20 @@ func SecretDeriveN(n int, key []byte, data ...[]byte) []byte {
 		panic("unreachable")
 	}
 	for _, b := range data {
-		_, _ = hasher.Write(b)
+		_, _ = utils.WriteNoEscape(hasher, b)
 	}
 	h := make([]byte, n)
-	return hasher.Sum(h[:0])
+	return utils.SumNoEscape(hasher, h[:0])
 }
 
 // SecretDerive As defined in Carrot = SecretDerive(x) = H_32(x)
 func SecretDerive(key []byte, data ...[]byte) types.Hash {
 	hasher, _ := blake2b.New256(key)
 	for _, b := range data {
-		_, _ = hasher.Write(b)
+		_, _ = utils.WriteNoEscape(hasher, b)
 	}
 	var h types.Hash
-	hasher.Sum(h[:0])
+	utils.SumNoEscape(hasher, h[:0])
 
 	return h
 }
@@ -100,10 +99,10 @@ func SecretDerive(key []byte, data ...[]byte) types.Hash {
 func ScalarDerive(key []byte, data ...[]byte) *edwards25519.Scalar {
 	hasher, _ := blake2b.New512(key)
 	for _, b := range data {
-		_, _ = hasher.Write(b)
+		_, _ = utils.WriteNoEscape(hasher, b)
 	}
 	var h [blake2b.Size]byte
-	hasher.Sum(h[:0])
+	utils.SumNoEscape(hasher, h[:0])
 
 	c := GetEdwards25519Scalar()
 	BytesToScalar64(h, c)
@@ -113,7 +112,7 @@ func ScalarDerive(key []byte, data ...[]byte) *edwards25519.Scalar {
 
 // ScalarDeriveLegacy As defined in Carrot = BytesToInt256(Keccak256(x)) mod ℓ
 func ScalarDeriveLegacy(data ...[]byte) *edwards25519.Scalar {
-	h := PooledKeccak256(data...)
+	h := Keccak256Var(data...)
 
 	c := GetEdwards25519Scalar()
 	BytesToScalar32(h, c)
@@ -122,7 +121,7 @@ func ScalarDeriveLegacy(data ...[]byte) *edwards25519.Scalar {
 }
 
 func ScalarDeriveLegacyNoAllocate(c *edwards25519.Scalar, data ...[]byte) {
-	h := Keccak256(data...)
+	h := Keccak256Var(data...)
 
 	BytesToScalar32(h, c)
 }

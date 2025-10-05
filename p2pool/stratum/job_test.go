@@ -14,10 +14,10 @@ func TestJobRoundtrip(t *testing.T) {
 		ExtraNonce:       2,
 		SideRandomNumber: 3,
 		SideExtraNonce:   4,
-		MerkleRoot:       crypto.Keccak256Single([]byte{1}),
-		MerkleProof:      []types.Hash{crypto.Keccak256Single([]byte{2}), crypto.Keccak256Single([]byte{3})},
+		MerkleRoot:       crypto.Keccak256([]byte{1}),
+		MerkleProof:      []types.Hash{crypto.Keccak256([]byte{2}), crypto.Keccak256([]byte{3})},
 	}
-	job.MergeMiningExtra.Set(crypto.Keccak256Single([]byte{1}), []byte{1, 2, 3, 4})
+	job.MergeMiningExtra.Set(crypto.Keccak256([]byte{1}), []byte{1, 2, 3, 4})
 
 	j2, err := JobFromString(job.Id())
 	if err != nil {

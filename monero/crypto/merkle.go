@@ -3,13 +3,12 @@ package crypto
 import (
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"git.gammaspectra.live/P2Pool/sha3"
 )
 
 // MerkleTree Used for block merkle root and similar
 type MerkleTree []types.Hash
 
-func leafHash(data []types.Hash, hasher *sha3.HasherState) (rootHash types.Hash) {
+func leafHash(data []types.Hash, hasher HashReader) (rootHash types.Hash) {
 	switch len(data) {
 	case 0:
 		panic("unsupported length")
@@ -18,22 +17,22 @@ func leafHash(data []types.Hash, hasher *sha3.HasherState) (rootHash types.Hash)
 	default:
 		//only hash the next two items
 		hasher.Reset()
-		_, _ = hasher.Write(data[0][:])
-		_, _ = hasher.Write(data[1][:])
+		_, _ = utils.WriteNoEscape(hasher, data[0][:])
+		_, _ = utils.WriteNoEscape(hasher, data[1][:])
 		HashFastSum(hasher, rootHash[:])
 		return rootHash
 	}
 }
 
-func pairHash(index int, h, p types.Hash, hasher *sha3.HasherState) (out types.Hash) {
+func pairHash(index int, h, p types.Hash, hasher HashReader) (out types.Hash) {
 	hasher.Reset()
 
 	if index&1 > 0 {
-		_, _ = hasher.Write(p[:])
-		_, _ = hasher.Write(h[:])
+		_, _ = utils.WriteNoEscape(hasher, p[:])
+		_, _ = utils.WriteNoEscape(hasher, h[:])
 	} else {
-		_, _ = hasher.Write(h[:])
-		_, _ = hasher.Write(p[:])
+		_, _ = utils.WriteNoEscape(hasher, h[:])
+		_, _ = utils.WriteNoEscape(hasher, p[:])
 	}
 
 	HashFastSum(hasher, out[:])
@@ -47,8 +46,7 @@ func (t MerkleTree) Depth() int {
 
 // RootHash Calculates the Merkle root hash of the tree
 func (t MerkleTree) RootHash() (rootHash types.Hash) {
-	hasher := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(hasher)
+	hasher := newKeccak256()
 
 	count := len(t)
 	if count <= 2 {
@@ -86,8 +84,7 @@ func (t MerkleTree) MainBranch() (mainBranch []types.Hash) {
 		return nil
 	}
 
-	hasher := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(hasher)
+	hasher := newKeccak256()
 
 	depth := t.Depth()
 	offset := depth*2 - count
@@ -142,8 +139,7 @@ func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
 		return types.ZeroHash
 	}
 
-	hasher := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(hasher)
+	hasher := newKeccak256()
 
 	if count == 2 {
 		if len(proof) == 0 {
@@ -184,8 +180,7 @@ func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
 }
 
 func (proof MerkleProof) GetRootPath(h types.Hash, path uint32) types.Hash {
-	hasher := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(hasher)
+	hasher := newKeccak256()
 
 	depth := len(proof)
 

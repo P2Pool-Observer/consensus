@@ -10,6 +10,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func init() {
@@ -47,9 +48,6 @@ func TestDerivePublicKey(t *testing.T) {
 		t.Fatal()
 	}
 
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
-
 	for e := range results {
 		var expectedDerivedKey types.Hash
 
@@ -75,7 +73,8 @@ func TestDerivePublicKey(t *testing.T) {
 
 		sharedData := crypto.GetDerivationSharedDataForOutputIndex(&derivation, outputIndex)
 
-		sharedData2, _ := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivation, outputIndex, hasher)
+		var sharedData2 edwards25519.Scalar
+		_ = crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedData2, derivation, outputIndex)
 
 		if sharedData.AsBytes() != crypto.PrivateKeyFromScalar(&sharedData2).AsBytes() {
 			t.Errorf("derive_public_key differs from no_allocate: %s != %s", sharedData, crypto.PrivateKeyFromScalar(&sharedData2))
@@ -85,7 +84,7 @@ func TestDerivePublicKey(t *testing.T) {
 		addr[0] = base
 		derivedKey := GetPublicKeyForSharedData(&addr, sharedData)
 
-		derivedKey2, _ := GetEphemeralPublicKeyAndViewTagNoAllocate(base.AsPoint().Point(), derivation, outputIndex, hasher)
+		derivedKey2, _ := GetEphemeralPublicKeyAndViewTagNoAllocate(base.AsPoint().Point(), derivation, outputIndex)
 
 		if derivedKey.AsBytes() != derivedKey2 {
 			t.Errorf("derive_public_key differs from no_allocate: %s != %s", derivedKey, &derivedKey2)

@@ -62,15 +62,13 @@ func (w *ViewWallet) Track(ix SubaddressIndex) error {
 
 // Match Matches a list of outputs from a transaction
 func (w *ViewWallet) Match(outputs transaction.Outputs, txPubs ...crypto.PublicKeyBytes) (index int, txPub crypto.PublicKeyBytes, sharedData crypto.PrivateKey, addressIndex SubaddressIndex) {
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
-
 	var sharedDataPub, ephemeralPub edwards25519.Point
 	var err error
+	var sharedDataScalar edwards25519.Scalar
 	for _, pub := range txPubs {
 		derivation := w.viewKeyBytes.GetDerivationCofactor(&pub).AsBytes()
 		for _, out := range outputs {
-			sharedDataScalar, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivation, out.Index, hasher)
+			viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedDataScalar, derivation, out.Index)
 			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag {
 				continue
 			}

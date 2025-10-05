@@ -17,7 +17,6 @@ import (
 	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"git.gammaspectra.live/P2Pool/sha3"
 )
 
 type GetByMainIdFunc func(h types.Hash) *PoolBlock
@@ -28,8 +27,8 @@ type GetBySideHeightFunc func(height uint64) UniquePoolBlockSlice
 // GetChainMainByHashFunc if h = types.ZeroHash, return tip
 type GetChainMainByHashFunc func(h types.Hash) *ChainMain
 
-func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType uint8, a *address.PackedAddress, txPrivateKeySlice crypto.PrivateKeySlice, txPrivateKeyScalar *crypto.PrivateKeyScalar, outputIndex, amount uint64, hasher *sha3.HasherState) transaction.Output {
-	ephemeralPubKey, viewTag := derivationCache.GetEphemeralPublicKey(a, txPrivateKeySlice, txPrivateKeyScalar, outputIndex, hasher)
+func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType uint8, a *address.PackedAddress, txPrivateKeySlice crypto.PrivateKeySlice, txPrivateKeyScalar *crypto.PrivateKeyScalar, outputIndex, amount uint64) transaction.Output {
+	ephemeralPubKey, viewTag := derivationCache.GetEphemeralPublicKey(a, txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
 	return transaction.Output{
 		Index:              outputIndex,
 		Type:               txType,
@@ -116,26 +115,15 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 		txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
 		txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
 
-		var hashers []*sha3.HasherState
-
-		defer func() {
-			for _, h := range hashers {
-				crypto.PutKeccak256Hasher(h)
-			}
-		}()
-
 		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
 			addr := &tmpShares[workIndex].Address
 			if addr.IsSubaddress() {
 				return fmt.Errorf("is not main address at index %d", workIndex)
 			}
-			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, tmpRewards[workIndex], hashers[workerIndex])
+			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, tmpRewards[workIndex])
 
 			return nil
-		}, func(routines, routineIndex int) error {
-			hashers = append(hashers, crypto.GetKeccak256Hasher())
-			return nil
-		})
+		}, nil)
 
 		if err != nil {
 			return nil, nil, 0, err
@@ -396,7 +384,7 @@ func ShuffleShares[T any](shares []T, majorVersion uint8, shareVersion ShareVers
 func ShuffleSequence(majorVersion uint8, shareVersion ShareVersion, privateKeySeed types.Hash, items int, swap func(i, j int)) {
 	n := uint64(items)
 	if shareVersion >= ShareVersion_V2 && n > 1 && majorVersion < monero.HardForkFCMPPlusPlusVersion {
-		seed := crypto.PooledKeccak256(privateKeySeed[:]).Uint64()
+		seed := crypto.Keccak256(privateKeySeed[:]).Uint64()
 
 		if seed == 0 {
 			seed = 1

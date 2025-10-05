@@ -6,10 +6,8 @@ import (
 	"math/big"
 	"slices"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	"git.gammaspectra.live/P2Pool/edwards25519/field"
-	"git.gammaspectra.live/P2Pool/sha3"
 )
 
 // l = 2^252 + 27742317777372353535851937790883648493.
@@ -417,16 +415,11 @@ func montgomeryToEdwards(u *field.Element, sign int) *edwards25519.Point {
 }
 
 func inlineKeccak[T ~[]byte | ~string](data T) []byte {
-	_, _ = _hasher.Write([]byte(data))
-	var h types.Hash
-	HashFastSum(_hasher, h[:])
-	_hasher.Reset()
+	h := Keccak256(data)
 	return h[:]
 }
 
 var (
-	_hasher = sha3.NewLegacyKeccak256()
-
 	// GeneratorG generator of 𝔾E
 	// G = {x, 4/5 mod q}
 	GeneratorG = edwards25519.NewGeneratorPoint()

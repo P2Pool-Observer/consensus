@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v4/p2pool/sidechain"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -49,11 +48,8 @@ func TestTemplate(t *testing.T) {
 		t.Fatal("not matching writer buffers")
 	}
 
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
-
 	bHashingBlob := b.Main.HashingBlob(nil)
-	if tplHashingBlob := tpl.HashingBlob(hasher, preAllocatedBuffer, b.Main.Nonce, b.ExtraNonce(), blockTemplateId); bytes.Compare(tplHashingBlob, bHashingBlob) != 0 {
+	if tplHashingBlob := tpl.HashingBlob(preAllocatedBuffer, b.Main.Nonce, b.ExtraNonce(), blockTemplateId); bytes.Compare(tplHashingBlob, bHashingBlob) != 0 {
 		if len(tplHashingBlob) == len(bHashingBlob) {
 			for i := range buf {
 				if bHashingBlob[i] != tplHashingBlob[i] {
@@ -82,16 +78,16 @@ func TestTemplate(t *testing.T) {
 
 	var coinbaseId types.Hash
 
-	if tpl.CoinbaseId(hasher, b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.CalculateId() {
+	if tpl.CoinbaseId(b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.CalculateId() {
 		t.Fatal("different coinbase ids")
 	}
 
-	if tpl.CoinbaseBlobId(hasher, preAllocatedBuffer, b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.CalculateId() {
+	if tpl.CoinbaseBlobId(preAllocatedBuffer, b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.CalculateId() {
 		t.Fatal("different coinbase blob ids")
 	}
 
 	var templateId types.Hash
-	if tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, addr, b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion, &templateId); templateId != blockTemplateId {
+	if tpl.TemplateId(preAllocatedBuffer, sidechain.ConsensusDefault, addr, b.Side.ExtraBuffer.RandomNumber, b.Side.ExtraBuffer.SideChainExtraNonce, b.Side.MerkleProof, b.Side.MergeMiningExtra, b.Side.ExtraBuffer.SoftwareId, b.Side.ExtraBuffer.SoftwareVersion, &templateId); templateId != blockTemplateId {
 		t.Fatal("different template ids")
 	}
 
@@ -103,7 +99,7 @@ func TestTemplate(t *testing.T) {
 		t.Fatal("different hashing blob buffer length")
 	}
 
-	if tpl.HashingBlobBufferLength() != len(tpl.HashingBlob(hasher, preAllocatedBuffer, 0, 0, types.ZeroHash)) {
+	if tpl.HashingBlobBufferLength() != len(tpl.HashingBlob(preAllocatedBuffer, 0, 0, types.ZeroHash)) {
 		t.Fatal("different hashing blob buffer length from blob")
 	}
 
@@ -117,12 +113,10 @@ func BenchmarkTemplate_CoinbaseId(b *testing.B) {
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		hasher := crypto.GetKeccak256Hasher()
-		defer crypto.PutKeccak256Hasher(hasher)
 		var counter = unsafeRandom.Uint32()
 		var coinbaseId types.Hash
 		for pb.Next() {
-			tpl.CoinbaseId(hasher, counter, types.ZeroHash, &coinbaseId)
+			tpl.CoinbaseId(counter, types.ZeroHash, &coinbaseId)
 			counter++
 		}
 	})
@@ -138,12 +132,10 @@ func BenchmarkTemplate_CoinbaseBlobId(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		preAllocatedBuffer := make([]byte, 0, tpl.CoinbaseBufferLength())
-		hasher := crypto.GetKeccak256Hasher()
-		defer crypto.PutKeccak256Hasher(hasher)
 		var counter = unsafeRandom.Uint32()
 		var coinbaseId types.Hash
 		for pb.Next() {
-			tpl.CoinbaseBlobId(hasher, preAllocatedBuffer, counter, types.ZeroHash, &coinbaseId)
+			tpl.CoinbaseBlobId(preAllocatedBuffer, counter, types.ZeroHash, &coinbaseId)
 			counter++
 		}
 	})
@@ -160,11 +152,9 @@ func BenchmarkTemplate_HashingBlob(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		preAllocatedBuffer := make([]byte, 0, tpl.HashingBlobBufferLength())
-		hasher := crypto.GetKeccak256Hasher()
-		defer crypto.PutKeccak256Hasher(hasher)
 		var counter = unsafeRandom.Uint32()
 		for pb.Next() {
-			tpl.HashingBlob(hasher, preAllocatedBuffer, counter, counter, types.ZeroHash)
+			tpl.HashingBlob(preAllocatedBuffer, counter, counter, types.ZeroHash)
 			counter++
 		}
 	})
@@ -181,12 +171,10 @@ func BenchmarkTemplate_TemplateId(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		preAllocatedBuffer := make([]byte, 0, len(tpl.Buffer))
-		hasher := crypto.GetKeccak256Hasher()
-		defer crypto.PutKeccak256Hasher(hasher)
 		var counter = unsafeRandom.Uint32()
 		var templateId types.Hash
 		for pb.Next() {
-			tpl.TemplateId(hasher, preAllocatedBuffer, sidechain.ConsensusDefault, donationAddrFunc(0), counter, counter+1, preLoadedPoolBlock.Side.MerkleProof, preLoadedPoolBlock.Side.MergeMiningExtra, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareId, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareVersion, &templateId)
+			tpl.TemplateId(preAllocatedBuffer, sidechain.ConsensusDefault, donationAddrFunc(0), counter, counter+1, preLoadedPoolBlock.Side.MerkleProof, preLoadedPoolBlock.Side.MergeMiningExtra, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareId, preLoadedPoolBlock.Side.ExtraBuffer.SoftwareVersion, &templateId)
 			counter++
 		}
 	})
