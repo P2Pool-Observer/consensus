@@ -79,10 +79,10 @@ func (p PackedAddress) ToBase58(typeNetwork uint8, err ...error) []byte {
 	nice[0] = typeNetwork
 	copy(nice[1:], p[PackedAddressSpend][:])
 	copy(nice[1+crypto.PublicKeySize:], p[PackedAddressView][:])
-	sum := crypto.PooledKeccak256(nice[:65])
+	sum := checksumHash(nice[:65])
 
 	buf := make([]byte, 0, 95)
-	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{typeNetwork}, p[PackedAddressSpend][:], p[PackedAddressView][:], sum[:4])
+	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{typeNetwork}, p[PackedAddressSpend][:], p[PackedAddressView][:], sum[:])
 }
 
 func (p PackedAddress) Valid() bool {

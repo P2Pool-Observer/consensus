@@ -232,14 +232,13 @@ func (c *CoinbaseTransaction) SideChainHashingBlob(preAllocatedBuf []byte, zeroT
 	return buf, nil
 }
 
-var baseRCTZeroHash = crypto.PooledKeccak256([]byte{0})
+var baseRCTZeroHash = crypto.Keccak256([]byte{0})
 
 func (c *CoinbaseTransaction) CalculateId() (hash types.Hash) {
 
 	txBytes, _ := c.AppendBinaryFlags(make([]byte, 0, c.BufferLength()), false, false)
 
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
+	hasher := crypto.NewKeccak256()
 
 	// coinbase id, base RCT hash, prunable RCT hash
 	var txHashingBlob [3 * types.HashSize]byte

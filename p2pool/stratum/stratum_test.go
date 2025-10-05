@@ -234,11 +234,8 @@ func TestStratumServer_GenesisV2(t *testing.T) {
 		t.Fatal()
 	}
 
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
-
 	var templateId types.Hash
-	tpl.TemplateId(hasher, nil, consensus, donationAddrFunc(0), 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	tpl.TemplateId(nil, consensus, donationAddrFunc(0), 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
 	blockData := tpl.Blob(nil, consensus, donationAddrFunc(0), 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
 	var b sidechain.PoolBlock
 	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)
@@ -320,11 +317,8 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 		t.Fatal()
 	}
 
-	hasher := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(hasher)
-
 	var templateId types.Hash
-	tpl.TemplateId(hasher, nil, consensus, donationAddrFunc(0), 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	tpl.TemplateId(nil, consensus, donationAddrFunc(0), 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
 	blockData := tpl.Blob(nil, consensus, donationAddrFunc(0), 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
 	var b sidechain.PoolBlock
 	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)

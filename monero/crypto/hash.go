@@ -1,41 +1,90 @@
 package crypto
 
 import (
+	"hash"
+	"io"
+
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
-	"git.gammaspectra.live/P2Pool/sha3"
 	"golang.org/x/crypto/blake2b"
+	"golang.org/x/crypto/sha3"
 )
 
-func Keccak256(data ...[]byte) (result types.Hash) {
-	h := sha3.NewLegacyKeccak256()
+type HashReader interface {
+	hash.Hash
+	io.Reader
+}
+
+type KeccakHasher struct {
+	h HashReader
+}
+
+func (k KeccakHasher) Read(p []byte) (n int, err error) {
+	return utils.ReadNoEscape(k.h, p)
+}
+
+func (k KeccakHasher) Write(p []byte) (n int, err error) {
+	return utils.WriteNoEscape(k.h, p)
+}
+
+func (k KeccakHasher) Sum(b []byte) []byte {
+	return utils.SumNoEscape(k.h, b)
+}
+
+func (k KeccakHasher) Reset() {
+	k.h.Reset()
+}
+
+func (k KeccakHasher) Size() int {
+	return k.h.Size()
+}
+
+func (k KeccakHasher) BlockSize() int {
+	return k.h.BlockSize()
+}
+
+//go:nosplit
+func NewKeccak256() KeccakHasher {
+	return KeccakHasher{h: sha3.NewLegacyKeccak256().(HashReader)}
+}
+
+//go:nosplit
+func newKeccak256() HashReader {
+	return sha3.NewLegacyKeccak256().(HashReader)
+}
+
+func Keccak256Var[T ~string | ~[]byte](data ...T) (result types.Hash) {
+	h := newKeccak256()
 	for _, b := range data {
-		_, _ = h.Write(b)
+		_, _ = utils.WriteNoEscape(h, []byte(b))
 	}
-	HashFastSum(h, result[:])
+	_, _ = utils.ReadNoEscape(h, result[:types.HashSize])
 
 	return
 }
 
-func Keccak256Single(data []byte) (result types.Hash) {
-	h := sha3.NewLegacyKeccak256()
-	_, _ = h.Write(data)
-	HashFastSum(h, result[:])
+func Keccak256[T ~string | ~[]byte](data T) (result types.Hash) {
+	h := newKeccak256()
+	_, _ = utils.WriteNoEscape(h, []byte(data))
+	_, _ = utils.ReadNoEscape(h, result[:types.HashSize])
 
 	return
 }
 
 // HashFastSum sha3.Sum clones the state by allocating memory. prevent that. b must be pre-allocated to the expected size, or larger
-func HashFastSum(hash *sha3.HasherState, b []byte) []byte {
+//
+//go:nosplit
+func HashFastSum(hasher HashReader, b []byte) []byte {
 	_ = b[31] // bounds check hint to compiler; see golang.org/issue/14808
-	_, _ = hash.Read(b[:types.HashSize])
+	_, _ = utils.ReadNoEscape(hasher, b[:types.HashSize])
 	return b
 }
 
 // HopefulHashToPoint
 // Defined as H_p^1 in Carrot
 func HopefulHashToPoint(data []byte) *edwards25519.Point {
-	result := DecodeCompressedPoint(new(edwards25519.Point), Keccak256Single(data))
+	result := DecodeCompressedPoint(new(edwards25519.Point), Keccak256(data))
 	if result == nil {
 		return nil
 	}
@@ -69,7 +118,7 @@ func HopefulHashToPoint(data []byte) *edwards25519.Point {
 // derivative of their `u` coordinates (in Montgomery form) are quadratic residues. It's biased
 // accordingly.
 func BiasedHashToPoint(data []byte) *edwards25519.Point {
-	result := elligator2WithUniformBytes(Keccak256Single(data))
+	result := elligator2WithUniformBytes(Keccak256(data))
 
 	// Ensure points lie within the prime-order subgroup
 	result.MultByCofactor(result)

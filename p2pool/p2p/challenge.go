@@ -3,10 +3,11 @@ package p2p
 import (
 	"crypto/rand"
 	"encoding/binary"
-	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"math/bits"
 	"sync/atomic"
+
+	"git.gammaspectra.live/P2Pool/consensus/v4/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 )
 
 const HandshakeChallengeSize = 8
@@ -25,8 +26,7 @@ func FindChallengeSolution(challenge HandshakeChallenge, consensusId types.Hash,
 	_, _ = rand.Read(saltSlice[:])
 	salt = binary.LittleEndian.Uint64(saltSlice[:])
 
-	h := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(h)
+	h := crypto.NewKeccak256()
 
 	var sum types.Hash
 
@@ -51,7 +51,7 @@ func FindChallengeSolution(challenge HandshakeChallenge, consensusId types.Hash,
 }
 
 func CalculateChallengeHash(challenge HandshakeChallenge, consensusId types.Hash, solution uint64) (hash types.Hash, ok bool) {
-	hash = crypto.PooledKeccak256(challenge[:], consensusId[:], binary.LittleEndian.AppendUint64(nil, solution))
+	hash = crypto.Keccak256Var(challenge[:], consensusId[:], binary.LittleEndian.AppendUint64(nil, solution))
 	hi, _ := bits.Mul64(binary.LittleEndian.Uint64(hash[types.HashSize-8:]), HandshakeChallengeDifficulty)
 	return hash, hi == 0
 }

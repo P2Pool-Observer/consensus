@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -81,9 +82,6 @@ func TestDeriveViewTag(t *testing.T) {
 		t.Fatal()
 	}
 
-	hasher := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(hasher)
-
 	for e := range results {
 		derivation := PublicKeyBytes(types.MustHashFromString(e[0]))
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
@@ -91,7 +89,8 @@ func TestDeriveViewTag(t *testing.T) {
 
 		viewTag := GetDerivationViewTagForOutputIndex(&derivation, outputIndex)
 
-		_, viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivation, outputIndex, hasher)
+		var tmp edwards25519.Scalar
+		viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&tmp, derivation, outputIndex)
 
 		if viewTag != viewTag2 {
 			t.Errorf("derive_view_tag differs from no_allocate: %d != %d", viewTag, &viewTag2)
@@ -116,14 +115,12 @@ func FuzzDeriveViewTag(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, derivation []byte, outputIndex uint64) {
-		hasher := GetKeccak256Hasher()
-		defer PutKeccak256Hasher(hasher)
-
 		derivationBytes := (*PublicKeySlice)(&derivation).AsBytes()
 
 		viewTag := GetDerivationViewTagForOutputIndex(&derivationBytes, outputIndex)
 
-		_, viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(derivationBytes, outputIndex, hasher)
+		var tmp edwards25519.Scalar
+		viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&tmp, derivationBytes, outputIndex)
 
 		if viewTag != viewTag2 {
 			t.Errorf("derive_view_tag differs from no_allocate: %d != %d", viewTag, &viewTag2)
@@ -179,8 +176,7 @@ func TestHashToPoint(t *testing.T) {
 	if results == nil {
 		t.Fatal()
 	}
-	hasher := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(hasher)
+
 	for e := range results {
 		key := PublicKeyBytes(types.MustHashFromString(e[0]))
 		expected := PublicKeyBytes(types.MustHashFromString(e[1]))

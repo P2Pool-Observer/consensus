@@ -4,19 +4,14 @@ import (
 	"runtime"
 	"sync"
 
-	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
-	"git.gammaspectra.live/P2Pool/sha3"
 )
 
-var hasherPool, pointPool, scalarPool sync.Pool
+var pointPool, scalarPool sync.Pool
 
 func init() {
 	// separate init, breaks the cycle
 
-	hasherPool.New = func() any {
-		return sha3.NewLegacyKeccak256()
-	}
 	pointPool.New = func() any {
 		p := new(edwards25519.Point)
 		runtime.SetFinalizer(p, PutEdwards25519Point)
@@ -27,25 +22,6 @@ func init() {
 		runtime.SetFinalizer(s, PutEdwards25519Scalar)
 		return s
 	}
-}
-
-func GetKeccak256Hasher() *sha3.HasherState {
-	return hasherPool.Get().(*sha3.HasherState)
-}
-
-func PutKeccak256Hasher(h *sha3.HasherState) {
-	h.Reset()
-	hasherPool.Put(h)
-}
-
-func PooledKeccak256(data ...[]byte) (result types.Hash) {
-	h := GetKeccak256Hasher()
-	defer PutKeccak256Hasher(h)
-	for _, b := range data {
-		_, _ = h.Write(b)
-	}
-	HashFastSum(h, result[:])
-	return
 }
 
 func GetEdwards25519Point() *edwards25519.Point {

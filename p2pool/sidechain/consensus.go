@@ -229,8 +229,7 @@ func (c *Consensus) CalculateSideTemplateId(share *PoolBlock) (result types.Hash
 }
 
 func (c *Consensus) CalculateSideTemplateIdPreAllocated(share *PoolBlock, buf []byte) (result types.Hash) {
-	h := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(h)
+	h := crypto.NewKeccak256()
 
 	buf, _ = share.Main.SideChainHashingBlob(buf, true)
 	_, _ = h.Write(buf)
@@ -242,8 +241,7 @@ func (c *Consensus) CalculateSideTemplateIdPreAllocated(share *PoolBlock, buf []
 }
 
 func (c *Consensus) CalculateSideChainIdFromBlobs(mainBlob, sideBlob []byte) (result types.Hash) {
-	h := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(h)
+	h := crypto.NewKeccak256()
 
 	_, _ = h.Write(mainBlob)
 	_, _ = h.Write(sideBlob)

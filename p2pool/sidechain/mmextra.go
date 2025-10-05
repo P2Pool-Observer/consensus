@@ -10,7 +10,7 @@ import (
 
 type MergeMiningExtra []MergeMiningExtraData
 
-var ExtraChainKeySubaddressViewPub = crypto.Keccak256Single([]byte("subaddress_viewpub"))
+var ExtraChainKeySubaddressViewPub = crypto.Keccak256([]byte("subaddress_viewpub"))
 
 func (d MergeMiningExtra) Sort() {
 	slices.SortStableFunc(d, func(a, b MergeMiningExtraData) int {

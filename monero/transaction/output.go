@@ -43,7 +43,7 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 					return err
 				}
 
-				if o.Type == TxOutToTaggedKey || o.Type == TxOutToCarrotV1 {
+				if o.Type == TxOutToTaggedKey {
 					if o.ViewTag, err = reader.ReadByte(); err != nil {
 						return err
 					}

@@ -23,7 +23,6 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"git.gammaspectra.live/P2Pool/sha3"
 )
 
 type Cache interface {
@@ -948,14 +947,6 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
 				txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
 
-				var hashers []*sha3.HasherState
-
-				defer func() {
-					for _, h := range hashers {
-						crypto.PutKeccak256Hasher(h)
-					}
-				}()
-
 				if len(pubs) != 1 {
 					return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), 1)
 				}
@@ -969,7 +960,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 					if addr.IsSubaddress() {
 						return fmt.Errorf("is not main address at index %d", workIndex)
 					}
-					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, out.Reward, hashers[workerIndex])
+					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, out.Reward)
 					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
 						return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
 					} else if out.Type == transaction.TxOutToTaggedKey && calculated.ViewTag != out.ViewTag {
@@ -977,10 +968,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 					}
 
 					return nil
-				}, func(routines, routineIndex int) error {
-					hashers = append(hashers, crypto.GetKeccak256Hasher())
-					return nil
-				}); err != nil {
+				}, nil); err != nil {
 					return nil, err
 				}
 			}

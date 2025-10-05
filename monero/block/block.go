@@ -370,5 +370,5 @@ func (b *Block) Id() types.Hash {
 	//cached by sidechain.Share
 	var varIntBuf [binary.MaxVarintLen64]byte
 	buf := b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength()))
-	return crypto.PooledKeccak256(varIntBuf[:binary.PutUvarint(varIntBuf[:], uint64(len(buf)))], buf)
+	return crypto.Keccak256Var(varIntBuf[:binary.PutUvarint(varIntBuf[:], uint64(len(buf)))], buf)
 }

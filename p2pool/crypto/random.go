@@ -13,8 +13,7 @@ var transactionPrivateKeyDomain = []byte("tx_secret_key")
 var transactionRandomDomain = []byte("tx_random")
 
 func CalculateTransactionPrivateKeySeed(main, side []byte) (result types.Hash) {
-	h := crypto.GetKeccak256Hasher()
-	defer crypto.PutKeccak256Hasher(h)
+	h := crypto.NewKeccak256()
 	_, _ = h.Write(transactionPrivateKeySeedDomain)
 	_, _ = h.Write(main)
 	_, _ = h.Write(side)

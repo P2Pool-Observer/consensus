@@ -15,7 +15,6 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v4/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/types"
 	"git.gammaspectra.live/P2Pool/consensus/v4/utils"
-	"git.gammaspectra.live/P2Pool/sha3"
 )
 
 type Template struct {
@@ -248,8 +247,10 @@ func (tpl *Template) Blob(preAllocatedBuffer []byte, consensus *sidechain.Consen
 	return buf
 }
 
-func (tpl *Template) TemplateId(hasher *sha3.HasherState, preAllocatedBuffer []byte, consensus *sidechain.Consensus, addr address.PackedAddressWithSubaddress, sideRandomNumber, sideExtraNonce uint32, merkleProof crypto.MerkleProof, mmExtra sidechain.MergeMiningExtra, softwareId p2pooltypes.SoftwareId, softwareVersion p2pooltypes.SoftwareVersion, result *types.Hash) {
+func (tpl *Template) TemplateId(preAllocatedBuffer []byte, consensus *sidechain.Consensus, addr address.PackedAddressWithSubaddress, sideRandomNumber, sideExtraNonce uint32, merkleProof crypto.MerkleProof, mmExtra sidechain.MergeMiningExtra, softwareId p2pooltypes.SoftwareId, softwareVersion p2pooltypes.SoftwareVersion, result *types.Hash) {
 	buf := tpl.Blob(preAllocatedBuffer, consensus, addr, 0, 0, sideRandomNumber, sideExtraNonce, types.ZeroHash, merkleProof, mmExtra, softwareId, softwareVersion)
+
+	hasher := crypto.NewKeccak256()
 
 	_, _ = hasher.Write(buf)
 	_, _ = hasher.Write(consensus.Id[:])
@@ -295,8 +296,9 @@ func (tpl *Template) CoinbaseBlob(preAllocatedBuffer []byte, extraNonce uint32, 
 	return buf
 }
 
-func (tpl *Template) CoinbaseBlobId(hasher *sha3.HasherState, preAllocatedBuffer []byte, extraNonce uint32, templateId types.Hash, result *types.Hash) {
+func (tpl *Template) CoinbaseBlobId(preAllocatedBuffer []byte, extraNonce uint32, templateId types.Hash, result *types.Hash) {
 
+	hasher := crypto.NewKeccak256()
 	buf := tpl.CoinbaseBlob(preAllocatedBuffer, extraNonce, templateId)
 	_, _ = hasher.Write(buf[:len(buf)-1])
 	crypto.HashFastSum(hasher, (*result)[:])
@@ -305,9 +307,11 @@ func (tpl *Template) CoinbaseBlobId(hasher *sha3.HasherState, preAllocatedBuffer
 	CoinbaseIdHash(hasher, *result, result)
 }
 
-func (tpl *Template) CoinbaseId(hasher *sha3.HasherState, extraNonce uint32, merkleRoot types.Hash, result *types.Hash) {
+func (tpl *Template) CoinbaseId(extraNonce uint32, merkleRoot types.Hash, result *types.Hash) {
 
 	var extraNonceBuf [4]byte
+
+	hasher := crypto.NewKeccak256()
 
 	_, _ = hasher.Write(tpl.Buffer[tpl.CoinbaseOffset:tpl.ExtraNonceOffset])
 	// extra nonce
@@ -326,9 +330,9 @@ func (tpl *Template) CoinbaseId(hasher *sha3.HasherState, extraNonce uint32, mer
 	CoinbaseIdHash(hasher, *result, result)
 }
 
-var zeroExtraBaseRCTHash = crypto.PooledKeccak256([]byte{0})
+var zeroExtraBaseRCTHash = crypto.Keccak256([]byte{0})
 
-func CoinbaseIdHash(hasher *sha3.HasherState, coinbaseBlobMinusBaseRTC types.Hash, result *types.Hash) {
+func CoinbaseIdHash(hasher crypto.HashReader, coinbaseBlobMinusBaseRTC types.Hash, result *types.Hash) {
 	_, _ = hasher.Write(coinbaseBlobMinusBaseRTC[:])
 	// Base RCT, single 0 byte in miner tx
 	_, _ = hasher.Write(zeroExtraBaseRCTHash[:])
@@ -344,10 +348,12 @@ func (tpl *Template) HashingBlobBufferLength() int {
 	return tpl.NonceOffset + 4 + types.HashSize + utils.UVarInt64Size(n)
 }
 
-func (tpl *Template) HashingBlob(hasher *sha3.HasherState, preAllocatedBuffer []byte, nonce, extraNonce uint32, merkleRoot types.Hash) []byte {
+func (tpl *Template) HashingBlob(preAllocatedBuffer []byte, nonce, extraNonce uint32, merkleRoot types.Hash) []byte {
 
 	var rootHash types.Hash
-	tpl.CoinbaseId(hasher, extraNonce, merkleRoot, &rootHash)
+	tpl.CoinbaseId(extraNonce, merkleRoot, &rootHash)
+
+	hasher := crypto.NewKeccak256()
 
 	buf := append(preAllocatedBuffer, tpl.Buffer[:tpl.NonceOffset]...)
 	buf = binary.LittleEndian.AppendUint32(buf, nonce)

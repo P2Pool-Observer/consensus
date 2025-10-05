@@ -21,29 +21,25 @@ type PaymentProposalV1 struct {
 // ECDHParts get_normal_proposal_ecdh_parts
 func (p *PaymentProposalV1) ECDHParts(inputContext []byte) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey) {
 	// 1. d_e = H_n(anchor_norm, input_context, K^j_s, pid))
-	ephemeralPrivateKey := p.EnoteEphemeralPrivateKey(inputContext)
+	var ephemeralPrivateKey crypto.PrivateKeyScalar
+	makeEnoteEphemeralPrivateKey(&ephemeralPrivateKey, p.Randomness[:], inputContext, *p.Destination.Address.SpendPublicKey(), p.Destination.PaymentId)
 
 	// 2. make D_e
-	ephemeralPubkey = p.EnoteEphemeralPublicKey(ephemeralPrivateKey)
+	ephemeralPubkey = p.ephemeralPublicKey(&ephemeralPrivateKey)
 
 	// 3. s_sr = d_e ConvertPointE(K^j_v)
-	senderReceiverUnctx = makeUncontextualizedSharedKeySender(ephemeralPrivateKey, p.Destination.Address.ViewPublicKey())
+	senderReceiverUnctx = makeUncontextualizedSharedKeySender(ephemeralPrivateKey.AsBytes(), p.Destination.Address.ViewPublicKey().AsPoint())
 
 	return ephemeralPubkey, senderReceiverUnctx
 }
 
-func (p *PaymentProposalV1) EnoteEphemeralPrivateKey(inputContext []byte) crypto.PrivateKey {
-	// d_e = H_n(anchor_norm, input_context, K^j_s, pid))
-	return makeEnoteEphemeralPrivateKey(p.Randomness[:], inputContext, p.Destination.Address.SpendPublicKey(), p.Destination.PaymentId)
-}
-
-func (p *PaymentProposalV1) EnoteEphemeralPublicKey(key crypto.PrivateKey) (out crypto.X25519PublicKey) {
+func (p *PaymentProposalV1) ephemeralPublicKey(key *crypto.PrivateKeyScalar) (out crypto.X25519PublicKey) {
 	if p.Destination.Address.IsSubaddress() {
 		// D_e = d_e ConvertPointE(K^j_s)
-		return makeEnoteEphemeralPublicKeySubaddress(key, p.Destination.Address.SpendPublicKey())
+		return makeEnoteEphemeralPublicKeySubaddress(key, p.Destination.Address.SpendPublicKey().AsPoint())
 	} else {
 		// D_e = d_e B
-		return makeEnoteEphemeralPublicKeyCryptonote(key)
+		return makeEnoteEphemeralPublicKeyCryptonote(key.AsBytes())
 	}
 }
 
@@ -88,10 +84,11 @@ func (p *PaymentProposalV1) CoinbaseOutput(blockIndex uint64) (*CoinbaseEnoteV1,
 			}
 
 			// 2. C_a = k_a G + a H
-			amountCommitmentOut := crypto.RctCommit(p.Amount, &amountBlindingFactorOut)
+			var amountCommitmentOut crypto.PublicKeyPoint
+			crypto.RctCommit(&amountCommitmentOut, p.Amount, amountBlindingFactorOut.AsScalar())
 
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			enote.OneTimeAddress = makeOnetimeAddress(*p.Destination.Address.SpendPublicKey(), secretSenderReceiver, amountCommitmentOut)
+			enote.OneTimeAddress = makeOnetimeAddress(p.Destination.Address.SpendPublicKey().AsPoint(), secretSenderReceiver, amountCommitmentOut.AsBytes())
 
 			/*
 				// 4. a_enc = a XOR m_a
