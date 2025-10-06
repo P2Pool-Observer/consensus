@@ -40,7 +40,7 @@ func (p *PaymentProposalV1) ephemeralPublicKey(key *crypto.PrivateKeyScalar) (ou
 		return makeEnoteEphemeralPublicKeySubaddress(key, p.Destination.Address.SpendPublicKey().AsPoint())
 	} else {
 		// D_e = d_e B
-		return makeEnoteEphemeralPublicKeyCryptonote(key.AsBytes())
+		return makeEnoteEphemeralPublicKeyCryptonote(key)
 	}
 }
 

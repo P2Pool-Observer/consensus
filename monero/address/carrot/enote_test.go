@@ -35,8 +35,9 @@ func TestConverge(t *testing.T) {
 
 	t.Run("make_carrot_enote_ephemeral_pubkey_cryptonote", func(t *testing.T) {
 		expected := crypto.X25519PublicKey(types.MustHashFromString("2987777565c02409dfe871cc27b2334f5ade9d4ad014012c568367b80e99c666"))
+		ephemeralPrivateKey := crypto.PrivateKeyBytes(types.MustHashFromString("f57ff2d7c898b755137b69e8d826801945ed72e9951850de908e9d645a0bb00d"))
 		result := makeEnoteEphemeralPublicKeyCryptonote(
-			crypto.PrivateKeyBytes(types.MustHashFromString("f57ff2d7c898b755137b69e8d826801945ed72e9951850de908e9d645a0bb00d")),
+			ephemeralPrivateKey.AsScalar(),
 		)
 		if result != expected {
 			t.Fatalf("expected: %x, got: %x", expected, result)

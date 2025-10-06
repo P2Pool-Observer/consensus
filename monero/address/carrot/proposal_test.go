@@ -1,6 +1,8 @@
 package carrot
 
 import (
+	"math"
+	unsafeRandom "math/rand/v2"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -58,15 +60,19 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
 	}
 
-	var enote CoinbaseEnoteV1
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		err := proposal.CoinbaseOutput(&enote, 123456)
-		if err != nil {
-			b.Fatalf("failed to generate coinbase enote: %s", err)
+	b.RunParallel(func(pb *testing.PB) {
+		var enote CoinbaseEnoteV1
+		i := unsafeRandom.Uint64N(math.MaxUint32)
+		for pb.Next() {
+			i++
+			err := proposal.CoinbaseOutput(&enote, i)
+			if err != nil {
+				b.Fatalf("failed to generate coinbase enote: %s", err)
+			}
 		}
-	}
+	})
 
 }
