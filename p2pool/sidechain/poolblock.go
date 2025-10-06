@@ -20,7 +20,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
-	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/crypto"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -850,7 +849,7 @@ func (b *PoolBlock) GetPrivateKeySeed() types.Hash {
 	}
 
 	oldSeed := types.Hash(b.Side.PublicKey[address.PackedAddressSpend])
-	if b.Main.MajorVersion < monero.HardForkViewTagsVersion && p2poolcrypto.GetDeterministicTransactionPrivateKey(oldSeed, b.Main.PreviousId).AsBytes() != b.Side.CoinbasePrivateKey {
+	if b.Main.MajorVersion < monero.HardForkViewTagsVersion && GetDeterministicTransactionPrivateKey(oldSeed, b.Main.PreviousId).AsBytes() != b.Side.CoinbasePrivateKey {
 		return types.ZeroHash
 	}
 
@@ -863,7 +862,7 @@ func (b *PoolBlock) CalculateTransactionPrivateKeySeed() types.Hash {
 		preAllocatedSideData := make([]byte, 0, b.Side.BufferLength(b.ShareVersion()))
 		mainData, _ := b.Main.SideChainHashingBlob(preAllocatedMainData, false)
 		sideData, _ := b.Side.AppendBinary(preAllocatedSideData, b.ShareVersion())
-		return p2poolcrypto.CalculateTransactionPrivateKeySeed(
+		return CalculateTransactionPrivateKeySeed(
 			mainData,
 			sideData,
 		)

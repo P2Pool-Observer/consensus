@@ -59,11 +59,7 @@ func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex ui
 	var hasher blake2b.Digest
 
 	// 2. coinbase input context
-	// make_carrot_input_context_coinbase
-	var inputContext [1 + types.HashSize]byte
-	inputContext[0] = DomainSeparatorInputContextCoinbase
-	binary.LittleEndian.PutUint64(inputContext[1:], blockIndex)
-	// left bytes are 0
+	inputContext := makeCarrotCoinbaseInputContext(blockIndex)
 
 	var senderReceiverUnctx crypto.X25519PublicKey
 	// 3. make D_e and do external ECDH
@@ -118,4 +114,12 @@ func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex ui
 	enote.BlockIndex = blockIndex
 
 	return nil
+}
+
+// makeCarrotCoinbaseInputContext make_carrot_input_context_coinbase
+func makeCarrotCoinbaseInputContext(blockIndex uint64) (inputContext [1 + types.HashSize]byte) {
+	inputContext[0] = DomainSeparatorInputContextCoinbase
+	binary.LittleEndian.PutUint64(inputContext[1:], blockIndex)
+	// left bytes are 0
+	return inputContext
 }

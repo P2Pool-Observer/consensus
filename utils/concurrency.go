@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"golang.org/x/sync/errgroup"
 	"runtime"
 	"sync/atomic"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var GOMAXPROCS = min(runtime.GOMAXPROCS(0), runtime.NumCPU())
@@ -15,13 +16,16 @@ func SplitWork(routines int, workSize uint64, do func(workIndex uint64, routineI
 
 	if routines == 1 {
 		// do not spawn goroutines if we have a single worker
-		err := init(routines, 0)
-		if err != nil {
-			return err
+
+		if init != nil {
+			err := init(routines, 0)
+			if err != nil {
+				return err
+			}
 		}
 
 		for workIndex := uint64(0); workIndex < workSize; workIndex++ {
-			if err = do(workIndex, 0); err != nil {
+			if err := do(workIndex, 0); err != nil {
 				return err
 			}
 		}
