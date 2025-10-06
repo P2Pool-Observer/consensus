@@ -1,6 +1,7 @@
 package carrot
 
 import (
+	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -28,10 +29,10 @@ const (
 )
 
 // makeEnoteEphemeralPrivateKey make_carrot_enote_ephemeral_privkey
-func makeEnoteEphemeralPrivateKey(ephemeralPrivateKey *crypto.PrivateKeyScalar, anchor, inputContext []byte, spendPub crypto.PublicKeyBytes, paymentId [8]byte) {
+func makeEnoteEphemeralPrivateKey(hasher *blake2b.Digest, ephemeralPrivateKey *crypto.PrivateKeyScalar, anchor, inputContext []byte, spendPub crypto.PublicKeyBytes, paymentId [8]byte) {
 	// k_e = (H_64(anchor_norm, input_context, K^j_s, pid)) mod l
 	ScalarTranscript(
-		ephemeralPrivateKey.Scalar(), nil,
+		ephemeralPrivateKey.Scalar(), hasher, nil,
 		[]byte(DomainSeparatorEphemeralPrivateKey), anchor, inputContext, spendPub[:], paymentId[:],
 	)
 }
@@ -62,17 +63,17 @@ func makeUncontextualizedSharedKeySender(ephemeralPrivKey crypto.PrivateKeyBytes
 }
 
 // makeSenderReceiverSecret make_carrot_sender_receiver_secret
-func makeSenderReceiverSecret(senderReceiverUnctx, ephemeralPubKey crypto.X25519PublicKey, inputContext []byte) (out types.Hash) {
+func makeSenderReceiverSecret(hasher *blake2b.Digest, senderReceiverUnctx, ephemeralPubKey crypto.X25519PublicKey, inputContext []byte) (out types.Hash) {
 	// 1. s^ctx_sr = H_32(s_sr, D_e, input_context)
 	HashedTranscript(
-		out[:], senderReceiverUnctx[:],
+		out[:], hasher, senderReceiverUnctx[:],
 		[]byte(DomainSeparatorSenderReceiverSecret), ephemeralPubKey[:], inputContext,
 	)
 	return out
 }
 
 // makeOnetimeAddress make_carrot_onetime_address
-func makeOnetimeAddress(spendPub *crypto.PublicKeyPoint, secretSenderReceiver types.Hash, amountCommitment crypto.PublicKeyBytes) crypto.PublicKeyBytes {
+func makeOnetimeAddress(hasher *blake2b.Digest, spendPub *crypto.PublicKeyPoint, secretSenderReceiver types.Hash, amountCommitment crypto.PublicKeyBytes) crypto.PublicKeyBytes {
 	var senderExtensionPubkey crypto.PublicKeyPoint
 	// K^o_ext = k^o_g G + k^o_t T
 	// make_carrot_onetime_address_extension_pubkey
@@ -81,14 +82,14 @@ func makeOnetimeAddress(spendPub *crypto.PublicKeyPoint, secretSenderReceiver ty
 		// k^o_g = H_n("..g..", s^ctx_sr, C_a)
 		// make_carrot_onetime_address_extension_g
 		ScalarTranscript(
-			&senderExtensionG, secretSenderReceiver[:],
+			&senderExtensionG, hasher, secretSenderReceiver[:],
 			[]byte(DomainSeparatorOneTimeExtensionG), amountCommitment[:],
 		)
 
 		// k^o_t = H_n("..t..", s^ctx_sr, C_a)
 		// make_carrot_onetime_address_extension_t
 		ScalarTranscript(
-			&senderExtensionT, secretSenderReceiver[:],
+			&senderExtensionT, hasher, secretSenderReceiver[:],
 			[]byte(DomainSeparatorOneTimeExtensionT), amountCommitment[:],
 		)
 
@@ -101,21 +102,21 @@ func makeOnetimeAddress(spendPub *crypto.PublicKeyPoint, secretSenderReceiver ty
 }
 
 // makeViewTag make_carrot_view_tag
-func makeViewTag(senderReceiverUnctx crypto.X25519PublicKey, inputContext []byte, oneTimeAddress crypto.PublicKeyBytes) (out [monero.CarrotViewTagSize]byte) {
+func makeViewTag(hasher *blake2b.Digest, senderReceiverUnctx crypto.X25519PublicKey, inputContext []byte, oneTimeAddress crypto.PublicKeyBytes) (out [monero.CarrotViewTagSize]byte) {
 	// vt = H_3(s_sr || input_context || Ko)
 
 	HashedTranscript(
-		out[:], senderReceiverUnctx[:],
+		out[:], hasher, senderReceiverUnctx[:],
 		[]byte(DomainSeparatorViewTag), inputContext, oneTimeAddress[:],
 	)
 	return out
 }
 
 // makeAnchorEncryptionMask make_carrot_anchor_encryption_mask
-func makeAnchorEncryptionMask(secretSenderReceiver types.Hash, oneTimeAddress crypto.PublicKeyBytes) (out [monero.JanusAnchorSize]byte) {
+func makeAnchorEncryptionMask(hasher *blake2b.Digest, secretSenderReceiver types.Hash, oneTimeAddress crypto.PublicKeyBytes) (out [monero.JanusAnchorSize]byte) {
 	// m_anchor = H_16(s^ctx_sr, Ko)
 	HashedTranscript(
-		out[:], secretSenderReceiver[:],
+		out[:], hasher, secretSenderReceiver[:],
 		[]byte(DomainSeparatorEncryptionMaskAnchor), oneTimeAddress[:],
 	)
 	return out

@@ -3,10 +3,10 @@ package crypto
 import (
 	"encoding/binary"
 
+	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
-	"golang.org/x/crypto/blake2b"
 )
 
 func GetDerivationSharedDataForOutputIndex(derivation PublicKey, outputIndex uint64) PrivateKey {

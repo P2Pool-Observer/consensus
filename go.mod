@@ -3,6 +3,7 @@ module git.gammaspectra.live/P2Pool/consensus/v5
 go 1.25.1
 
 require (
+	git.gammaspectra.live/P2Pool/blake2b v0.42.1
 	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251003011630-ee1658266ad3
 	git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3
 	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.2.1
