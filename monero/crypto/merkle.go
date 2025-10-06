@@ -8,7 +8,7 @@ import (
 // MerkleTree Used for block merkle root and similar
 type MerkleTree []types.Hash
 
-func leafHash(data []types.Hash, hasher HashReader) (rootHash types.Hash) {
+func leafHash(data []types.Hash, hasher KeccakHasher) (rootHash types.Hash) {
 	switch len(data) {
 	case 0:
 		panic("unsupported length")
@@ -19,12 +19,12 @@ func leafHash(data []types.Hash, hasher HashReader) (rootHash types.Hash) {
 		hasher.Reset()
 		_, _ = utils.WriteNoEscape(hasher, data[0][:])
 		_, _ = utils.WriteNoEscape(hasher, data[1][:])
-		HashFastSum(hasher, rootHash[:])
+		hasher.Hash(&rootHash)
 		return rootHash
 	}
 }
 
-func pairHash(index int, h, p types.Hash, hasher HashReader) (out types.Hash) {
+func pairHash(index int, h, p types.Hash, hasher KeccakHasher) (out types.Hash) {
 	hasher.Reset()
 
 	if index&1 > 0 {
@@ -35,7 +35,7 @@ func pairHash(index int, h, p types.Hash, hasher HashReader) (out types.Hash) {
 		_, _ = utils.WriteNoEscape(hasher, p[:])
 	}
 
-	HashFastSum(hasher, out[:])
+	hasher.Hash(&out)
 	return out
 }
 
@@ -46,7 +46,7 @@ func (t MerkleTree) Depth() int {
 
 // RootHash Calculates the Merkle root hash of the tree
 func (t MerkleTree) RootHash() (rootHash types.Hash) {
-	hasher := newKeccak256()
+	hasher := NewKeccak256()
 
 	count := len(t)
 	if count <= 2 {
@@ -84,7 +84,7 @@ func (t MerkleTree) MainBranch() (mainBranch []types.Hash) {
 		return nil
 	}
 
-	hasher := newKeccak256()
+	hasher := NewKeccak256()
 
 	depth := t.Depth()
 	offset := depth*2 - count
@@ -139,7 +139,7 @@ func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
 		return types.ZeroHash
 	}
 
-	hasher := newKeccak256()
+	hasher := NewKeccak256()
 
 	if count == 2 {
 		if len(proof) == 0 {
@@ -180,7 +180,7 @@ func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
 }
 
 func (proof MerkleProof) GetRootPath(h types.Hash, path uint32) types.Hash {
-	hasher := newKeccak256()
+	hasher := NewKeccak256()
 
 	depth := len(proof)
 

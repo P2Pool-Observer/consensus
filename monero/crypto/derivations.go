@@ -46,28 +46,18 @@ func DecryptOutputAmount(k PrivateKey, ciphertext uint64) uint64 {
 
 // GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate Special version of GetDerivationSharedDataAndViewTagForOutputIndex
 func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(dst *edwards25519.Scalar, k PublicKeyBytes, outputIndex uint64) (viewTag uint8) {
-	hasher := newKeccak256()
-	var buf [PublicKeySize + binary.MaxVarintLen64]byte
-	copy(buf[:], k[:])
-
-	n := binary.PutUvarint(buf[PublicKeySize:], outputIndex)
-	var h types.Hash
-
-	_, _ = utils.WriteNoEscape(hasher, buf[:PublicKeySize+n])
-	_, _ = utils.ReadNoEscape(hasher, h[:])
-
+	var buf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(buf[:], outputIndex)
+	h := Keccak256Var(k[:], buf[:n])
 	BytesToScalar32(h, dst)
 
-	hasher.Reset()
-	_, _ = utils.WriteNoEscape(hasher, viewTagDomain)
-	_, _ = utils.WriteNoEscape(hasher, buf[:PublicKeySize+n])
-	_, _ = utils.ReadNoEscape(hasher, h[:1])
+	h = Keccak256Var(viewTagDomain, k[:], buf[:n])
 
 	return h[0]
 }
 
 func GetKeyImage(pair *KeyPair) PublicKey {
-	return PublicKeyFromPoint(BiasedHashToPoint(pair.PublicKey.AsSlice())).Multiply(pair.PrivateKey.AsScalar())
+	return PublicKeyFromPoint(BiasedHashToPoint(new(edwards25519.Point), pair.PublicKey.AsSlice())).Multiply(pair.PrivateKey.AsScalar())
 }
 
 // SecretDeriveN As defined in Carrot = SecretDerive(x) = H_n(x)
@@ -104,7 +94,7 @@ func ScalarDerive(key []byte, data ...[]byte) *edwards25519.Scalar {
 	var h [blake2b.Size]byte
 	utils.SumNoEscape(hasher, h[:0])
 
-	c := GetEdwards25519Scalar()
+	c := new(edwards25519.Scalar)
 	BytesToScalar64(h, c)
 
 	return c
@@ -114,7 +104,7 @@ func ScalarDerive(key []byte, data ...[]byte) *edwards25519.Scalar {
 func ScalarDeriveLegacy(data ...[]byte) *edwards25519.Scalar {
 	h := Keccak256Var(data...)
 
-	c := GetEdwards25519Scalar()
+	c := new(edwards25519.Scalar)
 	BytesToScalar32(h, c)
 
 	return c

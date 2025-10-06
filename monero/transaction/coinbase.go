@@ -245,7 +245,7 @@ func (c *CoinbaseTransaction) CalculateId() (hash types.Hash) {
 
 	// remove base RCT
 	_, _ = hasher.Write(txBytes[:len(txBytes)-1])
-	crypto.HashFastSum(hasher, txHashingBlob[:])
+	_, _ = hasher.Read(txHashingBlob[:types.HashSize])
 
 	if c.ExtraBaseRCT == 0 {
 		// Base RCT, single 0 byte in miner tx
@@ -254,7 +254,7 @@ func (c *CoinbaseTransaction) CalculateId() (hash types.Hash) {
 		// fallback, but should never be hit
 		hasher.Reset()
 		_, _ = hasher.Write([]byte{c.ExtraBaseRCT})
-		crypto.HashFastSum(hasher, txHashingBlob[1*types.HashSize:])
+		_, _ = hasher.Read(txHashingBlob[1*types.HashSize : 2*types.HashSize])
 	}
 
 	// Prunable RCT, empty in miner tx
@@ -262,7 +262,7 @@ func (c *CoinbaseTransaction) CalculateId() (hash types.Hash) {
 
 	hasher.Reset()
 	_, _ = hasher.Write(txHashingBlob[:])
-	crypto.HashFastSum(hasher, hash[:])
+	hasher.Hash(&hash)
 
 	return hash
 }

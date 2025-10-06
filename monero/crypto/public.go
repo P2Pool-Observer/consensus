@@ -44,19 +44,19 @@ func (k *PublicKeyPoint) Point() *edwards25519.Point {
 }
 
 func (k *PublicKeyPoint) Add(b *PublicKeyPoint) *PublicKeyPoint {
-	return PublicKeyFromPoint(GetEdwards25519Point().Add(k.Point(), b.Point()))
+	return PublicKeyFromPoint(new(edwards25519.Point).Add(k.Point(), b.Point()))
 }
 
 func (k *PublicKeyPoint) Subtract(b *PublicKeyPoint) *PublicKeyPoint {
-	return PublicKeyFromPoint(GetEdwards25519Point().Subtract(k.Point(), b.Point()))
+	return PublicKeyFromPoint(new(edwards25519.Point).Subtract(k.Point(), b.Point()))
 }
 
 func (k *PublicKeyPoint) Multiply(b *PrivateKeyScalar) *PublicKeyPoint {
-	return PublicKeyFromPoint(GetEdwards25519Point().ScalarMult(b.Scalar(), k.Point()))
+	return PublicKeyFromPoint(new(edwards25519.Point).ScalarMult(b.Scalar(), k.Point()))
 }
 
 func (k *PublicKeyPoint) Cofactor() *PublicKeyPoint {
-	return PublicKeyFromPoint(GetEdwards25519Point().MultByCofactor(k.Point()))
+	return PublicKeyFromPoint(new(edwards25519.Point).MultByCofactor(k.Point()))
 }
 
 func PublicKeyFromPoint(point *edwards25519.Point, _ ...any) *PublicKeyPoint {
@@ -103,7 +103,7 @@ func (k *PublicKeyBytes) AsBytes() PublicKeyBytes {
 }
 
 func (k *PublicKeyBytes) AsPoint() *PublicKeyPoint {
-	return PublicKeyFromPoint(DecodeCompressedPoint(GetEdwards25519Point(), k.AsBytes()))
+	return PublicKeyFromPoint(DecodeCompressedPoint(new(edwards25519.Point), k.AsBytes()))
 }
 
 func (k *PublicKeyBytes) String() string {
@@ -171,7 +171,7 @@ func (k *PublicKeySlice) AsBytes() (buf PublicKeyBytes) {
 }
 
 func (k *PublicKeySlice) AsPoint() *PublicKeyPoint {
-	return PublicKeyFromPoint(DecodeCompressedPoint(GetEdwards25519Point(), k.AsBytes()))
+	return PublicKeyFromPoint(DecodeCompressedPoint(new(edwards25519.Point), k.AsBytes()))
 }
 
 func (k *PublicKeySlice) String() string {

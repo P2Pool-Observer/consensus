@@ -87,12 +87,9 @@ func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519
 }
 
 // GetDerivationNoAllocate Special version
-func GetDerivationNoAllocate(viewPublicKeyPoint *edwards25519.Point, txKey *edwards25519.Scalar) crypto.PublicKeyBytes {
-	var point, derivation edwards25519.Point
-	point.UnsafeVarTimeScalarMult(txKey, viewPublicKeyPoint)
-	derivation.MultByCofactor(&point)
-
-	return crypto.PublicKeyBytes(derivation.Bytes())
+func GetDerivationNoAllocate(derivation *edwards25519.Point, viewPublicKeyPoint *edwards25519.Point, txKey *edwards25519.Scalar) {
+	derivation.UnsafeVarTimeScalarMult(txKey, viewPublicKeyPoint)
+	derivation.MultByCofactor(derivation)
 }
 
 // GetDerivationNoAllocateTable Special version but with table

@@ -56,15 +56,15 @@ func (p *PrivateKeyScalar) Scalar() *edwards25519.Scalar {
 }
 
 func (p *PrivateKeyScalar) PublicKey() PublicKey {
-	return PublicKeyFromPoint(GetEdwards25519Point().ScalarBaseMult(p.Scalar()))
+	return PublicKeyFromPoint(new(edwards25519.Point).ScalarBaseMult(p.Scalar()))
 }
 
 func (p *PrivateKeyScalar) Add(private PrivateKey) PrivateKey {
-	return PrivateKeyFromScalar(GetEdwards25519Scalar().Add(p.Scalar(), private.AsScalar().Scalar()))
+	return PrivateKeyFromScalar(new(edwards25519.Scalar).Add(p.Scalar(), private.AsScalar().Scalar()))
 }
 
 func (p *PrivateKeyScalar) Subtract(private PrivateKey) PrivateKey {
-	return PrivateKeyFromScalar(GetEdwards25519Scalar().Subtract(p.Scalar(), private.AsScalar().Scalar()))
+	return PrivateKeyFromScalar(new(edwards25519.Scalar).Subtract(p.Scalar(), private.AsScalar().Scalar()))
 }
 
 func (p *PrivateKeyScalar) GetDerivation(public PublicKey) PublicKey {
@@ -115,12 +115,12 @@ func (k *PrivateKeyBytes) AsBytes() PrivateKeyBytes {
 }
 
 func (k *PrivateKeyBytes) AsScalar() *PrivateKeyScalar {
-	secret, _ := GetEdwards25519Scalar().SetCanonicalBytes((*k)[:])
+	secret, _ := new(edwards25519.Scalar).SetCanonicalBytes((*k)[:])
 	return PrivateKeyFromScalar(secret)
 }
 
 func (k *PrivateKeyBytes) PublicKey() PublicKey {
-	return PublicKeyFromPoint(GetEdwards25519Point().ScalarBaseMult(k.AsScalar().Scalar()))
+	return PublicKeyFromPoint(new(edwards25519.Point).ScalarBaseMult(k.AsScalar().Scalar()))
 }
 
 func (k *PrivateKeyBytes) GetDerivation(public PublicKey) PublicKey {
@@ -196,12 +196,12 @@ func (k *PrivateKeySlice) AsBytes() (buf PrivateKeyBytes) {
 }
 
 func (k *PrivateKeySlice) AsScalar() *PrivateKeyScalar {
-	secret, _ := GetEdwards25519Scalar().SetCanonicalBytes(*k)
+	secret, _ := new(edwards25519.Scalar).SetCanonicalBytes(*k)
 	return PrivateKeyFromScalar(secret)
 }
 
 func (k *PrivateKeySlice) PublicKey() PublicKey {
-	return PublicKeyFromPoint(GetEdwards25519Point().ScalarBaseMult(k.AsScalar().Scalar()))
+	return PublicKeyFromPoint(new(edwards25519.Point).ScalarBaseMult(k.AsScalar().Scalar()))
 }
 
 func (k *PrivateKeySlice) GetDerivation(public PublicKey) PublicKey {

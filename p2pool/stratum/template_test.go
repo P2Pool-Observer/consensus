@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -78,7 +79,7 @@ func TestTemplate(t *testing.T) {
 
 	var coinbaseId types.Hash
 
-	if tpl.CoinbaseId(b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.CalculateId() {
+	if tpl.CoinbaseId(crypto.NewKeccak256(), b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.CalculateId() {
 		t.Fatal("different coinbase ids")
 	}
 
@@ -115,8 +116,9 @@ func BenchmarkTemplate_CoinbaseId(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var counter = unsafeRandom.Uint32()
 		var coinbaseId types.Hash
+		hasher := crypto.NewKeccak256()
 		for pb.Next() {
-			tpl.CoinbaseId(counter, types.ZeroHash, &coinbaseId)
+			tpl.CoinbaseId(hasher, counter, types.ZeroHash, &coinbaseId)
 			counter++
 		}
 	})

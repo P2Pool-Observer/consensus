@@ -12,11 +12,12 @@ type SignatureComm struct {
 }
 
 func (s *SignatureComm) Bytes() []byte {
-	buf := make([]byte, 0, types.HashSize+PublicKeySize*2)
-	buf = append(buf, s.Hash[:]...)
-	buf = append(buf, s.Key.AsSlice()...)
-	buf = append(buf, s.Comm.AsSlice()...)
-	return buf
+	var buf [types.HashSize + PublicKeySize*2]byte
+
+	copy(buf[:], s.Hash[:])
+	copy(buf[types.HashSize:], s.Key.AsSlice()[:])
+	copy(buf[types.HashSize+PublicKeySize:], s.Comm.AsSlice()[:])
+	return buf[:]
 }
 
 // SignatureComm_2 Used in v1/v2 tx proofs
