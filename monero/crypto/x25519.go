@@ -11,11 +11,16 @@ var ZeroX25519PublicKey X25519PublicKey
 
 var X25519Basepoint = X25519PublicKey{9}
 
-func X25519ScalarBaseMult[T1, T2 ~[32]byte](dst *T1, scalar T2) {
-	X25519ScalarMult(dst, scalar, X25519Basepoint)
+func X25519ScalarBaseMult(dst *X25519PublicKey, s *edwards25519.Scalar) {
+	// X25519ScalarMult(dst, scalar, X25519Basepoint)
+
+	var p edwards25519.Point
+	p.UnsafeVarTimeScalarBaseMult(s)
+
+	*dst = ConvertPointE(&p)
 }
 
-func X25519ScalarMult[T1, T2, T3 ~[32]byte](dst *T1, scalar T2, point T3) {
+func X25519ScalarMult[T1 ~[32]byte](dst *X25519PublicKey, scalar T1, point X25519PublicKey) {
 	var x1, x2, z2, x3, z3, tmp0, tmp1 field.Element
 	// TODO maybe just SetBytes
 	x1.SetBytesPropagate(point[:])
@@ -58,7 +63,8 @@ func X25519ScalarMult[T1, T2, T3 ~[32]byte](dst *T1, scalar T2, point T3) {
 
 	z2.Invert(&z2)
 	x2.Multiply(&x2, &z2)
-	copy((*dst)[:], x2.Bytes())
+
+	copy(dst[:], x2.Bytes())
 }
 
 func ConvertPointE(v *edwards25519.Point) (out X25519PublicKey) {

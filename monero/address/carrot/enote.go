@@ -47,9 +47,9 @@ func makeEnoteEphemeralPublicKeySubaddress(key *crypto.PrivateKeyScalar, spendKe
 }
 
 // makeEnoteEphemeralPublicKeyCryptonote make_carrot_enote_ephemeral_pubkey_cryptonote
-func makeEnoteEphemeralPublicKeyCryptonote(key crypto.PrivateKeyBytes) (out crypto.X25519PublicKey) {
+func makeEnoteEphemeralPublicKeyCryptonote(key *crypto.PrivateKeyScalar) (out crypto.X25519PublicKey) {
 	// D_e = d_e B
-	crypto.X25519ScalarBaseMult(&out, key)
+	crypto.X25519ScalarBaseMult(&out, key.Scalar())
 
 	return out
 }
