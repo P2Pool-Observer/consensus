@@ -8,8 +8,10 @@ const (
 
 	TailEmissionReward = 600000000000
 
-	JanusAnchorSize   = 16
-	CarrotViewTagSize = 3
+	EncryptedAmountSize = 8
+	PaymentIdSize       = 8
+	JanusAnchorSize     = 16
+	CarrotViewTagSize   = 3
 	// TODO use within coinbase transaction check
 	MaxMinerOutputs = 10000
 	// TODO: adjust for coinbase

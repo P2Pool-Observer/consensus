@@ -1,6 +1,8 @@
 package carrot
 
 import (
+	"encoding/binary"
+
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
@@ -22,17 +24,18 @@ type CoinbaseEnoteV1 struct {
 
 	BlockIndex uint64 `json:"block_index"`
 }
+type EnoteType uint8
 
 const (
-	EnoteTypePAYMENT = uint8(0)
-	EnoteTypeCHANGE  = uint8(1)
+	EnoteTypePayment = EnoteType(iota)
+	EnoteTypeChange
 )
 
 // makeEnoteEphemeralPrivateKey make_carrot_enote_ephemeral_privkey
-func makeEnoteEphemeralPrivateKey(hasher *blake2b.Digest, ephemeralPrivateKey *crypto.PrivateKeyScalar, anchor, inputContext []byte, spendPub crypto.PublicKeyBytes, paymentId [8]byte) {
+func makeEnoteEphemeralPrivateKey(hasher *blake2b.Digest, ephemeralPrivateKeyOut *crypto.PrivateKeyScalar, anchor, inputContext []byte, spendPub crypto.PublicKeyBytes, paymentId [8]byte) {
 	// k_e = (H_64(anchor_norm, input_context, K^j_s, pid)) mod l
 	ScalarTranscript(
-		ephemeralPrivateKey.Scalar(), hasher, nil,
+		ephemeralPrivateKeyOut.Scalar(), hasher, nil,
 		[]byte(DomainSeparatorEphemeralPrivateKey), anchor, inputContext, spendPub[:], paymentId[:],
 	)
 }
@@ -54,9 +57,20 @@ func makeEnoteEphemeralPublicKeyCryptonote(key *crypto.PrivateKeyScalar) (out cr
 	return out
 }
 
+// makeUncontextualizedSharedKeyReceiver make_carrot_uncontextualized_shared_key_receiver
+func makeUncontextualizedSharedKeyReceiver(viewPriv crypto.PrivateKeyBytes, ephemeralPubKey crypto.X25519PublicKey) (senderReceiverUnctx crypto.X25519PublicKey) {
+	//TODO: implement checks
+	// s_sr = k_v D_e
+	crypto.X25519ScalarMult(&senderReceiverUnctx, viewPriv, ephemeralPubKey)
+	return senderReceiverUnctx
+}
+
 // makeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
 func makeUncontextualizedSharedKeySender(ephemeralPrivKey crypto.PrivateKeyBytes, viewPub *crypto.PublicKeyPoint) (senderReceiverUnctx crypto.X25519PublicKey) {
 	//TODO: implement checks
+	// TODO is_invalid_or_has_torsion if K^j_v not in prime order subgroup, then FAIL
+
+	// s_sr = d_e * ConvertPointE(K^j_v)
 	viewPubkeyX25519 := crypto.ConvertPointE(viewPub.Point())
 	crypto.X25519ScalarMult(&senderReceiverUnctx, ephemeralPrivKey, viewPubkeyX25519)
 	return senderReceiverUnctx
@@ -70,6 +84,24 @@ func makeSenderReceiverSecret(hasher *blake2b.Digest, senderReceiverUnctx, ephem
 		[]byte(DomainSeparatorSenderReceiverSecret), ephemeralPubKey[:], inputContext,
 	)
 	return out
+}
+
+// makeAmountBlindingFactor make_carrot_amount_blinding_factor
+func makeAmountBlindingFactor(hasher *blake2b.Digest, amountBlindingKeyOut *crypto.PrivateKeyScalar, secretSenderReceiver types.Hash, amount uint64, spendPub crypto.PublicKeyBytes, enoteType EnoteType) {
+	// k_a = H_n(s^ctx_sr, a, K^j_s, enote_type)
+	var amountBytes [8]byte
+	binary.LittleEndian.PutUint64(amountBytes[:], amount)
+	ScalarTranscript(
+		amountBlindingKeyOut.Scalar(), hasher, secretSenderReceiver[:],
+		[]byte(DomainSeparatorAmountBlindingFactor), amountBytes[:], spendPub[:], []byte{byte(enoteType)},
+	)
+}
+
+// makeAmountCommitment make_carrot_amount_commitment
+func makeAmountCommitment(amount uint64, amountBlindingFactor *crypto.PrivateKeyScalar) crypto.PublicKeyBytes {
+	var amountCommitment crypto.PublicKeyPoint
+	crypto.RctCommit(&amountCommitment, amount, amountBlindingFactor)
+	return amountCommitment.AsBytes()
 }
 
 // makeOnetimeAddress make_carrot_onetime_address
@@ -118,6 +150,36 @@ func makeAnchorEncryptionMask(hasher *blake2b.Digest, secretSenderReceiver types
 	HashedTranscript(
 		out[:], hasher, secretSenderReceiver[:],
 		[]byte(DomainSeparatorEncryptionMaskAnchor), oneTimeAddress[:],
+	)
+	return out
+}
+
+// makeAmountEncryptionMask make_carrot_amount_encryption_mask
+func makeAmountEncryptionMask(hasher *blake2b.Digest, secretSenderReceiver types.Hash, oneTimeAddress crypto.PublicKeyBytes) (out [monero.EncryptedAmountSize]byte) {
+	// m_a = H_8(s^ctx_sr, Ko)
+	HashedTranscript(
+		out[:], hasher, secretSenderReceiver[:],
+		[]byte(DomainSeparatorEncryptionMaskAmount), oneTimeAddress[:],
+	)
+	return out
+}
+
+// makePaymentIdEncryptionMask make_carrot_payment_id_encryption_mask
+func makePaymentIdEncryptionMask(hasher *blake2b.Digest, secretSenderReceiver types.Hash, oneTimeAddress crypto.PublicKeyBytes) (out [monero.PaymentIdSize]byte) {
+	// m_pid = H_8(s^ctx_sr, Ko)
+	HashedTranscript(
+		out[:], hasher, secretSenderReceiver[:],
+		[]byte(DomainSeparatorEncryptionMaskPaymentId), oneTimeAddress[:],
+	)
+	return out
+}
+
+// makeJanusAnchorSpecial make_carrot_janus_anchor_special
+func makeJanusAnchorSpecial(hasher *blake2b.Digest, ephemeralPubKey crypto.X25519PublicKey, inputContext []byte, oneTimeAddress crypto.PublicKeyBytes, viewSecret crypto.PrivateKeyBytes) (out [monero.JanusAnchorSize]byte) {
+	// anchor_sp = H_16(D_e, input_context, Ko, k_v)
+	HashedTranscript(
+		out[:], hasher, viewSecret[:],
+		[]byte(DomainSeparatorJanusAnchorSpecial), ephemeralPubKey[:], inputContext, oneTimeAddress[:],
 	)
 	return out
 }

@@ -29,7 +29,7 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 	proposal := &PaymentProposalV1{
 		Destination: DestinationV1{
 			Address:   address.NewPackedAddressWithSubaddress(&addr, false),
-			PaymentId: [8]byte{},
+			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
 		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
@@ -54,7 +54,7 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 	proposal := &PaymentProposalV1{
 		Destination: DestinationV1{
 			Address:   address.NewPackedAddressWithSubaddress(&addr, false),
-			PaymentId: [8]byte{},
+			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
 		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
