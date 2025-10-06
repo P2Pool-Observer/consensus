@@ -25,9 +25,9 @@ func NewSignatureFromBytes(buf []byte) *Signature {
 	}
 	signature := &Signature{}
 	var err error
-	if signature.C, err = GetEdwards25519Scalar().SetCanonicalBytes(buf[:32]); err != nil {
+	if signature.C, err = new(edwards25519.Scalar).SetCanonicalBytes(buf[:32]); err != nil {
 		return nil
-	} else if signature.R, err = GetEdwards25519Scalar().SetCanonicalBytes(buf[32:]); err != nil {
+	} else if signature.R, err = new(edwards25519.Scalar).SetCanonicalBytes(buf[32:]); err != nil {
 		return nil
 	} else {
 		return signature
@@ -35,10 +35,10 @@ func NewSignatureFromBytes(buf []byte) *Signature {
 }
 
 func (s *Signature) Bytes() []byte {
-	buf := make([]byte, 0, types.HashSize*2)
-	buf = append(buf, s.C.Bytes()...)
-	buf = append(buf, s.R.Bytes()...)
-	return buf
+	var buf [PrivateKeySize * 2]byte
+	copy(buf[:], s.C.Bytes())
+	copy(buf[PrivateKeySize:], s.R.Bytes())
+	return buf[:]
 }
 
 // Verify checks a Schnorr Signature using H = keccak
@@ -47,7 +47,7 @@ func (s *Signature) Verify(handler SignatureVerificationHandler, publicKey Publi
 		return false, nil
 	}
 	//s = C * k, R * G
-	sp := GetEdwards25519Point().VarTimeDoubleScalarBaseMult(s.C, publicKey.AsPoint().Point(), s.R)
+	sp := new(edwards25519.Point).VarTimeDoubleScalarBaseMult(s.C, publicKey.AsPoint().Point(), s.R)
 	if sp.Equal(infinityPoint) == 1 {
 		return false, nil
 	}
@@ -67,7 +67,7 @@ func CreateSignature(handler SignatureSigningHandler, privateKey PrivateKey) *Si
 
 	// s = k - x * e
 	// EdDSA is an altered version, with addition instead of subtraction
-	signature.R = signature.R.Subtract(k.Scalar(), GetEdwards25519Scalar().Multiply(signature.C, privateKey.AsScalar().Scalar()))
+	signature.R = signature.R.Subtract(k.Scalar(), new(edwards25519.Scalar).Multiply(signature.C, privateKey.AsScalar().Scalar()))
 	return signature
 }
 

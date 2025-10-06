@@ -42,16 +42,16 @@ func DecodeCompressedPoint(r *edwards25519.Point, buf [PublicKeySize]byte) *edwa
 	if r == nil {
 		return nil
 	}
-	p, err := r.SetBytes(buf[:])
+	_, err := r.SetBytes(buf[:])
 	if err != nil {
 		return nil
 	}
 
 	// Ban points which are either unreduced or -0
-	if subtle.ConstantTimeCompare(p.Bytes(), buf[:]) == 0 {
+	if subtle.ConstantTimeCompare(r.Bytes(), buf[:]) == 0 {
 		return nil
 	}
-	return p
+	return r
 }
 
 //go:nosplit
@@ -313,7 +313,7 @@ var (
 // elligator2WithUniformBytes
 // Equivalent to ge_fromfe_frombytes_vartime
 // constant time
-func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
+func elligator2WithUniformBytes(dst *edwards25519.Point, buf [32]byte) *edwards25519.Point {
 	/*
 	   Curve25519 is a Montgomery curve with equation `v^2 = u^3 + 486662 u^2 + u`.
 
@@ -389,12 +389,12 @@ func elligator2WithUniformBytes(buf [32]byte) *edwards25519.Point {
 	   `v` coordinate if `\upsilon` was chosen (as signaled by `\epsilon = 1`). The following
 	   chooses the odd `y` coordinate if `\upsilon` was chosen, which is functionally equivalent.
 	*/
-	return montgomeryToEdwards(u, epsilon)
+	return montgomeryToEdwards(dst, u, epsilon)
 }
 
 // montgomeryToEdwards
 // constant time
-func montgomeryToEdwards(u *field.Element, sign int) *edwards25519.Point {
+func montgomeryToEdwards(dst *edwards25519.Point, u *field.Element, sign int) *edwards25519.Point {
 	if u == nil || u.Equal(_NEGATIVE_ONE) == 1 {
 		return nil
 	}
@@ -411,7 +411,7 @@ func montgomeryToEdwards(u *field.Element, sign int) *edwards25519.Point {
 	copy(yBytes[:], y.Bytes())
 	yBytes[31] ^= byte(sign << 7)
 
-	return DecodeCompressedPoint(new(edwards25519.Point), yBytes)
+	return DecodeCompressedPoint(dst, yBytes)
 }
 
 func inlineKeccak[T ~[]byte | ~string](data T) []byte {
@@ -430,14 +430,14 @@ var (
 	//       input bytes as a compressed point (this can fail, so should not be used generically)
 	// note2: to_point(keccak(G)) is known to succeed for the canonical value of G (it will fail 7/8ths of the time
 	//        normally)
-	GeneratorH = HopefulHashToPoint(GeneratorG.Bytes())
+	GeneratorH = HopefulHashToPoint(new(edwards25519.Point), GeneratorG.Bytes())
 
 	// GeneratorT H_p^2(Keccak256("Monero Generator T"))
-	GeneratorT = UnbiasedHashToPoint(inlineKeccak("Monero Generator T"))
+	GeneratorT = UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero Generator T"))
 
 	// GeneratorU H_p^2(Keccak256("Monero FCMP++ Generator U"))
-	GeneratorU = UnbiasedHashToPoint(inlineKeccak("Monero FCMP++ Generator U"))
+	GeneratorU = UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero FCMP++ Generator U"))
 
 	// GeneratorV H_p^2(Keccak256("Monero FCMP++ Generator V"))
-	GeneratorV = UnbiasedHashToPoint(inlineKeccak("Monero FCMP++ Generator V"))
+	GeneratorV = UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero FCMP++ Generator V"))
 )

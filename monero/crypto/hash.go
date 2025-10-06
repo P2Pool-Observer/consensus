@@ -32,6 +32,10 @@ func (k KeccakHasher) Sum(b []byte) []byte {
 	return utils.SumNoEscape(k.h, b)
 }
 
+func (k KeccakHasher) Hash(h *types.Hash) {
+	_, _ = utils.ReadNoEscape(k.h, h[:])
+}
+
 func (k KeccakHasher) Reset() {
 	k.h.Reset()
 }
@@ -72,19 +76,10 @@ func Keccak256[T ~string | ~[]byte](data T) (result types.Hash) {
 	return
 }
 
-// HashFastSum sha3.Sum clones the state by allocating memory. prevent that. b must be pre-allocated to the expected size, or larger
-//
-//go:nosplit
-func HashFastSum(hasher HashReader, b []byte) []byte {
-	_ = b[31] // bounds check hint to compiler; see golang.org/issue/14808
-	_, _ = utils.ReadNoEscape(hasher, b[:types.HashSize])
-	return b
-}
-
 // HopefulHashToPoint
 // Defined as H_p^1 in Carrot
-func HopefulHashToPoint(data []byte) *edwards25519.Point {
-	result := DecodeCompressedPoint(new(edwards25519.Point), Keccak256(data))
+func HopefulHashToPoint(dst *edwards25519.Point, data []byte) *edwards25519.Point {
+	result := DecodeCompressedPoint(dst, Keccak256(data))
 	if result == nil {
 		return nil
 	}
@@ -117,30 +112,29 @@ func HopefulHashToPoint(data []byte) *edwards25519.Point {
 // As this only applies Elligator 2 once, it's limited to a subset of points where a certain
 // derivative of their `u` coordinates (in Montgomery form) are quadratic residues. It's biased
 // accordingly.
-func BiasedHashToPoint(data []byte) *edwards25519.Point {
-	result := elligator2WithUniformBytes(Keccak256(data))
+func BiasedHashToPoint(dst *edwards25519.Point, data []byte) *edwards25519.Point {
+	elligator2WithUniformBytes(dst, Keccak256(data))
 
 	// Ensure points lie within the prime-order subgroup
-	result.MultByCofactor(result)
-
-	return result
+	dst.MultByCofactor(dst)
+	return dst
 }
 
 // UnbiasedHashToPoint Monero's `unbiased_hash_to_ec` function.
 // Defined as H_p^2 in Carrot
 //
 // Similar to https://github.com/seraphis-migration/monero/blob/74a254f8c215986042c40e6875a0f97bd6169a1e/src/crypto/crypto.cpp#L622
-func UnbiasedHashToPoint(preimage []byte) *edwards25519.Point {
+func UnbiasedHashToPoint(dst *edwards25519.Point, preimage []byte) *edwards25519.Point {
 	h := blake2b.Sum512(preimage)
 
-	first := elligator2WithUniformBytes([32]byte(h[:32]))
-	second := elligator2WithUniformBytes([32]byte(h[32:]))
+	var first, second edwards25519.Point
+	elligator2WithUniformBytes(&first, [32]byte(h[:32]))
+	elligator2WithUniformBytes(&second, [32]byte(h[32:]))
 
 	// Ensure points lie within the prime-order subgroup
-	first.MultByCofactor(first)
-	second.MultByCofactor(second)
+	first.MultByCofactor(&first)
+	second.MultByCofactor(&second)
 
-	point := new(edwards25519.Point).Add(first, second)
-
-	return point
+	dst.Add(&first, &second)
+	return dst
 }

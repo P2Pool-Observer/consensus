@@ -158,10 +158,7 @@ func TestHashToEC(t *testing.T) {
 		key := PublicKeyBytes(types.MustHashFromString(e[0]))
 		expected := PublicKeyBytes(types.MustHashFromString(e[1]))
 
-		point := BiasedHashToPoint(key.AsSlice())
-		if point == nil {
-			t.Errorf("point is nil")
-		}
+		point := BiasedHashToPoint(new(edwards25519.Point), key.AsSlice())
 
 		image := PublicKeyFromPoint(point).AsBytes()
 
@@ -181,7 +178,7 @@ func TestHashToPoint(t *testing.T) {
 		key := PublicKeyBytes(types.MustHashFromString(e[0]))
 		expected := PublicKeyBytes(types.MustHashFromString(e[1]))
 
-		point := elligator2WithUniformBytes(key)
+		point := elligator2WithUniformBytes(new(edwards25519.Point), key)
 		if point == nil {
 			t.Errorf("point is nil")
 		}

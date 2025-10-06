@@ -88,8 +88,10 @@ func BenchmarkCoinbaseDerivationNoAllocate(b *testing.B) {
 
 	var i atomic.Uint64
 	b.RunParallel(func(pb *testing.PB) {
+		var derivation crypto.PublicKeyPoint
 		for pb.Next() {
-			GetEphemeralPublicKeyAndViewTagNoAllocate(spendPub, GetDerivationNoAllocate(viewPub, txKey), i.Add(1))
+			GetDerivationNoAllocate(derivation.Point(), viewPub, txKey)
+			GetEphemeralPublicKeyAndViewTagNoAllocate(spendPub, derivation.AsBytes(), i.Add(1))
 		}
 	})
 	b.ReportAllocs()

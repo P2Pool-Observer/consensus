@@ -20,7 +20,7 @@ func RandomScalar() *edwards25519.Scalar {
 			continue
 		}
 
-		scalar, _ := GetEdwards25519Scalar().SetCanonicalBytes(buf[:])
+		scalar, _ := new(edwards25519.Scalar).SetCanonicalBytes(buf[:])
 		if scalar.Equal(zeroScalar) == 0 {
 			return scalar
 		}
@@ -40,14 +40,14 @@ func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
 	h := newKeccak256()
 	var hash types.Hash
 
-	scalar := GetEdwards25519Scalar()
+	scalar := new(edwards25519.Scalar)
 
 	for {
 		h.Reset()
 		counter++
 		binary.LittleEndian.PutUint32(entropy[n:], counter)
 		_, _ = utils.WriteNoEscape(h, entropy)
-		HashFastSum(h, hash[:])
+		_, _ = utils.ReadNoEscape(h, hash[:])
 		if !IsLimit32(hash) {
 			continue
 		}

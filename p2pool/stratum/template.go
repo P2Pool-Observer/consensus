@@ -255,7 +255,7 @@ func (tpl *Template) TemplateId(preAllocatedBuffer []byte, consensus *sidechain.
 	_, _ = hasher.Write(buf)
 	_, _ = hasher.Write(consensus.Id[:])
 
-	crypto.HashFastSum(hasher, (*result)[:])
+	hasher.Hash(result)
 	hasher.Reset()
 }
 
@@ -301,17 +301,15 @@ func (tpl *Template) CoinbaseBlobId(preAllocatedBuffer []byte, extraNonce uint32
 	hasher := crypto.NewKeccak256()
 	buf := tpl.CoinbaseBlob(preAllocatedBuffer, extraNonce, templateId)
 	_, _ = hasher.Write(buf[:len(buf)-1])
-	crypto.HashFastSum(hasher, (*result)[:])
+	hasher.Hash(result)
 	hasher.Reset()
 
 	CoinbaseIdHash(hasher, *result, result)
 }
 
-func (tpl *Template) CoinbaseId(extraNonce uint32, merkleRoot types.Hash, result *types.Hash) {
+func (tpl *Template) CoinbaseId(hasher crypto.KeccakHasher, extraNonce uint32, merkleRoot types.Hash, result *types.Hash) {
 
 	var extraNonceBuf [4]byte
-
-	hasher := crypto.NewKeccak256()
 
 	_, _ = hasher.Write(tpl.Buffer[tpl.CoinbaseOffset:tpl.ExtraNonceOffset])
 	// extra nonce
@@ -324,7 +322,7 @@ func (tpl *Template) CoinbaseId(extraNonce uint32, merkleRoot types.Hash, result
 
 	_, _ = hasher.Write(tpl.Buffer[tpl.MerkleRootOffset+types.HashSize : tpl.TransactionsOffset-1])
 
-	crypto.HashFastSum(hasher, (*result)[:])
+	hasher.Hash(result)
 	hasher.Reset()
 
 	CoinbaseIdHash(hasher, *result, result)
@@ -332,13 +330,13 @@ func (tpl *Template) CoinbaseId(extraNonce uint32, merkleRoot types.Hash, result
 
 var zeroExtraBaseRCTHash = crypto.Keccak256([]byte{0})
 
-func CoinbaseIdHash(hasher crypto.HashReader, coinbaseBlobMinusBaseRTC types.Hash, result *types.Hash) {
+func CoinbaseIdHash(hasher crypto.KeccakHasher, coinbaseBlobMinusBaseRTC types.Hash, result *types.Hash) {
 	_, _ = hasher.Write(coinbaseBlobMinusBaseRTC[:])
 	// Base RCT, single 0 byte in miner tx
 	_, _ = hasher.Write(zeroExtraBaseRCTHash[:])
 	// Prunable RCT, empty in miner tx
 	_, _ = hasher.Write(types.ZeroHash[:])
-	crypto.HashFastSum(hasher, (*result)[:])
+	hasher.Hash(result)
 	hasher.Reset()
 }
 
@@ -351,9 +349,9 @@ func (tpl *Template) HashingBlobBufferLength() int {
 func (tpl *Template) HashingBlob(preAllocatedBuffer []byte, nonce, extraNonce uint32, merkleRoot types.Hash) []byte {
 
 	var rootHash types.Hash
-	tpl.CoinbaseId(extraNonce, merkleRoot, &rootHash)
 
 	hasher := crypto.NewKeccak256()
+	tpl.CoinbaseId(hasher, extraNonce, merkleRoot, &rootHash)
 
 	buf := append(preAllocatedBuffer, tpl.Buffer[:tpl.NonceOffset]...)
 	buf = binary.LittleEndian.AppendUint32(buf, nonce)
@@ -376,13 +374,13 @@ func (tpl *Template) HashingBlob(preAllocatedBuffer []byte, nonce, extraNonce ui
 		} else if numTransactions < 2 {
 			_, _ = hasher.Write(rootHash[:])
 			_, _ = hasher.Write(tpl.Buffer[tpl.TransactionsOffset+n : tpl.TransactionsOffset+n+types.HashSize])
-			crypto.HashFastSum(hasher, rootHash[:])
+			hasher.Hash(&rootHash)
 			hasher.Reset()
 		} else {
 			for i := range tpl.MerkleTreeMainBranch {
 				_, _ = hasher.Write(rootHash[:])
 				_, _ = hasher.Write(tpl.MerkleTreeMainBranch[i][:])
-				crypto.HashFastSum(hasher, rootHash[:])
+				hasher.Hash(&rootHash)
 				hasher.Reset()
 			}
 		}
