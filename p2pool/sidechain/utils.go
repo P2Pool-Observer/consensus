@@ -14,7 +14,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
-	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -38,21 +37,8 @@ func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType 
 	}
 }
 
-func CalculateEnoteCarrot(derivationCache DerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, outputIndex, amount uint64) (enote carrot.CoinbaseEnoteV1) {
-	proposal := carrot.PaymentProposalV1{
-		Destination: carrot.DestinationV1{
-			Address: *a,
-		},
-		Amount:     amount,
-		Randomness: p2poolcrypto.GetDeterministicCarrotOutputRandomness(seed, blockIndex, a.SpendPublicKey(), a.ViewPublicKey()),
-	}
-
-	err := proposal.CoinbaseOutput(&enote, blockIndex)
-	if err != nil {
-		panic(fmt.Errorf("unexpected error: %w", err))
-	}
-
-	return enote
+func CalculateEnoteCarrot(derivationCache DerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) (enote *carrot.CoinbaseEnoteV1) {
+	return derivationCache.GetCarrotCoinbaseEnote(a, seed, blockIndex, amount)
 }
 
 func CalculateOutputCarrot(enote *carrot.CoinbaseEnoteV1, txType uint8, outputIndex uint64) transaction.Output {
@@ -88,10 +74,10 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 
 	if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
 		pubs = make([]crypto.PublicKeyBytes, n)
-		carrotEnotes := make([]carrot.CoinbaseEnoteV1, n)
+		carrotEnotes := make([]*carrot.CoinbaseEnoteV1, n)
 
 		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
-			carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, workIndex, tmpRewards[workIndex])
+			carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, tmpRewards[workIndex])
 			return nil
 		}, nil)
 
@@ -100,13 +86,13 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 		}
 
 		// sort
-		slices.SortFunc(carrotEnotes, func(a, b carrot.CoinbaseEnoteV1) int {
+		slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
 			return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
 		})
-		for i := range carrotEnotes {
+		for i, enote := range carrotEnotes {
 			outputIndex := uint64(i)
-			outputs[outputIndex] = CalculateOutputCarrot(&carrotEnotes[i], txType, outputIndex)
-			pubs[outputIndex] = crypto.PublicKeyBytes(carrotEnotes[i].EphemeralPubKey)
+			outputs[outputIndex] = CalculateOutputCarrot(enote, txType, outputIndex)
+			pubs[outputIndex] = crypto.PublicKeyBytes(enote.EphemeralPubKey)
 		}
 
 		return outputs, pubs, bottomHeight, nil

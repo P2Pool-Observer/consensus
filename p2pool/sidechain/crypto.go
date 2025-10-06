@@ -1,16 +1,12 @@
-package crypto
+package sidechain
 
 import (
-	"encoding/binary"
-
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 var transactionPrivateKeySeedDomain = append([]byte("tx_key_seed"), 0)
 var transactionPrivateKeyDomain = []byte("tx_secret_key")
-var transactionRandomDomain = []byte("tx_random")
 
 func CalculateTransactionPrivateKeySeed(main, side []byte) (result types.Hash) {
 	h := crypto.NewKeccak256()
@@ -41,18 +37,4 @@ func GetDeterministicTransactionPrivateKey(seed, previousMoneroId types.Hash) cr
 	copy(entropy[13:], seed[:])
 	copy(entropy[13+types.HashSize:], previousMoneroId[:])
 	return crypto.PrivateKeyFromScalar(crypto.DeterministicScalar(entropy[:13+types.HashSize+types.HashSize]))
-}
-
-// GetDeterministicCarrotOutputRandomness
-// TODO: proper
-func GetDeterministicCarrotOutputRandomness(seed types.Hash, blockIndex uint64, spendPub, viewPub *crypto.PublicKeyBytes) (out [monero.JanusAnchorSize]byte) {
-	var entropy [9 + types.HashSize + 8 + crypto.PublicKeySize*2]byte
-	copy(entropy[:], transactionRandomDomain)
-	copy(entropy[9:], seed[:])
-	binary.LittleEndian.PutUint64(entropy[9+types.HashSize:], blockIndex)
-	copy(entropy[9+types.HashSize+8:], spendPub[:])
-	copy(entropy[9+types.HashSize+8+crypto.PublicKeySize:], viewPub[:])
-	h := crypto.Keccak256(entropy[:])
-	copy(out[:], h[:])
-	return out
 }

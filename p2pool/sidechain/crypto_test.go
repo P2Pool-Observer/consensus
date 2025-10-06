@@ -1,4 +1,4 @@
-package crypto
+package sidechain
 
 import (
 	"os"

@@ -909,17 +909,17 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 					return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), len(block.Main.Coinbase.Outputs))
 				}
 				// todo: cache buf
-				carrotEnotes := make([]carrot.CoinbaseEnoteV1, len(rewards))
+				carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(rewards))
 
 				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
-					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, workIndex, rewards[workIndex])
+					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, rewards[workIndex])
 					return nil
 				}, nil); err != nil {
 					return nil, err
 				}
 
 				// sort
-				slices.SortFunc(carrotEnotes, func(a, b carrot.CoinbaseEnoteV1) int {
+				slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
 					return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
 				})
 

@@ -722,26 +722,26 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 		txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.AsScalar()
 
 		if txType == transaction.TxOutToCarrotV1 {
-			carrotEnotes := make([]carrot.CoinbaseEnoteV1, len(shares))
+			carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(shares))
 			for i := range len(shares) {
-				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, uint64(i), rewards[i])
+				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i])
 			}
 
 			// sort
-			slices.SortFunc(carrotEnotes, func(a, b carrot.CoinbaseEnoteV1) int {
+			slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
 				return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
 			})
 			pubs := tx.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys)
 			if pubs == nil {
 				return transaction.CoinbaseTransaction{}, errors.New("nil additional public keys")
 			}
-			for i := range carrotEnotes {
+			for i, enote := range carrotEnotes {
 				//TODO: cache
 				outputIndex := uint64(i)
-				tx.Outputs[outputIndex] = sidechain.CalculateOutputCarrot(&carrotEnotes[i], txType, outputIndex)
+				tx.Outputs[outputIndex] = sidechain.CalculateOutputCarrot(enote, txType, outputIndex)
 
 				//ephemeral pubkeys: D_e
-				copy(pubs.Data[crypto.PublicKeySize*outputIndex:], carrotEnotes[i].EphemeralPubKey[:])
+				copy(pubs.Data[crypto.PublicKeySize*outputIndex:], enote.EphemeralPubKey[:])
 			}
 		} else {
 			var k ephemeralPubKeyCacheKey

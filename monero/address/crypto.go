@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
-	p2poolcrypto "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
@@ -18,10 +17,6 @@ var ZeroPrivateKeyAddress PackedAddress
 func init() {
 	ZeroPrivateKeyAddress[PackedAddressSpend] = crypto.ZeroPrivateKeyBytes.PublicKey().AsBytes()
 	ZeroPrivateKeyAddress[PackedAddressView] = crypto.ZeroPrivateKeyBytes.PublicKey().AsBytes()
-}
-
-func GetDeterministicTransactionPrivateKey(seed types.Hash, prevId types.Hash) crypto.PrivateKey {
-	return p2poolcrypto.GetDeterministicTransactionPrivateKey(seed, prevId)
 }
 
 func GetPublicKeyForSharedData(a Interface, sharedData crypto.PrivateKey) crypto.PublicKey {

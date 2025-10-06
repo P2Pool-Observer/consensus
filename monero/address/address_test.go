@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
-	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -35,16 +34,6 @@ func TestAddress(t *testing.T) {
 
 	if bytes.Compare(ephemeralPublicKey.AsSlice(), ephemeralPubKey) != 0 {
 		t.Fatalf("ephemeral key mismatch, expected %s, got %s", fasthex.EncodeToString(ephemeralPubKey), ephemeralPublicKey.String())
-	}
-}
-
-var previousId, _ = types.HashFromString("d59abce89ce8131eba025988d1ea372937f2acf85b86b46993b80c4354563a8b")
-var detTxPriv, _ = types.HashFromString("10f3941fd50ca266d3350984004a804c887c36ec11620080fe0b7c4a2a208605")
-
-func TestDeterministic(t *testing.T) {
-	detTx := types.HashFromBytes(GetDeterministicTransactionPrivateKey(types.Hash(testAddress2.SpendPublicKey().AsBytes()), previousId).AsSlice())
-	if detTx != detTxPriv {
-		t.Fatal()
 	}
 }
 
