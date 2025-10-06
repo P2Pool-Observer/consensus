@@ -52,7 +52,7 @@ func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex ui
 		// TODO :)
 		return errors.New("subaddresses aren't allowed as destinations of coinbase outputs")
 	}
-	if p.Destination.PaymentId != [8]byte{} {
+	if p.Destination.PaymentId != [monero.PaymentIdSize]byte{} {
 		// TODO :)
 		return errors.New("integrated addresses aren't allowed as destinations of coinbase outputs")
 	}
@@ -80,11 +80,10 @@ func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex ui
 			}
 
 			// 2. C_a = k_a G + a H
-			var amountCommitmentOut crypto.PublicKeyPoint
-			crypto.RctCommit(&amountCommitmentOut, p.Amount, amountBlindingFactorOut.AsScalar())
+			amountCommitmentOut := makeAmountCommitment(p.Amount, amountBlindingFactorOut.AsScalar())
 
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			enote.OneTimeAddress = makeOnetimeAddress(&hasher, p.Destination.Address.SpendPublicKey().AsPoint(), secretSenderReceiver, amountCommitmentOut.AsBytes())
+			enote.OneTimeAddress = makeOnetimeAddress(&hasher, p.Destination.Address.SpendPublicKey().AsPoint(), secretSenderReceiver, amountCommitmentOut)
 
 			/*
 				// 4. a_enc = a XOR m_a
