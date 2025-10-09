@@ -17,19 +17,21 @@ func FuzzSideDataRoundTrip_V1(f *testing.F) {
 		f.Fatal(err)
 		return
 	}
-	buf, err := b.Side.MarshalBinary(b.ShareVersion())
+	buf, err := b.Side.MarshalBinary(b.Main.MajorVersion, b.ShareVersion())
 	if err != nil {
 		f.Fatal(err)
 	}
 	f.Add(buf)
 
+	majorVersion := b.Main.MajorVersion
+
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &SideData{}
-		if err := b.UnmarshalBinary(buf, ShareVersion_V1); err != nil {
+		if err := b.UnmarshalBinary(buf, majorVersion, ShareVersion_V1); err != nil {
 			t.Skipf("leftover error: %s", err)
 			return
 		}
-		data, err := b.MarshalBinary(ShareVersion_V1)
+		data, err := b.MarshalBinary(majorVersion, ShareVersion_V1)
 		if err != nil {
 			t.Fatalf("failed to marshal decoded side data: %s", err)
 			return
@@ -52,19 +54,21 @@ func FuzzSideDataRoundTrip_V2(f *testing.F) {
 		f.Fatal(err)
 		return
 	}
-	buf, err := b.Side.MarshalBinary(b.ShareVersion())
+	buf, err := b.Side.MarshalBinary(b.Main.MajorVersion, b.ShareVersion())
 	if err != nil {
 		f.Fatal(err)
 	}
 	f.Add(buf)
 
+	majorVersion := b.Main.MajorVersion
+
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &SideData{}
-		if err := b.UnmarshalBinary(buf, ShareVersion_V2); err != nil {
+		if err := b.UnmarshalBinary(buf, majorVersion, ShareVersion_V2); err != nil {
 			t.Skipf("leftover error: %s", err)
 			return
 		}
-		data, err := b.MarshalBinary(ShareVersion_V2)
+		data, err := b.MarshalBinary(majorVersion, ShareVersion_V2)
 		if err != nil {
 			t.Fatalf("failed to marshal decoded side data: %s", err)
 			return
@@ -87,19 +91,21 @@ func FuzzSideDataRoundTrip_V3(f *testing.F) {
 		f.Fatal(err)
 		return
 	}
-	buf, err := b.Side.MarshalBinary(b.ShareVersion())
+	buf, err := b.Side.MarshalBinary(b.Main.MajorVersion, b.ShareVersion())
 	if err != nil {
 		f.Fatal(err)
 	}
 	f.Add(buf)
 
+	majorVersion := b.Main.MajorVersion
+
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &SideData{}
-		if err := b.UnmarshalBinary(buf, ShareVersion_V3); err != nil {
+		if err := b.UnmarshalBinary(buf, majorVersion, ShareVersion_V3); err != nil {
 			t.Skipf("leftover error: %s", err)
 			return
 		}
-		data, err := b.MarshalBinary(ShareVersion_V3)
+		data, err := b.MarshalBinary(majorVersion, ShareVersion_V3)
 		if err != nil {
 			t.Fatalf("failed to marshal decoded side data: %s", err)
 			return

@@ -297,9 +297,9 @@ func (b *Block) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId bool
 	buf = append(buf, b.MinorVersion)
 	buf = binary.AppendUvarint(buf, b.Timestamp)
 	buf = append(buf, b.PreviousId[:]...)
-	buf = binary.LittleEndian.AppendUint32(buf, 0) //replaced
+	buf = binary.LittleEndian.AppendUint32(buf, 0) //replaced nonce
 
-	if buf, err = b.Coinbase.SideChainHashingBlob(buf, zeroTemplateId); err != nil {
+	if buf, err = b.Coinbase.SideChainHashingBlob(buf, b.MajorVersion, zeroTemplateId); err != nil {
 		return nil, err
 	}
 

@@ -263,7 +263,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 
 	s.newTemplateData.Window.Shares = slices.Clone(shares)
-	s.newTemplateData.Window.ReservedShareIndex = s.newTemplateData.Window.Shares.Index(fakeTemplateTipBlock.GetConsensusPackedAddress())
+	s.newTemplateData.Window.ReservedShareIndex = s.newTemplateData.Window.Shares.Index(fakeTemplateTipBlock.GetConsensusPackedAddress(fakeTemplateTipBlock.Main.MajorVersion))
 
 	if s.newTemplateData.Window.ReservedShareIndex == -1 {
 		return errors.New("could not find reserved share index")
@@ -532,6 +532,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 			},
 			Side: sidechain.SideData{
 				PublicKey:              *addr.PackedAddress(),
+				IsSubaddress:           addr.IsSubaddress(),
 				CoinbasePrivateKeySeed: s.newTemplateData.TransactionPrivateKeySeed,
 				CoinbasePrivateKey:     s.newTemplateData.TransactionPrivateKey,
 				Parent:                 s.newTemplateData.PreviousTemplateId,
@@ -549,14 +550,6 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 				},
 			},
 			CachedShareVersion: s.newTemplateData.ShareVersion,
-		}
-
-		if blockTemplate.Main.MajorVersion >= monero.HardForkCarrotVersion && addr.IsSubaddress() {
-			// add subaddress
-			// TODO!!!
-			var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
-			copy(subaddressViewPubBuf[:], addr.ViewPublicKey()[:])
-			blockTemplate.Side.MergeMiningExtra = blockTemplate.Side.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 		}
 
 		preAllocatedShares := s.preAllocatedSharesPool.Get()
@@ -1199,11 +1192,6 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 													pa := a.ToPackedAddress()
 													client.Subaddress = &pa
 
-													// allow sending to subaddress when specified
-													var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
-													copy(subaddressViewPubBuf[:], a.ViewPub[:])
-													client.MergeMiningExtra = client.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
-
 													// cleanup
 													client.Password = ""
 												} else {
@@ -1218,11 +1206,6 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 													pa := sa.ToPackedAddress()
 													client.Subaddress = &pa
 													client.Address = address.NewPackedAddress(sa.SpendPublicKey(), a.ViewPublicKey())
-
-													// allow sending to subaddress when specified
-													var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
-													copy(subaddressViewPubBuf[:], sa.ViewPub[:])
-													client.MergeMiningExtra = client.MergeMiningExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 
 													// cleanup
 													client.Password = ""
@@ -1492,10 +1475,14 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 	}
 
 	mmExtra := jobId.MergeMiningExtra
-	if tpl.MajorVersion() < monero.HardForkCarrotVersion {
-		// explicit addition in non carrot
-		mmExtra = mmExtra.Merge(c.MergeMiningExtra)
+
+	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion {
+		// explicitly add old subaddress tagging information before hardfork
+		var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
+		copy(subaddressViewPubBuf[:], c.Subaddress.ViewPublicKey()[:])
+		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 	}
+	mmExtra = mmExtra.Merge(c.MergeMiningExtra)
 
 	// todo merkle root with merge mine
 	var templateId types.Hash
@@ -1553,10 +1540,14 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 	}
 
 	mmExtra := jobId.MergeMiningExtra
-	if tpl.MajorVersion() < monero.HardForkCarrotVersion {
-		// explicit addition in non carrot
-		mmExtra = mmExtra.Merge(c.MergeMiningExtra)
+
+	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion {
+		// explicitly add old subaddress tagging information before hardfork
+		var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
+		copy(subaddressViewPubBuf[:], c.Subaddress.ViewPublicKey()[:])
+		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 	}
+	mmExtra = mmExtra.Merge(c.MergeMiningExtra)
 
 	// todo merkle root with merge mine
 	var templateId types.Hash

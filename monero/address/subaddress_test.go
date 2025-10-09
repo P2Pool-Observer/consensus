@@ -16,7 +16,7 @@ func TestGetSubaddress(t *testing.T) {
 	sa := GetSubaddress(testGeneralFundAddr, &testGeneralFundViewKey, SubaddressIndex{0, 70})
 
 	if sa == nil {
-		t.Fatal("GetSubaddress returned nil")
+		t.Fatal("GetMergeMineExtraSubaddress returned nil")
 	}
 
 	if !sa.IsSubaddress() {

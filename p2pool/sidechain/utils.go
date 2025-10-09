@@ -316,13 +316,7 @@ func GetSharesOrdered(tip *PoolBlock, consensus *Consensus, difficultyByHeight b
 	l := len(preAllocatedShares)
 
 	if bottomHeight, err = BlocksInPPLNSWindow(tip, consensus, difficultyByHeight, getByTemplateId, func(b *PoolBlock, weight types.Difficulty) {
-		isSubaddress := false
-		a := &b.Side.PublicKey
-		if sa := b.GetSubaddress(); sa != nil && tip.Main.MajorVersion >= monero.HardForkCarrotVersion {
-			a = sa
-			isSubaddress = true
-		}
-		pa := address.NewPackedAddressWithSubaddress(a, isSubaddress)
+		pa := b.GetConsensusPackedAddress(tip.Main.MajorVersion)
 
 		if index < l {
 			preAllocatedShares[index].Address = pa
