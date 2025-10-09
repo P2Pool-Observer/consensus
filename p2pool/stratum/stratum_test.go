@@ -1,6 +1,7 @@
 package stratum
 
 import (
+	"bytes"
 	"fmt"
 	unsafeRandom "math/rand/v2"
 	"os"
@@ -64,8 +65,11 @@ func init() {
 	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
 }
 
-func getMinerData() *p2pooltypes.MinerData {
-	if d, err := client.GetDefaultClient().GetMinerData(); err != nil {
+func getMinerData(rpcClient *client.Client) *p2pooltypes.MinerData {
+	if rpcClient == nil {
+		rpcClient = client.GetDefaultClient()
+	}
+	if d, err := rpcClient.GetMinerData(); err != nil {
 		return nil
 	} else {
 		return &p2pooltypes.MinerData{
@@ -131,7 +135,7 @@ func TestMain(m *testing.M) {
 
 func TestStratumServer(t *testing.T) {
 	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
-	minerData := getMinerData()
+	minerData := getMinerData(nil)
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.HandleMinerData(minerData)
 	stratumServer.HandleTip(tip)
@@ -191,7 +195,7 @@ func TestStratumServer_GenesisV2(t *testing.T) {
 	sideChain := sidechain.NewSideChain(sidechain.GetFakeTestServer(consensus))
 
 	stratumServer := NewServer(sideChain, submitBlockFunc, submitMainBlockFunc)
-	minerData := getMinerData()
+	minerData := getMinerData(nil)
 	stratumServer.HandleMinerData(minerData)
 
 	func() {
@@ -274,7 +278,7 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 	sideChain := sidechain.NewSideChain(sidechain.GetFakeTestServer(consensus))
 
 	stratumServer := NewServer(sideChain, submitBlockFunc, submitMainBlockFunc)
-	minerData := getMinerData()
+	minerData := getMinerData(nil)
 	stratumServer.HandleMinerData(minerData)
 
 	func() {
@@ -343,9 +347,114 @@ func TestStratumServer_GenesisV3(t *testing.T) {
 
 }
 
+func TestStratumServer_GenesisTestnet(t *testing.T) {
+
+	rpcClient, _ := client.NewClient("http://127.0.0.1:28081")
+	if getMinerData(rpcClient) == nil {
+		t.Skip("No Testnet RPC")
+	}
+
+	consensus := sidechain.NewConsensus(sidechain.NetworkTestnet, "test", "", "", 10, 100000, 100, 20)
+	consensus.HardForks = []monero.HardFork{
+		{uint8(sidechain.ShareVersion_V3), 0, 0, 0},
+	}
+
+	err := consensus.InitHasher(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer consensus.GetHasher().Close()
+
+	sideChain := sidechain.NewSideChain(sidechain.GetFakeTestServerWithRPC(consensus, rpcClient))
+
+	stratumServer := NewServer(sideChain, submitBlockFunc, submitMainBlockFunc)
+	minerData := getMinerData(rpcClient)
+	stratumServer.HandleMinerData(minerData)
+
+	func() {
+		//Process all incoming changes first
+		for {
+			select {
+			case f := <-stratumServer.incomingChanges:
+				if f() {
+					stratumServer.Update()
+				}
+			default:
+				return
+			}
+		}
+	}()
+
+	tpl, _, _, seedHash, err := stratumServer.BuildTemplate(0, donationAddrFunc, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if seedHash != minerData.SeedHash {
+		t.Fatal()
+	}
+
+	if tpl.MainHeight != minerData.Height {
+		t.Fatal()
+	}
+
+	if tpl.MainParent != minerData.PrevId {
+		t.Fatal()
+	}
+
+	// verify genesis parameters
+	if tpl.SideHeight != 0 {
+		t.Fatal()
+	}
+
+	if tpl.SideParent != types.ZeroHash {
+		t.Fatal()
+	}
+
+	var templateId types.Hash
+	tpl.TemplateId(nil, consensus, donationAddrFunc(0), 0, 0, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion, &templateId)
+	blockData := tpl.Blob(nil, consensus, donationAddrFunc(0), 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
+
+	buffer := bytes.NewBuffer(make([]byte, 0, tpl.BufferLength(consensus, nil, nil)))
+	if err := tpl.Write(buffer, consensus, donationAddrFunc(0), 0, 0, 0, 0, templateId, nil, nil, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion); err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(blockData, buffer.Bytes()) {
+		t.Fatal("unequal block data")
+	}
+
+	var b sidechain.PoolBlock
+	err = b.UnmarshalBinary(consensus, &sidechain.NilDerivationCache{}, blockData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if b.FastSideTemplateId(consensus) != templateId {
+		t.Fatalf("mismatched fast template id, got %s expected %s", b.FastSideTemplateId(consensus), templateId)
+	}
+
+	if b.SideTemplateId(consensus) != templateId {
+		t.Fatalf("mismatched template id, got %s expected %s", b.SideTemplateId(consensus), templateId)
+	}
+
+	if b.Side.CoinbasePrivateKeySeed != consensus.Id {
+		t.Fatal("invalid private key seed")
+	}
+
+	if b.Side.CumulativeDifficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+
+	if b.Side.Difficulty.Cmp64(consensus.MinimumDifficulty) != 0 {
+		t.Fatal()
+	}
+
+}
+
 func BenchmarkServer_FillTemplate(b *testing.B) {
 	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
-	minerData := getMinerData()
+	minerData := getMinerData(nil)
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.minerData = minerData
 	stratumServer.tip = tip
@@ -374,7 +483,7 @@ func BenchmarkServer_FillTemplate(b *testing.B) {
 
 func BenchmarkServer_BuildTemplate(b *testing.B) {
 	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
-	minerData := getMinerData()
+	minerData := getMinerData(nil)
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.minerData = minerData
 	stratumServer.tip = tip

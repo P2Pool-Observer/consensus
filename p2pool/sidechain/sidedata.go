@@ -9,6 +9,7 @@ import (
 	"math"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/merge_mining"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
@@ -19,8 +20,10 @@ import (
 const MaxUncleCount = uint64(math.MaxUint64) / types.HashSize
 
 type SideData struct {
-	PublicKey              address.PackedAddress `json:"public_key"`
-	CoinbasePrivateKeySeed types.Hash            `json:"coinbase_private_key_seed,omitempty"`
+	PublicKey    address.PackedAddress `json:"public_key"`
+	IsSubaddress bool                  `json:"is_subaddress,omitempty"`
+
+	CoinbasePrivateKeySeed types.Hash `json:"coinbase_private_key_seed,omitempty"`
 	// CoinbasePrivateKey filled or calculated on decoding,
 	CoinbasePrivateKey crypto.PrivateKeyBytes `json:"coinbase_private_key"`
 	// Parent Template Id of the parent of this share, or zero if genesis
@@ -48,7 +51,7 @@ type SideDataExtraBuffer struct {
 	SideChainExtraNonce uint32                      `json:"side_chain_extra_nonce"`
 }
 
-func (b *SideData) BufferLength(version ShareVersion) (size int) {
+func (b *SideData) BufferLength(majorVersion uint8, version ShareVersion) (size int) {
 	size = crypto.PublicKeySize*2 +
 		types.HashSize +
 		crypto.PrivateKeySize +
@@ -56,6 +59,11 @@ func (b *SideData) BufferLength(version ShareVersion) (size int) {
 		utils.UVarInt64Size(b.Height) +
 		utils.UVarInt64Size(b.Difficulty.Lo) + utils.UVarInt64Size(b.Difficulty.Hi) +
 		utils.UVarInt64Size(b.CumulativeDifficulty.Lo) + utils.UVarInt64Size(b.CumulativeDifficulty.Hi)
+
+	if majorVersion >= monero.HardForkCarrotVersion {
+		// PublicKey IsSubaddress
+		size++
+	}
 
 	if version >= ShareVersion_V2 {
 		// ExtraBuffer
@@ -69,14 +77,22 @@ func (b *SideData) BufferLength(version ShareVersion) (size int) {
 	return size
 }
 
-func (b *SideData) MarshalBinary(version ShareVersion) (buf []byte, err error) {
-	return b.AppendBinary(make([]byte, 0, b.BufferLength(version)), version)
+func (b *SideData) MarshalBinary(majorVersion uint8, version ShareVersion) (buf []byte, err error) {
+	return b.AppendBinary(make([]byte, 0, b.BufferLength(majorVersion, version)), majorVersion, version)
 }
 
-func (b *SideData) AppendBinary(preAllocatedBuf []byte, version ShareVersion) (buf []byte, err error) {
+func (b *SideData) AppendBinary(preAllocatedBuf []byte, majorVersion uint8, version ShareVersion) (buf []byte, err error) {
 	buf = preAllocatedBuf
 	buf = append(buf, b.PublicKey[address.PackedAddressSpend][:]...)
 	buf = append(buf, b.PublicKey[address.PackedAddressView][:]...)
+	if majorVersion >= monero.HardForkCarrotVersion {
+		if b.IsSubaddress {
+			buf = append(buf, 1)
+		} else {
+			buf = append(buf, 0)
+		}
+	}
+
 	if version >= ShareVersion_V2 {
 		buf = append(buf, b.CoinbasePrivateKeySeed[:]...)
 	} else {
@@ -125,7 +141,7 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, version ShareVersion) (b
 	return buf, nil
 }
 
-func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVersion) (err error) {
+func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uint8, version ShareVersion) (err error) {
 	var (
 		uncleCount uint64
 		uncleHash  types.Hash
@@ -140,6 +156,18 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 	}
 	if _, err = io.ReadFull(reader, b.PublicKey[address.PackedAddressView][:]); err != nil {
 		return err
+	}
+	// read subaddress data
+	if majorVersion >= monero.HardForkCarrotVersion {
+		var isSubaddress uint8
+		if isSubaddress, err = reader.ReadByte(); err != nil {
+			return err
+		}
+		// ensure value can only be 0 or 1
+		if isSubaddress > 1 {
+			return fmt.Errorf("invalid isSubaddress: %d > 1", isSubaddress)
+		}
+		b.IsSubaddress = isSubaddress == 1
 	}
 
 	if version >= ShareVersion_V2 {
@@ -247,6 +275,12 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 						return err
 					}
 				}
+
+				// field no longer allowed (use subaddress bool)
+				// TODO: maybe just ignore field but allow it?
+				if majorVersion >= monero.HardForkCarrotVersion && b.MergeMiningExtra[i].ChainId == ExtraChainKeySubaddressViewPub {
+					return fmt.Errorf("subaddress_viewpub is not allowed")
+				}
 			}
 		}
 	}
@@ -270,9 +304,9 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, version ShareVer
 	return nil
 }
 
-func (b *SideData) UnmarshalBinary(data []byte, version ShareVersion) error {
+func (b *SideData) UnmarshalBinary(data []byte, majorVersion uint8, version ShareVersion) error {
 	reader := bytes.NewReader(data)
-	err := b.FromReader(reader, version)
+	err := b.FromReader(reader, majorVersion, version)
 	if err != nil {
 		return err
 	}

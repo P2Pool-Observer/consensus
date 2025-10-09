@@ -214,7 +214,7 @@ func (c *CoinbaseTransaction) OutputsBlob() ([]byte, error) {
 	return c.Outputs.MarshalBinary()
 }
 
-func (c *CoinbaseTransaction) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId bool) ([]byte, error) {
+func (c *CoinbaseTransaction) SideChainHashingBlob(preAllocatedBuf []byte, majorVersion uint8, zeroTemplateId bool) ([]byte, error) {
 	buf := preAllocatedBuf
 
 	buf = append(buf, c.Version)
@@ -226,7 +226,7 @@ func (c *CoinbaseTransaction) SideChainHashingBlob(preAllocatedBuf []byte, zeroT
 	buf, _ = c.Outputs.AppendBinary(buf)
 
 	buf = binary.AppendUvarint(buf, uint64(c.Extra.BufferLength()))
-	buf, _ = c.Extra.SideChainHashingBlob(buf, zeroTemplateId)
+	buf, _ = c.Extra.SideChainHashingBlob(buf, majorVersion, zeroTemplateId)
 	buf = append(buf, c.ExtraBaseRCT)
 
 	return buf, nil

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -74,13 +75,13 @@ func (t *ExtraTags) AppendBinary(preAllocatedBuf []byte) (buf []byte, err error)
 	return buf, nil
 }
 
-func (t *ExtraTags) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId bool) (buf []byte, err error) {
+func (t *ExtraTags) SideChainHashingBlob(preAllocatedBuf []byte, majorVersion uint8, zeroTemplateId bool) (buf []byte, err error) {
 	if t == nil {
 		return nil, nil
 	}
 	buf = preAllocatedBuf
 	for _, tag := range *t {
-		if buf, err = tag.SideChainHashingBlob(buf, zeroTemplateId); err != nil {
+		if buf, err = tag.SideChainHashingBlob(buf, majorVersion, zeroTemplateId); err != nil {
 			return nil, err
 		}
 	}
@@ -147,7 +148,7 @@ func (t *ExtraTag) AppendBinary(preAllocatedBuf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (t *ExtraTag) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId bool) ([]byte, error) {
+func (t *ExtraTag) SideChainHashingBlob(preAllocatedBuf []byte, majorVersion uint8, zeroTemplateId bool) ([]byte, error) {
 	buf := preAllocatedBuf
 	buf = append(buf, t.Tag)
 	if t.HasVarInt {
@@ -162,13 +163,19 @@ func (t *ExtraTag) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId b
 
 		// serialize zero hash or remaining data only
 		buf = append(buf, make([]byte, len(t.Data)-dataLen)...)
+		// TODO: do the same as extra nonce
 	} else if t.Tag == TxExtraTagNonce {
-		//Replace only the first four bytes
-		buf = append(buf,
-			[]byte{0, 0, 0, 0}[:min(TxExtraTemplateNonceSize, len(t.Data))]...,
-		)
-		if len(t.Data) > TxExtraTemplateNonceSize {
-			buf = append(buf, t.Data[TxExtraTemplateNonceSize:]...)
+		if majorVersion < monero.HardForkCarrotVersion {
+			//Replace only the first four bytes
+			buf = append(buf,
+				[]byte{0, 0, 0, 0}[:min(TxExtraTemplateNonceSize, len(t.Data))]...,
+			)
+			if len(t.Data) > TxExtraTemplateNonceSize {
+				buf = append(buf, t.Data[TxExtraTemplateNonceSize:]...)
+			}
+		} else {
+			// entire tag is zero'd except length
+			buf = append(buf, make([]byte, len(t.Data))...)
 		}
 	} else {
 		buf = append(buf, t.Data...)

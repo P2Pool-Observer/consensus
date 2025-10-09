@@ -17,6 +17,7 @@ type FakeServer struct {
 	headersLock sync.Mutex
 	headers     map[uint64]*mainblock.Header
 	sidechain   *SideChain
+	client      *client.Client
 }
 
 func (s *FakeServer) Context() context.Context {
@@ -49,7 +50,7 @@ func (s *FakeServer) BroadcastMoneroBlock(block *mainblock.Block) {
 
 }
 func (s *FakeServer) ClientRPC() *client.Client {
-	return client.GetDefaultClient()
+	return s.client
 }
 func (s *FakeServer) GetChainMainByHeight(height uint64) *ChainMain {
 	return nil
@@ -183,6 +184,17 @@ func GetFakeTestServer(consensus *Consensus) *FakeServer {
 	s := &FakeServer{
 		consensus: consensus,
 		headers:   make(map[uint64]*mainblock.Header),
+		client:    client.GetDefaultClient(),
+	}
+	s.sidechain = NewSideChain(s)
+	return s
+}
+
+func GetFakeTestServerWithRPC(consensus *Consensus, rpcClient *client.Client) *FakeServer {
+	s := &FakeServer{
+		consensus: consensus,
+		headers:   make(map[uint64]*mainblock.Header),
+		client:    rpcClient,
 	}
 	s.sidechain = NewSideChain(s)
 	return s

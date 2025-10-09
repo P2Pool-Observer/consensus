@@ -105,16 +105,26 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 		return err
 	}
 
-	if addr.IsSubaddress() && tpl.MajorVersion() >= monero.HardForkCarrotVersion {
-		// TODO!!!
-		var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
-		copy(subaddressViewPubBuf[:], addr.ViewPublicKey()[:])
-		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
-	}
+	if tpl.MajorVersion() >= monero.HardForkCarrotVersion {
+		if addr.IsSubaddress() {
+			if _, err := writer.Write([]byte{1}); err != nil {
+				return err
+			}
+		} else {
+			if _, err := writer.Write([]byte{0}); err != nil {
+				return err
+			}
+		}
 
-	// side data up to the end of side data
-	if _, err := writer.Write(tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2:]); err != nil {
-		return err
+		// side data up to the end of side data
+		if _, err := writer.Write(tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2+1:]); err != nil {
+			return err
+		}
+	} else {
+		// side data up to the end of side data
+		if _, err := writer.Write(tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2:]); err != nil {
+			return err
+		}
 	}
 
 	version := tpl.ShareVersion(consensus)
@@ -192,19 +202,31 @@ func (tpl *Template) Blob(preAllocatedBuffer []byte, consensus *sidechain.Consen
 	copy(buf[tpl.TemplateSideDataOffset:], addr.SpendPublicKey()[:])
 	copy(buf[tpl.TemplateSideDataOffset+crypto.PublicKeySize:], addr.ViewPublicKey()[:])
 
-	if addr.IsSubaddress() && tpl.MajorVersion() >= monero.HardForkCarrotVersion {
-		// TODO!!!
-		var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
-		copy(subaddressViewPubBuf[:], addr.ViewPublicKey()[:])
-		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
+	if tpl.MajorVersion() >= monero.HardForkCarrotVersion {
+		if addr.IsSubaddress() {
+			buf[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2] = 1
+		} else {
+			buf[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2] = 0
+		}
 	}
 
 	// Overwrite nonce
 	binary.LittleEndian.PutUint32(buf[tpl.NonceOffset:], nonce)
-	// Overwrite extra nonce
-	binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset:], extraNonce)
-	// Overwrite template id
-	copy(buf[tpl.MerkleRootOffset:], merkleRoot[:])
+
+	// sidechain hash
+	if merkleRoot == types.ZeroHash && tpl.MajorVersion() >= monero.HardForkCarrotVersion {
+		if tpl.MajorVersion() >= monero.HardForkCarrotVersion {
+			// Overwrite extra nonce: TODO: allow more bytes
+			binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset:], extraNonce)
+			// Overwrite template id: TODO
+			copy(buf[tpl.MerkleRootOffset:], merkleRoot[:])
+		}
+	} else {
+		// Overwrite extra nonce
+		binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset:], extraNonce)
+		// Overwrite template id
+		copy(buf[tpl.MerkleRootOffset:], merkleRoot[:])
+	}
 
 	version := tpl.ShareVersion(consensus)
 
@@ -312,7 +334,7 @@ func (tpl *Template) CoinbaseId(hasher crypto.KeccakHasher, extraNonce uint32, m
 	var extraNonceBuf [4]byte
 
 	_, _ = hasher.Write(tpl.Buffer[tpl.CoinbaseOffset:tpl.ExtraNonceOffset])
-	// extra nonce
+	// extra nonce TODO more?
 	binary.LittleEndian.PutUint32(extraNonceBuf[:], extraNonce)
 	_, _ = hasher.Write(extraNonceBuf[:])
 
@@ -450,7 +472,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 	tpl.Buffer = buf[:len(buf)-bufOffset]
 
 	// Set places to zeroes where necessary
-	tpl.Buffer = tpl.Blob(make([]byte, 0, len(buf)), consensus, b.GetConsensusPackedAddress(), 0, 0, 0, 0, types.ZeroHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, 0, 0)[:len(buf)-bufOffset]
+	tpl.Buffer = tpl.Blob(make([]byte, 0, len(buf)), consensus, b.GetConsensusPackedAddress(uint8(tpl.MajorVersion())), 0, 0, 0, 0, types.ZeroHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, 0, 0)[:len(buf)-bufOffset]
 
 	{
 		reserve := 1
@@ -463,7 +485,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 		if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
 			merkleTree[reserveOffset][0] = b.Main.FCMPTreeLayers
 			reserveOffset++
-			merkleTree[reserveOffset] = types.Hash(b.Main.FCMPTreeRoot)
+			merkleTree[reserveOffset] = b.Main.FCMPTreeRoot
 			reserveOffset++
 		}
 

@@ -225,7 +225,7 @@ func (c *Consensus) verify() bool {
 }
 
 func (c *Consensus) CalculateSideTemplateId(share *PoolBlock) (result types.Hash) {
-	return c.CalculateSideTemplateIdPreAllocated(share, make([]byte, 0, max(share.Main.BufferLength(), share.Side.BufferLength(share.ShareVersion()))))
+	return c.CalculateSideTemplateIdPreAllocated(share, make([]byte, 0, max(share.Main.BufferLength(), share.Side.BufferLength(share.Main.MajorVersion, share.ShareVersion()))))
 }
 
 func (c *Consensus) CalculateSideTemplateIdPreAllocated(share *PoolBlock, buf []byte) (result types.Hash) {
@@ -233,7 +233,7 @@ func (c *Consensus) CalculateSideTemplateIdPreAllocated(share *PoolBlock, buf []
 
 	buf, _ = share.Main.SideChainHashingBlob(buf, true)
 	_, _ = h.Write(buf)
-	buf, _ = share.Side.AppendBinary(buf[:0], share.ShareVersion())
+	buf, _ = share.Side.AppendBinary(buf[:0], share.Main.MajorVersion, share.ShareVersion())
 	_, _ = h.Write(buf)
 	_, _ = h.Write(c.Id[:])
 	h.Hash(&result)

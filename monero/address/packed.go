@@ -99,13 +99,17 @@ func (p PackedAddress) Bytes() []byte {
 
 type PackedAddressWithSubaddress [crypto.PublicKeySize*2 + 1]byte
 
-func NewPackedAddressWithSubaddress(a *PackedAddress, isSubaddress bool) (out PackedAddressWithSubaddress) {
-	copy(out[:], a.SpendPublicKey()[:])
-	copy(out[crypto.PublicKeySize:], a.ViewPublicKey()[:])
+func NewPackedAddressWithSubaddressFromBytes(spendPub, viewPub crypto.PublicKeyBytes, isSubaddress bool) (out PackedAddressWithSubaddress) {
+	copy(out[:], spendPub[:])
+	copy(out[crypto.PublicKeySize:], viewPub[:])
 	if isSubaddress {
 		out[crypto.PublicKeySize*2] = 1
 	}
 	return out
+}
+
+func NewPackedAddressWithSubaddress(a *PackedAddress, isSubaddress bool) (out PackedAddressWithSubaddress) {
+	return NewPackedAddressWithSubaddressFromBytes(*a.SpendPublicKey(), *a.ViewPublicKey(), isSubaddress)
 }
 
 func (p *PackedAddressWithSubaddress) SpendPublicKey() *crypto.PublicKeyBytes {

@@ -302,18 +302,18 @@ func (b *PoolBlock) ExtraNonce() uint32 {
 // FastSideTemplateId Returns SideTemplateId from either coinbase extra tags or pruned data, or main block if not pruned
 func (b *PoolBlock) FastSideTemplateId(consensus *Consensus) types.Hash {
 	if b.ShareVersion() >= ShareVersion_V3 {
+		// not merge mining, hash should be equal
+		mmTag := b.MergeMiningTag()
+		if mmTag.NumberAuxiliaryChains == 1 {
+			return mmTag.RootHash
+		}
+
 		if b.Main.Coinbase.AuxiliaryData.TemplateId != types.ZeroHash {
 			return b.Main.Coinbase.AuxiliaryData.TemplateId
-		} else {
-			// not merge mining, hash should be equal
-			mmTag := b.MergeMiningTag()
-			if mmTag.NumberAuxiliaryChains == 1 {
-				return mmTag.RootHash
-			}
-
-			//fallback to full calculation
-			return b.SideTemplateId(consensus)
 		}
+
+		//fallback to full calculation
+		return b.SideTemplateId(consensus)
 	} else {
 		return types.HashFromBytes(b.CoinbaseExtra(SideIdentifierHash))
 	}
@@ -538,7 +538,7 @@ func (b *PoolBlock) UnmarshalBinary(consensus *Consensus, derivationCache Deriva
 }
 
 func (b *PoolBlock) BufferLength() int {
-	return b.Main.BufferLength() + b.Side.BufferLength(b.ShareVersion())
+	return b.Main.BufferLength() + b.Side.BufferLength(b.Main.MajorVersion, b.ShareVersion())
 }
 
 func (b *PoolBlock) MarshalBinary() ([]byte, error) {
@@ -554,7 +554,7 @@ func (b *PoolBlock) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bo
 
 	if buf, err = b.Main.AppendBinaryFlags(buf, compact, pruned, b.ShareVersion() >= ShareVersion_V3); err != nil {
 		return nil, err
-	} else if buf, err = b.Side.AppendBinary(buf, b.ShareVersion()); err != nil {
+	} else if buf, err = b.Side.AppendBinary(buf, b.Main.MajorVersion, b.ShareVersion()); err != nil {
 		return nil, err
 	} else {
 		if len(buf) > PoolBlockMaxTemplateSize {
@@ -688,7 +688,7 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 		return err
 	}
 
-	if err = b.Side.FromReader(reader, b.ShareVersion()); err != nil {
+	if err = b.Side.FromReader(reader, b.Main.MajorVersion, b.ShareVersion()); err != nil {
 		return err
 	}
 
@@ -859,9 +859,9 @@ func (b *PoolBlock) GetPrivateKeySeed() types.Hash {
 func (b *PoolBlock) CalculateTransactionPrivateKeySeed() types.Hash {
 	if b.ShareVersion() >= ShareVersion_V2 {
 		preAllocatedMainData := make([]byte, 0, b.Main.BufferLength())
-		preAllocatedSideData := make([]byte, 0, b.Side.BufferLength(b.ShareVersion()))
+		preAllocatedSideData := make([]byte, 0, b.Side.BufferLength(b.Main.MajorVersion, b.ShareVersion()))
 		mainData, _ := b.Main.SideChainHashingBlob(preAllocatedMainData, false)
-		sideData, _ := b.Side.AppendBinary(preAllocatedSideData, b.ShareVersion())
+		sideData, _ := b.Side.AppendBinary(preAllocatedSideData, b.Main.MajorVersion, b.ShareVersion())
 		return CalculateTransactionPrivateKeySeed(
 			mainData,
 			sideData,
@@ -871,47 +871,59 @@ func (b *PoolBlock) CalculateTransactionPrivateKeySeed() types.Hash {
 	return types.Hash(b.Side.PublicKey[address.PackedAddressSpend])
 }
 
-func (b *PoolBlock) GetAddress() address.PackedAddress {
-	return b.Side.PublicKey
+func (b *PoolBlock) GetAddress() address.PackedAddressWithSubaddress {
+	return address.NewPackedAddressWithSubaddress(&b.Side.PublicKey, b.Side.IsSubaddress)
 }
 
-func (b *PoolBlock) GetSubaddress() *address.PackedAddress {
+func (b *PoolBlock) GetMergeMineExtraSubaddress() *address.PackedAddressWithSubaddress {
 	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) >= crypto.PublicKeySize {
 		// subaddress
 		viewPub := crypto.PublicKeyBytes(d[:crypto.PublicKeySize])
 		if viewPub.AsPoint() != nil {
-			return &address.PackedAddress{*b.Side.PublicKey.SpendPublicKey(), viewPub}
+			out := address.NewPackedAddressWithSubaddressFromBytes(*b.Side.PublicKey.SpendPublicKey(), viewPub, true)
+			return &out
 		}
 	}
 
 	return nil
 }
 
-func (b *PoolBlock) GetConsensusPackedAddress() address.PackedAddressWithSubaddress {
-	if sa := b.GetSubaddress(); sa != nil && b.Main.MajorVersion >= monero.HardForkCarrotVersion {
-		return address.NewPackedAddressWithSubaddress(sa, true)
+// GetConsensusPackedAddress Gets the address to use for sidechain share weight calculation dependent on target major version
+func (b *PoolBlock) GetConsensusPackedAddress(targetMajorVersion uint8) address.PackedAddressWithSubaddress {
+	if b.Main.MajorVersion < monero.HardForkCarrotVersion && targetMajorVersion >= monero.HardForkCarrotVersion {
+		// return SA for older blocks
+		if sa := b.GetMergeMineExtraSubaddress(); sa != nil {
+			return *sa
+		}
 	}
-
-	return address.NewPackedAddressWithSubaddress(&b.Side.PublicKey, false)
+	return b.GetAddress()
 }
 
 // GetPayoutAddress Special function that checks if a subaddress has been specified, on the right network
 // Not consensus
 func (b *PoolBlock) GetPayoutAddress(networkType NetworkType) *address.Address {
 
-	if sa := b.GetSubaddress(); sa != nil {
-		if n, err := networkType.SubaddressNetwork(); err == nil {
-			return address.FromRawAddress(n, sa.SpendPublicKey(), sa.ViewPublicKey())
-		} else {
-			return nil
+	// before carrot hardfork
+	if b.Main.MajorVersion < monero.HardForkCarrotVersion {
+		if sa := b.GetMergeMineExtraSubaddress(); sa != nil {
+			if n, err := networkType.SubaddressNetwork(); err == nil {
+				return address.FromRawAddress(n, sa.SpendPublicKey(), sa.ViewPublicKey())
+			} else {
+				return nil
+			}
 		}
 	}
 
-	if n, err := networkType.AddressNetwork(); err == nil {
-		return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), b.Side.PublicKey.ViewPublicKey())
+	if b.Side.IsSubaddress {
+		if n, err := networkType.SubaddressNetwork(); err == nil {
+			return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), b.Side.PublicKey.ViewPublicKey())
+		}
 	} else {
-		return nil
+		if n, err := networkType.AddressNetwork(); err == nil {
+			return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), b.Side.PublicKey.ViewPublicKey())
+		}
 	}
+	return nil
 }
 
 func (b *PoolBlock) GetTransactionOutputType() uint8 {
