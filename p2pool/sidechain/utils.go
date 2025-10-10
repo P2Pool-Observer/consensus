@@ -33,7 +33,7 @@ func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType 
 		Type:               txType,
 		Reward:             amount,
 		EphemeralPublicKey: ephemeralPubKey,
-		ViewTag:            viewTag,
+		ViewTag:            [monero.CarrotViewTagSize]byte{viewTag},
 	}
 }
 
@@ -47,7 +47,7 @@ func CalculateOutputCarrot(enote *carrot.CoinbaseEnoteV1, txType uint8, outputIn
 		Type:                 txType,
 		Reward:               enote.Amount,
 		EphemeralPublicKey:   enote.OneTimeAddress,
-		CarrotViewTag:        enote.ViewTag,
+		ViewTag:              enote.ViewTag,
 		EncryptedJanusAnchor: enote.EncryptedAnchor,
 	}
 }

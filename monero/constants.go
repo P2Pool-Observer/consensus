@@ -12,8 +12,7 @@ const (
 	PaymentIdSize       = 8
 	JanusAnchorSize     = 16
 	CarrotViewTagSize   = 3
-	// TODO use within coinbase transaction check
-	MaxMinerOutputs = 10000
+	MaxMinerOutputs     = 10000
 	// TODO: adjust for coinbase
 	MaxTxExtraSize = 1060
 

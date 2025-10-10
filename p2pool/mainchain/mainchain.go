@@ -97,7 +97,7 @@ func (c *MainChain) Listen() error {
 								Reward:             o.Amount,
 								Type:               transaction.TxOutToKey,
 								EphemeralPublicKey: o.ToKey.Key,
-								ViewTag:            0,
+								ViewTag:            [monero.CarrotViewTagSize]byte{0},
 							})
 						} else if o.ToTaggedKey != nil {
 							outputs = append(outputs, transaction.Output{
@@ -105,7 +105,7 @@ func (c *MainChain) Listen() error {
 								Reward:             o.Amount,
 								Type:               transaction.TxOutToTaggedKey,
 								EphemeralPublicKey: o.ToTaggedKey.Key,
-								ViewTag:            o.ToTaggedKey.ViewTag[0],
+								ViewTag:            [monero.CarrotViewTagSize]byte{o.ToTaggedKey.ViewTag[0]},
 							})
 						} else if o.ToCarrotV1 != nil {
 							outputs = append(outputs, transaction.Output{
@@ -113,7 +113,7 @@ func (c *MainChain) Listen() error {
 								Reward:               o.Amount,
 								Type:                 transaction.TxOutToCarrotV1,
 								EphemeralPublicKey:   o.ToCarrotV1.Key,
-								CarrotViewTag:        [monero.CarrotViewTagSize]uint8(o.ToCarrotV1.ViewTag),
+								ViewTag:              [monero.CarrotViewTagSize]uint8(o.ToCarrotV1.ViewTag),
 								EncryptedJanusAnchor: [monero.JanusAnchorSize]uint8(o.ToCarrotV1.EncryptedJanusAnchor),
 							})
 						} else {

@@ -44,17 +44,17 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 				}
 
 				if o.Type == TxOutToTaggedKey {
-					if o.ViewTag, err = reader.ReadByte(); err != nil {
+					if o.ViewTag[0], err = reader.ReadByte(); err != nil {
 						return err
 					}
 				} else {
-					o.ViewTag = 0
+					o.ViewTag[0] = 0
 				}
 			case TxOutToCarrotV1:
 				if _, err = io.ReadFull(reader, o.EphemeralPublicKey[:]); err != nil {
 					return err
 				}
-				if _, err = io.ReadFull(reader, o.CarrotViewTag[:]); err != nil {
+				if _, err = io.ReadFull(reader, o.ViewTag[:]); err != nil {
 					return err
 				}
 				if _, err = io.ReadFull(reader, o.EncryptedJanusAnchor[:]); err != nil {
@@ -103,11 +103,11 @@ func (s *Outputs) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) 
 			data = append(data, o.EphemeralPublicKey[:]...)
 
 			if o.Type == TxOutToTaggedKey {
-				data = append(data, o.ViewTag)
+				data = append(data, o.ViewTag[0])
 			}
 		case TxOutToCarrotV1:
 			data = append(data, o.EphemeralPublicKey[:]...)
-			data = append(data, o.CarrotViewTag[:]...)
+			data = append(data, o.ViewTag[:]...)
 			data = append(data, o.EncryptedJanusAnchor[:]...)
 		default:
 			return nil, errors.New("unknown output type")
@@ -127,7 +127,7 @@ type Output struct {
 	EncryptedJanusAnchor [monero.JanusAnchorSize]uint8 `json:"encrypted_janus_anchor,omitempty"`
 
 	// Type re-arranged here to improve memory layout space
-	Type          uint8                          `json:"type"`
-	ViewTag       uint8                          `json:"view_tag"`
-	CarrotViewTag [monero.CarrotViewTagSize]byte `json:"carrot_view_tag"`
+	Type uint8 `json:"type"`
+	// ViewTag Reused for carrot/non-carrot outputs
+	ViewTag [monero.CarrotViewTagSize]byte `json:"view_tag"`
 }
