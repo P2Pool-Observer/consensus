@@ -190,7 +190,7 @@ func (c *Consensus) verify() bool {
 		return false
 	}
 
-	if c.NetworkType == NetworkMainnet && c.MinimumDifficulty < SmallestMinimumDifficulty || c.MinimumDifficulty > LargestMinimumDifficulty {
+	if (c.NetworkType == NetworkMainnet && c.MinimumDifficulty < SmallestMinimumDifficulty || c.MinimumDifficulty < 1) || c.MinimumDifficulty > LargestMinimumDifficulty {
 		return false
 	}
 
@@ -300,6 +300,34 @@ func (c *Consensus) InitHasher(n int, flags ...randomx.Flag) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+type testHasher struct{}
+
+func (t *testHasher) Hash(key []byte, input []byte) (types.Hash, error) {
+	h := crypto.Keccak256Var(key, input)
+	// zero last bytes
+	copy(h[types.HashSize-12:], make([]byte, 12))
+	return h, nil
+}
+
+func (t *testHasher) OptionFlags(flags ...randomx.Flag) error {
+	return nil
+}
+func (t *testHasher) OptionNumberOfCachedStates(n int) error {
+	return nil
+}
+func (t *testHasher) Close() {
+
+}
+
+func (c *Consensus) InitTestHasher() error {
+	if c.hasher != nil {
+		return errors.New("hasher already initialized")
+	}
+
+	c.hasher = &testHasher{}
 	return nil
 }
 

@@ -2,6 +2,7 @@ package sidechain
 
 import (
 	"fmt"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 )
 
@@ -43,6 +44,10 @@ func (v ShareVersion) String() string {
 	default:
 		return fmt.Sprintf("v%d", v)
 	}
+}
+
+func (v ShareVersion) Supports(majorVersion uint8) bool {
+	return true
 }
 
 const (

@@ -913,6 +913,9 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 
 				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
 					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, rewards[workIndex])
+					if carrotEnotes[workIndex] == nil {
+						return fmt.Errorf("invalid carrot enote at index %d", workIndex)
+					}
 					return nil
 				}, nil); err != nil {
 					return nil, err

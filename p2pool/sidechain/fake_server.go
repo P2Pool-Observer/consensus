@@ -18,6 +18,8 @@ type FakeServer struct {
 	headers     map[uint64]*mainblock.Header
 	sidechain   *SideChain
 	client      *client.Client
+
+	Tip *PoolBlock
 }
 
 func (s *FakeServer) Context() context.Context {
@@ -41,8 +43,9 @@ func (s *FakeServer) RemoveBlob(key []byte) (err error) {
 }
 
 func (s *FakeServer) UpdateTip(tip *PoolBlock) {
-
+	s.Tip = tip
 }
+
 func (s *FakeServer) Broadcast(block *PoolBlock) {
 
 }
@@ -191,6 +194,9 @@ func GetFakeTestServer(consensus *Consensus) *FakeServer {
 }
 
 func GetFakeTestServerWithRPC(consensus *Consensus, rpcClient *client.Client) *FakeServer {
+	if rpcClient == nil {
+		return GetFakeTestServer(consensus)
+	}
 	s := &FakeServer{
 		consensus: consensus,
 		headers:   make(map[uint64]*mainblock.Header),
