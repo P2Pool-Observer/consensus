@@ -12,7 +12,7 @@ const DomainSeparatorP2PoolDeterministicCarrotOutputRandomness = "P2Pool determi
 // GetP2PoolDeterministicCarrotOutputRandomness Used by P2Pool to fill the PaymentProposalV1.Randomness
 // Seed is used as key
 func GetP2PoolDeterministicCarrotOutputRandomness(hasher *blake2b.Digest, seed types.Hash, blockIndex uint64, spendPub, viewPub *crypto.PublicKeyBytes) (out [monero.JanusAnchorSize]byte) {
-	inputContext := makeCarrotCoinbaseInputContext(blockIndex)
+	inputContext := MakeCarrotCoinbaseInputContext(blockIndex)
 	// a = H_16("..P2Pool..", seed, inputContext, j_s, j_v)
 	HashedTranscript(out[:], hasher, []byte(DomainSeparatorP2PoolDeterministicCarrotOutputRandomness), seed[:], inputContext[:], spendPub[:], viewPub[:])
 	return out

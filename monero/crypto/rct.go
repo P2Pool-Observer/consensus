@@ -14,8 +14,3 @@ func rctGenC(dst *PublicKeyPoint, a *PrivateKeyScalar, amount uint64) {
 	binary.LittleEndian.PutUint64(amountK[:], amount)
 	dst.Point().VarTimeDoubleScalarBaseMult(amountK.AsScalar().Scalar(), GeneratorH, a.Scalar())
 }
-
-// TODO: rewrite
-func RctAddKeys2(dst *PublicKeyPoint, a, b *PrivateKeyScalar, B *PublicKeyPoint) {
-	PublicKeyFromPoint(dst.Point().VarTimeDoubleScalarBaseMult(b.Scalar(), B.Point(), a.Scalar()))
-}
