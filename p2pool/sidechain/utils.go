@@ -339,6 +339,10 @@ func GetSharesOrdered(tip *PoolBlock, consensus *Consensus, difficultyByHeight b
 		//remove dupes
 		shares = shares.Compact()
 
+		if tip.Main.MajorVersion >= monero.HardForkRejectManyMinerOutputs && len(shares) > monero.MaxMinerOutputs {
+			return nil, 0, errors.New("too many miner outputs")
+		}
+
 		return shares, bottomHeight, nil
 	}
 }
