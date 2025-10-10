@@ -5,6 +5,7 @@ import (
 	unsafeRandom "math/rand/v2"
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
@@ -44,6 +45,38 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 	if expectedEnote != enote {
 		t.Fatalf("coinbase enote does not match expected enote: expected %+v, got %+v", expectedEnote, enote)
 	}
+}
+
+func BenchmarkPaymentProposalV1_CoinbaseOutputPartial(b *testing.B) {
+	addr := address.PackedAddress{
+		crypto.PublicKeyBytes(types.MustHashFromString("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0")),
+		crypto.PublicKeyBytes(types.MustHashFromString("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2")),
+	}
+	proposal := &PaymentProposalV1{
+		Destination: DestinationV1{
+			Address:   address.NewPackedAddressWithSubaddress(&addr, false),
+			PaymentId: [monero.PaymentIdSize]byte{},
+		},
+		Amount:     monero.TailEmissionReward,
+		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		i := unsafeRandom.Uint64N(math.MaxUint32)
+		var hasher blake2b.Digest
+		for pb.Next() {
+			i++
+			inputContext := MakeCarrotCoinbaseInputContext(i)
+			_, _, _, err := proposal.CoinbaseOutputPartial(&hasher, inputContext[:])
+			if err != nil {
+				b.Fatalf("failed to generate coinbase enote partial: %s", err)
+			}
+		}
+	})
+
 }
 
 func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {

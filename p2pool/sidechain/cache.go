@@ -12,11 +12,16 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
-type carrotEnoteCacheKey [crypto.PublicKeySize*2 + 1 + types.HashSize + 8 + 8]byte
+type carrotEnoteCacheKey [crypto.PublicKeySize*2 + 1 + types.HashSize + 8]byte
 type deterministicTransactionCacheKey [crypto.PublicKeySize + types.HashSize]byte
 type ephemeralPublicKeyCacheKey [crypto.PrivateKeySize + crypto.PublicKeySize*2 + 8]byte
 type derivationCacheKey [crypto.PrivateKeySize + crypto.PublicKeySize]byte
 
+type carrotEnoteCache struct {
+	EphemeralPubkey      crypto.X25519PublicKey
+	SenderReceiverUnctx  crypto.X25519PublicKey
+	SecretSenderReceiver types.Hash
+}
 type ephemeralPublicKeyWithViewTag struct {
 	PublicKey crypto.PublicKeyBytes
 	ViewTag   uint8
@@ -29,7 +34,7 @@ type DerivationCacheInterface interface {
 }
 
 type DerivationCache struct {
-	carrotEnoteCache        utils.Cache[carrotEnoteCacheKey, *carrot.CoinbaseEnoteV1]
+	carrotEnoteCache        utils.Cache[carrotEnoteCacheKey, carrotEnoteCache]
 	deterministicKeyCache   utils.Cache[deterministicTransactionCacheKey, *crypto.KeyPair]
 	derivationCache         utils.Cache[derivationCacheKey, crypto.PublicKeyBytes]
 	ephemeralPublicKeyCache utils.Cache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag]
@@ -39,7 +44,7 @@ type DerivationCache struct {
 
 func NewDerivationLRUCache() *DerivationCache {
 	d := &DerivationCache{
-		carrotEnoteCache:        utils.NewLRUCache[carrotEnoteCacheKey, *carrot.CoinbaseEnoteV1](2000),
+		carrotEnoteCache:        utils.NewLRUCache[carrotEnoteCacheKey, carrotEnoteCache](2000),
 		deterministicKeyCache:   utils.NewLRUCache[deterministicTransactionCacheKey, *crypto.KeyPair](32),
 		ephemeralPublicKeyCache: utils.NewLRUCache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag](2000),
 		derivationCache:         utils.NewLRUCache[derivationCacheKey, crypto.PublicKeyBytes](2000),
@@ -51,7 +56,7 @@ func NewDerivationLRUCache() *DerivationCache {
 
 func NewDerivationMapCache() *DerivationCache {
 	d := &DerivationCache{
-		carrotEnoteCache:        utils.NewMapCache[carrotEnoteCacheKey, *carrot.CoinbaseEnoteV1](2000),
+		carrotEnoteCache:        utils.NewMapCache[carrotEnoteCacheKey, carrotEnoteCache](2000),
 		deterministicKeyCache:   utils.NewMapCache[deterministicTransactionCacheKey, *crypto.KeyPair](32),
 		ephemeralPublicKeyCache: utils.NewMapCache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag](2000),
 		derivationCache:         utils.NewMapCache[derivationCacheKey, crypto.PublicKeyBytes](2000),
@@ -63,7 +68,7 @@ func NewDerivationMapCache() *DerivationCache {
 
 func NewDerivationNilCache() *DerivationCache {
 	d := &DerivationCache{
-		carrotEnoteCache:        utils.NewNilCache[carrotEnoteCacheKey, *carrot.CoinbaseEnoteV1](),
+		carrotEnoteCache:        utils.NewNilCache[carrotEnoteCacheKey, carrotEnoteCache](),
 		deterministicKeyCache:   utils.NewNilCache[deterministicTransactionCacheKey, *crypto.KeyPair](),
 		ephemeralPublicKeyCache: utils.NewNilCache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag](),
 		derivationCache:         utils.NewNilCache[derivationCacheKey, crypto.PublicKeyBytes](),
@@ -156,25 +161,40 @@ func (d *DerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSub
 	copy(key[:], a[:])
 	copy(key[crypto.PublicKeySize*2+1:], seed[:])
 	binary.LittleEndian.PutUint64(key[crypto.PublicKeySize*2+1+types.HashSize:], blockIndex)
-	binary.LittleEndian.PutUint64(key[crypto.PublicKeySize*2+1+types.HashSize+8:], amount)
+
+	proposal := carrot.PaymentProposalV1{
+		Destination: carrot.DestinationV1{
+			Address: *a,
+		},
+		Amount:     amount,
+		Randomness: carrot.GetP2PoolDeterministicCarrotOutputRandomness(&blake2b.Digest{}, seed, blockIndex, a.SpendPublicKey(), a.ViewPublicKey()),
+	}
+
+	var hasher blake2b.Digest
+	var enote carrot.CoinbaseEnoteV1
+	inputContext := carrot.MakeCarrotCoinbaseInputContext(blockIndex)
 
 	if kp, ok := d.carrotEnoteCache.Get(key); ok {
-		return kp
-	} else {
-		proposal := carrot.PaymentProposalV1{
-			Destination: carrot.DestinationV1{
-				Address: *a,
-			},
-			Amount:     amount,
-			Randomness: carrot.GetP2PoolDeterministicCarrotOutputRandomness(&blake2b.Digest{}, seed, blockIndex, a.SpendPublicKey(), a.ViewPublicKey()),
-		}
+		// calculate non-cacheable part
+		proposal.CoinbaseOutputFromPartial(&hasher, &enote, inputContext[:], kp.EphemeralPubkey, kp.SenderReceiverUnctx, kp.SecretSenderReceiver)
+		enote.BlockIndex = blockIndex
 
-		var enote carrot.CoinbaseEnoteV1
-		err := proposal.CoinbaseOutput(&enote, blockIndex)
+		return &enote
+	} else {
+		ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, err := proposal.CoinbaseOutputPartial(&hasher, inputContext[:])
 		if err != nil {
 			return nil
 		}
-		d.carrotEnoteCache.Set(key, &enote)
+		d.carrotEnoteCache.Set(key, carrotEnoteCache{
+			EphemeralPubkey:      ephemeralPubkey,
+			SenderReceiverUnctx:  senderReceiverUnctx,
+			SecretSenderReceiver: secretSenderReceiver,
+		})
+
+		// calculate non-cacheable part
+		proposal.CoinbaseOutputFromPartial(&hasher, &enote, inputContext[:], ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver)
+		enote.BlockIndex = blockIndex
+
 		return &enote
 	}
 }

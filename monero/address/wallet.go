@@ -73,7 +73,7 @@ func (w *ViewWallet) Match(outputs transaction.Outputs, txPubs ...crypto.PublicK
 				continue
 			}
 
-			sharedDataPub.ScalarBaseMult(&sharedDataScalar)
+			sharedDataPub.UnsafeVarTimeScalarBaseMult(&sharedDataScalar)
 
 			_, err = ephemeralPub.SetBytes(out.EphemeralPublicKey[:])
 			if err != nil {

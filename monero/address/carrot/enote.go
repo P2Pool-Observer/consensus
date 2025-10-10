@@ -104,9 +104,29 @@ func makeAmountCommitment(amount uint64, amountBlindingFactor *crypto.PrivateKey
 	return amountCommitment.AsBytes()
 }
 
+var coinbaseAmountBlindingFactor = (&crypto.PrivateKeyBytes{1}).PublicKey().AsPoint().Point()
+
+var generatorHPrecomputedTable = edwards25519.PointTablePrecompute(crypto.GeneratorH)
+
+// makeAmountCommitmentCoinbase Specialized implementation with baked in blinding factor
+// this is faster than makeAmountCommitment, but is specific only for coinbase
+func makeAmountCommitmentCoinbase(amount uint64) crypto.PublicKeyBytes {
+
+	var amountK crypto.PrivateKeyBytes
+	binary.LittleEndian.PutUint64(amountK[:], amount)
+
+	var amountCommitment edwards25519.Point
+	amountCommitment.UnsafeVarTimeScalarMultPrecomputed(amountK.AsScalar().Scalar(), generatorHPrecomputedTable)
+	amountCommitment.Add(&amountCommitment, coinbaseAmountBlindingFactor)
+
+	return crypto.PublicKeyBytes(amountCommitment.Bytes())
+}
+
+var generatorTPrecomputedTable = edwards25519.PointTablePrecompute(crypto.GeneratorT)
+
 // makeOnetimeAddress make_carrot_onetime_address
 func makeOnetimeAddress(hasher *blake2b.Digest, spendPub *crypto.PublicKeyPoint, secretSenderReceiver types.Hash, amountCommitment crypto.PublicKeyBytes) crypto.PublicKeyBytes {
-	var senderExtensionPubkey crypto.PublicKeyPoint
+	var senderExtensionPubkey edwards25519.Point
 	// K^o_ext = k^o_g G + k^o_t T
 	// make_carrot_onetime_address_extension_pubkey
 	{
@@ -126,11 +146,12 @@ func makeOnetimeAddress(hasher *blake2b.Digest, spendPub *crypto.PublicKeyPoint,
 		)
 
 		// K^o_ext = k^o_g G + k^o_t T
-		senderExtensionPubkey.Point().VarTimeDoubleScalarBaseMult(&senderExtensionT, crypto.GeneratorT, &senderExtensionG)
+		// senderExtensionPubkey.Point().VarTimeDoubleScalarBaseMult(&senderExtensionT, crypto.GeneratorT, &senderExtensionG)
+		senderExtensionPubkey.UnsafeVarTimeDoubleScalarBaseMultPrecomputed(&senderExtensionT, generatorTPrecomputedTable, &senderExtensionG)
 	}
 
 	// Ko = K^j_s + K^o_ext
-	return spendPub.Add(&senderExtensionPubkey).AsBytes()
+	return spendPub.Add(crypto.PublicKeyFromPoint(&senderExtensionPubkey)).AsBytes()
 }
 
 // makeViewTag make_carrot_view_tag

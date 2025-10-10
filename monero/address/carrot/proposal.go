@@ -49,84 +49,81 @@ var ErrUnsupportedCoinbasePaymentId = errors.New("integrated addresses aren't al
 var ErrInvalidRandomness = errors.New("invalid randomness for janus anchor (zero)")
 var ErrTwistedReceiver = errors.New("receiver view public key is twisted")
 
-func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex uint64) error {
+// CoinbaseOutputPartial Calculates cacheable partial values
+func (p *PaymentProposalV1) CoinbaseOutputPartial(hasher *blake2b.Digest, inputContext []byte) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey, secretSenderReceiver types.Hash, err error) {
 	if p.Randomness == [monero.JanusAnchorSize]byte{} {
-		return ErrInvalidRandomness
+		return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey, types.ZeroHash, ErrInvalidRandomness
 	}
 	if p.Destination.Address.IsSubaddress() {
 		// TODO :)
-		return ErrUnsupportedCoinbaseSubaddress
+		return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey, types.ZeroHash, ErrUnsupportedCoinbaseSubaddress
 	}
 	if p.Destination.PaymentId != [monero.PaymentIdSize]byte{} {
 		// TODO :)
-		return ErrUnsupportedCoinbasePaymentId
+		return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey, types.ZeroHash, ErrUnsupportedCoinbasePaymentId
 	}
-	var hasher blake2b.Digest
 
-	// 2. coinbase input context
-	inputContext := makeCarrotCoinbaseInputContext(blockIndex)
-
-	var senderReceiverUnctx crypto.X25519PublicKey
 	// 3. make D_e and do external ECDH
-	enote.EphemeralPubKey, senderReceiverUnctx = p.ECDHParts(&hasher, inputContext[:])
+	ephemeralPubkey, senderReceiverUnctx = p.ECDHParts(hasher, inputContext[:])
 
 	// err on twist
 	if senderReceiverUnctx == crypto.ZeroX25519PublicKey {
-		return ErrTwistedReceiver
+		return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey, types.ZeroHash, ErrTwistedReceiver
 	}
 
-	var secretSenderReceiver types.Hash
+	// 4. build the output enote address pieces
+	secretSenderReceiver = makeSenderReceiverSecret(hasher, senderReceiverUnctx, ephemeralPubkey, inputContext[:])
+
+	return ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, nil
+}
+
+func (p *PaymentProposalV1) CoinbaseOutputFromPartial(hasher *blake2b.Digest, enote *CoinbaseEnoteV1, inputContext []byte, ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey, secretSenderReceiver types.Hash) {
+	enote.EphemeralPubKey = ephemeralPubkey
+
 	// 4. build the output enote address pieces
 	{
-		secretSenderReceiver = makeSenderReceiverSecret(&hasher, senderReceiverUnctx, enote.EphemeralPubKey, inputContext[:])
 
 		// 2. get other parts: k_a, C_a, Ko, a_enc, pid_enc
-
 		{
-			var amountBlindingFactorOut crypto.PrivateKeyBytes
-			if true { // coinbase amount commitment
-				// 1. k_a = H_n(s^ctx_sr, a, K^j_s, enote_type) if !coinbase, else 1
-				amountBlindingFactorOut[0] = 1
-			}
-
 			// 2. C_a = k_a G + a H
-			amountCommitmentOut := makeAmountCommitment(p.Amount, amountBlindingFactorOut.AsScalar())
+			amountCommitmentOut := makeAmountCommitmentCoinbase(p.Amount)
 
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			enote.OneTimeAddress = makeOnetimeAddress(&hasher, p.Destination.Address.SpendPublicKey().AsPoint(), secretSenderReceiver, amountCommitmentOut)
-
-			/*
-				// 4. a_enc = a XOR m_a
-				{
-					var mask [8]byte
-					// m_a = H_8(s^ctx_sr, Ko)
-					{
-						transcript := FixedTranscript([]byte(DomainSeparatorEncryptionMaskAmount), enote.OneTimeAddress[:])
-						h := crypto.SecretDerive(transcript)
-						mask = [8]byte(h[:8])
-					}
-					enote.Amount
-				}
-			*/
+			enote.OneTimeAddress = makeOnetimeAddress(hasher, p.Destination.Address.SpendPublicKey().AsPoint(), secretSenderReceiver, amountCommitmentOut)
 		}
 
 		// 3. vt = H_3(s_sr || input_context || Ko)
-		enote.ViewTag = makeViewTag(&hasher, senderReceiverUnctx, inputContext[:], enote.OneTimeAddress)
+		enote.ViewTag = makeViewTag(hasher, senderReceiverUnctx, inputContext, enote.OneTimeAddress)
 	}
 	// 5. anchor_enc = anchor XOR m_anchor
 	{
-		mask := makeAnchorEncryptionMask(&hasher, secretSenderReceiver, enote.OneTimeAddress)
+		mask := makeAnchorEncryptionMask(hasher, secretSenderReceiver, enote.OneTimeAddress)
 		subtle.XORBytes(enote.EncryptedAnchor[:], p.Randomness[:], mask[:])
 	}
 	// 6. save the amount and block index
 	enote.Amount = p.Amount
+}
+
+func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex uint64) (err error) {
+	// 2. coinbase input context
+	inputContext := MakeCarrotCoinbaseInputContext(blockIndex)
+
+	var hasher blake2b.Digest
+
+	ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, err := p.CoinbaseOutputPartial(&hasher, inputContext[:])
+	if err != nil {
+		return err
+	}
+
+	p.CoinbaseOutputFromPartial(&hasher, enote, inputContext[:], ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver)
+
 	enote.BlockIndex = blockIndex
 
 	return nil
 }
 
-// makeCarrotCoinbaseInputContext make_carrot_input_context_coinbase
-func makeCarrotCoinbaseInputContext(blockIndex uint64) (inputContext [1 + types.HashSize]byte) {
+// MakeCarrotCoinbaseInputContext make_carrot_input_context_coinbase
+func MakeCarrotCoinbaseInputContext(blockIndex uint64) (inputContext [1 + types.HashSize]byte) {
 	inputContext[0] = DomainSeparatorInputContextCoinbase
 	binary.LittleEndian.PutUint64(inputContext[1:], blockIndex)
 	// left bytes are 0
