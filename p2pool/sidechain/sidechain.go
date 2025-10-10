@@ -223,7 +223,7 @@ func (c *SideChain) getSeedByHeightFunc() mainblock.GetSeedByHeightFunc {
 	}
 }
 
-func (c *SideChain) GetPossibleUncles(tip *PoolBlock, forHeight uint64) (uncles []types.Hash) {
+func (c *SideChain) GetPossibleUncles(tip *PoolBlock, forHeight uint64) (uncles []*PoolBlock) {
 	minedBlocks := make([]types.Hash, 0, UncleBlockDepth*2+1)
 	tmp := tip
 	c.sidechainLock.RLock()
@@ -266,15 +266,15 @@ func (c *SideChain) GetPossibleUncles(tip *PoolBlock, forHeight uint64) (uncles 
 				}
 				return false
 			}(); sameChain {
-				uncles = append(uncles, uncle.SideTemplateId(c.Consensus()))
+				uncles = append(uncles, uncle)
 			}
 		}
 	}
 
 	if len(uncles) > 0 {
 		// Sort hashes, consensus
-		slices.SortFunc(uncles, func(a, b types.Hash) int {
-			return a.Compare(b)
+		slices.SortFunc(uncles, func(a, b *PoolBlock) int {
+			return a.SideTemplateId(c.Consensus()).Compare(b.SideTemplateId(c.Consensus()))
 		})
 	}
 

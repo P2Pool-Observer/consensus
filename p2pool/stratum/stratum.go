@@ -45,6 +45,7 @@ type ephemeralPubKeyCacheEntry struct {
 type NewTemplateData struct {
 	PreviousTemplateId        types.Hash
 	SideHeight                uint64
+	Weight                    types.Difficulty
 	Difficulty                types.Difficulty
 	CumulativeDifficulty      types.Difficulty
 	TransactionPrivateKeySeed types.Hash
@@ -210,14 +211,24 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			oldPubKeyCache = nil
 		}
 
+		// zero uncles
+		s.newTemplateData.Uncles = s.newTemplateData.Uncles[:0]
+
+		s.newTemplateData.Weight = s.newTemplateData.Difficulty
 		s.newTemplateData.CumulativeDifficulty = s.tip.Side.CumulativeDifficulty.Add(s.newTemplateData.Difficulty)
 
-		s.newTemplateData.Uncles = s.sidechain.GetPossibleUncles(s.tip, s.newTemplateData.SideHeight)
+		for _, u := range s.sidechain.GetPossibleUncles(s.tip, s.newTemplateData.SideHeight) {
+			s.newTemplateData.Uncles = append(s.newTemplateData.Uncles, u.SideTemplateId(s.sidechain.Consensus()))
+			_, unclePenalty := s.sidechain.Consensus().ApplyUnclePenalty(u.Side.Difficulty)
+			s.newTemplateData.Weight = s.newTemplateData.Weight.Add(unclePenalty)
+			s.newTemplateData.CumulativeDifficulty = s.newTemplateData.CumulativeDifficulty.Add(u.Side.Difficulty)
+		}
 	} else {
 		s.newTemplateData.PreviousTemplateId = types.ZeroHash
 		s.newTemplateData.TransactionPrivateKeySeed = s.sidechain.Consensus().Id
 		s.newTemplateData.Difficulty = types.DifficultyFrom64(s.sidechain.Consensus().MinimumDifficulty)
-		s.newTemplateData.CumulativeDifficulty = types.DifficultyFrom64(s.sidechain.Consensus().MinimumDifficulty)
+		s.newTemplateData.Weight = s.newTemplateData.Difficulty
+		s.newTemplateData.CumulativeDifficulty = s.newTemplateData.Difficulty
 	}
 
 	kP := s.sidechain.DerivationCache().GetDeterministicTransactionKey(s.newTemplateData.TransactionPrivateKeySeed, s.minerData.PrevId)
@@ -313,29 +324,31 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 			shares[weightIndex-1] = &sidechain.Share{
 				Address: oldShare.Address,
-				Weight:  oldShare.Weight.Add(s.newTemplateData.Difficulty),
+				Weight:  oldShare.Weight.Add(s.newTemplateData.Weight),
 			}
 		}
 
 		rewards := sidechain.SplitRewardAllocate(maxReward, shares)
 
-		s.newTemplateData.Weights[weightIndex].MaxRewardAmounts = uint64(utils.UVarInt64SliceSize(rewards))
+		weights := &s.newTemplateData.Weights[weightIndex]
+
+		weights.MaxRewardAmounts = uint64(utils.UVarInt64SliceSize(rewards))
 
 		if weightIndex == 0 {
-			tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, s.newTemplateData.Weights[weightIndex].MaxRewardAmounts, false)
+			tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, weights.MaxRewardAmounts, false)
 			if err != nil {
 				return err
 			}
 			coinbaseTransactionWeight = uint64(tx.BufferLength())
 		} else if txWeightNonZeroWithoutRewards == 0 {
-			tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, s.newTemplateData.Weights[weightIndex].MaxRewardAmounts, false)
+			tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, weights.MaxRewardAmounts, false)
 			if err != nil {
 				return err
 			}
 			coinbaseTransactionWeight = uint64(tx.BufferLength())
-			txWeightNonZeroWithoutRewards = coinbaseTransactionWeight - s.newTemplateData.Weights[weightIndex].MaxRewardAmounts
+			txWeightNonZeroWithoutRewards = coinbaseTransactionWeight - weights.MaxRewardAmounts
 		} else {
-			coinbaseTransactionWeight = txWeightNonZeroWithoutRewards + s.newTemplateData.Weights[weightIndex].MaxRewardAmounts
+			coinbaseTransactionWeight = txWeightNonZeroWithoutRewards + weights.MaxRewardAmounts
 		}
 
 		var pickedMempool mempool.Mempool
@@ -375,7 +388,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			txs = pickedTxs[coinbaseTransactionWeight]
 		}
 
-		s.newTemplateData.Weights[weightIndex].Transactions = txs
+		weights.Transactions = txs
 
 		pickedWeight, pickedFees := pickedMempool.WeightAndFees()
 
@@ -387,8 +400,8 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		if finalReward > baseReward+pickedFees {
 			return errors.New("final reward > base reward + fees, should never happen")
 		}
-		s.newTemplateData.Weights[weightIndex].TotalReward = finalReward
-		s.newTemplateData.Weights[weightIndex].CoinbaseTransaction = coinbaseTransactionWeight
+		weights.TotalReward = finalReward
+		weights.CoinbaseTransaction = coinbaseTransactionWeight
 
 		if weightIndex > 0 {
 			// restore
@@ -495,16 +508,16 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 
 		shares := s.newTemplateData.Window.Shares.Clone()
 
-		weightIndex := 0
+		weights := s.newTemplateData.Weights[0]
 
 		// It exists, replace
 		if i := shares.Index(addr); i != -1 {
+			weights = s.newTemplateData.Weights[i]
 			shares[i] = &sidechain.Share{
 				Address: addr,
-				Weight:  shares[i].Weight.Add(shares[s.newTemplateData.Window.ReservedShareIndex].Weight),
+				Weight:  shares[i].Weight.Add(s.newTemplateData.Weight),
 			}
 			shares = slices.Delete(shares, s.newTemplateData.Window.ReservedShareIndex, s.newTemplateData.Window.ReservedShareIndex+1)
-			weightIndex = i
 		} else {
 			// Replace reserved address
 			shares[s.newTemplateData.Window.ReservedShareIndex] = &sidechain.Share{
@@ -526,7 +539,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 				Timestamp:      s.newTemplateData.Timestamp,
 				PreviousId:     s.minerData.PrevId,
 				Nonce:          0,
-				Transactions:   slices.Clone(s.newTemplateData.Weights[weightIndex].Transactions),
+				Transactions:   slices.Clone(weights.Transactions),
 				FCMPTreeLayers: s.minerData.FCMPTreeLayers,
 				FCMPTreeRoot:   s.minerData.FCMPTreeRoot,
 			},
@@ -558,7 +571,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 		// Allocate rewards
 		{
 			preAllocatedRewards := make([]uint64, 0, len(shares))
-			rewards := sidechain.SplitReward(preAllocatedRewards, s.newTemplateData.Weights[weightIndex].TotalReward, shares)
+			rewards := sidechain.SplitReward(preAllocatedRewards, weights.TotalReward, shares)
 
 			if rewards == nil || len(rewards) != len(shares) {
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("could not calculate rewards")
@@ -575,16 +588,16 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 				Nonce:                 nonce,
 			}
 
-			if blockTemplate.Main.Coinbase, err = s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), blockTemplate.GetTransactionOutputType(), shares, rewards, s.newTemplateData.Weights[weightIndex].MaxRewardAmounts, true); err != nil {
+			if blockTemplate.Main.Coinbase, err = s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), blockTemplate.GetTransactionOutputType(), shares, rewards, weights.MaxRewardAmounts, true); err != nil {
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, err
 			}
 
 			minerTx, _ := blockTemplate.Main.Coinbase.MarshalBinary()
-			if uint64(blockTemplate.Main.Coinbase.BufferLength()) != s.newTemplateData.Weights[weightIndex].CoinbaseTransaction {
-				return nil, 0, types.ZeroDifficulty, types.ZeroHash, fmt.Errorf("miner tx size changed after adjusting reward: %d != %d", blockTemplate.Main.Coinbase.BufferLength(), s.newTemplateData.Weights[weightIndex].CoinbaseTransaction)
+			if uint64(blockTemplate.Main.Coinbase.BufferLength()) != weights.CoinbaseTransaction {
+				return nil, 0, types.ZeroDifficulty, types.ZeroHash, fmt.Errorf("miner tx size changed after adjusting reward: %d != %d", blockTemplate.Main.Coinbase.BufferLength(), weights.CoinbaseTransaction)
 			}
-			if uint64(len(minerTx)) != s.newTemplateData.Weights[weightIndex].CoinbaseTransaction {
-				return nil, 0, types.ZeroDifficulty, types.ZeroHash, fmt.Errorf("miner tx size changed after adjusting reward: %d != %d", len(minerTx), s.newTemplateData.Weights[weightIndex].CoinbaseTransaction)
+			if uint64(len(minerTx)) != weights.CoinbaseTransaction {
+				return nil, 0, types.ZeroDifficulty, types.ZeroHash, fmt.Errorf("miner tx size changed after adjusting reward: %d != %d", len(minerTx), weights.CoinbaseTransaction)
 			}
 		}
 
@@ -1476,13 +1489,19 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 
 	mmExtra := jobId.MergeMiningExtra
 
-	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion {
+	shareVersion := tpl.ShareVersion(s.sidechain.Consensus())
+
+	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion && shareVersion >= sidechain.ShareVersion_V3 {
 		// explicitly add old subaddress tagging information before hardfork
 		var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
 		copy(subaddressViewPubBuf[:], c.Subaddress.ViewPublicKey()[:])
 		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 	}
 	mmExtra = mmExtra.Merge(c.MergeMiningExtra)
+
+	if shareVersion < sidechain.ShareVersion_V3 && len(mmExtra) > 0 {
+		return errors.New("unsupported merge mine extra")
+	}
 
 	// todo merkle root with merge mine
 	var templateId types.Hash
@@ -1541,13 +1560,19 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 
 	mmExtra := jobId.MergeMiningExtra
 
-	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion {
+	shareVersion := tpl.ShareVersion(s.sidechain.Consensus())
+
+	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion && shareVersion >= sidechain.ShareVersion_V3 {
 		// explicitly add old subaddress tagging information before hardfork
 		var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
 		copy(subaddressViewPubBuf[:], c.Subaddress.ViewPublicKey()[:])
 		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 	}
 	mmExtra = mmExtra.Merge(c.MergeMiningExtra)
+
+	if shareVersion < sidechain.ShareVersion_V3 && len(mmExtra) > 0 {
+		return errors.New("unsupported merge mine extra")
+	}
 
 	// todo merkle root with merge mine
 	var templateId types.Hash

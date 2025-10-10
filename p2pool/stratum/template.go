@@ -168,6 +168,8 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 				return err
 			}
 		}
+	} else if len(mmExtra) > 0 {
+		return errors.New("merge mining extra not supported")
 	}
 
 	if version >= sidechain.ShareVersion_V2 {
@@ -255,6 +257,8 @@ func (tpl *Template) Blob(preAllocatedBuffer []byte, consensus *sidechain.Consen
 			buf = binary.AppendUvarint(buf, uint64(len(extra.Data)))
 			buf = append(buf, extra.Data[:]...)
 		}
+	} else if len(mmExtra) > 0 {
+		return nil
 	}
 
 	if version >= sidechain.ShareVersion_V2 {
