@@ -239,10 +239,15 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	s.newTemplateData.TransactionPrivateKey = kP.PrivateKey.AsBytes()
 	s.newTemplateData.TransactionPublicKey = kP.PublicKey.AsSlice()
 
+	minorVersion := min(monero.HardForkSupportedVersion, s.minerData.MinorVersion)
+	if minorVersion == 0 {
+		minorVersion = monero.HardForkSupportedVersion
+	}
+
 	fakeTemplateTipBlock := &sidechain.PoolBlock{
 		Main: block.Block{
 			MajorVersion: s.minerData.MajorVersion,
-			MinorVersion: monero.HardForkSupportedVersion,
+			MinorVersion: minorVersion,
 			Timestamp:    s.newTemplateData.Timestamp,
 			PreviousId:   s.minerData.PrevId,
 			Nonce:        0,
@@ -536,10 +541,15 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 			shares = ApplyShuffleMapping(shares, s.newTemplateData.Window.ShuffleMapping)
 		}
 
+		minorVersion := min(monero.HardForkSupportedVersion, s.minerData.MinorVersion)
+		if minorVersion == 0 {
+			minorVersion = monero.HardForkSupportedVersion
+		}
+
 		blockTemplate := &sidechain.PoolBlock{
 			Main: block.Block{
 				MajorVersion:   s.minerData.MajorVersion,
-				MinorVersion:   monero.HardForkSupportedVersion,
+				MinorVersion:   minorVersion,
 				Timestamp:      s.newTemplateData.Timestamp,
 				PreviousId:     s.minerData.PrevId,
 				Nonce:          0,

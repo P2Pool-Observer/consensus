@@ -70,11 +70,17 @@ func getMinerData(rpcClient *client.Client) *p2pooltypes.MinerData {
 	if rpcClient == nil {
 		rpcClient = client.GetDefaultClient()
 	}
+	version, err := rpcClient.GetVersion()
+	if err != nil {
+		return nil
+	}
+
 	if d, err := rpcClient.GetMinerData(); err != nil {
 		return nil
 	} else {
 		return &p2pooltypes.MinerData{
 			MajorVersion:          d.MajorVersion,
+			MinorVersion:          uint8(version.HardForks[len(version.HardForks)-1].Version),
 			Height:                d.Height,
 			PrevId:                d.PrevId,
 			SeedHash:              d.SeedHash,

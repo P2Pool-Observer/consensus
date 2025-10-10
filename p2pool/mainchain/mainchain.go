@@ -30,9 +30,10 @@ const TimestampWindow = 60
 const BlockHeadersRequired = 720
 
 type MainChain struct {
-	p2pool    P2PoolInterface
-	lock      sync.RWMutex
-	sidechain *sidechain.SideChain
+	p2pool       P2PoolInterface
+	minorVersion uint8
+	lock         sync.RWMutex
+	sidechain    *sidechain.SideChain
 
 	highest           uint64
 	mainchainByHeight map[uint64]*sidechain.ChainMain
@@ -55,9 +56,10 @@ type P2PoolInterface interface {
 	UpdateBlockFound(data *sidechain.ChainMain, block *sidechain.PoolBlock)
 }
 
-func NewMainChain(s *sidechain.SideChain, p2pool P2PoolInterface) *MainChain {
+func NewMainChain(s *sidechain.SideChain, p2pool P2PoolInterface, minorVersion uint8) *MainChain {
 	m := &MainChain{
 		sidechain:         s,
+		minorVersion:      minorVersion,
 		p2pool:            p2pool,
 		mainchainByHeight: make(map[uint64]*sidechain.ChainMain, BlockHeadersRequired+3),
 		mainchainByHash:   make(map[types.Hash]*sidechain.ChainMain, BlockHeadersRequired+3),
@@ -164,6 +166,7 @@ func (c *MainChain) Listen() error {
 			zmq.TopicFullMinerData: zmq.DecoderFullMinerData(func(fullMinerData *zmq.FullMinerData) {
 				c.HandleMinerData(&p2pooltypes.MinerData{
 					MajorVersion:          fullMinerData.MajorVersion,
+					MinorVersion:          c.minorVersion,
 					Height:                fullMinerData.Height,
 					PrevId:                fullMinerData.PrevId,
 					SeedHash:              fullMinerData.SeedHash,
