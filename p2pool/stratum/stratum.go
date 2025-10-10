@@ -189,6 +189,10 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		return errors.New("unsupported sidechain version")
 	}
 
+	if !s.newTemplateData.ShareVersion.Supports(s.minerData.MajorVersion) {
+		return fmt.Errorf("unsupported major version %d for sidechain version %d", s.minerData.MajorVersion, uint8(s.newTemplateData.ShareVersion))
+	}
+
 	if s.tip != nil {
 		s.newTemplateData.PreviousTemplateId = s.tip.SideTemplateId(s.sidechain.Consensus())
 		s.newTemplateData.SideHeight = s.tip.Side.Height + 1
@@ -731,6 +735,9 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(shares))
 			for i := range len(shares) {
 				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i])
+				if carrotEnotes[i] == nil {
+					return transaction.CoinbaseTransaction{}, fmt.Errorf("invalid carrot enote at index %d", i)
+				}
 			}
 
 			// sort

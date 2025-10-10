@@ -78,6 +78,9 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 
 		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
 			carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, tmpRewards[workIndex])
+			if carrotEnotes[workIndex] == nil {
+				return fmt.Errorf("invalid carrot enote at index %d", workIndex)
+			}
 			return nil
 		}, nil)
 

@@ -334,7 +334,7 @@ func (b *Block) HashingBlob(preAllocatedBuf []byte) []byte {
 	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
 		merkleTree[reserveOffset][0] = b.FCMPTreeLayers
 		reserveOffset++
-		merkleTree[reserveOffset] = types.Hash(b.FCMPTreeRoot)
+		merkleTree[reserveOffset] = b.FCMPTreeRoot
 		reserveOffset++
 	}
 
