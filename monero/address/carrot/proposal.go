@@ -44,17 +44,22 @@ func (p *PaymentProposalV1) ephemeralPublicKey(key *crypto.PrivateKeyScalar) (ou
 	}
 }
 
+var ErrUnsupportedCoinbaseSubaddress = errors.New("subaddresses aren't allowed as destinations of coinbase outputs")
+var ErrUnsupportedCoinbasePaymentId = errors.New("integrated addresses aren't allowed as destinations of coinbase outputs")
+var ErrInvalidRandomness = errors.New("invalid randomness for janus anchor (zero)")
+var ErrTwistedReceiver = errors.New("receiver view public key is twisted")
+
 func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex uint64) error {
 	if p.Randomness == [monero.JanusAnchorSize]byte{} {
-		return errors.New("invalid randomness for janus anchor (zero)")
+		return ErrInvalidRandomness
 	}
 	if p.Destination.Address.IsSubaddress() {
 		// TODO :)
-		return errors.New("subaddresses aren't allowed as destinations of coinbase outputs")
+		return ErrUnsupportedCoinbaseSubaddress
 	}
 	if p.Destination.PaymentId != [monero.PaymentIdSize]byte{} {
 		// TODO :)
-		return errors.New("integrated addresses aren't allowed as destinations of coinbase outputs")
+		return ErrUnsupportedCoinbasePaymentId
 	}
 	var hasher blake2b.Digest
 
@@ -64,6 +69,11 @@ func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex ui
 	var senderReceiverUnctx crypto.X25519PublicKey
 	// 3. make D_e and do external ECDH
 	enote.EphemeralPubKey, senderReceiverUnctx = p.ECDHParts(&hasher, inputContext[:])
+
+	// err on twist
+	if senderReceiverUnctx == crypto.ZeroX25519PublicKey {
+		return ErrTwistedReceiver
+	}
 
 	var secretSenderReceiver types.Hash
 	// 4. build the output enote address pieces

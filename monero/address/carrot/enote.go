@@ -59,16 +59,16 @@ func makeEnoteEphemeralPublicKeyCryptonote(key *crypto.PrivateKeyScalar) (out cr
 
 // makeUncontextualizedSharedKeyReceiver make_carrot_uncontextualized_shared_key_receiver
 func makeUncontextualizedSharedKeyReceiver(viewPriv crypto.PrivateKeyBytes, ephemeralPubKey crypto.X25519PublicKey) (senderReceiverUnctx crypto.X25519PublicKey) {
-	//TODO: implement checks
-	// s_sr = k_v D_e
 	crypto.X25519ScalarMult(&senderReceiverUnctx, viewPriv, ephemeralPubKey)
 	return senderReceiverUnctx
 }
 
 // makeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
 func makeUncontextualizedSharedKeySender(ephemeralPrivKey crypto.PrivateKeyBytes, viewPub *crypto.PublicKeyPoint) (senderReceiverUnctx crypto.X25519PublicKey) {
-	//TODO: implement checks
-	// TODO is_invalid_or_has_torsion if K^j_v not in prime order subgroup, then FAIL
+	// if K^j_v not in prime order subgroup, then FAIL
+	if viewPub == nil || !viewPub.IsTorsionFree() {
+		return crypto.ZeroX25519PublicKey
+	}
 
 	// s_sr = d_e * ConvertPointE(K^j_v)
 	viewPubkeyX25519 := crypto.ConvertPointE(viewPub.Point())

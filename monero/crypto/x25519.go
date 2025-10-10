@@ -11,6 +11,8 @@ var ZeroX25519PublicKey X25519PublicKey
 
 var X25519Basepoint = X25519PublicKey{9}
 
+// X25519ScalarBaseMult Multiply a Scalar by the Basepoint, and place result in dst
+// This is done by doing it in edwards then converting to Montgomery
 func X25519ScalarBaseMult(dst *X25519PublicKey, s *edwards25519.Scalar) {
 	// X25519ScalarMult(dst, scalar, X25519Basepoint)
 
@@ -20,6 +22,8 @@ func X25519ScalarBaseMult(dst *X25519PublicKey, s *edwards25519.Scalar) {
 	*dst = ConvertPointE(&p)
 }
 
+// X25519ScalarMult Multiply a Scalar by the given point, and place result in dst
+// Note this is done unclamped, compared to common implementations
 func X25519ScalarMult[T1 ~[32]byte](dst *X25519PublicKey, scalar T1, point X25519PublicKey) {
 	var x1, x2, z2, x3, z3, tmp0, tmp1 field.Element
 	// TODO maybe just SetBytes
