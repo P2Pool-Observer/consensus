@@ -151,7 +151,16 @@ type GetVersionResult struct {
 	Release bool   `json:"release"`
 	Version uint64 `json:"version"`
 
+	CurrentHeight uint64          `json:"current_height"`
+	TargetHeight  uint64          `json:"target_height"`
+	HardForks     []HardForkEntry `json:"hard_forks,omitempty"`
+
 	RPCResultFooter `json:",inline"`
+}
+
+type HardForkEntry struct {
+	Version uint64 `json:"hf_version"`
+	Height  uint64 `json:"height"`
 }
 
 // GetBansResult is the result of a call to the GetBans RPC method.

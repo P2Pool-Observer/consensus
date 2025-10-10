@@ -9,6 +9,7 @@ import (
 
 type MinerData struct {
 	MajorVersion          uint8            `json:"major_version"`
+	MinorVersion          uint8            `json:"minor_version,omitempty"`
 	Height                uint64           `json:"height"`
 	PrevId                types.Hash       `json:"prev_id"`
 	SeedHash              types.Hash       `json:"seed_hash"`

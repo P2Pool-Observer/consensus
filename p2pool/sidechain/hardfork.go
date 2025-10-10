@@ -47,7 +47,11 @@ func (v ShareVersion) String() string {
 }
 
 func (v ShareVersion) Supports(majorVersion uint8) bool {
-	return true
+	if v < ShareVersion_V2 && majorVersion >= monero.HardForkCarrotVersion {
+		// requires deterministic transaction keys
+		return false
+	}
+	return majorVersion <= monero.HardForkSupportedVersion
 }
 
 const (
