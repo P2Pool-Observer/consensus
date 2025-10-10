@@ -35,6 +35,27 @@ func (k *PublicKeyPoint) AsBytes() (buf PublicKeyBytes) {
 	return
 }
 
+var identity = edwards25519.NewIdentityPoint()
+
+// IsSmallOrder Determine if this point is of small order.
+// true if it is in the torsion subgroup E[8];
+// false if it is not in the torsion subgroup E[8];
+//
+// See https://github.com/FiloSottile/edwards25519/issues/34
+func (k *PublicKeyPoint) IsSmallOrder() bool {
+	return new(edwards25519.Point).MultByCofactor(k.Point()).Equal(identity) == 1
+}
+
+// IsTorsionFree Determine if this point is “torsion-free”, i.e., is contained in the prime-order subgroup.
+// true if it has zero torsion component and is in the prime-order subgroup;
+// false if it has a nonzero torsion component and is not in the prime-order subgroup.
+//
+// See https://github.com/FiloSottile/edwards25519/issues/33
+func (k *PublicKeyPoint) IsTorsionFree() bool {
+	// TODO efficient implementation in upstream,
+	return true
+}
+
 func (k *PublicKeyPoint) AsPoint() *PublicKeyPoint {
 	return k
 }

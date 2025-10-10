@@ -10,10 +10,10 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519/field"
 )
 
-// l = 2^252 + 27742317777372353535851937790883648493.
-var l = [32]byte{0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}
+// basepointOrder is the order of the Ristretto group and of the Ed25519 basepoint, i.e., l = 2^252 + 27742317777372353535851937790883648493.
+var basepointOrder = [32]byte{0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10}
 
-// limit = l * 15, l fits 15 times in 32 bytes (iow, 15 l is the highest multiple of l that fits in 32 bytes)
+// limit = basepointOrder * 15, basepointOrder fits 15 times in 32 bytes (iow, 15 basepointOrder is the highest multiple of basepointOrder that fits in 32 bytes)
 var limit = [32]byte{0xe3, 0x6a, 0x67, 0x72, 0x8b, 0xce, 0x13, 0x29, 0x8f, 0x30, 0x82, 0x8c, 0x0b, 0xa4, 0x10, 0x39, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0}
 
 func ScalarReduce32_BigInt(s *[32]byte) {
@@ -31,7 +31,7 @@ func ScalarReduce32_BigInt(s *[32]byte) {
 
 // DecodeCompressedPoint Decompress a canonically-encoded Ed25519 point.
 //
-// Ed25519 is of order `8 * l`. This function ensures each of those `8 * l` points have a
+// Ed25519 is of order `8 * basepointOrder`. This function ensures each of those `8 * basepointOrder` points have a
 // singular encoding by checking points aren't encoded with an unreduced field element,
 // and aren't negative when the negative is equivalent (0 == -0).
 //
@@ -69,9 +69,9 @@ func IsLimit32(a [32]byte) bool {
 }
 func IsReduced32(a [32]byte) bool {
 	for n := 31; n >= 0; n-- {
-		if a[n] < l[n] {
+		if a[n] < basepointOrder[n] {
 			return true
-		} else if a[n] > l[n] {
+		} else if a[n] > basepointOrder[n] {
 			return false
 		}
 	}
@@ -101,7 +101,7 @@ func ScalarReduce32_Wide(s *[32]byte) {
 
 // ScalarReduce32
 // also called sc_reduce32
-// 256-bit s integer modulo l
+// 256-bit s integer modulo basepointOrder
 // equivalent to ScalarReduce32_BigInt
 // equivalent to ScalarReduce32_Wide
 //
