@@ -780,9 +780,9 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 				copy(k[:], shares[outputIndex].Address.PackedAddress().Bytes())
 				binary.LittleEndian.PutUint64(k[crypto.PublicKeySize*2:], outputIndex)
 				if e, ok := s.newTemplateData.Window.EphemeralPubKeyCache[k]; ok {
-					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = e.PublicKey, e.ViewTag
+					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag[0] = e.PublicKey, e.ViewTag
 				} else {
-					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
+					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag[0] = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
 				}
 			}
 		}

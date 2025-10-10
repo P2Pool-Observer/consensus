@@ -69,7 +69,7 @@ func (w *ViewWallet) Match(outputs transaction.Outputs, txPubs ...crypto.PublicK
 		derivation := w.viewKeyBytes.GetDerivationCofactor(&pub).AsBytes()
 		for _, out := range outputs {
 			viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedDataScalar, derivation, out.Index)
-			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag {
+			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag[0] {
 				continue
 			}
 
