@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 )
 
-func TestShuffleMapping(t *testing.T) {
+func TestShuffleMappingV2(t *testing.T) {
 	const n = 16
-	// Shuffle only exists on ShareVersion_V2 and above
-	// TODO: whenever different consensus shuffle is added, add test for it
+	// Shuffle only exists on ShareVersion_V2 and above, up to carrot
 	const shareVersion = sidechain.ShareVersion_V2
-	var seed = zeroExtraBaseRCTHash
+	var seed = crypto.Keccak256("test")
 	mappings := BuildShuffleMapping(n, monero.HardForkViewTagsVersion, shareVersion, seed, ShuffleMapping{})
 
 	seq := make([]int, n)
@@ -38,5 +38,50 @@ func TestShuffleMapping(t *testing.T) {
 
 		t.Fatal()
 	}
+}
 
+func TestShuffleMappingCarrot(t *testing.T) {
+	const n = 16
+	// Shuffle only exists on ShareVersion_V2 and above
+	const shareVersion = sidechain.ShareVersion_V3
+	var seed = crypto.Keccak256("test")
+	mappings := BuildShuffleMapping(n, monero.HardForkCarrotVersion, shareVersion, seed, ShuffleMapping{})
+
+	seq := make([]int, n)
+	for i := range seq {
+		seq[i] = i
+	}
+
+	seq1 := slices.Clone(seq)
+
+	// unsorted, as shares must be in Carrot
+	seq3 := slices.Clone(seq)
+
+	//test that regular shuffle will correspond to a mapping applied shuffle
+	sidechain.ShuffleShares(seq1, monero.HardForkCarrotVersion, shareVersion, seed)
+	seq2 := ApplyShuffleMapping(seq, mappings)
+
+	if slices.Compare(seq1, seq2) != 0 {
+		for i := range seq1 {
+			if seq1[i] != seq2[i] {
+				t.Logf("%d %d *** @ %d", seq1[i], seq2[i], i)
+			} else {
+				t.Logf("%d %d @ %d", seq1[i], seq2[i], i)
+			}
+		}
+
+		t.Fatal()
+	}
+
+	if slices.Compare(seq1, seq3) != 0 {
+		for i := range seq1 {
+			if seq1[i] != seq3[i] {
+				t.Logf("%d %d *** @ %d", seq1[i], seq3[i], i)
+			} else {
+				t.Logf("%d %d @ %d", seq1[i], seq3[i], i)
+			}
+		}
+
+		t.Fatal()
+	}
 }

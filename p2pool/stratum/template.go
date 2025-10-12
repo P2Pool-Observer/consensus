@@ -64,65 +64,65 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 	var uint32Buf [4]byte
 
 	// write main data just before nonce
-	if _, err := writer.Write(tpl.Buffer[:tpl.NonceOffset]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, tpl.Buffer[:tpl.NonceOffset]); err != nil {
 		return err
 	}
 
 	binary.LittleEndian.PutUint32(uint32Buf[:], nonce)
-	if _, err := writer.Write(uint32Buf[:]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, uint32Buf[:]); err != nil {
 		return err
 	}
 
 	// write main data just before extra nonce in coinbase
-	if _, err := writer.Write(tpl.Buffer[tpl.NonceOffset+4 : tpl.ExtraNonceOffset]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.NonceOffset+4:tpl.ExtraNonceOffset]); err != nil {
 		return err
 	}
 
 	binary.LittleEndian.PutUint32(uint32Buf[:], extraNonce)
-	if _, err := writer.Write(uint32Buf[:]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, uint32Buf[:]); err != nil {
 		return err
 	}
 
 	// write remaining main data, then write side data just before merge mining tag in coinbase
-	if _, err := writer.Write(tpl.Buffer[tpl.ExtraNonceOffset+4 : tpl.MerkleRootOffset]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.ExtraNonceOffset+4:tpl.MerkleRootOffset]); err != nil {
 		return err
 	}
 
-	if _, err := writer.Write(merkleRoot[:]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, merkleRoot[:]); err != nil {
 		return err
 	}
 
 	// write main data and side data up to the start of side data
-	if _, err := writer.Write(tpl.Buffer[tpl.MerkleRootOffset+types.HashSize : tpl.TemplateSideDataOffset]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.MerkleRootOffset+types.HashSize:tpl.TemplateSideDataOffset]); err != nil {
 		return err
 	}
 
-	if _, err := writer.Write(addr.SpendPublicKey()[:]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, addr.SpendPublicKey()[:]); err != nil {
 		return err
 	}
 
-	if _, err := writer.Write(addr.ViewPublicKey()[:]); err != nil {
+	if _, err := utils.WriteNoEscape(writer, addr.ViewPublicKey()[:]); err != nil {
 		return err
 	}
 
 	if tpl.MajorVersion() >= monero.HardForkCarrotVersion {
 		if addr.IsSubaddress() {
-			if _, err := writer.Write([]byte{1}); err != nil {
+			if _, err := utils.WriteNoEscape(writer, []byte{1}); err != nil {
 				return err
 			}
 		} else {
-			if _, err := writer.Write([]byte{0}); err != nil {
+			if _, err := utils.WriteNoEscape(writer, []byte{0}); err != nil {
 				return err
 			}
 		}
 
 		// side data up to the end of side data
-		if _, err := writer.Write(tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2+1:]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2+1:]); err != nil {
 			return err
 		}
 	} else {
 		// side data up to the end of side data
-		if _, err := writer.Write(tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2:]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2:]); err != nil {
 			return err
 		}
 	}
@@ -133,12 +133,12 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 			return errors.New("merkle proof too large")
 		}
 		uint32Buf[0] = uint8(len(merkleProof))
-		if _, err := writer.Write(uint32Buf[:1]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, uint32Buf[:1]); err != nil {
 			return err
 		}
 
 		for _, e := range merkleProof {
-			if _, err := writer.Write(e[:]); err != nil {
+			if _, err := utils.WriteNoEscape(writer, e[:]); err != nil {
 				return err
 			}
 		}
@@ -147,12 +147,12 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 			return errors.New("merge mining extra too large")
 		}
 		n := binary.PutUvarint(uint32Buf[:], uint64(len(mmExtra)))
-		if _, err := writer.Write(uint32Buf[:n]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, uint32Buf[:n]); err != nil {
 			return err
 		}
 
 		for _, extra := range mmExtra {
-			if _, err := writer.Write(extra.ChainId[:]); err != nil {
+			if _, err := utils.WriteNoEscape(writer, extra.ChainId[:]); err != nil {
 				return err
 			}
 
@@ -161,10 +161,10 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 			}
 
 			n = binary.PutUvarint(uint32Buf[:], uint64(len(extra.Data)))
-			if _, err := writer.Write(uint32Buf[:n]); err != nil {
+			if _, err := utils.WriteNoEscape(writer, uint32Buf[:n]); err != nil {
 				return err
 			}
-			if _, err := writer.Write(extra.Data[:]); err != nil {
+			if _, err := utils.WriteNoEscape(writer, extra.Data[:]); err != nil {
 				return err
 			}
 		}
@@ -174,22 +174,22 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 
 	if version >= sidechain.ShareVersion_V2 {
 		binary.LittleEndian.PutUint32(uint32Buf[:], uint32(softwareId))
-		if _, err := writer.Write(uint32Buf[:]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, uint32Buf[:]); err != nil {
 			return err
 		}
 
 		binary.LittleEndian.PutUint32(uint32Buf[:], uint32(softwareVersion))
-		if _, err := writer.Write(uint32Buf[:]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, uint32Buf[:]); err != nil {
 			return err
 		}
 
 		binary.LittleEndian.PutUint32(uint32Buf[:], sideRandomNumber)
-		if _, err := writer.Write(uint32Buf[:]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, uint32Buf[:]); err != nil {
 			return err
 		}
 
 		binary.LittleEndian.PutUint32(uint32Buf[:], sideExtraNonce)
-		if _, err := writer.Write(uint32Buf[:]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, uint32Buf[:]); err != nil {
 			return err
 		}
 	}
@@ -330,7 +330,7 @@ func (tpl *Template) CoinbaseBlobId(preAllocatedBuffer []byte, extraNonce uint32
 	hasher.Hash(result)
 	hasher.Reset()
 
-	CoinbaseIdHash(hasher, *result, result)
+	CoinbaseTransactionIdHash(result, hasher, *result)
 }
 
 func (tpl *Template) CoinbaseId(hasher crypto.KeccakHasher, extraNonce uint32, merkleRoot types.Hash, result *types.Hash) {
@@ -351,18 +351,18 @@ func (tpl *Template) CoinbaseId(hasher crypto.KeccakHasher, extraNonce uint32, m
 	hasher.Hash(result)
 	hasher.Reset()
 
-	CoinbaseIdHash(hasher, *result, result)
+	CoinbaseTransactionIdHash(result, hasher, *result)
 }
 
 var zeroExtraBaseRCTHash = crypto.Keccak256([]byte{0})
 
-func CoinbaseIdHash(hasher crypto.KeccakHasher, coinbaseBlobMinusBaseRTC types.Hash, result *types.Hash) {
+func CoinbaseTransactionIdHash(dst *types.Hash, hasher crypto.KeccakHasher, coinbaseBlobMinusBaseRTC types.Hash) {
 	_, _ = hasher.Write(coinbaseBlobMinusBaseRTC[:])
 	// Base RCT, single 0 byte in miner tx
 	_, _ = hasher.Write(zeroExtraBaseRCTHash[:])
 	// Prunable RCT, empty in miner tx
 	_, _ = hasher.Write(types.ZeroHash[:])
-	hasher.Hash(result)
+	hasher.Hash(dst)
 	hasher.Reset()
 }
 
