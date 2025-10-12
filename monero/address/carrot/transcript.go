@@ -6,7 +6,7 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
-// HashedTranscript Equivalent to H_b(FixedTranscript(...))
+// HashedTranscript Equivalent to H_b(key, Transcript(...))
 func HashedTranscript[S ~[]byte](dst S, hasher *blake2b.Digest, key []byte, domainSeparator []byte, args ...[]byte) {
 	_ = hasher.Init(len(dst), key, nil, nil)
 
@@ -19,7 +19,7 @@ func HashedTranscript[S ~[]byte](dst S, hasher *blake2b.Digest, key []byte, doma
 	hasher.Sum(dst[:0])
 }
 
-// ScalarTranscript Equivalent to crypto.ScalarDerive(key, H_64(FixedTranscript(...)))
+// ScalarTranscript Equivalent to crypto.ScalarDerive(key, Transcript(...))
 func ScalarTranscript(dst *edwards25519.Scalar, hasher *blake2b.Digest, key []byte, domainSeparator []byte, args ...[]byte) {
 	var h [blake2b.Size]byte
 	HashedTranscript(h[:], hasher, key, domainSeparator, args...)
