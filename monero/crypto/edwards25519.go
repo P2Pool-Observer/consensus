@@ -368,6 +368,7 @@ func elligator2WithUniformBytes(dst *edwards25519.Point, buf [32]byte) *edwards2
 	   Check if `\upsilon` is a valid `u` coordinate by checking for a solution for the square root
 	   of `\upsilon^3 + A \upsilon^2 + \upsilon`.
 	*/
+	// TODO: replace this with field.Element.Sqrt
 	_, epsilon := tmp3.SqrtRatio(
 		tmp3.Add(
 			tmp3.Multiply(
@@ -429,14 +430,19 @@ var (
 	//       input bytes as a compressed point (this can fail, so should not be used generically)
 	// note2: to_point(keccak(G)) is known to succeed for the canonical value of G (it will fail 7/8ths of the time
 	//        normally)
+	//
+	// Contrary to convention (`G` for values, `H` for randomness), `H` is used by Monero for amounts within Pedersen commitments
 	GeneratorH = HopefulHashToPoint(new(edwards25519.Point), GeneratorG.Bytes())
 
 	// GeneratorT H_p^2(Keccak256("Monero Generator T"))
+	// Used to blind the key-image commitment present within output keys
 	GeneratorT = UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero Generator T"))
 
 	// GeneratorU H_p^2(Keccak256("Monero FCMP++ Generator U"))
+	// FCMP++s's key-image generator blinding generator U
 	GeneratorU = UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero FCMP++ Generator U"))
 
 	// GeneratorV H_p^2(Keccak256("Monero FCMP++ Generator V"))
+	// FCMP++s's randomness commitment generator V
 	GeneratorV = UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero FCMP++ Generator V"))
 )

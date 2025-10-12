@@ -61,16 +61,17 @@ func GetKeyImage(pair *KeyPair) PublicKey {
 }
 
 // SecretDeriveN As defined in Carrot = SecretDerive(x) = H_n(x)
-func SecretDeriveN(n int, key []byte, data ...[]byte) []byte {
-	hasher, _ := blake2b.New(n, key)
+func SecretDeriveN[S ~[]byte](dst S, key []byte, data []byte, args ...[]byte) {
+	hasher, _ := blake2b.NewDigest(len(dst), key, nil, nil)
 	if hasher == nil {
 		panic("unreachable")
 	}
-	for _, b := range data {
-		_, _ = utils.WriteNoEscape(hasher, b)
+	_, _ = hasher.Write(data)
+	for _, b := range args {
+		_, _ = hasher.Write(b)
 	}
-	h := make([]byte, n)
-	return utils.SumNoEscape(hasher, h[:0])
+
+	hasher.Sum(dst[:0])
 }
 
 // SecretDerive As defined in Carrot = SecretDerive(x) = H_32(x)
