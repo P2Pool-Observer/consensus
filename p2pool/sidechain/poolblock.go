@@ -204,7 +204,7 @@ func (b *PoolBlock) iteratorUncles(getByTemplateId GetByTemplateIdFunc, uncleFun
 		for _, uncleId := range b.Side.Uncles {
 			uncle := getByTemplateId(uncleId)
 			if uncle == nil {
-				return fmt.Errorf("could not find uncle %x", uncleId.Slice())
+				return utils.ErrorfNoEscape("could not find uncle %x", uncleId.Slice())
 			}
 			uncleFunc(uncle)
 		}
@@ -395,7 +395,8 @@ func (b *PoolBlock) CoinbaseExtra(tag CoinbaseExtraTag) []byte {
 					return nil
 				}
 
-				return mergeMiningTag.RootHash[:]
+				// we can return data directly from end
+				return t.Data[len(t.Data)-types.HashSize:]
 			} else {
 				if t.VarInt != types.HashSize || len(t.Data) != types.HashSize {
 					return nil
@@ -667,7 +668,7 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 		return errors.New("no specified outputs")
 	}
 	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.NetworkType.MustAddressNetwork(), b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
-		return fmt.Errorf("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
+		return utils.ErrorfNoEscape("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
 	}
 
 	if b.CachedShareVersion == ShareVersion_None {
@@ -777,7 +778,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 		if outputBlob, err := b.Main.Coinbase.Outputs.AppendBinary(make([]byte, 0, b.Main.Coinbase.Outputs.BufferLength())); err != nil {
 			return nil, fmt.Errorf("error filling outputs for block: %s", err)
 		} else if uint64(len(outputBlob)) != b.Main.Coinbase.AuxiliaryData.OutputsBlobSize {
-			return nil, fmt.Errorf("error filling outputs for block: invalid output blob size, got %d, expected %d", b.Main.Coinbase.AuxiliaryData.OutputsBlobSize, len(outputBlob))
+			return nil, utils.ErrorfNoEscape("error filling outputs for block: invalid output blob size, got %d, expected %d", b.Main.Coinbase.AuxiliaryData.OutputsBlobSize, len(outputBlob))
 		}
 	}
 

@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"io"
 	"math"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -83,11 +81,11 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, conta
 	buf = preAllocatedBuf
 
 	if b.MajorVersion > monero.HardForkSupportedVersion {
-		return nil, fmt.Errorf("unsupported version %d", b.MajorVersion)
+		return nil, utils.ErrorfNoEscape("unsupported version %d", b.MajorVersion)
 	}
 
 	if b.MinorVersion < b.MajorVersion {
-		return nil, fmt.Errorf("minor version %d smaller than major %d", b.MinorVersion, b.MajorVersion)
+		return nil, utils.ErrorfNoEscape("minor version %d smaller than major %d", b.MinorVersion, b.MajorVersion)
 	}
 
 	buf = binary.AppendUvarint(buf, uint64(b.MajorVersion))
@@ -158,7 +156,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 	}
 
 	if b.MajorVersion > monero.HardForkSupportedVersion {
-		return fmt.Errorf("unsupported version %d", b.MajorVersion)
+		return utils.ErrorfNoEscape("unsupported version %d", b.MajorVersion)
 	}
 
 	if b.MinorVersion, err = reader.ReadByte(); err != nil {
@@ -166,18 +164,18 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 	}
 
 	if b.MinorVersion < b.MajorVersion {
-		return fmt.Errorf("minor version %d smaller than major version %d", b.MinorVersion, b.MajorVersion)
+		return utils.ErrorfNoEscape("minor version %d smaller than major version %d", b.MinorVersion, b.MajorVersion)
 	}
 
 	if b.MinorVersion > 127 {
-		return fmt.Errorf("minor version %d larger than maximum byte varint size", b.MinorVersion)
+		return utils.ErrorfNoEscape("minor version %d larger than maximum byte varint size", b.MinorVersion)
 	}
 
 	if b.Timestamp, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 
-	if _, err = io.ReadFull(reader, b.PreviousId[:]); err != nil {
+	if _, err = utils.ReadFullNoEscape(reader, b.PreviousId[:]); err != nil {
 		return err
 	}
 
@@ -204,7 +202,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return err
 	} else if txCount > MaxTransactionCount {
 		//TODO: #define CRYPTONOTE_MAX_TX_PER_BLOCK                     0x10000000
-		return fmt.Errorf("transaction count count too large: %d > %d", txCount, MaxTransactionCount)
+		return utils.ErrorfNoEscape("transaction count count too large: %d > %d", txCount, MaxTransactionCount)
 	} else if txCount > 0 {
 		if compact {
 			// preallocate with soft cap
@@ -219,7 +217,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 
 				if parentIndex == 0 {
 					//not in lookup
-					if _, err = io.ReadFull(reader, transactionHash[:]); err != nil {
+					if _, err = utils.ReadFullNoEscape(reader, transactionHash[:]); err != nil {
 						return err
 					}
 
@@ -235,7 +233,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 			b.Transactions = make([]types.Hash, 0, min(8192, txCount))
 
 			for i := 0; i < int(txCount); i++ {
-				if _, err = io.ReadFull(reader, transactionHash[:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, transactionHash[:]); err != nil {
 					return err
 				}
 				b.Transactions = append(b.Transactions, transactionHash)
@@ -248,9 +246,9 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 			return err
 		}
 		if b.FCMPTreeLayers > FCMPPlusPlusMaxLayers {
-			return fmt.Errorf("FCMP++ layer count too large: %d > %d", b.FCMPTreeLayers, FCMPPlusPlusMaxLayers)
+			return utils.ErrorfNoEscape("layer count for FCMP++ too large: %d > %d", b.FCMPTreeLayers, FCMPPlusPlusMaxLayers)
 		}
-		if _, err = io.ReadFull(reader, b.FCMPTreeRoot[:]); err != nil {
+		if _, err = utils.ReadFullNoEscape(reader, b.FCMPTreeRoot[:]); err != nil {
 			return err
 		}
 	}

@@ -8,7 +8,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
-	mainblock "git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
@@ -78,6 +77,7 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 		return err
 	}
 
+	// TODO: support larger extra nonce
 	binary.LittleEndian.PutUint32(uint32Buf[:], extraNonce)
 	if _, err := utils.WriteNoEscape(writer, uint32Buf[:]); err != nil {
 		return err
@@ -215,20 +215,8 @@ func (tpl *Template) Blob(preAllocatedBuffer []byte, consensus *sidechain.Consen
 	// Overwrite nonce
 	binary.LittleEndian.PutUint32(buf[tpl.NonceOffset:], nonce)
 
-	// sidechain hash
-	if merkleRoot == types.ZeroHash && tpl.MajorVersion() >= monero.HardForkCarrotVersion {
-		if tpl.MajorVersion() >= monero.HardForkCarrotVersion {
-			// Overwrite extra nonce: TODO: allow more bytes
-			binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset:], extraNonce)
-			// Overwrite template id: TODO
-			copy(buf[tpl.MerkleRootOffset:], merkleRoot[:])
-		}
-	} else {
-		// Overwrite extra nonce
-		binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset:], extraNonce)
-		// Overwrite template id
-		copy(buf[tpl.MerkleRootOffset:], merkleRoot[:])
-	}
+	// create coinbase tx
+	tpl.CoinbaseBlobData(buf[tpl.CoinbaseOffset:], extraNonce, merkleRoot)
 
 	version := tpl.ShareVersion(consensus)
 
@@ -285,14 +273,6 @@ func (tpl *Template) TemplateId(preAllocatedBuffer []byte, consensus *sidechain.
 	hasher.Reset()
 }
 
-func (tpl *Template) MainBlock() (b mainblock.Block, err error) {
-	err = b.UnmarshalBinary(tpl.Buffer, false, nil)
-	if err != nil {
-		return b, err
-	}
-	return b, nil
-}
-
 func (tpl *Template) MajorVersion() uint64 {
 	t, _ := utils.CanonicalUvarint(tpl.Buffer)
 	return t
@@ -314,12 +294,24 @@ func (tpl *Template) CoinbaseBufferLength() int {
 func (tpl *Template) CoinbaseBlob(preAllocatedBuffer []byte, extraNonce uint32, merkleRoot types.Hash) []byte {
 	buf := append(preAllocatedBuffer, tpl.Buffer[tpl.CoinbaseOffset:tpl.TransactionsOffset]...)
 
-	// Overwrite extra nonce
-	binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset-tpl.CoinbaseOffset:], extraNonce)
-	// Overwrite merkle root
-	copy(buf[tpl.MerkleRootOffset-tpl.CoinbaseOffset:], merkleRoot[:])
+	tpl.CoinbaseBlobData(buf, extraNonce, merkleRoot)
 
 	return buf
+}
+
+func (tpl *Template) CoinbaseBlobData(buf []byte, extraNonce uint32, merkleRoot types.Hash) {
+	// sidechain hash
+	if merkleRoot == types.ZeroHash && tpl.MajorVersion() >= monero.HardForkCarrotVersion {
+		// Overwrite extra nonce bytes with zero??: TODO: allow more bytes
+		binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset-tpl.CoinbaseOffset:], extraNonce)
+		// Overwrite merkle root: TODO
+		copy(buf[tpl.MerkleRootOffset-tpl.CoinbaseOffset:], merkleRoot[:])
+	} else {
+		// Overwrite extra nonce
+		binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset-tpl.CoinbaseOffset:], extraNonce)
+		// Overwrite merkle root
+		copy(buf[tpl.MerkleRootOffset-tpl.CoinbaseOffset:], merkleRoot[:])
+	}
 }
 
 func (tpl *Template) CoinbaseBlobId(preAllocatedBuffer []byte, extraNonce uint32, templateId types.Hash, result *types.Hash) {
@@ -476,7 +468,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 	tpl.Buffer = buf[:len(buf)-bufOffset]
 
 	// Set places to zeroes where necessary
-	tpl.Buffer = tpl.Blob(make([]byte, 0, len(buf)), consensus, b.GetConsensusPackedAddress(uint8(tpl.MajorVersion())), 0, 0, 0, 0, types.ZeroHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, 0, 0)[:len(buf)-bufOffset]
+	tpl.Buffer = tpl.Blob(buf[:0], consensus, b.GetConsensusPackedAddress(uint8(tpl.MajorVersion())), 0, 0, 0, 0, types.ZeroHash, b.Side.MerkleProof, b.Side.MergeMiningExtra, 0, 0)[:len(buf)-bufOffset]
 
 	{
 		reserve := 1

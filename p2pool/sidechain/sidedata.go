@@ -112,7 +112,7 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, majorVersion uint8, vers
 	if version >= ShareVersion_V3 {
 		// merkle proof
 		if len(b.MerkleProof) > merge_mining.MaxChainsLog2 {
-			return nil, fmt.Errorf("merkle proof too large: %d > %d", len(b.MerkleProof), merge_mining.MaxChainsLog2)
+			return nil, utils.ErrorfNoEscape("merkle proof too large: %d > %d", len(b.MerkleProof), merge_mining.MaxChainsLog2)
 		}
 		buf = append(buf, uint8(len(b.MerkleProof)))
 		for _, h := range b.MerkleProof {
@@ -121,7 +121,7 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, majorVersion uint8, vers
 
 		// merge mining extra
 		if len(b.MergeMiningExtra) > merge_mining.MaxChains {
-			return nil, fmt.Errorf("merge mining extra size too big: %d > %d", len(b.MergeMiningExtra), merge_mining.MaxChains)
+			return nil, utils.ErrorfNoEscape("merge mining extra size too big: %d > %d", len(b.MergeMiningExtra), merge_mining.MaxChains)
 		}
 		buf = binary.AppendUvarint(buf, uint64(len(b.MergeMiningExtra)))
 		for i := range b.MergeMiningExtra {
@@ -165,7 +165,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 		}
 		// ensure value can only be 0 or 1
 		if isSubaddress > 1 {
-			return fmt.Errorf("invalid isSubaddress: %d > 1", isSubaddress)
+			return utils.ErrorfNoEscape("invalid isSubaddress: %d > 1", isSubaddress)
 		}
 		b.IsSubaddress = isSubaddress == 1
 	}
@@ -189,13 +189,13 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 	if uncleCount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	} else if uncleCount > MaxUncleCount {
-		return fmt.Errorf("uncle count too large: %d > %d", uncleCount, MaxUncleCount)
+		return utils.ErrorfNoEscape("uncle count too large: %d > %d", uncleCount, MaxUncleCount)
 	} else if uncleCount > 0 {
 		// preallocate for append, with 64 as soft limit
 		b.Uncles = make([]types.Hash, 0, min(64, uncleCount))
 
 		for i := 0; i < int(uncleCount); i++ {
-			if _, err = io.ReadFull(reader, uncleHash[:]); err != nil {
+			if _, err = utils.ReadFullNoEscape(reader, uncleHash[:]); err != nil {
 				return err
 			}
 			b.Uncles = append(b.Uncles, uncleHash)
@@ -207,7 +207,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 	}
 
 	if b.Height > PoolBlockMaxSideChainHeight {
-		return fmt.Errorf("side block height too high (%d > %d)", b.Height, PoolBlockMaxSideChainHeight)
+		return utils.ErrorfNoEscape("side block height too high (%d > %d)", b.Height, PoolBlockMaxSideChainHeight)
 	}
 
 	{
@@ -231,7 +231,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 	}
 
 	if b.CumulativeDifficulty.Cmp(PoolBlockMaxCumulativeDifficulty) > 0 {
-		return fmt.Errorf("side block cumulative difficulty too large (%s > %s)", b.CumulativeDifficulty.StringNumeric(), PoolBlockMaxCumulativeDifficulty.StringNumeric())
+		return utils.ErrorfNoEscape("side block cumulative difficulty too large (%s > %s)", b.CumulativeDifficulty.StringNumeric(), PoolBlockMaxCumulativeDifficulty.StringNumeric())
 	}
 
 	// Read merkle proof list of hashes. Only on ShareVersion_V3 and above
@@ -239,7 +239,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 		if merkleProofSize, err = reader.ReadByte(); err != nil {
 			return err
 		} else if merkleProofSize > merge_mining.MaxChainsLog2 {
-			return fmt.Errorf("merkle proof too large: %d > %d", merkleProofSize, merge_mining.MaxChainsLog2)
+			return utils.ErrorfNoEscape("merkle proof too large: %d > %d", merkleProofSize, merge_mining.MaxChainsLog2)
 		} else if merkleProofSize > 0 {
 			// preallocate
 			b.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
@@ -254,7 +254,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 		if mergeMiningExtraSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else if mergeMiningExtraSize > merge_mining.MaxChains {
-			return fmt.Errorf("merge mining data too big: %d > %d", mergeMiningExtraSize, merge_mining.MaxChains)
+			return utils.ErrorfNoEscape("merge mining data too big: %d > %d", mergeMiningExtraSize, merge_mining.MaxChains)
 		} else if mergeMiningExtraSize > 0 {
 			// preallocate
 			b.MergeMiningExtra = make(MergeMiningExtra, mergeMiningExtraSize)
@@ -264,11 +264,11 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 					return err
 				} else if i > 0 && b.MergeMiningExtra[i-1].ChainId.Compare(b.MergeMiningExtra[i].ChainId) >= 0 {
 					// IDs must be ordered to avoid duplicates
-					return fmt.Errorf("duplicate or not ordered merge mining data chain id: %s > %s", b.MergeMiningExtra[i-1].ChainId, b.MergeMiningExtra[i].ChainId)
+					return utils.ErrorfNoEscape("duplicate or not ordered merge mining data chain id: %s > %s", b.MergeMiningExtra[i-1].ChainId, b.MergeMiningExtra[i].ChainId)
 				} else if mergeMiningExtraDataSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
 					return err
 				} else if mergeMiningExtraDataSize > PoolBlockMaxTemplateSize {
-					return fmt.Errorf("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, PoolBlockMaxTemplateSize)
+					return utils.ErrorfNoEscape("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, PoolBlockMaxTemplateSize)
 				} else if mergeMiningExtraDataSize > 0 {
 					b.MergeMiningExtra[i].Data = make(types.Bytes, mergeMiningExtraDataSize)
 					if _, err = io.ReadFull(reader, b.MergeMiningExtra[i].Data); err != nil {
@@ -279,7 +279,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 				// field no longer allowed (use subaddress bool)
 				// TODO: maybe just ignore field but allow it?
 				if majorVersion >= monero.HardForkCarrotVersion && b.MergeMiningExtra[i].ChainId == ExtraChainKeySubaddressViewPub {
-					return fmt.Errorf("subaddress_viewpub is not allowed")
+					return utils.ErrorfNoEscape("subaddress_viewpub is not allowed")
 				}
 			}
 		}
