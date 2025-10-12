@@ -37,7 +37,7 @@ func (k KeccakHasher) Hash(h *types.Hash) {
 }
 
 func (k KeccakHasher) Reset() {
-	k.h.Reset()
+	utils.ResetNoEscape(k.h)
 }
 
 func (k KeccakHasher) Size() int {
@@ -74,6 +74,14 @@ func Keccak256[T ~string | ~[]byte](data T) (result types.Hash) {
 	_, _ = utils.ReadNoEscape(h, result[:types.HashSize])
 
 	return
+}
+
+func TransactionIdHash(dst *types.Hash, coinbaseBlobMinusBaseRTC, baseRTC, prunableRTC types.Hash) {
+	h := newKeccak256()
+	_, _ = utils.WriteNoEscape(h, coinbaseBlobMinusBaseRTC[:])
+	_, _ = utils.WriteNoEscape(h, baseRTC[:])
+	_, _ = utils.WriteNoEscape(h, prunableRTC[:])
+	_, _ = utils.ReadNoEscape(h, dst[:])
 }
 
 // HopefulHashToPoint
