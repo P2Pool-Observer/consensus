@@ -3,8 +3,6 @@ package transaction
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
-	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
@@ -39,7 +37,7 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 
 			switch o.Type {
 			case TxOutToTaggedKey, TxOutToKey:
-				if _, err = io.ReadFull(reader, o.EphemeralPublicKey[:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, o.EphemeralPublicKey[:]); err != nil {
 					return err
 				}
 
@@ -51,17 +49,17 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 					o.ViewTag[0] = 0
 				}
 			case TxOutToCarrotV1:
-				if _, err = io.ReadFull(reader, o.EphemeralPublicKey[:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, o.EphemeralPublicKey[:]); err != nil {
 					return err
 				}
-				if _, err = io.ReadFull(reader, o.ViewTag[:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, o.ViewTag[:]); err != nil {
 					return err
 				}
-				if _, err = io.ReadFull(reader, o.EncryptedJanusAnchor[:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, o.EncryptedJanusAnchor[:]); err != nil {
 					return err
 				}
 			default:
-				return fmt.Errorf("unknown %d TXOUT key", o.Type)
+				return utils.ErrorfNoEscape("unknown %d TXOUT key", o.Type)
 			}
 
 			*s = append(*s, o)
@@ -73,14 +71,7 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 func (s *Outputs) BufferLength() (n int) {
 	n = utils.UVarInt64Size(len(*s))
 	for _, o := range *s {
-		n += utils.UVarInt64Size(o.Reward) +
-			1 +
-			crypto.PublicKeySize
-		if o.Type == TxOutToTaggedKey {
-			n++
-		} else if o.Type == TxOutToCarrotV1 {
-			n += monero.CarrotViewTagSize + monero.JanusAnchorSize
-		}
+		n += o.BufferLength()
 	}
 	return n
 }
@@ -130,4 +121,16 @@ type Output struct {
 	Type uint8 `json:"type"`
 	// ViewTag Reused for carrot/non-carrot outputs
 	ViewTag [monero.CarrotViewTagSize]byte `json:"view_tag"`
+}
+
+func (o Output) BufferLength() (n int) {
+	n += utils.UVarInt64Size(o.Reward) +
+		1 +
+		crypto.PublicKeySize
+	if o.Type == TxOutToTaggedKey {
+		n++
+	} else if o.Type == TxOutToCarrotV1 {
+		n += monero.CarrotViewTagSize + monero.JanusAnchorSize
+	}
+	return n
 }

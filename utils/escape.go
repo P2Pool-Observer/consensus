@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"hash"
 	"io"
 
@@ -26,9 +27,31 @@ func _reset(hasher hash.Hash) {
 	hasher.Reset()
 }
 
+func _errorfNoEscape(format string, a ...any) error {
+	return fmt.Errorf(format, a...)
+}
+
 //go:noescape
 //go:linkname ReadNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._read
 func ReadNoEscape(reader io.Reader, buf []byte) (n int, err error)
+
+func ReadFullNoEscape(reader io.Reader, buf []byte) (n int, err error) {
+	min := len(buf)
+	if len(buf) < min {
+		return 0, io.ErrShortBuffer
+	}
+	for n < min && err == nil {
+		var nn int
+		nn, err = ReadNoEscape(reader, buf[n:])
+		n += nn
+	}
+	if n >= min {
+		err = nil
+	} else if n > 0 && err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+	return
+}
 
 //go:noescape
 //go:linkname WriteNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._write
@@ -41,3 +64,7 @@ func SumNoEscape(hasher hash.Hash, buf []byte) []byte
 //go:noescape
 //go:linkname ResetNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._reset
 func ResetNoEscape(hasher hash.Hash)
+
+//go:noescape
+//go:linkname ErrorfNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._errorfNoEscape
+func ErrorfNoEscape(format string, a ...any) error

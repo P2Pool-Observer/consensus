@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -196,7 +195,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 
 	switch t.Tag {
 	default:
-		return fmt.Errorf("unknown extra tag %d", t.Tag)
+		return utils.ErrorfNoEscape("unknown extra tag %d", t.Tag)
 	case TxExtraTagPadding:
 		var size uint64
 		var zero byte

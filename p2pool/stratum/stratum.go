@@ -344,17 +344,15 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		weights.MaxRewardAmounts = uint64(utils.UVarInt64SliceSize(rewards))
 
 		if weightIndex == 0 {
-			tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, weights.MaxRewardAmounts, false)
+			coinbaseTransactionWeight, err = s.coinbaseTransactionWeight(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, weights.MaxRewardAmounts, false)
 			if err != nil {
 				return err
 			}
-			coinbaseTransactionWeight = uint64(tx.BufferLength())
 		} else if txWeightNonZeroWithoutRewards == 0 {
-			tx, err := s.createCoinbaseTransaction(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, weights.MaxRewardAmounts, false)
+			coinbaseTransactionWeight, err = s.coinbaseTransactionWeight(s.newTemplateData.ShareVersion, tag.MarshalTreeData(), fakeTemplateTipBlock.GetTransactionOutputType(), shares, rewards, weights.MaxRewardAmounts, false)
 			if err != nil {
 				return err
 			}
-			coinbaseTransactionWeight = uint64(tx.BufferLength())
 			txWeightNonZeroWithoutRewards = coinbaseTransactionWeight - weights.MaxRewardAmounts
 		} else {
 			coinbaseTransactionWeight = txWeightNonZeroWithoutRewards + weights.MaxRewardAmounts
@@ -666,6 +664,75 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 	}
 }
 
+func (s *Server) coinbaseTransactionWeight(shareVersion sidechain.ShareVersion, mergeMiningTreeData uint64, txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (size uint64, err error) {
+
+	rewardAmountsWeight := uint64(utils.UVarInt64SliceSize(rewards))
+
+	if !final {
+		if rewardAmountsWeight != maxRewardsAmountsWeight {
+			return 0, utils.ErrorfNoEscape("incorrect miner rewards during the dry run, %d != %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+		}
+	} else if rewardAmountsWeight > maxRewardsAmountsWeight {
+		return 0, utils.ErrorfNoEscape("incorrect miner rewards during the real run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+	}
+
+	correctedExtraNonceSize := sidechain.SideExtraNonceSize + maxRewardsAmountsWeight - rewardAmountsWeight
+
+	if correctedExtraNonceSize > sidechain.SideExtraNonceSize {
+		if correctedExtraNonceSize > sidechain.SideExtraNonceMaxSize {
+			//TODO: handle this case!!!!
+			return 0, utils.ErrorfNoEscape("corrected extra_nonce size is too large, %d > %d", correctedExtraNonceSize, sidechain.SideExtraNonceMaxSize)
+		}
+	}
+
+	txExtraSize := 0
+	if shareVersion <= sidechain.ShareVersion_V2 {
+		txExtraSize += 1 + 1 + types.HashSize
+	} else if shareVersion == sidechain.ShareVersion_V3 {
+		mergeMiningDataSize := utils.UVarInt64Size(mergeMiningTreeData) + types.HashSize
+		txExtraSize += 1 + utils.UVarInt64Size(mergeMiningDataSize) + mergeMiningDataSize
+	} else {
+		return 0, errors.New("unsupported share version")
+	}
+
+	// add extra nonce
+	extraNonceSize := max(sidechain.SideExtraNonceSize, int(correctedExtraNonceSize))
+	txExtraSize += 1 + utils.UVarInt64Size(extraNonceSize) + extraNonceSize
+
+	if txType == transaction.TxOutToCarrotV1 {
+		// add additional pubkeys
+		txExtraSize += 1 + utils.UVarInt64Size(len(rewards)) + crypto.PublicKeySize*len(rewards)
+	} else {
+		// tx pubkey
+		txExtraSize += 1 + types.HashSize
+	}
+
+	// output size minus reward size
+	txOutputSize := (transaction.Output{
+		Type: txType,
+	}).BufferLength() - 1
+
+	txOutputsSize := txOutputSize*len(rewards) + int(rewardAmountsWeight)
+
+	tx := transaction.CoinbaseTransaction{
+		Version:      2,
+		UnlockTime:   s.minerData.Height + monero.MinerRewardUnlockTime,
+		InputCount:   1,
+		InputType:    transaction.TxInGen,
+		GenHeight:    s.minerData.Height,
+		Extra:        nil,
+		ExtraBaseRCT: 0,
+	}
+
+	// buffer size minus size of outputs, size of extra tags
+	txSize := tx.BufferLength() - 2
+
+	txSize += utils.UVarInt64Size(txExtraSize) + txExtraSize
+	txSize += utils.UVarInt64Size(len(rewards)) + txOutputsSize
+
+	return uint64(txSize), nil
+}
+
 func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, mergeMiningTreeData uint64, txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (tx transaction.CoinbaseTransaction, err error) {
 
 	var mergeMineTag transaction.ExtraTag
@@ -746,7 +813,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			for i := range len(shares) {
 				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i])
 				if carrotEnotes[i] == nil {
-					return transaction.CoinbaseTransaction{}, fmt.Errorf("invalid carrot enote at index %d", i)
+					return transaction.CoinbaseTransaction{}, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
 				}
 			}
 
@@ -799,10 +866,10 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 
 	if !final {
 		if rewardAmountsWeight != maxRewardsAmountsWeight {
-			return transaction.CoinbaseTransaction{}, fmt.Errorf("incorrect miner rewards during the dry run, %d != %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+			return transaction.CoinbaseTransaction{}, utils.ErrorfNoEscape("incorrect miner rewards during the dry run, %d != %d", rewardAmountsWeight, maxRewardsAmountsWeight)
 		}
 	} else if rewardAmountsWeight > maxRewardsAmountsWeight {
-		return transaction.CoinbaseTransaction{}, fmt.Errorf("incorrect miner rewards during the real run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+		return transaction.CoinbaseTransaction{}, utils.ErrorfNoEscape("incorrect miner rewards during the real run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
 	}
 
 	correctedExtraNonceSize := sidechain.SideExtraNonceSize + maxRewardsAmountsWeight - rewardAmountsWeight
@@ -810,7 +877,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 	if correctedExtraNonceSize > sidechain.SideExtraNonceSize {
 		if correctedExtraNonceSize > sidechain.SideExtraNonceMaxSize {
 			//TODO: handle this case!!!!
-			return transaction.CoinbaseTransaction{}, fmt.Errorf("corrected extra_nonce size is too large, %d > %d", correctedExtraNonceSize, sidechain.SideExtraNonceMaxSize)
+			return transaction.CoinbaseTransaction{}, utils.ErrorfNoEscape("corrected extra_nonce size is too large, %d > %d", correctedExtraNonceSize, sidechain.SideExtraNonceMaxSize)
 		}
 		//Increase size to maintain transaction weight
 		tx.Extra.GetTag(transaction.TxExtraTagNonce).Data = make(types.Bytes, correctedExtraNonceSize)

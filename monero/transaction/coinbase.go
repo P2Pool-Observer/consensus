@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -111,7 +110,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 			case TxOutToKey:
 				c.AuxiliaryData.OutputsBlobSize += 1 + types.HashSize
 			default:
-				return fmt.Errorf("unknown %d TXOUT key", o.Type)
+				return utils.ErrorfNoEscape("unknown %d TXOUT key", o.Type)
 			}
 			c.AuxiliaryData.TotalReward += o.Reward
 		}

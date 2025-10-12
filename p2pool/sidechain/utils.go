@@ -16,6 +16,8 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+
+	_ "unsafe"
 )
 
 type GetByMainIdFunc func(h types.Hash) *PoolBlock
@@ -26,8 +28,16 @@ type GetBySideHeightFunc func(height uint64) UniquePoolBlockSlice
 // GetChainMainByHashFunc if h = types.ZeroHash, return tip
 type GetChainMainByHashFunc func(h types.Hash) *ChainMain
 
+func _getEphemeralPublicKey(derivationCache DerivationCacheInterface, a *address.PackedAddress, txKeySlice crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64) (crypto.PublicKeyBytes, uint8) {
+	return derivationCache.GetEphemeralPublicKey(a, txKeySlice, txKeyScalar, outputIndex)
+}
+
+//go:noescape
+//go:linkname getEphemeralPublicKey git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain._getEphemeralPublicKey
+func getEphemeralPublicKey(derivationCache DerivationCacheInterface, a *address.PackedAddress, txKeySlice crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64) (crypto.PublicKeyBytes, uint8)
+
 func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType uint8, a *address.PackedAddress, txPrivateKeySlice crypto.PrivateKeySlice, txPrivateKeyScalar *crypto.PrivateKeyScalar, outputIndex, amount uint64) transaction.Output {
-	ephemeralPubKey, viewTag := derivationCache.GetEphemeralPublicKey(a, txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
+	ephemeralPubKey, viewTag := getEphemeralPublicKey(derivationCache, a, txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
 	return transaction.Output{
 		Index:              outputIndex,
 		Type:               txType,
@@ -37,8 +47,16 @@ func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType 
 	}
 }
 
-func CalculateEnoteCarrot(derivationCache DerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) (enote *carrot.CoinbaseEnoteV1) {
+func _getCarrotCoinbaseEnote(derivationCache DerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) *carrot.CoinbaseEnoteV1 {
 	return derivationCache.GetCarrotCoinbaseEnote(a, seed, blockIndex, amount)
+}
+
+//go:noescape
+//go:linkname getCarrotCoinbaseEnote git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain._getCarrotCoinbaseEnote
+func getCarrotCoinbaseEnote(derivationCache DerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) *carrot.CoinbaseEnoteV1
+
+func CalculateEnoteCarrot(derivationCache DerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) (enote *carrot.CoinbaseEnoteV1) {
+	return getCarrotCoinbaseEnote(derivationCache, a, seed, blockIndex, amount)
 }
 
 func CalculateOutputCarrot(enote *carrot.CoinbaseEnoteV1, txType uint8, outputIndex uint64) transaction.Output {
