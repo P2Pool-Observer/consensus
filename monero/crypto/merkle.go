@@ -17,8 +17,8 @@ func leafHash(data []types.Hash, hasher KeccakHasher) (rootHash types.Hash) {
 	default:
 		//only hash the next two items
 		hasher.Reset()
-		_, _ = utils.WriteNoEscape(hasher, data[0][:])
-		_, _ = utils.WriteNoEscape(hasher, data[1][:])
+		_, _ = hasher.Write(data[0][:])
+		_, _ = hasher.Write(data[1][:])
 		hasher.Hash(&rootHash)
 		return rootHash
 	}
@@ -28,11 +28,11 @@ func pairHash(index int, h, p types.Hash, hasher KeccakHasher) (out types.Hash) 
 	hasher.Reset()
 
 	if index&1 > 0 {
-		_, _ = utils.WriteNoEscape(hasher, p[:])
-		_, _ = utils.WriteNoEscape(hasher, h[:])
+		_, _ = hasher.Write(p[:])
+		_, _ = hasher.Write(h[:])
 	} else {
-		_, _ = utils.WriteNoEscape(hasher, h[:])
-		_, _ = utils.WriteNoEscape(hasher, p[:])
+		_, _ = hasher.Write(h[:])
+		_, _ = hasher.Write(p[:])
 	}
 
 	hasher.Hash(&out)

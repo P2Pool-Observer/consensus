@@ -22,6 +22,10 @@ func _sum(hasher hash.Hash, buf []byte) []byte {
 	return hasher.Sum(buf)
 }
 
+func _reset(hasher hash.Hash) {
+	hasher.Reset()
+}
+
 //go:noescape
 //go:linkname ReadNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._read
 func ReadNoEscape(reader io.Reader, buf []byte) (n int, err error)
@@ -33,3 +37,7 @@ func WriteNoEscape(writer io.Writer, buf []byte) (n int, err error)
 //go:noescape
 //go:linkname SumNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._sum
 func SumNoEscape(hasher hash.Hash, buf []byte) []byte
+
+//go:noescape
+//go:linkname ResetNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._reset
+func ResetNoEscape(hasher hash.Hash)
