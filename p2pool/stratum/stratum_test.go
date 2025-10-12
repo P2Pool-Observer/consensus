@@ -43,10 +43,10 @@ var submitMainBlockFunc = func(b *block.Block) (err error) {
 	return err
 }
 
+var donationAddr = address.FromBase58(types.DonationAddress)
 var donationAddrFunc = func(majorVersion uint8) address.PackedAddressWithSubaddress {
-	addr := address.FromBase58(types.DonationAddress)
-	pa := addr.ToPackedAddress()
-	return address.NewPackedAddressWithSubaddress(&pa, addr.IsSubaddress())
+	pa := donationAddr.ToPackedAddress()
+	return address.NewPackedAddressWithSubaddress(&pa, donationAddr.IsSubaddress())
 }
 
 func init() {
@@ -230,7 +230,11 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 	fakeServer := sidechain.GetFakeTestServerWithRPC(consensus, rpcClient)
 	sideChain := sidechain.NewSideChain(fakeServer)
 
-	stratumServer := NewServer(sideChain, submitBlockFunc, submitMainBlockFunc)
+	stratumServer := NewServer(sideChain, func(block *sidechain.PoolBlock) error {
+		return nil
+	}, func(b *block.Block) error {
+		return nil
+	})
 	stratumServer.HandleMinerData(minerData)
 
 	var expected uint64
@@ -295,7 +299,7 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 		if i == 0 {
 			// verify genesis parameters
 			if tpl.SideParent != types.ZeroHash {
-				t.Fatal()
+				t.Fatal("wrong side parent")
 			}
 		}
 

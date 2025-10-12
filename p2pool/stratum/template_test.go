@@ -172,7 +172,7 @@ func BenchmarkTemplate_TemplateId(b *testing.B) {
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
-		preAllocatedBuffer := make([]byte, 0, len(tpl.Buffer))
+		preAllocatedBuffer := make([]byte, 0, tpl.BufferLength(sidechain.ConsensusDefault, nil, nil))
 		var counter = unsafeRandom.Uint32()
 		var templateId types.Hash
 		for pb.Next() {
