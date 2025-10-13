@@ -17,6 +17,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -374,6 +375,17 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 			// unexpected
 			t.Fatal("expected tip")
 		}
+
+		// add a fake tx every iteration to increase weight past limit
+		stratumServer.HandleMempoolData(mempool.Mempool{
+			{
+				Id:           b.SideTemplateId(consensus),
+				BlobSize:     0,
+				Weight:       unsafeRandom.Uint64N(512*1024) + 64*1024,
+				Fee:          unsafeRandom.Uint64N(1000000000000-10000000000) + 10000000000,
+				TimeReceived: time.Now().AddDate(0, 0, -1),
+			},
+		})
 
 		if i > 0 && i%7 == 0 {
 			// do uncle
