@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
@@ -133,7 +132,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 
 		if containsAuxiliaryTemplateId {
 			// Required by sidechain.get_outputs_blob() to speed up repeated broadcasts from different peers
-			if _, err = io.ReadFull(reader, c.AuxiliaryData.TemplateId[:]); err != nil {
+			if _, err = utils.ReadFullNoEscape(reader, c.AuxiliaryData.TemplateId[:]); err != nil {
 				return err
 			}
 		}
@@ -150,7 +149,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 	if limitReader.Left() > 0 {
 		return errors.New("bytes leftover in extra data")
 	}
-	if err = binary.Read(reader, binary.LittleEndian, &c.ExtraBaseRCT); err != nil {
+	if c.ExtraBaseRCT, err = reader.ReadByte(); err != nil {
 		return err
 	}
 

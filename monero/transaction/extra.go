@@ -186,7 +186,7 @@ var ErrExtraTagNoMoreTags = errors.New("no more tags")
 
 func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 
-	if err = binary.Read(reader, binary.LittleEndian, &t.Tag); err != nil {
+	if t.Tag, err = reader.ReadByte(); err != nil {
 		if err == io.EOF {
 			return ErrExtraTagNoMoreTags
 		}
@@ -220,7 +220,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		t.Data = make([]byte, size-1)
 	case TxExtraTagPubKey:
 		t.Data = make([]byte, crypto.PublicKeySize)
-		if _, err = io.ReadFull(reader, t.Data); err != nil {
+		if _, err = utils.ReadFullNoEscape(reader, t.Data); err != nil {
 			return err
 		}
 	case TxExtraTagNonce:
@@ -233,7 +233,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 			}
 
 			t.Data = make([]byte, t.VarInt)
-			if _, err = io.ReadFull(reader, t.Data); err != nil {
+			if _, err = utils.ReadFullNoEscape(reader, t.Data); err != nil {
 				return err
 			}
 		}

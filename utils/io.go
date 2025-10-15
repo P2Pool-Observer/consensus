@@ -23,7 +23,7 @@ func ReadFullProgressive[T ~[]byte](r io.Reader, dst *T, size int) (n int, err e
 	// special reader to grow extra over time
 	for {
 		// only read last part past read offset
-		if n, err = io.ReadFull(r, buf[offset:]); err != nil {
+		if n, err = ReadFullNoEscape(r, buf[offset:]); err != nil {
 			return offset + n, err
 		}
 		offset += n
