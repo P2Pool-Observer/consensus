@@ -179,7 +179,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return err
 	}
 
-	if err = binary.Read(reader, binary.LittleEndian, &b.Nonce); err != nil {
+	if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &b.Nonce); err != nil {
 		return err
 	}
 

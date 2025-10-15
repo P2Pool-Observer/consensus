@@ -541,6 +541,9 @@ func SplitRewardAllocate(reward uint64, shares Shares) (rewards []uint64) {
 }
 
 func SplitReward(preAllocatedRewards []uint64, reward uint64, shares Shares) (rewards []uint64) {
+	if len(shares) == 0 {
+		return nil
+	}
 	var totalWeight types.Difficulty
 
 	for i := range shares {
@@ -558,6 +561,7 @@ func SplitReward(preAllocatedRewards []uint64, reward uint64, shares Shares) (re
 
 	if totalWeight.Hi == 0 {
 		//fast path for 64-bit ops
+		//implies all shares have only low weight
 		var w, hi, lo uint64
 		for i, share := range shares {
 			w += share.Weight.Lo
@@ -578,10 +582,6 @@ func SplitReward(preAllocatedRewards []uint64, reward uint64, shares Shares) (re
 	}
 
 	// Double check that we gave out the exact amount
-	rewardGiven = 0
-	for _, r := range rewards {
-		rewardGiven += r
-	}
 	if rewardGiven != reward {
 		return nil
 	}

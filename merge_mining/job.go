@@ -99,18 +99,17 @@ func (j *AuxiliaryJobDonation) AppendBinary(preAllocatedBuf []byte) (data []byte
 }
 
 func (j *AuxiliaryJobDonation) FromReader(reader utils.ReaderAndByteReader) (err error) {
+	if _, err := utils.ReadFullNoEscape(reader, j.SecondaryPublicKey[:]); err != nil {
+		return err
+	}
+	if err := utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.SecondaryPublicKeyExpiration); err != nil {
+		return err
+	}
 
-	if _, err := reader.Read(j.SecondaryPublicKey[:]); err != nil {
+	if _, err := utils.ReadFullNoEscape(reader, j.SecondarySignature[:]); err != nil {
 		return err
 	}
-	if err := binary.Read(reader, binary.LittleEndian, &j.SecondaryPublicKeyExpiration); err != nil {
-		return err
-	}
-
-	if _, err := reader.Read(j.SecondarySignature[:]); err != nil {
-		return err
-	}
-	if err := binary.Read(reader, binary.LittleEndian, &j.Timestamp); err != nil {
+	if err := utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.Timestamp); err != nil {
 		return err
 	}
 
@@ -118,7 +117,7 @@ func (j *AuxiliaryJobDonation) FromReader(reader utils.ReaderAndByteReader) (err
 
 	for {
 		var dataEntry AuxiliaryJobDonationDataEntry
-		_, err = io.ReadFull(reader, buf)
+		_, err = utils.ReadFullNoEscape(reader, buf)
 		if err != nil {
 			if errors.Is(err, io.ErrUnexpectedEOF) {
 				break

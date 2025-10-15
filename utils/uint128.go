@@ -2,6 +2,7 @@ package utils
 
 import "math/bits"
 
+//go:nosplit
 func Div128(hi, lo, y uint64) (hiQuo, loQuo uint64) {
 	if hi < y {
 		loQuo, _ = bits.Div64(hi, lo, y)

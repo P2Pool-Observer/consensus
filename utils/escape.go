@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/binary"
 	"fmt"
 	"hash"
 	"io"
@@ -13,6 +14,10 @@ import (
 
 func _read(reader io.Reader, buf []byte) (n int, err error) {
 	return reader.Read(buf)
+}
+
+func _binaryReadNoEscape(r io.Reader, order binary.ByteOrder, data any) error {
+	return binary.Read(r, order, data)
 }
 
 func _write(writer io.Writer, buf []byte) (n int, err error) {
@@ -52,6 +57,10 @@ func ReadFullNoEscape(reader io.Reader, buf []byte) (n int, err error) {
 	}
 	return
 }
+
+//go:noescape
+//go:linkname BinaryReadNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._binaryReadNoEscape
+func BinaryReadNoEscape(r io.Reader, order binary.ByteOrder, data any) error
 
 //go:noescape
 //go:linkname WriteNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._write
