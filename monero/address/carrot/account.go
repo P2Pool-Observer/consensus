@@ -62,13 +62,13 @@ func makeSpendPub(addressSpendPubOut *crypto.PublicKeyPoint, generateImage, prov
 	addressSpendPubOut.Point().UnsafeVarTimeDoubleScalarBaseMultPrecomputed(proveSpend.Scalar(), generatorTPrecomputedTable, generateImage.Scalar())
 }
 
-// makeAccountViewPub make_carrot_account_view_pubkey
-func makeAccountViewPub(addressViewPubOut *crypto.PublicKeyPoint, view *crypto.PrivateKeyScalar, spendPub *crypto.PublicKeyPoint) {
+// MakeAccountViewPub make_carrot_account_view_pubkey
+func MakeAccountViewPub(addressViewPubOut *crypto.PublicKeyPoint, view *crypto.PrivateKeyScalar, spendPub *crypto.PublicKeyPoint) {
 	addressViewPubOut.Point().UnsafeVarTimeScalarMult(view.Scalar(), spendPub.Point())
 }
 
-// makePrimaryAddressViewPub make_carrot_primary_address_view_pubkey
-func makePrimaryAddressViewPub(addressViewPubOut *crypto.PublicKeyPoint, view *crypto.PrivateKeyScalar) {
+// MakePrimaryAddressViewPub make_carrot_primary_address_view_pubkey
+func MakePrimaryAddressViewPub(addressViewPubOut *crypto.PublicKeyPoint, view *crypto.PrivateKeyScalar) {
 	// K^0_v = k_v G
 	addressViewPubOut.Point().UnsafeVarTimeScalarBaseMult(view.Scalar())
 }
