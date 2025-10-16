@@ -28,14 +28,10 @@ func RandomScalar() *edwards25519.Scalar {
 }
 
 // DeterministicScalar consensus way of generating a deterministic scalar from given entropy
-// Slice entropy will have data appended
 func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
 
 	var counter uint32
-
-	n := len(entropy)
-
-	entropy = append(entropy, 0, 0, 0, 0)
+	var nonce [4]byte
 
 	h := newKeccak256()
 	var hash types.Hash
@@ -43,12 +39,13 @@ func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
 	scalar := new(edwards25519.Scalar)
 
 	for {
-		h.Reset()
 		counter++
-		binary.LittleEndian.PutUint32(entropy[n:], counter)
+		binary.LittleEndian.PutUint32(nonce[:], counter)
 		_, _ = utils.WriteNoEscape(h, entropy)
+		_, _ = utils.WriteNoEscape(h, nonce[:])
 		_, _ = utils.ReadNoEscape(h, hash[:])
 		if !IsLimit32(hash) {
+			utils.ResetNoEscape(h)
 			continue
 		}
 		BytesToScalar32(hash, scalar)
@@ -56,5 +53,6 @@ func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
 		if scalar.Equal(zeroScalar) == 0 {
 			return scalar
 		}
+		utils.ResetNoEscape(h)
 	}
 }
