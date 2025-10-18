@@ -172,7 +172,7 @@ func (d *DerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSub
 
 	var hasher blake2b.Digest
 	var enote carrot.CoinbaseEnoteV1
-	inputContext := carrot.MakeCarrotCoinbaseInputContext(blockIndex)
+	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 
 	if kp, ok := d.carrotEnoteCache.Get(key); ok {
 		// calculate non-cacheable part
@@ -181,7 +181,7 @@ func (d *DerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSub
 
 		return &enote
 	} else {
-		ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, err := proposal.CoinbaseOutputPartial(&hasher, inputContext[:])
+		ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, err := proposal.OutputPartial(&hasher, inputContext[:], true)
 		if err != nil {
 			return nil
 		}

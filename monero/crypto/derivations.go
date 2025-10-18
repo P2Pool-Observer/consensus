@@ -34,7 +34,7 @@ func GetDerivationSharedDataAndViewTagForOutputIndex(derivation PublicKey, outpu
 
 var encryptedAmountKey = []byte("amount")
 
-// DecryptOutputAmount Decrypts an encrypted amount field from ECDH Info
+// DecryptOutputAmount Decrypts or encrypts an amount field from ECDH Info
 func DecryptOutputAmount(k PrivateKey, ciphertext uint64) uint64 {
 	var key [8]byte
 	h := newKeccak256()

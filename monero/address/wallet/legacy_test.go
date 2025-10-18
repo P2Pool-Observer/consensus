@@ -1,15 +1,21 @@
-package address
+package wallet
 
 import (
 	"encoding/binary"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"github.com/tmthrgd/go-hex"
 )
+
+var testGeneralFundAddr = address.FromBase58("44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A")
+var testGeneralFundViewKey = crypto.PrivateKeyBytes(types.MustHashFromString("f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501"))
+var testGeneralFundDonationAddr = address.FromBase58("888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H")
+var testGeneralFundSubaddressIndex = address.SubaddressIndex{Account: 0, Offset: 70}
 
 func TestViewWallet(t *testing.T) {
 	vw, err := NewViewWallet(testGeneralFundAddr, &testGeneralFundViewKey, 0, 80)
@@ -17,7 +23,7 @@ func TestViewWallet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sa := vw.Get(SubaddressIndex{0, 70})
+	sa := vw.Get(testGeneralFundSubaddressIndex)
 	if sa.Compare(testGeneralFundDonationAddr) != 0 {
 		t.Fatalf("expected %s, got %s", string(testGeneralFundDonationAddr.ToBase58()), string(sa.ToBase58()))
 	}
@@ -69,11 +75,24 @@ func TestViewWallet(t *testing.T) {
 		t.Fatalf("expected %d, got %d", expected, amount)
 	}
 
-	inProof := GetInProofV2(sa, txId, vw.ViewKey(), &pub, "")
+	inProof := address.GetInProofV2(sa, txId, vw.ViewKey(), &pub, "")
 	t.Logf("tx proof: %s", inProof)
 
-	pI, pOk := VerifyTxProof(inProof, sa, txId, &pub, "")
+	pI, pOk := address.VerifyTxProof(inProof, sa, txId, &pub, "")
 	if pI == -1 || !pOk {
 		t.Fatal("expected to verify proof")
 	}
+}
+
+func TestViewWallet_Match(t *testing.T) {
+	vw, err := NewViewWallet(testGeneralFundAddr, &testGeneralFundViewKey, 0, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testScanCoinbase(t, vw, address.ZeroSubaddressIndex)
+	testScanCoinbase(t, vw, testGeneralFundSubaddressIndex)
+
+	testScanPayment(t, vw, address.ZeroSubaddressIndex)
+	testScanPayment(t, vw, testGeneralFundSubaddressIndex)
 }

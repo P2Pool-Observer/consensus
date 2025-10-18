@@ -24,6 +24,31 @@ type CoinbaseEnoteV1 struct {
 
 	BlockIndex uint64 `json:"block_index"`
 }
+
+type RCTEnoteProposal struct {
+	Enote                EnoteV1                    `json:"enote"`
+	Amount               uint64                     `json:"amount"`
+	AmountBlindingFactor crypto.PrivateKeyBytes     `json:"amount_blinding_factor"`
+	EncryptedPaymentId   [monero.PaymentIdSize]byte `json:"encrypted_payment_id"`
+}
+
+type EnoteV1 struct {
+	// OneTimeAddress K_o
+	OneTimeAddress crypto.PublicKeyBytes `json:"one_time_address"`
+	// AmountCommitment C_a
+	AmountCommitment crypto.PublicKeyBytes            `json:"amount_commitment"`
+	EncryptedAmount  [monero.EncryptedAmountSize]byte `json:"encrypted_amount"`
+
+	// EncryptedAnchor carrot janus anchor XORd with a user-defined secret
+	EncryptedAnchor [monero.JanusAnchorSize]byte `json:"encrypted_anchor"`
+	ViewTag         [3]byte                      `json:"view_tag"`
+
+	// EphemeralPubKey D_e
+	EphemeralPubKey crypto.X25519PublicKey `json:"ephemeral_pub_key"`
+
+	FirstKeyImage crypto.PublicKeyBytes `json:"tx_first_key_image"`
+}
+
 type EnoteType uint8
 
 const (
@@ -57,8 +82,8 @@ func makeEnoteEphemeralPublicKeyCryptonote(key *crypto.PrivateKeyScalar) (out cr
 	return out
 }
 
-// makeUncontextualizedSharedKeyReceiver make_carrot_uncontextualized_shared_key_receiver
-func makeUncontextualizedSharedKeyReceiver(viewPriv crypto.PrivateKeyBytes, ephemeralPubKey crypto.X25519PublicKey) (senderReceiverUnctx crypto.X25519PublicKey) {
+// MakeUncontextualizedSharedKeyReceiver make_carrot_uncontextualized_shared_key_receiver
+func MakeUncontextualizedSharedKeyReceiver(viewPriv crypto.PrivateKeyBytes, ephemeralPubKey crypto.X25519PublicKey) (senderReceiverUnctx crypto.X25519PublicKey) {
 	crypto.X25519ScalarMult(&senderReceiverUnctx, viewPriv, ephemeralPubKey)
 	return senderReceiverUnctx
 }
@@ -109,7 +134,7 @@ var coinbaseAmountBlindingFactor = (&crypto.PrivateKeyBytes{1}).PublicKey().AsPo
 var generatorHPrecomputedTable = edwards25519.PointTablePrecompute(crypto.GeneratorH)
 
 // makeAmountCommitmentCoinbase Specialized implementation with baked in blinding factor
-// this is faster than makeAmountCommitment, but is specific only for coinbase
+// this is faster than makeAmountCommitment, but is specific only for coinbase (as it uses a fixed amount blinding key)
 func makeAmountCommitmentCoinbase(amount uint64) crypto.PublicKeyBytes {
 
 	var amountK crypto.PrivateKeyBytes
@@ -131,19 +156,8 @@ func makeOnetimeAddress(hasher *blake2b.Digest, spendPub *crypto.PublicKeyPoint,
 	// make_carrot_onetime_address_extension_pubkey
 	{
 		var senderExtensionG, senderExtensionT edwards25519.Scalar
-		// k^o_g = H_n("..g..", s^ctx_sr, C_a)
-		// make_carrot_onetime_address_extension_g
-		ScalarTranscript(
-			&senderExtensionG, hasher, secretSenderReceiver[:],
-			[]byte(DomainSeparatorOneTimeExtensionG), amountCommitment[:],
-		)
-
-		// k^o_t = H_n("..t..", s^ctx_sr, C_a)
-		// make_carrot_onetime_address_extension_t
-		ScalarTranscript(
-			&senderExtensionT, hasher, secretSenderReceiver[:],
-			[]byte(DomainSeparatorOneTimeExtensionT), amountCommitment[:],
-		)
+		makeCarrotOnetimeAddressExtensionG(hasher, &senderExtensionG, secretSenderReceiver, amountCommitment)
+		makeCarrotOnetimeAddressExtensionT(hasher, &senderExtensionT, secretSenderReceiver, amountCommitment)
 
 		// K^o_ext = k^o_g G + k^o_t T
 		// senderExtensionPubkey.Point().VarTimeDoubleScalarBaseMult(&senderExtensionT, crypto.GeneratorT, &senderExtensionG)
@@ -203,4 +217,22 @@ func makeJanusAnchorSpecial(hasher *blake2b.Digest, ephemeralPubKey crypto.X2551
 		[]byte(DomainSeparatorJanusAnchorSpecial), ephemeralPubKey[:], inputContext, oneTimeAddress[:],
 	)
 	return out
+}
+
+// makeCarrotOnetimeAddressExtensionG make_carrot_onetime_address_extension_g
+func makeCarrotOnetimeAddressExtensionG(hasher *blake2b.Digest, extensionOut *edwards25519.Scalar, secretSenderReceiver types.Hash, amountCommitment crypto.PublicKeyBytes) {
+	// k^o_g = H_n("..g..", s^ctx_sr, C_a)
+	ScalarTranscript(
+		extensionOut, hasher, secretSenderReceiver[:],
+		[]byte(DomainSeparatorOneTimeExtensionG), amountCommitment[:],
+	)
+}
+
+// makeCarrotOnetimeAddressExtensionT make_carrot_onetime_address_extension_t
+func makeCarrotOnetimeAddressExtensionT(hasher *blake2b.Digest, extensionOut *edwards25519.Scalar, secretSenderReceiver types.Hash, amountCommitment crypto.PublicKeyBytes) {
+	// k^o_t = H_n("..t..", s^ctx_sr, C_a)
+	ScalarTranscript(
+		extensionOut, hasher, secretSenderReceiver[:],
+		[]byte(DomainSeparatorOneTimeExtensionT), amountCommitment[:],
+	)
 }
