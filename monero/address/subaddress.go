@@ -13,8 +13,14 @@ var ZeroSubaddressIndex = SubaddressIndex{
 }
 
 type SubaddressIndex struct {
+	// Account index, also called major_index
 	Account uint32
-	Offset  uint32
+	// Offset within the Account, also called minor_index
+	Offset uint32
+}
+
+func (index SubaddressIndex) IsZero() bool {
+	return index == ZeroSubaddressIndex
 }
 
 var hashKeySubaddress = []byte("SubAddr\x00") // HASH_KEY_SUBADDRESS
@@ -32,7 +38,7 @@ func (index SubaddressIndex) SecretKey(viewKey crypto.PrivateKeyBytes) crypto.Pr
 	))
 }
 
-func getSubaddress(a *Address, viewKeyScalar *crypto.PrivateKeyScalar, viewKeyBytes crypto.PrivateKeyBytes, index SubaddressIndex) *Address {
+func GetSubaddressNoAllocate(a *Address, viewKeyScalar *crypto.PrivateKeyScalar, viewKeyBytes crypto.PrivateKeyBytes, index SubaddressIndex) *Address {
 	if a == nil || a.IsSubaddress() {
 		// cannot derive
 		return nil
@@ -68,7 +74,7 @@ func getSubaddress(a *Address, viewKeyScalar *crypto.PrivateKeyScalar, viewKeyBy
 }
 
 func GetSubaddress(a *Address, viewKey crypto.PrivateKey, index SubaddressIndex) *Address {
-	return getSubaddress(a, viewKey.AsScalar(), viewKey.AsBytes(), index)
+	return GetSubaddressNoAllocate(a, viewKey.AsScalar(), viewKey.AsBytes(), index)
 }
 
 func GetSubaddressFakeAddress(sa InterfaceSubaddress, viewKey crypto.PrivateKey) Interface {

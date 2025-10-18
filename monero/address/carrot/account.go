@@ -9,8 +9,8 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
-// makeProveSpendKey make_carrot_provespend_key
-func makeProveSpendKey(hasher *blake2b.Digest, proveSpendOut *crypto.PrivateKeyScalar, masterSecret types.Hash) {
+// MakeProveSpendKey make_carrot_provespend_key
+func MakeProveSpendKey(hasher *blake2b.Digest, proveSpendOut *crypto.PrivateKeyScalar, masterSecret types.Hash) {
 	// k_ps = H_n(s_m)
 	ScalarTranscript(
 		proveSpendOut.Scalar(), hasher, masterSecret[:],
@@ -18,8 +18,8 @@ func makeProveSpendKey(hasher *blake2b.Digest, proveSpendOut *crypto.PrivateKeyS
 	)
 }
 
-// makeViewBalanceSecret make_carrot_viewbalance_secret
-func makeViewBalanceSecret(hasher *blake2b.Digest, masterSecret types.Hash) (viewBalanceSecret types.Hash) {
+// MakeViewBalanceSecret make_carrot_viewbalance_secret
+func MakeViewBalanceSecret(hasher *blake2b.Digest, masterSecret types.Hash) (viewBalanceSecret types.Hash) {
 	// s_vb = H_32(s_m)
 	HashedTranscript(
 		viewBalanceSecret[:], hasher, masterSecret[:],
@@ -28,8 +28,8 @@ func makeViewBalanceSecret(hasher *blake2b.Digest, masterSecret types.Hash) (vie
 	return viewBalanceSecret
 }
 
-// makeGenerateImageKey make_carrot_generateimage_key
-func makeGenerateImageKey(hasher *blake2b.Digest, viewIncomingKeyOut *crypto.PrivateKeyScalar, viewBalanceSecret types.Hash) {
+// MakeGenerateImageKey make_carrot_generateimage_key
+func MakeGenerateImageKey(hasher *blake2b.Digest, viewIncomingKeyOut *crypto.PrivateKeyScalar, viewBalanceSecret types.Hash) {
 	// k_gi = H_n(s_vb)
 	ScalarTranscript(
 		viewIncomingKeyOut.Scalar(), hasher, viewBalanceSecret[:],
@@ -37,8 +37,8 @@ func makeGenerateImageKey(hasher *blake2b.Digest, viewIncomingKeyOut *crypto.Pri
 	)
 }
 
-// makeViewIncomingKey make_carrot_viewincoming_key
-func makeViewIncomingKey(hasher *blake2b.Digest, viewIncomingKeyOut *crypto.PrivateKeyScalar, viewBalanceSecret types.Hash) {
+// MakeViewIncomingKey make_carrot_viewincoming_key
+func MakeViewIncomingKey(hasher *blake2b.Digest, viewIncomingKeyOut *crypto.PrivateKeyScalar, viewBalanceSecret types.Hash) {
 	// k_v = H_n(s_vb)
 	ScalarTranscript(
 		viewIncomingKeyOut.Scalar(), hasher, viewBalanceSecret[:],
@@ -46,8 +46,8 @@ func makeViewIncomingKey(hasher *blake2b.Digest, viewIncomingKeyOut *crypto.Priv
 	)
 }
 
-// makeGenerateAddressSecret make_carrot_generateaddress_secret
-func makeGenerateAddressSecret(hasher *blake2b.Digest, viewBalanceSecret types.Hash) (generateAddressSecret types.Hash) {
+// MakeGenerateAddressSecret make_carrot_generateaddress_secret
+func MakeGenerateAddressSecret(hasher *blake2b.Digest, viewBalanceSecret types.Hash) (generateAddressSecret types.Hash) {
 	// s_ga = H_32(s_vb)
 	HashedTranscript(
 		generateAddressSecret[:], hasher, viewBalanceSecret[:],
@@ -56,10 +56,16 @@ func makeGenerateAddressSecret(hasher *blake2b.Digest, viewBalanceSecret types.H
 	return generateAddressSecret
 }
 
-// makeSpendPub make_carrot_spend_pubkey
-func makeSpendPub(addressSpendPubOut *crypto.PublicKeyPoint, generateImage, proveSpend *crypto.PrivateKeyScalar) {
+// MakeSpendPub make_carrot_spend_pubkey
+func MakeSpendPub(addressSpendPubOut *crypto.PublicKeyPoint, generateImage, proveSpend *crypto.PrivateKeyScalar) {
 	// K_s = k_gi G + k_ps T
 	addressSpendPubOut.Point().UnsafeVarTimeDoubleScalarBaseMultPrecomputed(proveSpend.Scalar(), generatorTPrecomputedTable, generateImage.Scalar())
+}
+
+func MakeSpendPubFromSpendPub(addressSpendPubOut *crypto.PublicKeyPoint, generateImage *crypto.PrivateKeyScalar, proveSpendPub *crypto.PublicKeyPoint) {
+	// K_s = k_gi G + k_ps T
+	addressSpendPubOut.Point().UnsafeVarTimeScalarBaseMult(generateImage.Scalar())
+	addressSpendPubOut.Point().Add(addressSpendPubOut.Point(), proveSpendPub.Point())
 }
 
 // MakeAccountViewPub make_carrot_account_view_pubkey
