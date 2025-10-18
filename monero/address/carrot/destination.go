@@ -47,3 +47,20 @@ func MakeDestinationSubaddress(hasher *blake2b.Digest, accountSpendPub, accountV
 		Address: address.NewPackedAddressWithSubaddressFromBytes(addressSpendPub.AsBytes(), addressViewPub.AsBytes(), true),
 	}, nil
 }
+
+// MakeDestinationSubaddressSpendPub used to create subaddress map
+func MakeDestinationSubaddressSpendPub(hasher *blake2b.Digest, accountSpendPub *crypto.PublicKeyPoint, generateAddressSecret types.Hash, i address.SubaddressIndex) crypto.PublicKeyBytes {
+
+	// s^j_gen = H_32[s_ga](j_major, j_minor)
+	addressIndexGenerator := makeIndexExtensionGenerator(hasher, generateAddressSecret, i)
+
+	// k^j_subscal = H_n(K_s, j_major, j_minor, s^j_gen)
+	var addressIndexGeneratorSecret crypto.PrivateKeyScalar
+	makeSubaddressScalar(hasher, &addressIndexGeneratorSecret, accountSpendPub.AsBytes(), addressIndexGenerator, i)
+
+	var addressSpendPub crypto.PublicKeyPoint
+	// K^j_s = k^j_subscal * K_s
+	addressSpendPub.Point().ScalarMult(addressIndexGeneratorSecret.Scalar(), accountSpendPub.Point())
+
+	return addressSpendPub.AsBytes()
+}

@@ -186,6 +186,9 @@ func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.Subadd
 			if scan.Randomness != proposal.Randomness {
 				t.Fatalf("got randomnness %x, want %x", scan.Randomness[:], proposal.Randomness[:])
 			}
+			if scan.AmountBlindingFactor != enote.AmountBlindingFactor {
+				t.Fatalf("got randomnness %x, want %x", scan.AmountBlindingFactor[:], enote.AmountBlindingFactor[:])
+			}
 			if scan.Amount != proposal.Amount {
 				t.Fatalf("got amount %d, want %d", scan.Amount, proposal.Amount)
 			}

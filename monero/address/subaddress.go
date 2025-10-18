@@ -38,6 +38,19 @@ func (index SubaddressIndex) SecretKey(viewKey crypto.PrivateKeyBytes) crypto.Pr
 	))
 }
 
+func GetSubaddressSpendPub(a *Address, viewKeyBytes crypto.PrivateKeyBytes, index SubaddressIndex) crypto.PublicKeyBytes {
+	m := index.SecretKey(viewKeyBytes)
+
+	// spend pub
+	// M = m*G
+	M := m.PublicKey()
+
+	// D = B + M
+	D := a.SpendPublicKey().AsPoint().Add(M.AsPoint())
+
+	return D.AsBytes()
+}
+
 func GetSubaddressNoAllocate(a *Address, viewKeyScalar *crypto.PrivateKeyScalar, viewKeyBytes crypto.PrivateKeyBytes, index SubaddressIndex) *Address {
 	if a == nil || a.IsSubaddress() {
 		// cannot derive

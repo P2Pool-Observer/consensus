@@ -11,9 +11,9 @@ import (
 )
 
 type ViewWallet struct {
-	addr          *address.Address
-	viewKeyScalar *crypto.PrivateKeyScalar
-	viewKeyBytes  crypto.PrivateKeyBytes
+	primaryAddress *address.Address
+	viewKeyScalar  *crypto.PrivateKeyScalar
+	viewKeyBytes   crypto.PrivateKeyBytes
 	// spendMap used to lookup spend keys to subaddress index
 	spendMap map[crypto.PublicKeyBytes]address.SubaddressIndex
 }
@@ -24,8 +24,8 @@ func NewViewWalletFromSpendKey(spendKey crypto.PrivateKey, addressNetwork uint8,
 }
 
 // NewViewWallet Creates a new ViewWallet with the specified account and index depth. The main address is always tracked
-func NewViewWallet(a *address.Address, viewKey crypto.PrivateKey, accountDepth, indexDepth int) (*ViewWallet, error) {
-	if a == nil || a.IsSubaddress() || !a.Valid() {
+func NewViewWallet(primaryAddress *address.Address, viewKey crypto.PrivateKey, accountDepth, indexDepth int) (*ViewWallet, error) {
+	if primaryAddress == nil || primaryAddress.IsSubaddress() || !primaryAddress.Valid() {
 		return nil, errors.New("address must be a main valid one")
 	}
 
@@ -34,13 +34,17 @@ func NewViewWallet(a *address.Address, viewKey crypto.PrivateKey, accountDepth, 
 		return nil, errors.New("view key must be valid")
 	}
 
-	w := &ViewWallet{
-		addr:          a,
-		viewKeyScalar: viewKeyScalar,
-		viewKeyBytes:  viewKeyScalar.AsBytes(),
-		spendMap:      make(map[crypto.PublicKeyBytes]address.SubaddressIndex),
+	if viewKeyScalar.PublicKey().AsBytes() != *primaryAddress.ViewPublicKey() {
+		return nil, errors.New("view key public must be equal to primary address pub key")
 	}
-	w.spendMap[a.SpendPub] = address.ZeroSubaddressIndex
+
+	w := &ViewWallet{
+		primaryAddress: primaryAddress,
+		viewKeyScalar:  viewKeyScalar,
+		viewKeyBytes:   viewKeyScalar.AsBytes(),
+		spendMap:       make(map[crypto.PublicKeyBytes]address.SubaddressIndex),
+	}
+	w.spendMap[primaryAddress.SpendPub] = address.ZeroSubaddressIndex
 
 	if accountDepth != 0 || indexDepth != 0 {
 		for account := range accountDepth + 1 {
@@ -58,11 +62,7 @@ func NewViewWallet(a *address.Address, viewKey crypto.PrivateKey, accountDepth, 
 // Track Adds the subaddress index to track map
 func (w *ViewWallet) Track(ix address.SubaddressIndex) error {
 	if ix != address.ZeroSubaddressIndex {
-		sa := address.GetSubaddressNoAllocate(w.addr, w.viewKeyScalar, w.viewKeyBytes, ix)
-		if sa == nil {
-			return errors.New("error generating subaddress")
-		}
-		w.spendMap[sa.SpendPub] = ix
+		w.spendMap[address.GetSubaddressSpendPub(w.primaryAddress, w.viewKeyBytes, ix)] = ix
 	}
 	return nil
 }
@@ -115,7 +115,7 @@ func (w *ViewWallet) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.
 			}
 
 			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(w.viewKeyBytes, enote.EphemeralPubKey)
-			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.addr.SpendPub) == nil {
+			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
 				}
@@ -148,7 +148,7 @@ func (w *ViewWallet) MatchCarrot(firstKeyImage crypto.PublicKeyBytes, commitment
 			}
 
 			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(w.viewKeyBytes, enote.EphemeralPubKey)
-			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.addr.SpendPub) == nil {
+			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
 				}
@@ -165,9 +165,9 @@ func (w *ViewWallet) HasSpend(spendPub crypto.PublicKeyBytes) (address.Subaddres
 
 func (w *ViewWallet) Get(index address.SubaddressIndex) *address.Address {
 	if index.IsZero() {
-		return w.addr
+		return w.primaryAddress
 	}
-	return address.GetSubaddressNoAllocate(w.addr, w.viewKeyScalar, w.viewKeyBytes, index)
+	return address.GetSubaddressNoAllocate(w.primaryAddress, w.viewKeyScalar, w.viewKeyBytes, index)
 }
 
 func (w *ViewWallet) ViewKey() crypto.PrivateKey {

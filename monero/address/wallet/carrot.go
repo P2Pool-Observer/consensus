@@ -80,6 +80,10 @@ func NewCarrotViewWallet(primaryAddress *address.Address, generateImageKey, view
 		return nil, errors.New("generate address secret must be non-zero")
 	}
 
+	if viewIncomingKeyScalar.PublicKey().AsBytes() != *primaryAddress.ViewPublicKey() {
+		return nil, errors.New("view incoming key public must be equal to primary address pub key")
+	}
+
 	accountSpendPub := primaryAddress.SpendPublicKey().AsPoint()
 
 	var accountViewPub crypto.PublicKeyPoint
@@ -125,13 +129,8 @@ func (w *CarrotViewWallet) track(hasher *blake2b.Digest, ix address.SubaddressIn
 	if ix == address.ZeroSubaddressIndex {
 		return nil
 	}
-	// todo: optimize, only calculate spend pub
-	sa, err := carrot.MakeDestinationSubaddress(hasher, &w.accountSpendPub, &w.accountViewPub, w.generateAddressSecret, ix)
-	if err != nil {
-		return err
-	}
 
-	w.spendMap[*sa.Address.SpendPublicKey()] = ix
+	w.spendMap[carrot.MakeDestinationSubaddressSpendPub(hasher, &w.accountSpendPub, w.generateAddressSecret, ix)] = ix
 	return nil
 }
 
@@ -220,4 +219,16 @@ func (w *CarrotViewWallet) Get(index address.SubaddressIndex) *address.Address {
 	default:
 		return nil
 	}
+}
+
+func (w *CarrotViewWallet) GenerateImageKey() crypto.PrivateKey {
+	return w.generateImageKeyScalar
+}
+
+func (w *CarrotViewWallet) GenerateAddressSecret() types.Hash {
+	return w.generateAddressSecret
+}
+
+func (w *CarrotViewWallet) ViewIncomingKey() crypto.PrivateKey {
+	return &w.viewIncomingKey
 }
