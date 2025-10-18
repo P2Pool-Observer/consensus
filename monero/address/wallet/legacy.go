@@ -77,7 +77,7 @@ func (w *ViewWallet) Match(outputs transaction.Outputs, txPubs ...crypto.PublicK
 		//TODO: optimize order?
 		for _, out := range outputs {
 			viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedDataScalar, derivation, out.Index)
-			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag[0] {
+			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag.Slice()[0] {
 				continue
 			}
 
@@ -108,8 +108,8 @@ func (w *ViewWallet) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.
 			enote := carrot.CoinbaseEnoteV1{
 				OneTimeAddress:  out.EphemeralPublicKey,
 				Amount:          out.Reward,
-				EncryptedAnchor: out.EncryptedJanusAnchor,
-				ViewTag:         out.ViewTag,
+				EncryptedAnchor: out.EncryptedJanusAnchor.Value(),
+				ViewTag:         out.ViewTag.Value(),
 				EphemeralPubKey: crypto.X25519PublicKey(pub),
 				BlockIndex:      blockIndex,
 			}
@@ -139,10 +139,10 @@ func (w *ViewWallet) MatchCarrot(firstKeyImage crypto.PublicKeyBytes, commitment
 		for i, out := range outputs {
 			enote := carrot.EnoteV1{
 				OneTimeAddress:   out.EphemeralPublicKey,
-				EncryptedAnchor:  out.EncryptedJanusAnchor,
+				EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
 				EncryptedAmount:  commitments[i].Encrypted,
 				AmountCommitment: commitments[i].Commitment,
-				ViewTag:          out.ViewTag,
+				ViewTag:          out.ViewTag.Value(),
 				EphemeralPubKey:  crypto.X25519PublicKey(pub),
 				FirstKeyImage:    firstKeyImage,
 			}

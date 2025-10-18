@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/merge_mining"
@@ -80,7 +79,7 @@ func JobFromString(s string) (j Job, err error) {
 		return j, err
 	}
 	if merkleProofSize > merge_mining.MaxChainsLog2 {
-		return j, fmt.Errorf("merkle proof too large: %d > %d", merkleProofSize, merge_mining.MaxChainsLog2)
+		return j, utils.ErrorfNoEscape("merkle proof too large: %d > %d", merkleProofSize, merge_mining.MaxChainsLog2)
 	} else if merkleProofSize > 0 {
 		// preallocate
 		j.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
@@ -95,7 +94,7 @@ func JobFromString(s string) (j Job, err error) {
 	if err != nil {
 		return j, err
 	} else if mergeMiningExtraSize > merge_mining.MaxChains {
-		return j, fmt.Errorf("merge mining data too big: %d > %d", mergeMiningExtraSize, merge_mining.MaxChains)
+		return j, utils.ErrorfNoEscape("merge mining data too big: %d > %d", mergeMiningExtraSize, merge_mining.MaxChains)
 	} else if mergeMiningExtraSize > 0 {
 		// preallocate
 		j.MergeMiningExtra = make(sidechain.MergeMiningExtra, mergeMiningExtraSize)
@@ -106,11 +105,11 @@ func JobFromString(s string) (j Job, err error) {
 				return j, err
 			} else if i > 0 && j.MergeMiningExtra[i-1].ChainId.Compare(j.MergeMiningExtra[i].ChainId) >= 0 {
 				// IDs must be ordered to avoid duplicates
-				return j, fmt.Errorf("duplicate or not ordered merge mining data chain id: %s > %s", j.MergeMiningExtra[i-1].ChainId, j.MergeMiningExtra[i].ChainId)
+				return j, utils.ErrorfNoEscape("duplicate or not ordered merge mining data chain id: %s > %s", j.MergeMiningExtra[i-1].ChainId, j.MergeMiningExtra[i].ChainId)
 			} else if mergeMiningExtraDataSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
 				return j, err
 			} else if mergeMiningExtraDataSize > sidechain.PoolBlockMaxTemplateSize {
-				return j, fmt.Errorf("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, sidechain.PoolBlockMaxTemplateSize)
+				return j, utils.ErrorfNoEscape("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, sidechain.PoolBlockMaxTemplateSize)
 			} else if mergeMiningExtraDataSize > 0 {
 				j.MergeMiningExtra[i].Data = make(types.Bytes, mergeMiningExtraDataSize)
 				if _, err = io.ReadFull(reader, j.MergeMiningExtra[i].Data); err != nil {

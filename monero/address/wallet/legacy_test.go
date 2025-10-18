@@ -17,7 +17,7 @@ var testGeneralFundViewKey = crypto.PrivateKeyBytes(types.MustHashFromString("f3
 var testGeneralFundDonationAddr = address.FromBase58("888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H")
 var testGeneralFundSubaddressIndex = address.SubaddressIndex{Account: 0, Offset: 70}
 
-func TestViewWallet(t *testing.T) {
+func TestViewWallet_GeneralFund(t *testing.T) {
 	vw, err := NewViewWallet(testGeneralFundAddr, &testGeneralFundViewKey, 0, 80)
 	if err != nil {
 		t.Fatal(err)
@@ -47,14 +47,14 @@ func TestViewWallet(t *testing.T) {
 			Reward:             0,
 			EphemeralPublicKey: crypto.PublicKeyBytes(types.MustHashFromString("892251b8fa9b95f90397f17f20178e05be9122338c1be821cb208237ce3397ca")),
 			Type:               transaction.TxOutToTaggedKey,
-			ViewTag:            [monero.CarrotViewTagSize]byte{0xc0},
+			ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0xc0}),
 		},
 		{
 			Index:              1,
 			Reward:             0,
 			EphemeralPublicKey: crypto.PublicKeyBytes(types.MustHashFromString("8219a994a9055ce3f99298fae343afea6b2d658098b33099b65b78e160cbd72e")),
 			Type:               transaction.TxOutToTaggedKey,
-			ViewTag:            [monero.CarrotViewTagSize]byte{0x82},
+			ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0x82}),
 		},
 	}
 

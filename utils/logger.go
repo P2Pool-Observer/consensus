@@ -51,7 +51,7 @@ func Panic(v ...any) {
 func Panicf(format string, v ...any) {
 	buf := getLogBuf()
 	defer returnLogBuf(buf)
-	buf = fmt.Appendf(innerPrint(buf, "", "PANIC"), format, v...)
+	buf = AppendfNoEscape(innerPrint(buf, "", "PANIC"), format, v...)
 	_println(buf)
 	panic(string(buf))
 }
@@ -59,7 +59,7 @@ func Panicf(format string, v ...any) {
 func Fatalf(format string, v ...any) {
 	buf := getLogBuf()
 	defer returnLogBuf(buf)
-	_println(fmt.Appendf(innerPrint(buf, "", "FATAL"), format, v...))
+	_println(AppendfNoEscape(innerPrint(buf, "", "FATAL"), format, v...))
 	os.Exit(1)
 }
 
@@ -78,7 +78,7 @@ func Errorf(prefix, format string, v ...any) {
 	}
 	buf := getLogBuf()
 	defer returnLogBuf(buf)
-	_println(fmt.Appendf(innerPrint(buf, prefix, "ERROR"), format, v...))
+	_println(AppendfNoEscape(innerPrint(buf, prefix, "ERROR"), format, v...))
 }
 
 func Print(v ...any) {
@@ -96,7 +96,7 @@ func Logf(prefix, format string, v ...any) {
 	}
 	buf := getLogBuf()
 	defer returnLogBuf(buf)
-	_println(fmt.Appendf(innerPrint(buf, prefix, "INFO"), format, v...))
+	_println(AppendfNoEscape(innerPrint(buf, prefix, "INFO"), format, v...))
 }
 
 func Noticef(prefix, format string, v ...any) {
@@ -105,7 +105,7 @@ func Noticef(prefix, format string, v ...any) {
 	}
 	buf := getLogBuf()
 	defer returnLogBuf(buf)
-	_println(fmt.Appendf(innerPrint(buf, prefix, "NOTICE"), format, v...))
+	_println(AppendfNoEscape(innerPrint(buf, prefix, "NOTICE"), format, v...))
 }
 
 func IsLogLevelDebug() bool {
@@ -118,7 +118,7 @@ func Debugf(prefix, format string, v ...any) {
 	}
 	buf := getLogBuf()
 	defer returnLogBuf(buf)
-	_println(fmt.Appendf(innerPrint(buf, prefix, "DEBUG"), format, v...))
+	_println(AppendfNoEscape(innerPrint(buf, prefix, "DEBUG"), format, v...))
 }
 
 func _println(buf []byte) {
@@ -160,12 +160,12 @@ func innerPrint(buf []byte, prefix, class string) []byte {
 				}
 			}
 			funcItems := strings.Split(shortFunc, ".")
-			buf = fmt.Appendf(buf, " %s:%d:%s [%s] %s ", short, line, funcItems[len(funcItems)-1], prefix, class)
+			buf = AppendfNoEscape(buf, " %s:%d:%s [%s] %s ", short, line, funcItems[len(funcItems)-1], prefix, class)
 		} else {
-			buf = fmt.Appendf(buf, " %s:%d [%s] %s ", short, line, prefix, class)
+			buf = AppendfNoEscape(buf, " %s:%d [%s] %s ", short, line, prefix, class)
 		}
 	} else {
-		buf = fmt.Appendf(buf, " [%s] %s ", prefix, class)
+		buf = AppendfNoEscape(buf, " [%s] %s ", prefix, class)
 	}
 	return buf
 }

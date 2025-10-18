@@ -67,7 +67,7 @@ func CalculateTransactionOutput(a Interface, txKey crypto.PrivateKey, outputInde
 
 	out.Type = transaction.TxOutToTaggedKey
 	out.Index = outputIndex
-	out.ViewTag[0] = viewTag
+	out.ViewTag.Slice()[0] = viewTag
 	out.EphemeralPublicKey = GetPublicKeyForSharedData(a, pK).AsBytes()
 
 	return out, additionalTxPub, crypto.DecryptOutputAmount(pK, amount)

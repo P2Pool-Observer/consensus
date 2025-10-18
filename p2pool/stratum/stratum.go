@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"math"
 	unsafeRandom "math/rand/v2"
 	"net"
@@ -171,7 +170,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 
 	if s.minerData.MajorVersion > monero.HardForkSupportedVersion {
-		return fmt.Errorf("unsupported hardfork version %d", s.minerData.MajorVersion)
+		return utils.ErrorfNoEscape("unsupported hardfork version %d", s.minerData.MajorVersion)
 	}
 
 	oldPubKeyCache := s.newTemplateData.Window.EphemeralPubKeyCache
@@ -190,7 +189,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 
 	if !s.newTemplateData.ShareVersion.Supports(s.minerData.MajorVersion) {
-		return fmt.Errorf("unsupported major version %d for sidechain version %d", s.minerData.MajorVersion, uint8(s.newTemplateData.ShareVersion))
+		return utils.ErrorfNoEscape("unsupported major version %d for sidechain version %d", s.minerData.MajorVersion, uint8(s.newTemplateData.ShareVersion))
 	}
 
 	if s.tip != nil {
@@ -279,7 +278,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	defer s.preAllocatedSharesPool.Put(preAllocatedShares)
 	shares, _, err := sidechain.GetSharesOrdered(fakeTemplateTipBlock, s.sidechain.Consensus(), s.sidechain.Server().GetDifficultyByHeight, s.sidechain.GetPoolBlockByTemplateId, preAllocatedShares)
 	if err != nil {
-		return fmt.Errorf("could not get outputs: %w", err)
+		return utils.ErrorfNoEscape("could not get outputs: %w", err)
 	}
 
 	// clone with reuse
@@ -661,10 +660,10 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 			minerTx, _ := blockTemplate.Main.Coinbase.MarshalBinary()
 
 			if uint64(blockTemplate.Main.Coinbase.BufferLength()) != weights.CoinbaseTransaction {
-				return nil, 0, types.ZeroDifficulty, types.ZeroHash, fmt.Errorf("miner tx size changed after adjusting reward: %d != %d", blockTemplate.Main.Coinbase.BufferLength(), weights.CoinbaseTransaction)
+				return nil, 0, types.ZeroDifficulty, types.ZeroHash, utils.ErrorfNoEscape("miner tx size changed after adjusting reward: %d != %d", blockTemplate.Main.Coinbase.BufferLength(), weights.CoinbaseTransaction)
 			}
 			if uint64(len(minerTx)) != weights.CoinbaseTransaction {
-				return nil, 0, types.ZeroDifficulty, types.ZeroHash, fmt.Errorf("miner tx size changed after adjusting reward: %d != %d", len(minerTx), weights.CoinbaseTransaction)
+				return nil, 0, types.ZeroDifficulty, types.ZeroHash, utils.ErrorfNoEscape("miner tx size changed after adjusting reward: %d != %d", len(minerTx), weights.CoinbaseTransaction)
 			}
 
 		}
@@ -902,9 +901,9 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 				copy(k[:], shares[outputIndex].Address.PackedAddress().Bytes())
 				binary.LittleEndian.PutUint64(k[crypto.PublicKeySize*2:], outputIndex)
 				if e, ok := s.newTemplateData.Window.EphemeralPubKeyCache[k]; ok {
-					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag[0] = e.PublicKey, e.ViewTag
+					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag.Slice()[0] = e.PublicKey, e.ViewTag
 				} else {
-					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag[0] = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
+					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag.Slice()[0] = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
 				}
 			}
 		}
@@ -1211,7 +1210,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 						addr := addrPort.Addr().Unmap()
 
 						if ok, b := s.IsBanned(addr); ok {
-							return addrPort, fmt.Errorf("peer is banned: %w", b.Error)
+							return addrPort, utils.ErrorfNoEscape("peer is banned: %w", b.Error)
 						}
 					}
 
@@ -1266,7 +1265,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 						defer func() {
 							if e := recover(); e != nil {
 								if err = e.(error); err == nil {
-									err = fmt.Errorf("panic called: %v", e)
+									err = utils.ErrorfNoEscape("panic called: %v", e)
 								}
 								s.CloseClient(client)
 							}
@@ -1506,7 +1505,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 													if powDiff.Cmp(b.Side.Difficulty) >= 0 {
 														//passes difficulty
 														if err := s.SubmitFunc(b); err != nil {
-															return fmt.Errorf("submit error: %w", err), true
+															return utils.ErrorfNoEscape("submit error: %w", err), true
 														}
 													} else {
 														// explicitly allow low diff shares that pass main difficulty but not sidechain one, useful for testnet
@@ -1521,7 +1520,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 															}(); mainDiff != types.ZeroDifficulty && mainDiff.CheckPoW(resultHash) {
 																//passes main difficulty
 																if err := s.SubmitMainFunc(&b.Main); err != nil {
-																	return fmt.Errorf("submit main error: %w", err), false
+																	return utils.ErrorfNoEscape("submit main error: %w", err), false
 																}
 																return nil, false
 															}
@@ -1576,7 +1575,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 									return
 								}
 							default:
-								err = fmt.Errorf("unknown command %s", msg.Method)
+								err = utils.ErrorfNoEscape("unknown command %s", msg.Method)
 								_ = client.encoder.Encode(JsonRpcResult{
 									Id:             msg.Id,
 									JsonRpcVersion: "2.0",

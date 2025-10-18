@@ -2,7 +2,6 @@ package sidechain
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -101,7 +100,7 @@ func (n *NetworkType) UnmarshalJSON(b []byte) error {
 		*n = NetworkStagenet
 
 	default:
-		return fmt.Errorf("unknown network type %s", s)
+		return utils.ErrorfNoEscape("unknown network type %s", s)
 	}
 
 	return nil

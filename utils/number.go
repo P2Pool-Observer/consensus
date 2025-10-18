@@ -43,11 +43,11 @@ func ParseUint64(s []byte) (uint64, error) {
 		break
 	}
 	if i <= j {
-		return 0, fmt.Errorf("cannot parse uint64 from %q", s)
+		return 0, ErrorfNoEscape("cannot parse uint64 from %q", s)
 	}
 	if i < uint(len(s)) {
 		// Unparsed tail left.
-		return 0, fmt.Errorf("unparsed tail left after parsing uint64 from %q: %q", s, s[i:])
+		return 0, ErrorfNoEscape("unparsed tail left after parsing uint64 from %q: %q", s, s[i:])
 	}
 	return d, nil
 }

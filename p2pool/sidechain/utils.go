@@ -3,7 +3,6 @@ package sidechain
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"math/bits"
 	"slices"
 
@@ -43,7 +42,7 @@ func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType 
 		Type:               txType,
 		Reward:             amount,
 		EphemeralPublicKey: ephemeralPubKey,
-		ViewTag:            [monero.CarrotViewTagSize]byte{viewTag},
+		ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{viewTag}),
 	}
 }
 
@@ -65,8 +64,8 @@ func CalculateOutputCarrot(enote *carrot.CoinbaseEnoteV1, txType uint8, outputIn
 		Type:                 txType,
 		Reward:               enote.Amount,
 		EphemeralPublicKey:   enote.OneTimeAddress,
-		ViewTag:              enote.ViewTag,
-		EncryptedJanusAnchor: enote.EncryptedAnchor,
+		ViewTag:              types.MakeFixed(enote.ViewTag),
+		EncryptedJanusAnchor: types.MakeFixed(enote.EncryptedAnchor),
 	}
 }
 
@@ -97,7 +96,7 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
 			carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, tmpRewards[workIndex])
 			if carrotEnotes[workIndex] == nil {
-				return fmt.Errorf("invalid carrot enote at index %d", workIndex)
+				return utils.ErrorfNoEscape("invalid carrot enote at index %d", workIndex)
 			}
 			return nil
 		}, nil)
@@ -124,7 +123,7 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
 			addr := &tmpShares[workIndex].Address
 			if addr.IsSubaddress() {
-				return fmt.Errorf("is not main address at index %d", workIndex)
+				return utils.ErrorfNoEscape("is not main address at index %d", workIndex)
 			}
 			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, tmpRewards[workIndex])
 
@@ -158,7 +157,7 @@ func IterateBlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficulty
 		seedHeight := randomx.SeedHeight(tip.Main.Coinbase.GenHeight)
 		mainchainDiff = difficultyByHeight(seedHeight)
 		if mainchainDiff == types.ZeroDifficulty {
-			return fmt.Errorf("couldn't get mainchain difficulty for height = %d", seedHeight)
+			return utils.ErrorfNoEscape("couldn't get mainchain difficulty for height = %d", seedHeight)
 		}
 	}
 
@@ -237,7 +236,7 @@ func IterateBlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficulty
 		cur = cur.iteratorGetParent(getByTemplateId)
 
 		if cur == nil {
-			return fmt.Errorf("could not find parent %x", parentId.Slice())
+			return utils.ErrorfNoEscape("could not find parent %x", parentId.Slice())
 		}
 	}
 	return nil
@@ -255,7 +254,7 @@ func BlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficultyByHeigh
 		seedHeight := randomx.SeedHeight(tip.Main.Coinbase.GenHeight)
 		mainchainDiff = difficultyByHeight(seedHeight)
 		if mainchainDiff == types.ZeroDifficulty {
-			return 0, fmt.Errorf("couldn't get mainchain difficulty for height = %d", seedHeight)
+			return 0, utils.ErrorfNoEscape("couldn't get mainchain difficulty for height = %d", seedHeight)
 		}
 	}
 
@@ -326,7 +325,7 @@ func BlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficultyByHeigh
 		cur = cur.iteratorGetParent(getByTemplateId)
 
 		if cur == nil {
-			return 0, fmt.Errorf("could not find parent %x", parentId)
+			return 0, utils.ErrorfNoEscape("could not find parent %x", parentId)
 		}
 	}
 	return bottomHeight, nil
@@ -462,7 +461,7 @@ func GetDifficultyForNextBlock(tip *PoolBlock, consensus *Consensus, getByTempla
 		cur = cur.iteratorGetParent(getByTemplateId)
 
 		if cur == nil {
-			return types.ZeroDifficulty, fmt.Errorf("could not find parent %x", parentId.Slice()), nil
+			return types.ZeroDifficulty, utils.ErrorfNoEscape("could not find parent %x", parentId.Slice()), nil
 		}
 	}
 
@@ -519,9 +518,9 @@ func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []
 		defer func() {
 			if e := recover(); e != nil {
 				if panicError, ok := e.(error); ok {
-					err = fmt.Errorf("panic in NextDifficulty, wrap occured?: %w", panicError)
+					err = utils.ErrorfNoEscape("panic in NextDifficulty, wrap occured?: %w", panicError)
 				} else {
-					err = fmt.Errorf("panic in NextDifficulty, wrap occured?: %v", e)
+					err = utils.ErrorfNoEscape("panic in NextDifficulty, wrap occured?: %v", e)
 				}
 			}
 		}()

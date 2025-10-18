@@ -363,7 +363,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 
 	if block.ShareVersion() >= ShareVersion_V3 {
 		if templateId != block.FastSideTemplateId(c.Consensus()) {
-			return nil, fmt.Errorf("invalid template id %s, expected %s", block.FastSideTemplateId(c.Consensus()), templateId), true
+			return nil, utils.ErrorfNoEscape("invalid template id %s, expected %s", block.FastSideTemplateId(c.Consensus()), templateId), true
 		}
 
 		// verify template id against merkle proof
@@ -371,20 +371,20 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		auxiliarySlot := merge_mining.GetAuxiliarySlot(c.Consensus().Id, mmTag.Nonce, mmTag.NumberAuxiliaryChains)
 
 		if !block.Side.MerkleProof.Verify(templateId, int(auxiliarySlot), int(mmTag.NumberAuxiliaryChains), mmTag.RootHash) {
-			return nil, fmt.Errorf("could not verify template id %x merkle proof against merkle tree root hash %x (number of chains = %d, nonce = %d, auxiliary slot = %d)", templateId.Slice(), mmTag.RootHash.Slice(), mmTag.NumberAuxiliaryChains, mmTag.Nonce, auxiliarySlot), true
+			return nil, utils.ErrorfNoEscape("could not verify template id %x merkle proof against merkle tree root hash %x (number of chains = %d, nonce = %d, auxiliary slot = %d)", templateId.Slice(), mmTag.RootHash.Slice(), mmTag.NumberAuxiliaryChains, mmTag.Nonce, auxiliarySlot), true
 		}
 	} else {
 		if templateId != types.HashFromBytes(block.CoinbaseExtra(SideIdentifierHash)) {
-			return nil, fmt.Errorf("invalid template id %x, expected %x", block.SideTemplateId(c.Consensus()).Slice(), templateId.Slice()), true
+			return nil, utils.ErrorfNoEscape("invalid template id %x, expected %x", block.SideTemplateId(c.Consensus()).Slice(), templateId.Slice()), true
 		}
 	}
 
 	if extraNonce := block.CoinbaseExtra(SideExtraNonce); extraNonce == nil {
-		return nil, fmt.Errorf("invalid or non existing extra nonce"), true
+		return nil, utils.ErrorfNoEscape("invalid or non existing extra nonce"), true
 	}
 
 	if block.Side.Difficulty.Cmp64(c.Consensus().MinimumDifficulty) < 0 {
-		return nil, fmt.Errorf("block mined by %s has invalid difficulty %s, expected >= %d", block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.Difficulty.StringNumeric(), c.Consensus().MinimumDifficulty), true
+		return nil, utils.ErrorfNoEscape("block mined by %s has invalid difficulty %s, expected >= %d", block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.Difficulty.StringNumeric(), c.Consensus().MinimumDifficulty), true
 	}
 
 	expectedDifficulty := c.Difficulty()
@@ -412,7 +412,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 				if isHigher, err := block.IsProofHigherThanDifficultyWithError(c.Consensus().GetHasher(), c.getSeedByHeightFunc()); err != nil {
 					return nil, err, true
 				} else if !isHigher {
-					return nil, fmt.Errorf("not enough PoW for id %x, height = %d, mainchain height %d", templateId.Slice(), block.Side.Height, block.Main.Coinbase.GenHeight), true
+					return nil, utils.ErrorfNoEscape("not enough PoW for id %x, height = %d, mainchain height %d", templateId.Slice(), block.Side.Height, block.Main.Coinbase.GenHeight), true
 				}
 
 				{
@@ -454,13 +454,13 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	}
 
 	if tooLowDiff {
-		return nil, fmt.Errorf("block mined by %s has too low difficulty %s, expected >= %s", block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.Difficulty.StringNumeric(), expectedDifficulty.StringNumeric()), false
+		return nil, utils.ErrorfNoEscape("block mined by %s has too low difficulty %s, expected >= %s", block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.Difficulty.StringNumeric(), expectedDifficulty.StringNumeric()), false
 	}
 
 	// This check is not always possible to perform because of mainchain reorgs
 	if data := c.server.GetChainMainByHash(block.Main.PreviousId); data != nil {
 		if (data.Height + 1) != block.Main.Coinbase.GenHeight {
-			return nil, fmt.Errorf("wrong mainchain height %d, expected %d", block.Main.Coinbase.GenHeight, data.Height+1), true
+			return nil, utils.ErrorfNoEscape("wrong mainchain height %d, expected %d", block.Main.Coinbase.GenHeight, data.Height+1), true
 		}
 	} else {
 		//TODO warn unknown block, reorg
@@ -533,7 +533,7 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 		if isHigher, err := block.IsProofHigherThanDifficultyWithError(c.Consensus().GetHasher(), c.getSeedByHeightFunc()); err != nil {
 			return nil, err, true
 		} else if !isHigher {
-			return nil, fmt.Errorf("not enough PoW for id %x, height = %d, mainchain height %d", templateId.Slice(), block.Side.Height, block.Main.Coinbase.GenHeight), true
+			return nil, utils.ErrorfNoEscape("not enough PoW for id %x, height = %d, mainchain height %d", templateId.Slice(), block.Side.Height, block.Main.Coinbase.GenHeight), true
 		}
 	}
 
@@ -768,13 +768,13 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				expectedSeed = parent.CalculateTransactionPrivateKeySeed()
 			}
 			if block.Side.CoinbasePrivateKeySeed != expectedSeed {
-				return nil, fmt.Errorf("invalid tx key seed: expected %s, got %s", expectedSeed.String(), block.Side.CoinbasePrivateKeySeed.String())
+				return nil, utils.ErrorfNoEscape("invalid tx key seed: expected %s, got %s", expectedSeed.String(), block.Side.CoinbasePrivateKeySeed.String())
 			}
 		}
 
 		expectedHeight := parent.Side.Height + 1
 		if expectedHeight != block.Side.Height {
-			return nil, fmt.Errorf("wrong height, expected %d", expectedHeight)
+			return nil, utils.ErrorfNoEscape("wrong height, expected %d", expectedHeight)
 		}
 
 		// Uncle hashes must be sorted in the ascending order to prevent cheating when the same hash is repeated multiple times
@@ -813,7 +813,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 
 			// Can't mine the same uncle block twice
 			if slices.Index(minedBlocks, uncleId) != -1 {
-				return nil, fmt.Errorf("uncle %x has already been mined", uncleId.Slice())
+				return nil, utils.ErrorfNoEscape("uncle %x has already been mined", uncleId.Slice())
 			}
 
 			if uncle := c.getPoolBlockByTemplateId(uncleId); uncle == nil {
@@ -825,7 +825,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				// If it's invalid then this block is also invalid
 				return nil, errors.New("uncle is invalid")
 			} else if uncle.Side.Height >= block.Side.Height || (uncle.Side.Height+UncleBlockDepth < block.Side.Height) {
-				return nil, fmt.Errorf("uncle at the wrong height (%d)", uncle.Side.Height)
+				return nil, utils.ErrorfNoEscape("uncle at the wrong height (%d)", uncle.Side.Height)
 			} else {
 				// Check that uncle and parent have the same ancestor (they must be on the same chain)
 				tmp := parent
@@ -864,7 +864,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 		// It can still turn out to be invalid
 
 		if !block.Side.CumulativeDifficulty.Equals(expectedCumulativeDifficulty) {
-			return nil, fmt.Errorf("wrong cumulative difficulty, got %s, expected %s", block.Side.CumulativeDifficulty.StringNumeric(), expectedCumulativeDifficulty.StringNumeric())
+			return nil, utils.ErrorfNoEscape("wrong cumulative difficulty, got %s, expected %s", block.Side.CumulativeDifficulty.StringNumeric(), expectedCumulativeDifficulty.StringNumeric())
 		}
 
 		// Verify difficulty and miner rewards only for blocks in PPLNS window
@@ -884,29 +884,29 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			return nil, ErrNoDifficulty
 		}
 		if diff != block.Side.Difficulty {
-			return nil, fmt.Errorf("wrong difficulty, got %s, expected %s", block.Side.Difficulty.StringNumeric(), diff.StringNumeric())
+			return nil, utils.ErrorfNoEscape("wrong difficulty, got %s, expected %s", block.Side.Difficulty.StringNumeric(), diff.StringNumeric())
 		}
 
 		if shares, _, err := c.getShares(block, c.preAllocatedShares); len(shares) == 0 {
-			return nil, fmt.Errorf("could not get outputs: %w", err)
+			return nil, utils.ErrorfNoEscape("could not get outputs: %w", err)
 		} else if len(shares) != len(block.Main.Coinbase.Outputs) {
-			return nil, fmt.Errorf("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(shares))
+			return nil, utils.ErrorfNoEscape("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(shares))
 		} else if totalReward := func() (result uint64) {
 			for _, o := range block.Main.Coinbase.Outputs {
 				result += o.Reward
 			}
 			return
 		}(); totalReward != block.Main.Coinbase.AuxiliaryData.TotalReward {
-			return nil, fmt.Errorf("invalid total reward, got %d, expected %d", block.Main.Coinbase.AuxiliaryData.TotalReward, totalReward)
+			return nil, utils.ErrorfNoEscape("invalid total reward, got %d, expected %d", block.Main.Coinbase.AuxiliaryData.TotalReward, totalReward)
 		} else if rewards := SplitReward(c.preAllocatedRewards, totalReward, shares); len(rewards) != len(block.Main.Coinbase.Outputs) {
-			return nil, fmt.Errorf("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(rewards))
+			return nil, utils.ErrorfNoEscape("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(rewards))
 		} else {
 
 			pubs := block.CoinbasePublicKeys()
 
 			if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
 				if len(pubs) != len(block.Main.Coinbase.Outputs) {
-					return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), len(block.Main.Coinbase.Outputs))
+					return nil, utils.ErrorfNoEscape("invalid number of public keys, got %d, expected %d", len(pubs), len(block.Main.Coinbase.Outputs))
 				}
 				// todo: cache buf
 				carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(rewards))
@@ -914,7 +914,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
 					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, rewards[workIndex])
 					if carrotEnotes[workIndex] == nil {
-						return fmt.Errorf("invalid carrot enote at index %d", workIndex)
+						return utils.ErrorfNoEscape("invalid carrot enote at index %d", workIndex)
 					}
 					return nil
 				}, nil); err != nil {
@@ -930,19 +930,19 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 					out := block.Main.Coinbase.Outputs[i]
 
 					if enote.Amount != out.Reward {
-						return nil, fmt.Errorf("has invalid reward at index %d, got %d, expected %d", i, out.Reward, enote.Amount)
+						return nil, utils.ErrorfNoEscape("has invalid reward at index %d, got %d, expected %d", i, out.Reward, enote.Amount)
 					}
 
 					if enote.OneTimeAddress != out.EphemeralPublicKey {
-						return nil, fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", i, out.EphemeralPublicKey.String(), enote.OneTimeAddress.String())
-					} else if enote.ViewTag != out.ViewTag {
-						return nil, fmt.Errorf("has incorrect view tag at index %d, got %x, expected %x", i, out.ViewTag, enote.ViewTag)
-					} else if enote.EncryptedAnchor != out.EncryptedJanusAnchor {
-						return nil, fmt.Errorf("has incorrect janus anchor at index %d, got %x, expected %x", i, out.EncryptedJanusAnchor, enote.EncryptedAnchor)
+						return nil, utils.ErrorfNoEscape("has incorrect eph_public_key at index %d, got %s, expected %s", i, out.EphemeralPublicKey.String(), enote.OneTimeAddress.String())
+					} else if enote.ViewTag != out.ViewTag.Value() {
+						return nil, utils.ErrorfNoEscape("has incorrect view tag at index %d, got %x, expected %s", i, out.ViewTag, enote.ViewTag)
+					} else if enote.EncryptedAnchor != out.EncryptedJanusAnchor.Value() {
+						return nil, utils.ErrorfNoEscape("has incorrect janus anchor at index %d, got %x, expected %s", i, out.EncryptedJanusAnchor, enote.EncryptedAnchor)
 					}
 
 					if !bytes.Equal(pubs[i][:], enote.EphemeralPubKey[:]) {
-						return nil, fmt.Errorf("has incorrect public key at index %d, got %x, expected %s", i, enote.EphemeralPubKey[:], pubs[i].String())
+						return nil, utils.ErrorfNoEscape("has incorrect public key at index %d, got %x, expected %s", i, enote.EphemeralPubKey[:], pubs[i].String())
 					}
 				}
 			} else {
@@ -951,23 +951,23 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
 
 				if len(pubs) != 1 {
-					return nil, fmt.Errorf("invalid number of public keys, got %d, expected %d", len(pubs), 1)
+					return nil, utils.ErrorfNoEscape("invalid number of public keys, got %d, expected %d", len(pubs), 1)
 				}
 				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
 					out := block.Main.Coinbase.Outputs[workIndex]
 
 					if rewards[workIndex] != out.Reward {
-						return fmt.Errorf("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
+						return utils.ErrorfNoEscape("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
 					}
 					addr := &shares[workIndex].Address
 					if addr.IsSubaddress() {
-						return fmt.Errorf("is not main address at index %d", workIndex)
+						return utils.ErrorfNoEscape("is not main address at index %d", workIndex)
 					}
 					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, out.Reward)
 					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
-						return fmt.Errorf("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
+						return utils.ErrorfNoEscape("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
 					} else if out.Type == transaction.TxOutToTaggedKey && calculated.ViewTag != out.ViewTag {
-						return fmt.Errorf("has incorrect view tag at index %d, got %d, expected %d", workIndex, out.ViewTag, calculated.ViewTag)
+						return utils.ErrorfNoEscape("has incorrect view tag at index %d, got %d, expected %d", workIndex, out.ViewTag, calculated.ViewTag)
 					}
 
 					return nil
@@ -1497,12 +1497,12 @@ func LoadSideChainTestData(consensus *Consensus, derivationCache DerivationCache
 	for {
 		buf = buf[:0]
 		var blockLen uint32
-		if err = binary.Read(reader, binary.LittleEndian, &blockLen); err == io.EOF {
+		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &blockLen); err == io.EOF {
 			break
 		} else if err != nil {
 			return nil, err
 		}
-		if _, err = io.ReadFull(reader, buf[:blockLen]); err != nil {
+		if _, err = utils.ReadFullNoEscape(reader, buf[:blockLen]); err != nil {
 			return nil, err
 		}
 		b := &PoolBlock{}

@@ -3,7 +3,6 @@ package mainchain
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -97,7 +96,7 @@ func (c *MainChain) Listen() error {
 								Reward:             o.Amount,
 								Type:               transaction.TxOutToKey,
 								EphemeralPublicKey: o.ToKey.Key,
-								ViewTag:            [monero.CarrotViewTagSize]byte{0},
+								ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0}),
 							})
 						} else if o.ToTaggedKey != nil {
 							outputs = append(outputs, transaction.Output{
@@ -105,7 +104,7 @@ func (c *MainChain) Listen() error {
 								Reward:             o.Amount,
 								Type:               transaction.TxOutToTaggedKey,
 								EphemeralPublicKey: o.ToTaggedKey.Key,
-								ViewTag:            [monero.CarrotViewTagSize]byte{o.ToTaggedKey.ViewTag[0]},
+								ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{o.ToTaggedKey.ViewTag[0]}),
 							})
 						} else if o.ToCarrotV1 != nil {
 							outputs = append(outputs, transaction.Output{
@@ -113,8 +112,8 @@ func (c *MainChain) Listen() error {
 								Reward:               o.Amount,
 								Type:                 transaction.TxOutToCarrotV1,
 								EphemeralPublicKey:   o.ToCarrotV1.Key,
-								ViewTag:              [monero.CarrotViewTagSize]uint8(o.ToCarrotV1.ViewTag),
-								EncryptedJanusAnchor: [monero.JanusAnchorSize]uint8(o.ToCarrotV1.EncryptedJanusAnchor),
+								ViewTag:              types.MakeFixed([monero.CarrotViewTagSize]uint8(o.ToCarrotV1.ViewTag)),
+								EncryptedJanusAnchor: types.MakeFixed([monero.JanusAnchorSize]uint8(o.ToCarrotV1.EncryptedJanusAnchor)),
 							})
 						} else {
 							//error
@@ -412,7 +411,7 @@ func (c *MainChain) DownloadBlockHeaders(currentHeight uint64) error {
 	}
 
 	if rangeResult, err := c.p2pool.ClientRPC().GetBlockHeadersRangeResult(startHeight, currentHeight-1, c.p2pool.Context()); err != nil {
-		return fmt.Errorf("couldn't download block headers range for height %d to %d: %s", startHeight, currentHeight-1, err)
+		return utils.ErrorfNoEscape("couldn't download block headers range for height %d to %d: %s", startHeight, currentHeight-1, err)
 	} else {
 		for _, header := range rangeResult.Headers {
 			c.HandleMainHeader(&mainblock.Header{
@@ -514,7 +513,7 @@ func (c *MainChain) HandleMinerData(minerData *p2pooltypes.MinerData) {
 
 func (c *MainChain) getBlockHeader(height uint64) error {
 	if header, err := c.p2pool.ClientRPC().GetBlockHeaderByHeight(height, c.p2pool.Context()); err != nil {
-		return fmt.Errorf("couldn't download block header for height %d: %s", height, err)
+		return utils.ErrorfNoEscape("couldn't download block header for height %d: %s", height, err)
 	} else {
 		c.HandleMainHeader(&mainblock.Header{
 			MajorVersion: uint8(header.BlockHeader.MajorVersion),

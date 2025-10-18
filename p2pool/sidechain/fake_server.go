@@ -2,7 +2,6 @@ package sidechain
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
@@ -10,6 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 type FakeServer struct {
@@ -96,7 +96,7 @@ func (s *FakeServer) DownloadMinimalBlockHeaders(currentHeight uint64) error {
 	}
 
 	if rangeResult, err := s.ClientRPC().GetBlockHeadersRangeResult(startHeight, currentHeight-1, s.Context()); err != nil {
-		return fmt.Errorf("couldn't download block headers range for height %d to %d: %s", startHeight, currentHeight-1, err)
+		return utils.ErrorfNoEscape("couldn't download block headers range for height %d to %d: %s", startHeight, currentHeight-1, err)
 	} else {
 		s.headersLock.Lock()
 		defer s.headersLock.Unlock()

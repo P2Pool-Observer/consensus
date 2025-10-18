@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	unsafeRandom "math/rand/v2"
 	"net"
@@ -359,7 +358,7 @@ func (c *Client) OnConnection() {
 		messageId = MessageId(messageIdBuf[0])
 
 		if !c.HandshakeComplete.Load() && messageId != c.expectedMessage {
-			c.Ban(DefaultBanTime, fmt.Errorf("unexpected pre-handshake message: got %d, expected %d", messageId, c.expectedMessage))
+			c.Ban(DefaultBanTime, utils.ErrorfNoEscape("unexpected pre-handshake message: got %d, expected %d", messageId, c.expectedMessage))
 			return
 		}
 
@@ -402,7 +401,7 @@ func (c *Client) OnConnection() {
 				return false, nil
 			}(); ok {
 				c.HandshakeComplete.Store(true)
-				c.SetError(fmt.Errorf("already connected as %s (%d)", otherClient.AddressPort, otherClient.PeerId.Load()))
+				c.SetError(utils.ErrorfNoEscape("already connected as %s (%d)", otherClient.AddressPort, otherClient.PeerId.Load()))
 				//same peer
 				utils.Logf("P2PClient", "Connected to other same peer: %s (%d) is also %s (%d)", c.AddressPort, c.PeerId.Load(), otherClient.AddressPort, otherClient.PeerId.Load())
 				c.Close()
@@ -438,18 +437,18 @@ func (c *Client) OnConnection() {
 				//TODO: consensus MergeMiningId
 				if hash, ok := CalculateChallengeHash(c.handshakeChallenge, c.Owner.HandshakeConsensusId(), solution); !ok {
 					//not enough PoW
-					c.Ban(DefaultBanTime, fmt.Errorf("not enough PoW on HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
+					c.Ban(DefaultBanTime, utils.ErrorfNoEscape("not enough PoW on HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
 					return
 				} else if hash != challengeHash {
 					//wrong hash
-					c.Ban(DefaultBanTime, fmt.Errorf("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
+					c.Ban(DefaultBanTime, utils.ErrorfNoEscape("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
 					return
 				}
 			} else {
 				//TODO: consensus MergeMiningId
 				if hash, _ := CalculateChallengeHash(c.handshakeChallenge, c.Owner.HandshakeConsensusId(), solution); hash != challengeHash {
 					//wrong hash
-					c.Ban(DefaultBanTime, fmt.Errorf("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
+					c.Ban(DefaultBanTime, utils.ErrorfNoEscape("wrong hash HANDSHAKE_SOLUTION, challenge = %s, solution = %d, calculated hash = %s, expected hash = %s", fasthex.EncodeToString(c.handshakeChallenge[:]), solution, hash.String(), challengeHash.String()))
 					return
 				}
 			}
@@ -473,7 +472,7 @@ func (c *Client) OnConnection() {
 			}
 
 			if listenPort == 0 || listenPort >= 65536 {
-				c.Ban(DefaultBanTime, fmt.Errorf("listen port out of range: %d", listenPort))
+				c.Ban(DefaultBanTime, utils.ErrorfNoEscape("listen port out of range: %d", listenPort))
 				return
 			}
 			c.ListenPort.Store(listenPort)
@@ -570,7 +569,7 @@ func (c *Client) OnConnection() {
 						ourHeight := c.Owner.MainChain().GetMinerDataTip().Height
 
 						if (peerHeight + 2) < ourHeight {
-							c.Ban(DefaultBanTime, fmt.Errorf("mining on top of a stale block (mainchain peer height %d, expected >= %d)", peerHeight, ourHeight))
+							c.Ban(DefaultBanTime, utils.ErrorfNoEscape("mining on top of a stale block (mainchain peer height %d, expected >= %d)", peerHeight, ourHeight))
 							return
 						}
 
@@ -602,7 +601,7 @@ func (c *Client) OnConnection() {
 						}
 					} else {
 						if !isChainTipBlockRequest && expectedBlockId != block.SideTemplateId(c.Owner.SideChain().Consensus()) {
-							c.Ban(DefaultBanTime, fmt.Errorf("expected block id = %s, got %s", expectedBlockId.String(), block.SideTemplateId(c.Owner.SideChain().Consensus()).String()))
+							c.Ban(DefaultBanTime, utils.ErrorfNoEscape("expected block id = %s, got %s", expectedBlockId.String(), block.SideTemplateId(c.Owner.SideChain().Consensus()).String()))
 							return
 						}
 						for _, id := range missingBlocks {
@@ -697,7 +696,7 @@ func (c *Client) OnConnection() {
 								utils.Logf("P2PClient", "Peer %s broadcasted a stale block (%d ms late, mainchain height %d, expected >= %d), ignoring it", c.AddressPort.String(), elapsedTime.Milliseconds(), peerHeight, ourHeight)
 							}
 						} else {
-							c.Ban(DefaultBanTime, fmt.Errorf("broadcasted an unreasonably stale block (mainchain height %d, expected >= %d)", peerHeight, ourHeight))
+							c.Ban(DefaultBanTime, utils.ErrorfNoEscape("broadcasted an unreasonably stale block (mainchain height %d, expected >= %d)", peerHeight, ourHeight))
 							return
 						}
 					} else if peerHeight > ourHeight {
@@ -814,7 +813,7 @@ func (c *Client) OnConnection() {
 				c.Ban(DefaultBanTime, err)
 				return
 			} else if numPeers > PeerListResponseMaxPeers {
-				c.Ban(DefaultBanTime, fmt.Errorf("too many peers on PEER_LIST_RESPONSE num_peers = %d", numPeers))
+				c.Ban(DefaultBanTime, utils.ErrorfNoEscape("too many peers on PEER_LIST_RESPONSE num_peers = %d", numPeers))
 				return
 			} else {
 				firstPeerResponse := c.PingDuration.Swap(uint64(max(time.Now().Sub(time.UnixMicro(int64(c.LastPeerListRequestTimestamp.Load()))), 0))) == 0
@@ -978,7 +977,7 @@ func (c *Client) OnConnection() {
 				c.Ban(DefaultBanTime, err)
 				return
 			} else if !diff.CheckPoW(powHash) {
-				c.Ban(DefaultBanTime, fmt.Errorf("diff check failed, PoW hash = %x", powHash.Slice()))
+				c.Ban(DefaultBanTime, utils.ErrorfNoEscape("diff check failed, PoW hash = %x", powHash.Slice()))
 				return
 			}
 
@@ -1004,11 +1003,11 @@ func (c *Client) OnConnection() {
 
 			switch InternalMessageId(internalMessageId) {
 			default:
-				c.Ban(DefaultBanTime, fmt.Errorf("unknown InternalMessageId %d", internalMessageId))
+				c.Ban(DefaultBanTime, utils.ErrorfNoEscape("unknown InternalMessageId %d", internalMessageId))
 				return
 			}
 		default:
-			c.Ban(DefaultBanTime, fmt.Errorf("unknown MessageId %d", messageId))
+			c.Ban(DefaultBanTime, utils.ErrorfNoEscape("unknown MessageId %d", messageId))
 			return
 		}
 

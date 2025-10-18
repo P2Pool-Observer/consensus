@@ -3,16 +3,16 @@ package client
 import (
 	"context"
 	"errors"
-	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client/rpc"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client/rpc/daemon"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"github.com/hashicorp/golang-lru/v2"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 var client atomic.Pointer[Client]
@@ -153,7 +153,7 @@ func (c *Client) GetCoinbaseTransaction(txId types.Hash) (*transaction.CoinbaseT
 			}
 
 			if tx.CalculateId() != txId {
-				return nil, fmt.Errorf("expected %s, got %s", txId.String(), tx.CalculateId().String())
+				return nil, utils.ErrorfNoEscape("expected %s, got %s", txId.String(), tx.CalculateId().String())
 			}
 
 			c.coinbaseTransactionCache.Add(txId, tx)

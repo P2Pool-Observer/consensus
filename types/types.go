@@ -4,9 +4,10 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"errors"
-	fasthex "github.com/tmthrgd/go-hex"
 	"runtime"
 	"unsafe"
+
+	fasthex "github.com/tmthrgd/go-hex"
 )
 
 const HashSize = 32
@@ -165,6 +166,54 @@ func (b *Bytes) UnmarshalJSON(buf []byte) error {
 	*b = make(Bytes, (len(buf)-2)/2)
 
 	if _, err := fasthex.Decode(*b, buf[1:len(buf)-1]); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+// FixedBytes Implements a fixed size array for encoding/decoding helper
+// Add any desired size in this list
+type FixedBytes[T ~[3]byte | ~[8]byte | ~[16]byte | ~[32]byte | ~[64]byte] struct {
+	t T
+}
+
+func MakeFixed[T ~[3]byte | ~[8]byte | ~[16]byte | ~[32]byte | ~[64]byte](v T) FixedBytes[T] {
+	return FixedBytes[T]{
+		t: v,
+	}
+}
+
+func (b FixedBytes[T]) MarshalJSON() ([]byte, error) {
+	buf := make([]byte, len(b.t)*2+2)
+	buf[0] = '"'
+	buf[len(buf)-1] = '"'
+	fasthex.Encode(buf[1:], b.Slice())
+	return buf, nil
+}
+
+func (b *FixedBytes[T]) Slice() []byte {
+	return unsafe.Slice((*byte)(unsafe.Pointer(&b.t)), len(b.t))
+}
+
+func (b FixedBytes[T]) Value() T {
+	return b.t
+}
+
+func (b FixedBytes[T]) String() string {
+	return fasthex.EncodeToString(b.Slice())
+}
+
+func (b *FixedBytes[T]) UnmarshalJSON(buf []byte) error {
+	if len(buf) < 2 || (len(buf)%2) != 0 || buf[0] != '"' || buf[len(buf)-1] != '"' {
+		return errors.New("invalid bytes")
+	}
+
+	if (len(buf)-2)/2 != len(b.t) {
+		return errors.New("wrong length")
+	}
+
+	if _, err := fasthex.Decode(b.Slice(), buf[1:len(buf)-1]); err != nil {
 		return err
 	} else {
 		return nil

@@ -10,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.SubaddressIndex) {
@@ -80,8 +81,8 @@ func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.Subad
 				Type:                 transaction.TxOutToCarrotV1,
 				Reward:               amount,
 				EphemeralPublicKey:   enote.OneTimeAddress,
-				EncryptedJanusAnchor: enote.EncryptedAnchor,
-				ViewTag:              enote.ViewTag,
+				EncryptedJanusAnchor: types.MakeFixed(enote.EncryptedAnchor),
+				ViewTag:              types.MakeFixed(enote.ViewTag),
 			}
 
 			i, scan, subaddressIndex := wallet.MatchCarrotCoinbase(blockIndex, transaction.Outputs{out}, crypto.PublicKeyBytes(enote.EphemeralPubKey))
@@ -166,8 +167,8 @@ func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.Subadd
 				Type:                 transaction.TxOutToCarrotV1,
 				Reward:               amount,
 				EphemeralPublicKey:   enote.Enote.OneTimeAddress,
-				EncryptedJanusAnchor: enote.Enote.EncryptedAnchor,
-				ViewTag:              enote.Enote.ViewTag,
+				EncryptedJanusAnchor: types.MakeFixed(enote.Enote.EncryptedAnchor),
+				ViewTag:              types.MakeFixed(enote.Enote.ViewTag),
 			}
 			i, scan, subaddressIndex := wallet.MatchCarrot(firstKeyImage,
 				[]crypto.RCTAmount{

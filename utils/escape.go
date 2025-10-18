@@ -35,6 +35,9 @@ func _reset(hasher hash.Hash) {
 func _errorfNoEscape(format string, a ...any) error {
 	return fmt.Errorf(format, a...)
 }
+func _appendfNoEscape(b []byte, format string, a ...any) []byte {
+	return fmt.Appendf(b, format, a...)
+}
 
 //go:noescape
 //go:linkname ReadNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._read
@@ -77,3 +80,7 @@ func ResetNoEscape(hasher hash.Hash)
 //go:noescape
 //go:linkname ErrorfNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._errorfNoEscape
 func ErrorfNoEscape(format string, a ...any) error
+
+//go:noescape
+//go:linkname AppendfNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._appendfNoEscape
+func AppendfNoEscape(b []byte, format string, a ...any) []byte

@@ -6,6 +6,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
@@ -42,20 +43,20 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 				}
 
 				if o.Type == TxOutToTaggedKey {
-					if o.ViewTag[0], err = reader.ReadByte(); err != nil {
+					if o.ViewTag.Slice()[0], err = reader.ReadByte(); err != nil {
 						return err
 					}
 				} else {
-					o.ViewTag[0] = 0
+					o.ViewTag.Slice()[0] = 0
 				}
 			case TxOutToCarrotV1:
 				if _, err = utils.ReadFullNoEscape(reader, o.EphemeralPublicKey[:]); err != nil {
 					return err
 				}
-				if _, err = utils.ReadFullNoEscape(reader, o.ViewTag[:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, o.ViewTag.Slice()); err != nil {
 					return err
 				}
-				if _, err = utils.ReadFullNoEscape(reader, o.EncryptedJanusAnchor[:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, o.EncryptedJanusAnchor.Slice()); err != nil {
 					return err
 				}
 			default:
@@ -94,12 +95,12 @@ func (s *Outputs) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) 
 			data = append(data, o.EphemeralPublicKey[:]...)
 
 			if o.Type == TxOutToTaggedKey {
-				data = append(data, o.ViewTag[0])
+				data = append(data, o.ViewTag.Slice()[0])
 			}
 		case TxOutToCarrotV1:
 			data = append(data, o.EphemeralPublicKey[:]...)
-			data = append(data, o.ViewTag[:]...)
-			data = append(data, o.EncryptedJanusAnchor[:]...)
+			data = append(data, o.ViewTag.Slice()[:]...)
+			data = append(data, o.EncryptedJanusAnchor.Slice()[:]...)
 		default:
 			return nil, errors.New("unknown output type")
 		}
@@ -114,13 +115,13 @@ type Output struct {
 	// https://github.com/SChernykh/p2pool/blob/10d583adb67d0566af6c36a6c97fed69545421a2/src/pool_block.h#L104-L106
 	Reward uint64 `json:"reward"`
 	// Type would be here
-	EphemeralPublicKey   crypto.PublicKeyBytes         `json:"ephemeral_public_key"`
-	EncryptedJanusAnchor [monero.JanusAnchorSize]uint8 `json:"encrypted_janus_anchor,omitempty"`
+	EphemeralPublicKey   crypto.PublicKeyBytes                           `json:"ephemeral_public_key"`
+	EncryptedJanusAnchor types.FixedBytes[[monero.JanusAnchorSize]uint8] `json:"encrypted_janus_anchor,omitempty"`
 
 	// Type re-arranged here to improve memory layout space
 	Type uint8 `json:"type"`
 	// ViewTag Reused for carrot/non-carrot outputs
-	ViewTag [monero.CarrotViewTagSize]byte `json:"view_tag"`
+	ViewTag types.FixedBytes[[monero.CarrotViewTagSize]byte] `json:"view_tag"`
 }
 
 func (o Output) BufferLength() (n int) {
