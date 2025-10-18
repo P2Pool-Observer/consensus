@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
@@ -25,7 +26,7 @@ func GetPublicKeyForSharedData(a Interface, sharedData crypto.PrivateKey) crypto
 
 func GetEphemeralPublicKey(a Interface, txKey crypto.PrivateKey, outputIndex uint64) crypto.PublicKey {
 	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
-		return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(sa.SpendPublicKey()), outputIndex))
+		return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(sa.ViewPublicKey()), outputIndex))
 	} else {
 		return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex))
 	}
@@ -54,11 +55,29 @@ func GetEphemeralPublicKeyAndViewTagWithViewKey(a Interface, txPubKey crypto.Pub
 	return GetPublicKeyForSharedData(a, pK), viewTag
 }
 
+func CalculateTransactionOutput(a Interface, txKey crypto.PrivateKey, outputIndex, amount uint64) (out transaction.Output, additionalTxPub crypto.PublicKey, encryptedAmount uint64) {
+	var pK crypto.PrivateKey
+	var viewTag uint8
+	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+		additionalTxPub = txKey.GetDerivation(sa.SpendPublicKey())
+		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(sa.ViewPublicKey()), outputIndex)
+	} else {
+		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex)
+	}
+
+	out.Type = transaction.TxOutToTaggedKey
+	out.Index = outputIndex
+	out.ViewTag[0] = viewTag
+	out.EphemeralPublicKey = GetPublicKeyForSharedData(a, pK).AsBytes()
+
+	return out, additionalTxPub, crypto.DecryptOutputAmount(pK, amount)
+}
+
 func GetEphemeralPublicKeyAndViewTag(a Interface, txKey crypto.PrivateKey, outputIndex uint64) (crypto.PublicKey, uint8) {
 	var pK crypto.PrivateKey
 	var viewTag uint8
 	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
-		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(sa.SpendPublicKey()), outputIndex)
+		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(sa.ViewPublicKey()), outputIndex)
 	} else {
 		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex)
 	}
