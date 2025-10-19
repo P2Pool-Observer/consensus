@@ -1,7 +1,7 @@
 package sidechain
 
 import (
-	"fmt"
+	"strconv"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 )
@@ -42,7 +42,7 @@ func (v ShareVersion) String() string {
 	case ShareVersion_None:
 		return "none"
 	default:
-		return fmt.Sprintf("v%d", v)
+		return "v" + strconv.FormatUint(uint64(v), 10)
 	}
 }
 

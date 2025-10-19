@@ -664,7 +664,7 @@ func (b *PoolBlock) consensusCheckTagOrder() (err error) {
 }
 
 func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
-	if len(b.Main.Coinbase.Outputs) == 0 {
+	if len(b.Main.Coinbase.Outputs) == 0 && b.Main.Coinbase.AuxiliaryData.OutputsBlobSize == 0 {
 		return errors.New("no specified outputs")
 	}
 	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.NetworkType.MustAddressNetwork(), b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {

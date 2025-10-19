@@ -5,7 +5,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
-var transactionPrivateKeySeedDomain = append([]byte("tx_key_seed"), 0)
+var transactionPrivateKeySeedDomain = []byte("tx_key_seed\x00")
 var transactionPrivateKeyDomain = []byte("tx_secret_key")
 
 func CalculateTransactionPrivateKeySeed(main, side []byte) (result types.Hash) {

@@ -186,23 +186,28 @@ func (c *CoinbaseTransaction) AppendBinaryFlags(preAllocatedBuf []byte, pruned, 
 	buf = append(buf, c.InputType)
 	buf = binary.AppendUvarint(buf, c.GenHeight)
 
+	extra := c.Extra
+
 	if pruned {
 		//pruned output
 		buf = binary.AppendUvarint(buf, 0)
 		buf = binary.AppendUvarint(buf, c.AuxiliaryData.TotalReward)
-		outputs := make([]byte, 0, c.Outputs.BufferLength())
-		outputs, _ = c.Outputs.AppendBinary(outputs)
-		buf = binary.AppendUvarint(buf, uint64(len(outputs)))
+		buf = binary.AppendUvarint(buf, uint64(c.Outputs.BufferLength()))
 
 		if containsAuxiliaryTemplateId {
 			buf = append(buf, c.AuxiliaryData.TemplateId[:]...)
+		}
+
+		if len(extra) > 0 && extra[len(extra)-1].Tag == TxExtraTagAdditionalPubKeys {
+			// do not encode additional pubkeys!
+			extra = extra[:len(extra)-1]
 		}
 	} else {
 		buf, _ = c.Outputs.AppendBinary(buf)
 	}
 
-	buf = binary.AppendUvarint(buf, uint64(c.Extra.BufferLength()))
-	buf, _ = c.Extra.AppendBinary(buf)
+	buf = binary.AppendUvarint(buf, uint64(extra.BufferLength()))
+	buf, _ = extra.AppendBinary(buf)
 	buf = append(buf, c.ExtraBaseRCT)
 
 	return buf, nil

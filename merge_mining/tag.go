@@ -3,9 +3,9 @@ package merge_mining
 import (
 	"crypto/sha256"
 	"encoding/binary"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"io"
 )
 
 type Tag struct {
@@ -28,7 +28,7 @@ func (t *Tag) FromReader(reader utils.ReaderAndByteReader) error {
 	t.NumberAuxiliaryChains = 1 + ((k >> 3) & ((1 << n) - 1))
 	t.Nonce = uint32(merkleTreeData >> (3 + n))
 
-	if _, err = io.ReadFull(reader, t.RootHash[:]); err != nil {
+	if _, err = utils.ReadFullNoEscape(reader, t.RootHash[:]); err != nil {
 		return err
 	}
 	return nil

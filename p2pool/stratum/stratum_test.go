@@ -363,7 +363,60 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 			}
 		}
 
-		missing, err, _ := sideChain.AddPoolBlockExternal(&b)
+		missing, err := sideChain.PreprocessBlock(&b)
+		if len(missing) != 0 {
+			t.Fatal("missing blocks!")
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		switch i % 3 {
+		case 0:
+			missing, err, _ = sideChain.AddPoolBlockExternal(&b)
+		case 1:
+			// pruned, not compact
+			blob, err := b.MarshalBinaryFlags(true, false)
+			if err != nil {
+				t.Fatalf("failed to marshal block: %s", err)
+			}
+			var b2 sidechain.PoolBlock
+			err = b2.UnmarshalBinary(consensus, sideChain.DerivationCache(), blob)
+			if err != nil {
+				t.Fatalf("failed to unmarshal block: %s", err)
+			}
+			missing, err = sideChain.PreprocessBlock(&b2)
+			if len(missing) != 0 {
+				t.Fatal("missing blocks!")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			missing, err, _ = sideChain.AddPoolBlockExternal(&b2)
+		case 2:
+			// pruned, compact
+			blob, err := b.MarshalBinaryFlags(true, true)
+			if err != nil {
+				t.Fatalf("failed to marshal block: %s", err)
+			}
+			var b2 sidechain.PoolBlock
+			err = b2.FromCompactReader(consensus, sideChain.DerivationCache(), bytes.NewReader(blob))
+			if err != nil {
+				t.Fatalf("failed to unmarshal block: %s", err)
+			}
+			missing, err = sideChain.PreprocessBlock(&b2)
+			if len(missing) != 0 {
+				t.Fatal("missing blocks!")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			missing, err, _ = sideChain.AddPoolBlockExternal(&b2)
+
+		}
+
 		if len(missing) != 0 {
 			t.Fatal("missing blocks!")
 		}
