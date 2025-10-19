@@ -10,7 +10,12 @@ import (
 
 type MergeMiningExtra []MergeMiningExtraData
 
+// ExtraChainKeySubaddressViewPub Format PublicKeyBytes (subaddress view pub) | varint(0) | varint(0)
 var ExtraChainKeySubaddressViewPub = crypto.Keccak256([]byte("subaddress_viewpub"))
+
+// ExtraChainKeyOnionAddressV3 Format PublicKeyBytes (PUBKEY) | varint(0) | varint(0)
+// https://spec.torproject.org/rend-spec/encoding-onion-addresses.html
+var ExtraChainKeyOnionAddressV3 = crypto.Keccak256([]byte("onion_address_v3"))
 
 func (d MergeMiningExtra) Sort() {
 	slices.SortStableFunc(d, func(a, b MergeMiningExtraData) int {
@@ -61,8 +66,10 @@ func (d MergeMiningExtra) BufferLength() (size int) {
 }
 
 type MergeMiningExtraData struct {
-	ChainId types.Hash  `json:"chain_id"`
-	Data    types.Bytes `json:"data,omitempty"`
+	ChainId types.Hash `json:"chain_id"`
+	// Data has merge mining hash and difficulty (two varints for low and high 64 bits) in the beginning,
+	// the rest is arbitrary and depends on the merge mined chain's requirements
+	Data types.Bytes `json:"data,omitempty"`
 }
 
 func (d MergeMiningExtraData) BufferLength() (size int) {
