@@ -80,7 +80,7 @@ func (b *Block) MarshalBinaryFlags(compact, pruned, containsAuxiliaryTemplateId 
 func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, containsAuxiliaryTemplateId bool) (buf []byte, err error) {
 	buf = preAllocatedBuf
 
-	if b.MajorVersion > monero.HardForkSupportedVersion {
+	if b.MajorVersion < monero.HardForkMinimumSupportedVersion || b.MajorVersion > monero.HardForkSupportedVersion {
 		return nil, utils.ErrorfNoEscape("unsupported version %d", b.MajorVersion)
 	}
 
@@ -155,7 +155,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return err
 	}
 
-	if b.MajorVersion > monero.HardForkSupportedVersion {
+	if b.MajorVersion < monero.HardForkMinimumSupportedVersion || b.MajorVersion > monero.HardForkSupportedVersion {
 		return utils.ErrorfNoEscape("unsupported version %d", b.MajorVersion)
 	}
 

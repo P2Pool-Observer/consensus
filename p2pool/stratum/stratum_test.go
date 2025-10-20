@@ -469,13 +469,26 @@ func TestStratumServer_Genesis(t *testing.T) {
 
 	t.Run("Testnet", func(t *testing.T) {
 		rpcClient, _ := client.NewClient("http://127.0.0.1:28081")
-		if getMinerData(rpcClient) == nil {
+		if minerData := getMinerData(rpcClient); minerData == nil {
 			t.Skip("No Testnet RPC")
 		}
 
 		consensus := sidechain.NewConsensus(sidechain.NetworkTestnet, "test", "", "", 1, 1, 60, 20)
 		consensus.HardForks = []monero.HardFork{
 			{uint8(sidechain.ShareVersion_V3), 0, 0, 0},
+		}
+
+		// override!
+		if versionInfo, err := rpcClient.GetVersion(); err == nil {
+			consensus.MoneroHardForks = nil
+			for _, e := range versionInfo.HardForks {
+				consensus.MoneroHardForks = append(consensus.MoneroHardForks, monero.HardFork{
+					Version:   uint8(e.Version),
+					Height:    e.Height,
+					Threshold: 0,
+					Time:      0,
+				})
+			}
 		}
 
 		// less that default due to PoW

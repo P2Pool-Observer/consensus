@@ -6,7 +6,9 @@ const (
 	HardForkCarrotVersion          = 17
 	HardForkRejectLargeExtra       = 17
 	HardForkRejectManyMinerOutputs = 17
-	HardForkSupportedVersion       = 18
+
+	HardForkMinimumSupportedVersion = 14
+	HardForkSupportedVersion        = 18
 )
 
 type HardFork struct {
@@ -127,9 +129,7 @@ func NetworkHardFork(network uint8) []HardFork {
 	}
 }
 
-func NetworkMajorVersion(network uint8, height uint64) uint8 {
-	hardForks := NetworkHardFork(network)
-
+func NetworkMajorVersion(hardForks []HardFork, height uint64) uint8 {
 	if len(hardForks) == 0 {
 		return 0
 	}

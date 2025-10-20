@@ -51,7 +51,7 @@ func (v ShareVersion) Supports(majorVersion uint8) bool {
 		// requires deterministic transaction keys
 		return false
 	}
-	return majorVersion <= monero.HardForkSupportedVersion
+	return majorVersion >= monero.HardForkMinimumSupportedVersion && majorVersion <= monero.HardForkSupportedVersion
 }
 
 const (

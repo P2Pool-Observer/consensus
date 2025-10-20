@@ -118,10 +118,15 @@ type Consensus struct {
 	// Extra additional string to add for testing usually
 	Extra string `json:"extra,omitempty"`
 
-	// HardFork optional hardfork information for p2pool
+	// HardForks optional sidechain hardfork information for p2pool
 	// If empty it will be filled with the default hardfork list to the corresponding NetworkType
 	// Note: this is not supported by p2pool itself
 	HardForks []monero.HardFork `json:"hard_forks,omitempty"`
+
+	// HardForks optional mainchain hardfork information
+	// If empty it will be filled with the default hardfork list to the corresponding NetworkType
+	// Note: this is not supported by p2pool itself
+	MoneroHardForks []monero.HardFork `json:"monero_hard_forks,omitempty"`
 
 	hasher randomx.Hasher
 
@@ -218,6 +223,10 @@ func (c *Consensus) verify() bool {
 		default:
 			utils.Panicf("invalid network type for determining hardfork")
 		}
+	}
+
+	if len(c.MoneroHardForks) == 0 {
+		c.MoneroHardForks = monero.NetworkHardFork(c.NetworkType.MustAddressNetwork())
 	}
 
 	return true
@@ -376,6 +385,7 @@ var ConsensusDefault = &Consensus{
 	ChainWindowSize:   2160,
 	UnclePenalty:      20,
 	HardForks:         p2poolMainNetHardForks,
+	MoneroHardForks:   monero.NetworkHardFork(monero.MainNetwork),
 	Id:                types.Hash{34, 175, 126, 231, 181, 11, 104, 146, 227, 153, 218, 107, 44, 108, 68, 39, 178, 81, 4, 212, 169, 4, 142, 0, 177, 110, 157, 240, 68, 7, 249, 24},
 }
 
@@ -387,6 +397,7 @@ var ConsensusMini = &Consensus{
 	ChainWindowSize:   2160,
 	UnclePenalty:      20,
 	HardForks:         p2poolMainNetHardForks,
+	MoneroHardForks:   monero.NetworkHardFork(monero.MainNetwork),
 	Id:                types.Hash{57, 130, 201, 26, 149, 174, 199, 250, 66, 80, 189, 18, 108, 216, 194, 220, 136, 23, 63, 24, 64, 113, 221, 44, 219, 86, 39, 163, 53, 24, 126, 196},
 }
 
@@ -398,5 +409,6 @@ var ConsensusNano = &Consensus{
 	ChainWindowSize:   2160,
 	UnclePenalty:      10,
 	HardForks:         p2poolMainNetHardForks,
+	MoneroHardForks:   monero.NetworkHardFork(monero.MainNetwork),
 	Id:                types.Hash{171, 248, 206, 148, 210, 226, 114, 99, 250, 145, 221, 96, 13, 216, 23, 63, 104, 53, 129, 168, 244, 80, 141, 138, 157, 250, 50, 54, 37, 189, 5, 89},
 }
