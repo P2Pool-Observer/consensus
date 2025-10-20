@@ -20,7 +20,7 @@ func ReadCanonicalUvarint(r io.ByteReader) (uint64, error) {
 	var x uint64
 	var s uint
 	for i := 0; i < binary.MaxVarintLen64; i++ {
-		b, err := r.ReadByte()
+		b, err := ReadByteNoEscape(r)
 		if err != nil {
 			if i > 0 && err == io.EOF {
 				err = io.ErrUnexpectedEOF

@@ -15,6 +15,9 @@ import (
 func _read(reader io.Reader, buf []byte) (n int, err error) {
 	return reader.Read(buf)
 }
+func _readByte(reader io.ByteReader) (byte, error) {
+	return reader.ReadByte()
+}
 
 func _binaryReadNoEscape(r io.Reader, order binary.ByteOrder, data any) error {
 	return binary.Read(r, order, data)
@@ -38,10 +41,17 @@ func _errorfNoEscape(format string, a ...any) error {
 func _appendfNoEscape(b []byte, format string, a ...any) []byte {
 	return fmt.Appendf(b, format, a...)
 }
+func _sprintfNoEscape(format string, a ...any) string {
+	return fmt.Sprintf(format, a...)
+}
 
 //go:noescape
 //go:linkname ReadNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._read
 func ReadNoEscape(reader io.Reader, buf []byte) (n int, err error)
+
+//go:noescape
+//go:linkname ReadByteNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._readByte
+func ReadByteNoEscape(reader io.ByteReader) (byte, error)
 
 func ReadFullNoEscape(reader io.Reader, buf []byte) (n int, err error) {
 	min := len(buf)
@@ -84,3 +94,7 @@ func ErrorfNoEscape(format string, a ...any) error
 //go:noescape
 //go:linkname AppendfNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._appendfNoEscape
 func AppendfNoEscape(b []byte, format string, a ...any) []byte
+
+//go:noescape
+//go:linkname SprintfNoEscape git.gammaspectra.live/P2Pool/consensus/v5/utils._sprintfNoEscape
+func SprintfNoEscape(format string, a ...any) string

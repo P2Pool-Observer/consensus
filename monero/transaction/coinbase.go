@@ -61,7 +61,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 	c.AuxiliaryData.TotalReward = 0
 	c.AuxiliaryData.OutputsBlobSize = 0
 
-	if c.Version, err = reader.ReadByte(); err != nil {
+	if c.Version, err = utils.ReadByteNoEscape(reader); err != nil {
 		return err
 	}
 
@@ -73,7 +73,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 		return err
 	}
 
-	if c.InputCount, err = reader.ReadByte(); err != nil {
+	if c.InputCount, err = utils.ReadByteNoEscape(reader); err != nil {
 		return err
 	}
 
@@ -81,7 +81,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 		return errors.New("invalid input count")
 	}
 
-	if c.InputType, err = reader.ReadByte(); err != nil {
+	if c.InputType, err = utils.ReadByteNoEscape(reader); err != nil {
 		return err
 	}
 
@@ -149,7 +149,7 @@ func (c *CoinbaseTransaction) FromReader(reader utils.ReaderAndByteReader, canBe
 	if limitReader.Left() > 0 {
 		return errors.New("bytes leftover in extra data")
 	}
-	if c.ExtraBaseRCT, err = reader.ReadByte(); err != nil {
+	if c.ExtraBaseRCT, err = utils.ReadByteNoEscape(reader); err != nil {
 		return err
 	}
 

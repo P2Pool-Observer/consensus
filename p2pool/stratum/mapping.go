@@ -62,15 +62,17 @@ func BuildShuffleMapping(n int, majorVersion uint8, shareVersion sidechain.Share
 func ApplyShuffleMapping[T any](v []T, mappings ShuffleMapping) []T {
 	n := len(v)
 
-	result := make([]T, n)
+	result := v
+	src := make([]T, n)
+	copy(src, v)
 
 	if n == len(mappings.Including) {
-		for i := range v {
-			result[mappings.Including[i]] = v[i]
+		for i := range src {
+			result[mappings.Including[i]] = src[i]
 		}
 	} else if n == len(mappings.Excluding) {
-		for i := range v {
-			result[mappings.Excluding[i]] = v[i]
+		for i := range src {
+			result[mappings.Excluding[i]] = src[i]
 		}
 	} else {
 		return nil

@@ -160,7 +160,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 	// read subaddress data
 	if majorVersion >= monero.HardForkCarrotVersion {
 		var isSubaddress uint8
-		if isSubaddress, err = reader.ReadByte(); err != nil {
+		if isSubaddress, err = utils.ReadByteNoEscape(reader); err != nil {
 			return err
 		}
 		// ensure value can only be 0 or 1
@@ -236,7 +236,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 
 	// Read merkle proof list of hashes. Only on ShareVersion_V3 and above
 	if version >= ShareVersion_V3 {
-		if merkleProofSize, err = reader.ReadByte(); err != nil {
+		if merkleProofSize, err = utils.ReadByteNoEscape(reader); err != nil {
 			return err
 		} else if merkleProofSize > merge_mining.MaxChainsLog2 {
 			return utils.ErrorfNoEscape("merkle proof too large: %d > %d", merkleProofSize, merge_mining.MaxChainsLog2)

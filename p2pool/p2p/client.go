@@ -546,7 +546,7 @@ func (c *Client) OnConnection() {
 				}
 				break
 			} else {
-				reader := bufio.NewReader(io.LimitReader(c, int64(blockSize)))
+				reader := bufio.NewReader(utils.LimitByteReader(c, int64(blockSize)))
 				if err = block.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
 					c.Ban(DefaultBanTime, err)
@@ -631,7 +631,7 @@ func (c *Client) OnConnection() {
 				//TODO log
 				break
 			} else if messageId == MessageBlockBroadcastCompact {
-				reader := bufio.NewReader(io.LimitReader(c, int64(blockSize)))
+				reader := bufio.NewReader(utils.LimitByteReader(c, int64(blockSize)))
 				if err = poolBlock.FromCompactReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
 					c.Ban(DefaultBanTime, err)
@@ -641,7 +641,7 @@ func (c *Client) OnConnection() {
 					return
 				}
 			} else {
-				reader := bufio.NewReader(io.LimitReader(c, int64(blockSize)))
+				reader := bufio.NewReader(utils.LimitByteReader(c, int64(blockSize)))
 				if err = poolBlock.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
 					c.Ban(DefaultBanTime, err)
@@ -893,7 +893,7 @@ func (c *Client) OnConnection() {
 				break
 			}
 
-			r := bufio.NewReader(io.LimitReader(c, int64(dataSize)))
+			r := bufio.NewReader(utils.LimitByteReader(c, int64(dataSize)))
 			var job merge_mining.AuxiliaryJobDonation
 
 			err := job.FromReader(r)
@@ -918,7 +918,7 @@ func (c *Client) OnConnection() {
 				break
 			}
 
-			r := bufio.NewReader(io.LimitReader(c, int64(dataSize)))
+			r := bufio.NewReader(utils.LimitByteReader(c, int64(dataSize)))
 			var hdr MoneroBlockBroadcastHeader
 
 			err := hdr.FromReader(r)
@@ -997,7 +997,7 @@ func (c *Client) OnConnection() {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
-			reader := io.LimitReader(c, int64(messageSize))
+			reader := utils.LimitByteReader(c, int64(messageSize))
 
 			_ = reader
 

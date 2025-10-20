@@ -32,7 +32,7 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 				return err
 			}
 
-			if o.Type, err = reader.ReadByte(); err != nil {
+			if o.Type, err = utils.ReadByteNoEscape(reader); err != nil {
 				return err
 			}
 
@@ -43,7 +43,7 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 				}
 
 				if o.Type == TxOutToTaggedKey {
-					if o.ViewTag.Slice()[0], err = reader.ReadByte(); err != nil {
+					if o.ViewTag.Slice()[0], err = utils.ReadByteNoEscape(reader); err != nil {
 						return err
 					}
 				} else {

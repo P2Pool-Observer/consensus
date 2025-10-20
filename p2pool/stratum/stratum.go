@@ -566,7 +566,11 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 			}
 		}
 
-		shares := s.newTemplateData.Window.Shares.Clone()
+		preAllocatedShares := s.preAllocatedSharesPool.Get()
+
+		// clone share data and reuse
+		shares := append(preAllocatedShares[:0], s.newTemplateData.Window.Shares...)
+		defer s.preAllocatedSharesPool.Put(shares[:0])
 
 		weights := s.newTemplateData.Weights[0]
 
@@ -630,9 +634,6 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 			CachedShareVersion: s.newTemplateData.ShareVersion,
 		}
 
-		preAllocatedShares := s.preAllocatedSharesPool.Get()
-		defer s.preAllocatedSharesPool.Put(preAllocatedShares)
-
 		// Allocate rewards
 		{
 			preAllocatedRewards := make([]uint64, 0, len(shares))
@@ -657,13 +658,8 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, err
 			}
 
-			minerTx, _ := blockTemplate.Main.Coinbase.MarshalBinary()
-
 			if uint64(blockTemplate.Main.Coinbase.BufferLength()) != weights.CoinbaseTransaction {
 				return nil, 0, types.ZeroDifficulty, types.ZeroHash, utils.ErrorfNoEscape("miner tx size changed after adjusting reward: %d != %d", blockTemplate.Main.Coinbase.BufferLength(), weights.CoinbaseTransaction)
-			}
-			if uint64(len(minerTx)) != weights.CoinbaseTransaction {
-				return nil, 0, types.ZeroDifficulty, types.ZeroHash, utils.ErrorfNoEscape("miner tx size changed after adjusting reward: %d != %d", len(minerTx), weights.CoinbaseTransaction)
 			}
 
 		}

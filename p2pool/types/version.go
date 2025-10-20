@@ -1,9 +1,10 @@
 package types
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 type SemanticVersion uint32
@@ -27,7 +28,7 @@ func (v SemanticVersion) StringMinorPatch() string {
 	if v == SemanticVersionNone {
 		return "unknown"
 	}
-	return fmt.Sprintf("v%d.%d", v.Major(), v.MinorPatch())
+	return utils.SprintfNoEscape("v%d.%d", v.Major(), v.MinorPatch())
 }
 
 func (v SemanticVersion) String() string {
@@ -35,9 +36,9 @@ func (v SemanticVersion) String() string {
 		return "unknown"
 	}
 	if v.Patch() > 0 {
-		return fmt.Sprintf("v%d.%d.%d", v.Major(), v.Minor(), v.Patch())
+		return utils.SprintfNoEscape("v%d.%d.%d", v.Major(), v.Minor(), v.Patch())
 	} else {
-		return fmt.Sprintf("v%d.%d", v.Major(), v.Minor())
+		return utils.SprintfNoEscape("v%d.%d", v.Major(), v.Minor())
 	}
 }
 

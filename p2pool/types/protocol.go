@@ -3,9 +3,9 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"net/netip"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -65,7 +65,7 @@ func (i *PeerVersionInformation) String() string {
 		return "Unknown"
 	}
 
-	return fmt.Sprintf("%s %s (protocol %s)", i.SoftwareId.String(), i.SoftwareVersion.SoftwareAwareString(i.SoftwareId), i.Protocol.String())
+	return utils.SprintfNoEscape("%s %s (protocol %s)", i.SoftwareId.String(), i.SoftwareVersion.SoftwareAwareString(i.SoftwareId), i.Protocol.String())
 }
 
 func (i *PeerVersionInformation) ToAddrPort() netip.AddrPort {

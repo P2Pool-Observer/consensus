@@ -186,7 +186,7 @@ var ErrExtraTagNoMoreTags = errors.New("no more tags")
 
 func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 
-	if t.Tag, err = reader.ReadByte(); err != nil {
+	if t.Tag, err = utils.ReadByteNoEscape(reader); err != nil {
 		if err == io.EOF {
 			return ErrExtraTagNoMoreTags
 		}
@@ -200,7 +200,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		var size uint64
 		var zero byte
 		for size = 1; size <= TxExtraPaddingMaxCount; size++ {
-			if zero, err = reader.ReadByte(); err != nil {
+			if zero, err = utils.ReadByteNoEscape(reader); err != nil {
 				if err == io.EOF {
 					break
 				} else {
@@ -242,7 +242,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else {
-			_, err = utils.ReadFullProgressive(io.LimitReader(reader, int64(types.HashSize*t.VarInt)), &t.Data, int(types.HashSize*t.VarInt))
+			_, err = utils.ReadFullProgressive(utils.LimitByteReader(reader, int64(types.HashSize*t.VarInt)), &t.Data, int(types.HashSize*t.VarInt))
 			if err != nil {
 				return err
 			}
@@ -252,7 +252,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		} else {
-			_, err = utils.ReadFullProgressive(io.LimitReader(reader, int64(t.VarInt)), &t.Data, int(t.VarInt))
+			_, err = utils.ReadFullProgressive(utils.LimitByteReader(reader, int64(t.VarInt)), &t.Data, int(t.VarInt))
 			if err != nil {
 				return err
 			}

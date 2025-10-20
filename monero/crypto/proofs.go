@@ -2,10 +2,10 @@ package crypto
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 )
@@ -35,7 +35,7 @@ type TxProof struct {
 
 func (p TxProof) String() string {
 	output := make([]string, 1, 1+len(p.Claims)*2)
-	output[0] = fmt.Sprintf("%sV%d", p.Type, p.Version)
+	output[0] = utils.SprintfNoEscape("%sV%d", p.Type, p.Version)
 
 	for _, claim := range p.Claims {
 		output = append(output, string(base58.EncodeMoneroBase58(claim.SharedSecret.AsSlice())))

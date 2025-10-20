@@ -32,7 +32,7 @@ func TestReadFullProgressive(t *testing.T) {
 	{
 		var outBuffer []byte
 
-		n, err := ReadFullProgressive(io.LimitReader(bytes.NewReader(dataBuf), int64(len(dataBuf)-1)), &outBuffer, len(dataBuf))
+		n, err := ReadFullProgressive(LimitByteReader(bytes.NewReader(dataBuf), int64(len(dataBuf)-1)), &outBuffer, len(dataBuf))
 		if err != nil {
 			if !errors.Is(err, io.ErrUnexpectedEOF) {
 				t.Fatal(err)

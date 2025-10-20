@@ -151,7 +151,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		transactionHash types.Hash
 	)
 
-	if b.MajorVersion, err = reader.ReadByte(); err != nil {
+	if b.MajorVersion, err = utils.ReadByteNoEscape(reader); err != nil {
 		return err
 	}
 
@@ -159,7 +159,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return utils.ErrorfNoEscape("unsupported version %d", b.MajorVersion)
 	}
 
-	if b.MinorVersion, err = reader.ReadByte(); err != nil {
+	if b.MinorVersion, err = utils.ReadByteNoEscape(reader); err != nil {
 		return err
 	}
 
@@ -242,7 +242,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 	}
 
 	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
-		if b.FCMPTreeLayers, err = reader.ReadByte(); err != nil {
+		if b.FCMPTreeLayers, err = utils.ReadByteNoEscape(reader); err != nil {
 			return err
 		}
 		if b.FCMPTreeLayers > FCMPPlusPlusMaxLayers {
