@@ -24,8 +24,8 @@ func init() {
 
 }
 
-func GetTestEntries(name string, n int) chan []string {
-	buf, err := os.ReadFile("testdata/monero_crypto_tests.txt")
+func GetTestEntriesCustom(path, name string, n int) chan []string {
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
@@ -40,6 +40,10 @@ func GetTestEntries(name string, n int) chan []string {
 		}
 	}()
 	return result
+}
+
+func GetTestEntries(name string, n int) chan []string {
+	return GetTestEntriesCustom("testdata/monero_crypto_tests.txt", name, n)
 }
 
 func TestGenerateKeyDerivation(t *testing.T) {
@@ -127,6 +131,63 @@ func FuzzDeriveViewTag(f *testing.F) {
 		}
 	})
 
+}
+
+/*
+	TestCheckTorsion Generated via:
+
+var results [][]string
+
+results = append(results, []string{PublicKeyFromPoint(I).String(), "false"})
+results = append(results, []string{PublicKeyFromPoint(G).String(), "true"})
+
+	for _, Q := range edwards25519.EightTorsion[1:] {
+		if PublicKeyFromPoint(Q).AsBytes() == ZeroPublicKeyBytes {
+			continue
+		}
+		results = append(results, []string{PublicKeyFromPoint(Q).String(), "false"})
+	}
+
+	for _, Q := range edwards25519.EightTorsion[1:] {
+		var PQ edwards25519.Point
+		PQ.Add(G, Q)
+		results = append(results, []string{PublicKeyFromPoint(&PQ).String(), "false"})
+	}
+
+	for i, Q := range edwards25519.EightTorsion[1:] {
+		var PQ edwards25519.Point
+		PQ.ScalarBaseMult(DeterministicScalar([]byte{uint8(i)}))
+		results = append(results, []string{PublicKeyFromPoint(&PQ).String(), "true"})
+		PQ.Add(&PQ, Q)
+		results = append(results, []string{PublicKeyFromPoint(&PQ).String(), "false"})
+	}
+
+	for _, e := range results {
+		fmt.Printf("check_torsion %s\n", strings.Join(e, " "))
+	}
+*/
+func TestCheckTorsion(t *testing.T) {
+	results := GetTestEntriesCustom("testdata/p2pool_crypto_tests.txt", "check_torsion", 2)
+
+	if results == nil {
+		t.Fatal()
+	}
+	for e := range results {
+		key := PublicKeyBytes(types.MustHashFromString(e[0]))
+		result := e[1] == "true"
+
+		if p := key.AsPoint(); p == nil {
+			if result {
+				t.Fatalf("expected not nil")
+			}
+		} else if p.IsSmallOrder() || !p.IsTorsionFree() {
+			if result {
+				t.Fatalf("expected valid")
+			}
+		} else if !result {
+			t.Errorf("expected not valid")
+		}
+	}
 }
 
 func TestCheckKey(t *testing.T) {
