@@ -43,7 +43,7 @@ var identity = edwards25519.NewIdentityPoint()
 //
 // See https://github.com/FiloSottile/edwards25519/issues/34
 func (k *PublicKeyPoint) IsSmallOrder() bool {
-	return new(edwards25519.Point).MultByCofactor(k.Point()).Equal(identity) == 1
+	return k.Point().IsSmallOrder()
 }
 
 // IsTorsionFree Determine if this point is “torsion-free”, i.e., is contained in the prime-order subgroup.
@@ -52,8 +52,7 @@ func (k *PublicKeyPoint) IsSmallOrder() bool {
 //
 // See https://github.com/FiloSottile/edwards25519/issues/33
 func (k *PublicKeyPoint) IsTorsionFree() bool {
-	// TODO efficient implementation in upstream,
-	return true
+	return k.Point().IsTorsionFree()
 }
 
 func (k *PublicKeyPoint) AsPoint() *PublicKeyPoint {

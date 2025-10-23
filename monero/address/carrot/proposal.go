@@ -35,9 +35,15 @@ func (p *PaymentProposalV1) ECDHParts(hasher *blake2b.Digest, inputContext []byt
 }
 
 func (p *PaymentProposalV1) ephemeralPublicKey(key *crypto.PrivateKeyScalar) (out crypto.X25519PublicKey) {
+	spendPub := p.Destination.Address.SpendPublicKey().AsPoint()
+	// EXTRA: verify Spend pub to skip a check after generating the output
+	if spendPub == nil || !spendPub.IsTorsionFree() {
+		return crypto.ZeroX25519PublicKey
+	}
+
 	if p.Destination.Address.IsSubaddress() {
 		// D_e = d_e ConvertPointE(K^j_s)
-		return makeEnoteEphemeralPublicKeySubaddress(key, p.Destination.Address.SpendPublicKey().AsPoint())
+		return makeEnoteEphemeralPublicKeySubaddress(key, spendPub)
 	} else {
 		// D_e = d_e B
 		return makeEnoteEphemeralPublicKeyCryptonote(key)
@@ -47,7 +53,7 @@ func (p *PaymentProposalV1) ephemeralPublicKey(key *crypto.PrivateKeyScalar) (ou
 var ErrUnsupportedCoinbaseSubaddress = errors.New("subaddresses aren't allowed as destinations of coinbase outputs")
 var ErrUnsupportedCoinbasePaymentId = errors.New("integrated addresses aren't allowed as destinations of coinbase outputs")
 var ErrInvalidRandomness = errors.New("invalid randomness for janus anchor (zero)")
-var ErrTwistedReceiver = errors.New("receiver view public key is twisted")
+var ErrTwistedReceiver = errors.New("receiver public key is twisted or invalid")
 
 // OutputPartial Calculates cacheable partial values
 func (p *PaymentProposalV1) OutputPartial(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey, secretSenderReceiver types.Hash, err error) {
@@ -58,8 +64,8 @@ func (p *PaymentProposalV1) OutputPartial(hasher *blake2b.Digest, inputContext [
 	// 3. make D_e and do external ECDH
 	ephemeralPubkey, senderReceiverUnctx = p.ECDHParts(hasher, inputContext[:])
 
-	// err on twist
-	if senderReceiverUnctx == crypto.ZeroX25519PublicKey {
+	// err on twisted view/spend pub
+	if ephemeralPubkey == crypto.ZeroX25519PublicKey || senderReceiverUnctx == crypto.ZeroX25519PublicKey {
 		return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey, types.ZeroHash, ErrTwistedReceiver
 	}
 
