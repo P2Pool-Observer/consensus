@@ -7,6 +7,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
+	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -288,13 +289,48 @@ func (c *Consensus) SeedNode() string {
 	return ""
 }
 
+var seedNodesDefault = []string{
+	"seeds.p2pool.io",
+	"main.p2poolpeers.net",
+	"main.gupax.io",
+}
+var seedNodesMini = []string{
+	"seeds-mini.p2pool.io",
+	"mini.p2poolpeers.net",
+	"mini.gupax.io",
+}
+
+var seedNodesNano = []string{
+	"seeds-nano.p2pool.io",
+	"nano.p2poolpeers.net",
+	"nano.gupax.io",
+}
+
+var torNodes = []p2pooltypes.OnionAddressV3{
+	// p2pool.io
+	p2pooltypes.MustOnionAddressV3FromString("p2pseeds5qoenuuseyuqxhzzefzxpbhiq4z4h5hfbry5dxd5y2fwudyd.onion"),
+	// p2pool.observer
+	p2pooltypes.MustOnionAddressV3FromString("p2pseedtwyepi4crkf4akceen4twejcptnsbm6gjmzdfgxua57hiijid.onion"),
+}
+
+func (c *Consensus) TorNodes() []p2pooltypes.OnionAddressV3 {
+	if c.IsNano() {
+		return torNodes
+	} else if c.IsMini() {
+		return torNodes
+	} else if c.IsDefault() {
+		return torNodes
+	}
+	return nil
+}
+
 func (c *Consensus) SeedNodes() []string {
 	if c.IsNano() {
-		return []string{"seeds-nano.p2pool.io", "nano.p2poolpeers.net", "nano.gupax.io"}
+		return seedNodesNano
 	} else if c.IsMini() {
-		return []string{"seeds-mini.p2pool.io", "mini.p2poolpeers.net", "mini.gupax.io"}
+		return seedNodesMini
 	} else if c.IsDefault() {
-		return []string{"seeds.p2pool.io", "main.p2poolpeers.net", "main.gupax.io"}
+		return seedNodesDefault
 	}
 	return nil
 }

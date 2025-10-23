@@ -9,7 +9,10 @@ import (
 	unsafeRandom "math/rand/v2"
 	"net"
 	"net/netip"
+	"net/url"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -23,6 +26,7 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	"golang.org/x/net/proxy"
 )
 
 type P2PoolInterface interface {
@@ -62,6 +66,34 @@ func (l PeerList) Delete(addr netip.Addr) PeerList {
 	return ret
 }
 
+type OnionPeerListEntry struct {
+	Host              p2pooltypes.OnionAddressV3
+	Port              uint16
+	FailedConnections atomic.Uint32
+	LastSeenTimestamp atomic.Uint64
+}
+type OnionPeerList []*OnionPeerListEntry
+
+func (l OnionPeerList) Get(host p2pooltypes.OnionAddressV3) *OnionPeerListEntry {
+	if i := slices.IndexFunc(l, func(entry *OnionPeerListEntry) bool {
+		return entry.Host == host
+	}); i != -1 {
+		return l[i]
+	}
+	return nil
+}
+func (l OnionPeerList) Delete(host p2pooltypes.OnionAddressV3) OnionPeerList {
+	ret := l
+	for i := slices.IndexFunc(ret, func(entry *OnionPeerListEntry) bool {
+		return entry.Host == host
+	}); i != -1; i = slices.IndexFunc(ret, func(entry *OnionPeerListEntry) bool {
+		return entry.Host == host
+	}) {
+		ret = slices.Delete(ret, i, i+1)
+	}
+	return ret
+}
+
 type BanEntry struct {
 	Expiration uint64
 	Error      error
@@ -70,8 +102,8 @@ type BanEntry struct {
 type Server struct {
 	p2pool P2PoolInterface
 
-	peerId             uint64
-	versionInformation p2pooltypes.PeerVersionInformation
+	peerId, alternatePeerId uint64
+	versionInformation      p2pooltypes.PeerVersionInformation
 
 	listenAddress      netip.AddrPort
 	externalListenPort uint16
@@ -85,6 +117,9 @@ type Server struct {
 	close    atomic.Bool
 	listener *net.TCPListener
 
+	onionProxy atomic.Pointer[url.URL]
+	proxy      atomic.Pointer[url.URL]
+
 	fastestPeer *Client
 
 	MaxOutgoingPeers uint32
@@ -95,6 +130,7 @@ type Server struct {
 
 	PendingOutgoingConnections *utils.CircularBuffer[string]
 
+	onionPeerList  OnionPeerList
 	peerList       PeerList
 	peerListLock   sync.RWMutex
 	moneroPeerList PeerList
@@ -120,6 +156,12 @@ func NewServer(p2pool P2PoolInterface, listenAddress string, externalListenPort 
 		return nil, err
 	}
 
+	alternatePeerId := make([]byte, int(unsafe.Sizeof(uint64(0))))
+	_, err = rand.Read(alternatePeerId)
+	if err != nil {
+		return nil, err
+	}
+
 	addrPort, err := netip.ParseAddrPort(listenAddress)
 	if err != nil {
 		return nil, err
@@ -130,6 +172,7 @@ func NewServer(p2pool P2PoolInterface, listenAddress string, externalListenPort 
 		listenAddress:      addrPort,
 		externalListenPort: externalListenPort,
 		peerId:             binary.LittleEndian.Uint64(peerId),
+		alternatePeerId:    binary.LittleEndian.Uint64(alternatePeerId),
 		MaxOutgoingPeers:   min(maxOutgoingPeers, 450),
 		MaxIncomingPeers:   min(maxIncomingPeers, 450),
 		cachedBlocks:       make(map[types.Hash]*sidechain.PoolBlock, p2pool.Consensus().ChainWindowSize*3),
@@ -177,6 +220,26 @@ func (s *Server) ExternalListenPort() uint16 {
 		return s.externalListenPort
 	} else {
 		return s.listenAddress.Port()
+	}
+}
+
+func (s *Server) AddToOnionPeerList(addr p2pooltypes.OnionAddressV3, port uint16) {
+	if !addr.Valid() {
+		return
+	}
+
+	s.peerListLock.Lock()
+	defer s.peerListLock.Unlock()
+	if e := s.onionPeerList.Get(addr); e == nil {
+		// TODO: isBanned
+		e = &OnionPeerListEntry{
+			Host: addr,
+			Port: port,
+		}
+		e.LastSeenTimestamp.Store(uint64(time.Now().Unix()))
+		s.onionPeerList = append(s.onionPeerList, e)
+	} else {
+		e.LastSeenTimestamp.Store(uint64(time.Now().Unix()))
 	}
 }
 
@@ -236,6 +299,13 @@ func (s *Server) UpdateInPeerList(addressPort netip.AddrPort) {
 	}
 }
 
+func (s *Server) OnionPeerList() OnionPeerList {
+	s.peerListLock.RLock()
+	defer s.peerListLock.RUnlock()
+
+	return slices.Clone(s.onionPeerList)
+}
+
 func (s *Server) PeerList() PeerList {
 	s.peerListLock.RLock()
 	defer s.peerListLock.RUnlock()
@@ -243,7 +313,32 @@ func (s *Server) PeerList() PeerList {
 	return slices.Clone(s.peerList)
 }
 
+func (s *Server) RemoveFromOnionPeerList(addr p2pooltypes.OnionAddressV3) {
+	s.peerListLock.Lock()
+	defer s.peerListLock.Unlock()
+	for i := len(s.onionPeerList) - 1; i >= 0; i-- {
+		a := s.onionPeerList[i]
+		if a.Host == addr {
+			s.onionPeerList = slices.Delete(s.onionPeerList, i, i+1)
+			return
+		}
+	}
+}
+
+func (s *Server) RemoveFromHostPeerList(host string) {
+	var onionAddr p2pooltypes.OnionAddressV3
+	if err := onionAddr.UnmarshalText([]byte(host)); err != nil || !onionAddr.Valid() {
+		addr, _ := netip.ParseAddr(host)
+		s.RemoveFromPeerList(addr)
+	} else {
+		s.RemoveFromOnionPeerList(onionAddr)
+	}
+}
+
 func (s *Server) RemoveFromPeerList(ip netip.Addr) {
+	if !ip.IsValid() {
+		return
+	}
 	ip = ip.Unmap()
 	s.peerListLock.Lock()
 	defer s.peerListLock.Unlock()
@@ -302,7 +397,7 @@ func (s *Server) UpdateClientConnections() {
 
 	connectedClients := s.Clients()
 
-	connectedPeers := make([]netip.Addr, 0, len(connectedClients))
+	connectedPeers := make([]string, 0, len(connectedClients))
 
 	for _, client := range connectedClients {
 		timeout := uint64(10)
@@ -314,7 +409,7 @@ func (s *Server) UpdateClientConnections() {
 
 		if currentTime >= (lastAlive + timeout) {
 			idleTime := currentTime - lastAlive
-			utils.Logf("P2PServer", "peer %s has been idle for %d seconds, disconnecting", client.AddressPort, idleTime)
+			utils.Logf("P2PServer", "peer %s has been idle for %d seconds, disconnecting", client.HostPort, idleTime)
 			client.Close()
 			continue
 		}
@@ -333,7 +428,7 @@ func (s *Server) UpdateClientConnections() {
 			}
 		}
 
-		connectedPeers = append(connectedPeers, client.AddressPort.Addr().Unmap())
+		connectedPeers = append(connectedPeers, client.HostPort.Host)
 		if client.IsGood() {
 			hasGoodPeers = true
 			if client.PingDuration.Load() >= 0 && (fastestPeer == nil || fastestPeer.PingDuration.Load() > client.PingDuration.Load()) {
@@ -346,9 +441,7 @@ func (s *Server) UpdateClientConnections() {
 	peerList := s.PeerList()
 	peerList2 := slices.Clone(peerList)
 	for _, p := range peerList {
-		if slices.ContainsFunc(connectedPeers, func(addr netip.Addr) bool {
-			return p.AddressPort.Addr().Compare(addr) == 0
-		}) {
+		if slices.Contains(connectedPeers, p.AddressPort.Addr().String()) {
 			p.LastSeenTimestamp.Store(currentTime)
 		}
 		if (p.LastSeenTimestamp.Load() + 3600) < currentTime {
@@ -385,9 +478,7 @@ func (s *Server) UpdateClientConnections() {
 		k := unsafeRandom.IntN(len(peerList)) % len(peerList)
 		peer := peerList[k]
 
-		if !slices.ContainsFunc(connectedPeers, func(addr netip.Addr) bool {
-			return peer.AddressPort.Addr().Compare(addr) == 0
-		}) {
+		if !slices.Contains(connectedPeers, peer.AddressPort.Addr().String()) {
 			wg.Add(1)
 			attempts++
 			go func() {
@@ -396,7 +487,7 @@ func (s *Server) UpdateClientConnections() {
 				if s.NumOutgoingConnections.Load() >= int32(s.MaxOutgoingPeers) {
 					return
 				}
-				if err := s.Connect(peer.AddressPort); err != nil {
+				if _, err := s.Connect(peer.AddressPort); err != nil {
 					utils.Logf("P2PServer", "Connection to %s rejected (%s)", peer.AddressPort.String(), err.Error())
 				}
 			}()
@@ -571,8 +662,8 @@ func (s *Server) Listen() (err error) {
 					if addrPort, err := netip.ParseAddrPort(conn.RemoteAddr().String()); err != nil {
 						return err
 					} else if !addrPort.Addr().IsLoopback() {
-						if clients := s.GetAddressConnected(addrPort.Addr()); !addrPort.Addr().IsLoopback() && len(clients) != 0 {
-							return errors.New("peer is already connected as " + clients[0].AddressPort.String())
+						if clients := s.GetAddressConnected(addrPort.Addr().String()); !addrPort.Addr().IsLoopback() && len(clients) != 0 {
+							return errors.New("peer is already connected as " + clients[0].HostPort.String())
 						}
 
 						addr := addrPort.Addr().Unmap()
@@ -602,11 +693,12 @@ func (s *Server) Listen() (err error) {
 
 					s.clientsLock.Lock()
 					defer s.clientsLock.Unlock()
-					client := NewClient(s, conn)
+					addrPort := netip.MustParseAddrPort(conn.RemoteAddr().String())
+					client := NewClient(s, HostPort{Host: addrPort.Addr().Unmap().String(), Port: addrPort.Port()}, conn)
 					client.IsIncomingConnection = true
 					s.clients = append(s.clients, client)
 					s.NumIncomingConnections.Add(1)
-					go client.OnConnection()
+					go client.OnConnection(s.PeerId())
 				}()
 			}
 
@@ -622,25 +714,90 @@ func (s *Server) GetAddressConnectedPrefix(prefix netip.Prefix) (result []*Clien
 	s.clientsLock.RLock()
 	defer s.clientsLock.RUnlock()
 	for _, c := range s.clients {
-		if prefix.Contains(c.AddressPort.Addr()) {
+		if prefix.Contains(c.HostPort.Addr()) {
 			result = append(result, c)
 		}
 	}
 	return result
 }
 
-func (s *Server) GetAddressConnected(addr netip.Addr) (result []*Client) {
+func (s *Server) GetAddressConnected(host string) (result []*Client) {
 	s.clientsLock.RLock()
 	defer s.clientsLock.RUnlock()
 	for _, c := range s.clients {
-		if c.AddressPort.Addr().Compare(addr) == 0 {
+		if c.HostPort.Host == host {
 			result = append(result, c)
 		}
 	}
 	return result
 }
 
-func (s *Server) DirectConnect(addrPort netip.AddrPort) (*Client, error) {
+func (s *Server) Connect(addrPort netip.AddrPort) (*Client, error) {
+	if ok, b := s.IsBanned(addrPort.Addr()); ok {
+		return nil, fmt.Errorf("peer is banned: %w", b.Error)
+	}
+
+	return s.DirectConnect(addrPort, s.PeerId(), s.DefaultDialer(addrPort.Addr().Unmap().Is6()).DialContext)
+}
+
+func (s *Server) ConnectOnion(addr p2pooltypes.OnionAddressV3, port uint16) (*Client, error) {
+	if s.onionProxy.Load() == nil {
+		return nil, ErrNoOnionProxy
+	}
+
+	//TODO: isBanned
+	if clients := s.GetAddressConnected(addr.String()); len(clients) != 0 {
+		return nil, errors.New("peer is already connected as " + clients[0].HostPort.String())
+	}
+
+	c, err := s.DirectConnectProxy(addr.String(), port, s.onionProxy.Load())
+	if err != nil {
+		if p := s.OnionPeerList().Get(addr); p != nil {
+			if p.FailedConnections.Add(1) >= 10 {
+				s.RemoveFromOnionPeerList(addr)
+			}
+		}
+		return nil, err
+	}
+	return c, nil
+}
+
+var ErrNoOnionProxy = errors.New("no onion proxy available")
+
+func (s *Server) ConnectHost(host string, port uint16) (*Client, error) {
+	host = strings.ToLower(host)
+
+	//TODO: isBanned
+
+	var onionAddr p2pooltypes.OnionAddressV3
+	if err := onionAddr.UnmarshalText([]byte(host)); err != nil {
+		return s.ConnectOnion(onionAddr, port)
+	} else {
+		if clients := s.GetAddressConnected(host); len(clients) != 0 {
+			return nil, errors.New("peer is already connected as " + clients[0].HostPort.String())
+		}
+
+		return s.DirectConnectHost(host, port, s.PeerId(), s.DefaultDialer(false).DialContext)
+	}
+}
+
+func (s *Server) DirectConnectProxy(host string, port uint16, uri *url.URL) (*Client, error) {
+	dialer, err := proxy.FromURL(uri, nil)
+	if err != nil {
+		return nil, err
+	}
+	if cd, ok := dialer.(proxy.ContextDialer); !ok {
+		return nil, errors.New("not a context proxy dialer")
+	} else {
+		if clients := s.GetAddressConnected(host); len(clients) != 0 {
+			return nil, errors.New("peer is already connected as " + clients[0].HostPort.String())
+		}
+
+		return s.DirectConnectHost(host, port, s.AlternatePeerId(), cd.DialContext)
+	}
+}
+
+func (s *Server) DirectConnect(addrPort netip.AddrPort, ourPeerId uint64, dialContext func(ctx context.Context, network, address string) (net.Conn, error)) (*Client, error) {
 	addr := addrPort.Addr().Unmap()
 	if !s.useIPv4 && addr.Is4() {
 		return nil, errors.New("peer is IPv4 but we do not allow it")
@@ -648,20 +805,62 @@ func (s *Server) DirectConnect(addrPort netip.AddrPort) (*Client, error) {
 		return nil, errors.New("peer is IPv6 but we do not allow it")
 	}
 
-	if clients := s.GetAddressConnected(addrPort.Addr()); !addrPort.Addr().IsLoopback() && len(clients) != 0 {
-		return nil, errors.New("peer is already connected as " + clients[0].AddressPort.String())
+	if clients := s.GetAddressConnected(addrPort.Addr().String()); !addrPort.Addr().IsLoopback() && len(clients) != 0 {
+		return nil, errors.New("peer is already connected as " + clients[0].HostPort.String())
 	}
 
-	if !s.PendingOutgoingConnections.PushUnique(addrPort.Addr().String()) {
+	addrStr := addr.String()
+	if addr.Is6() {
+		addrStr = "[" + addr.String() + "]"
+	}
+
+	c, err := s.DirectConnectHost(addrStr, addrPort.Port(), ourPeerId, dialContext)
+	if err != nil {
+		if p := s.PeerList().Get(addrPort.Addr()); p != nil {
+			if p.FailedConnections.Add(1) >= 10 {
+				s.RemoveFromPeerList(addrPort.Addr())
+			}
+		}
+		return nil, err
+	}
+	return c, err
+}
+
+func (s *Server) DirectConnectHost(host string, port uint16, ourPeerId uint64, dialContext func(ctx context.Context, network, address string) (net.Conn, error)) (*Client, error) {
+	if !s.PendingOutgoingConnections.PushUnique(host) {
 		return nil, errors.New("peer is already attempting connection")
 	}
 
 	s.NumOutgoingConnections.Add(1)
 
+	utils.Logf("P2PServer", "Outgoing connection to %s:%d", host, port)
+
+	if conn, err := dialContext(s.ctx, "tcp", host+":"+strconv.FormatUint(uint64(port), 10)); err != nil {
+		s.NumOutgoingConnections.Add(-1)
+		s.PendingOutgoingConnections.Replace(host, "")
+		return nil, err
+	} else {
+		s.clientsLock.Lock()
+		defer s.clientsLock.Unlock()
+		client := NewClient(s, HostPort{Host: host, Port: port}, conn)
+		s.clients = append(s.clients, client)
+		go client.OnConnection(ourPeerId)
+		return client, nil
+	}
+}
+
+func (s *Server) DefaultDialer(ipv6 bool) proxy.ContextDialer {
+	if p := s.proxy.Load(); p != nil {
+		d, err := proxy.FromURL(p, nil)
+		if err == nil {
+			return d.(proxy.ContextDialer)
+		}
+	}
+
 	var localAddr net.Addr
 
 	//select IPv6 outgoing address
-	if addr.Is6() {
+	if ipv6 {
 		addrs := s.GetOutgoingIPv6()
 		if len(addrs) > 1 {
 			a := addrs[unsafeRandom.IntN(len(addrs))]
@@ -671,47 +870,18 @@ func (s *Server) DirectConnect(addrPort netip.AddrPort) (*Client, error) {
 		}
 	}
 
-	if localAddr != nil {
-		utils.Logf("P2PServer", "Outgoing connection to %s using %s", addrPort.String(), localAddr.String())
-	} else {
-		utils.Logf("P2PServer", "Outgoing connection to %s", addrPort.String())
-	}
-
-	if conn, err := (&net.Dialer{Timeout: time.Second * 5, LocalAddr: localAddr}).DialContext(s.ctx, "tcp", addrPort.String()); err != nil {
-		s.NumOutgoingConnections.Add(-1)
-		s.PendingOutgoingConnections.Replace(addrPort.Addr().String(), "")
-		if p := s.PeerList().Get(addrPort.Addr()); p != nil {
-			if p.FailedConnections.Add(1) >= 10 {
-				s.RemoveFromPeerList(addrPort.Addr())
-			}
-		}
-		return nil, err
-	} else if tcpConn, ok := conn.(*net.TCPConn); !ok {
-		s.NumOutgoingConnections.Add(-1)
-		s.PendingOutgoingConnections.Replace(addrPort.Addr().String(), "")
-		if p := s.PeerList().Get(addrPort.Addr()); p != nil {
-			if p.FailedConnections.Add(1) >= 10 {
-				s.RemoveFromPeerList(addrPort.Addr())
-			}
-		}
-		return nil, errors.New("not a tcp connection")
-	} else {
-		s.clientsLock.Lock()
-		defer s.clientsLock.Unlock()
-		client := NewClient(s, tcpConn)
-		s.clients = append(s.clients, client)
-		go client.OnConnection()
-		return client, nil
+	return &net.Dialer{
+		Timeout:   time.Second * 5,
+		LocalAddr: localAddr,
 	}
 }
 
-func (s *Server) Connect(addrPort netip.AddrPort) error {
-	if ok, b := s.IsBanned(addrPort.Addr()); ok {
-		return fmt.Errorf("peer is banned: %w", b.Error)
-	}
+func (s *Server) SetOnionProxy(uri *url.URL) {
+	s.onionProxy.Store(uri)
+}
 
-	_, err := s.DirectConnect(addrPort)
-	return err
+func (s *Server) SetProxy(uri *url.URL) {
+	s.proxy.Store(uri)
 }
 
 func (s *Server) Clients() []*Client {
@@ -755,6 +925,10 @@ func (s *Server) IsBanned(ip netip.Addr) (bool, *BanEntry) {
 }
 
 func (s *Server) Ban(ip netip.Addr, duration time.Duration, err error) {
+	if !ip.IsValid() {
+		return
+	}
+
 	if ok, _ := s.IsBanned(ip); ok {
 		return
 	}
@@ -805,6 +979,10 @@ func (s *Server) VersionInformation() *p2pooltypes.PeerVersionInformation {
 
 func (s *Server) PeerId() uint64 {
 	return s.peerId
+}
+
+func (s *Server) AlternatePeerId() uint64 {
+	return s.alternatePeerId
 }
 
 func (s *Server) SideChain() *sidechain.SideChain {

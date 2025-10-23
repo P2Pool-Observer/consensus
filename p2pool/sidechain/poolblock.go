@@ -2,7 +2,6 @@ package sidechain
 
 import (
 	"bytes"
-	"encoding/base32"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -25,7 +24,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	fasthex "github.com/tmthrgd/go-hex"
-	"golang.org/x/crypto/sha3"
 )
 
 type CoinbaseExtraTag int
@@ -891,39 +889,19 @@ func (b *PoolBlock) GetMergeMineExtraSubaddress() *address.PackedAddressWithSuba
 	return nil
 }
 
-var onionChecksumDomain = []byte(".onion checksum")
-
-var torOnionBase32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567")
-
-const torOnionPort = "28722"
-
-func (b *PoolBlock) GetOnionAddress() string {
+func (b *PoolBlock) GetOnionAddressV3() *p2pooltypes.OnionAddressV3 {
 	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeyOnionAddressV3); ok && len(d) == crypto.PublicKeySize+2 {
-		var pubkey crypto.PublicKeyBytes
+		var pubkey p2pooltypes.OnionAddressV3
 		copy(pubkey[:], d[:crypto.PublicKeySize])
 		d = d[crypto.PublicKeySize:]
-
 		if d[0] != 0 || d[1] != 0 {
-			return ""
+			return nil
 		}
 
-		hasher := sha3.New256().(crypto.HashReader)
-		_, _ = utils.WriteNoEscape(hasher, onionChecksumDomain)
-		_, _ = utils.WriteNoEscape(hasher, pubkey[:])
-		_, _ = utils.WriteNoEscape(hasher, []byte{3})
-
-		var checkSum [2]byte
-		_, _ = utils.ReadNoEscape(hasher, checkSum[:])
-
-		var addr [crypto.PublicKeySize + 2 + 1]byte
-		copy(addr[:], pubkey[:])
-		copy(addr[crypto.PublicKeySize:], checkSum[:])
-		addr[crypto.PublicKeySize+2] = 3
-
-		return torOnionBase32Encoding.EncodeToString(addr[:]) + ".onion:" + torOnionPort
+		return &pubkey
 	}
 
-	return ""
+	return nil
 }
 
 // GetConsensusPackedAddress Gets the address to use for sidechain share weight calculation dependent on target major version
