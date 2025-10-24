@@ -175,8 +175,15 @@ func (a *Address) verifyChecksum() {
 	}
 }
 
+// Valid check that points can be decoded and that they are not torsioned
 func (a *Address) Valid() bool {
-	return a.ViewPublicKey().AsPoint() != nil && a.SpendPublicKey().AsPoint() != nil
+	if spend := a.SpendPublicKey().AsPoint(); spend == nil || !spend.IsTorsionFreeVarTime() {
+		return false
+	}
+	if view := a.ViewPublicKey().AsPoint(); view == nil || !view.IsTorsionFreeVarTime() {
+		return false
+	}
+	return true
 }
 
 func (a *Address) ToBase58() []byte {
