@@ -55,6 +55,15 @@ func (k *PublicKeyPoint) IsTorsionFree() bool {
 	return k.Point().IsTorsionFree()
 }
 
+// IsTorsionFreeVarTime Determine if this point is “torsion-free”, i.e., is contained in the prime-order subgroup.
+// true if it has zero torsion component and is in the prime-order subgroup;
+// false if it has a nonzero torsion component and is not in the prime-order subgroup.
+//
+// See https://github.com/FiloSottile/edwards25519/issues/33
+func (k *PublicKeyPoint) IsTorsionFreeVarTime() bool {
+	return k.Point().IsTorsionFreeVarTime()
+}
+
 func (k *PublicKeyPoint) AsPoint() *PublicKeyPoint {
 	return k
 }

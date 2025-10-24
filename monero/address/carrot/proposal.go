@@ -37,7 +37,7 @@ func (p *PaymentProposalV1) ECDHParts(hasher *blake2b.Digest, inputContext []byt
 func (p *PaymentProposalV1) ephemeralPublicKey(key *crypto.PrivateKeyScalar) (out crypto.X25519PublicKey) {
 	spendPub := p.Destination.Address.SpendPublicKey().AsPoint()
 	// EXTRA: verify Spend pub to skip a check after generating the output
-	if spendPub == nil || !spendPub.IsTorsionFree() {
+	if spendPub == nil || !spendPub.IsTorsionFreeVarTime() {
 		return crypto.ZeroX25519PublicKey
 	}
 

@@ -760,10 +760,10 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 		if crypto.DecodeCompressedPoint(&spendPub, *block.Side.PublicKey.SpendPublicKey()) == nil || crypto.DecodeCompressedPoint(&viewPub, *block.Side.PublicKey.ViewPublicKey()) == nil {
 			return nil, errors.New("block must have a valid wallet address")
 		}
-		if spendPub.IsSmallOrder() || !spendPub.IsTorsionFree() {
+		if !spendPub.IsTorsionFreeVarTime() {
 			return nil, errors.New("block must have a non-torsioned spend public key")
 		}
-		if viewPub.IsSmallOrder() || !viewPub.IsTorsionFree() {
+		if !viewPub.IsTorsionFreeVarTime() {
 			return nil, errors.New("block must have a non-torsioned view public key")
 		}
 	}

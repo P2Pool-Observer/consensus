@@ -190,6 +190,30 @@ func TestCheckTorsion(t *testing.T) {
 	}
 }
 
+func TestCheckTorsionVarTime(t *testing.T) {
+	results := GetTestEntriesCustom("testdata/p2pool_crypto_tests.txt", "check_torsion", 2)
+
+	if results == nil {
+		t.Fatal()
+	}
+	for e := range results {
+		key := PublicKeyBytes(types.MustHashFromString(e[0]))
+		result := e[1] == "true"
+
+		if p := key.AsPoint(); p == nil {
+			if result {
+				t.Fatalf("expected not nil")
+			}
+		} else if p.IsSmallOrder() || !p.IsTorsionFreeVarTime() {
+			if result {
+				t.Fatalf("expected valid")
+			}
+		} else if !result {
+			t.Errorf("expected not valid")
+		}
+	}
+}
+
 func TestCheckKey(t *testing.T) {
 	results := GetTestEntries("check_key", 2)
 	if results == nil {

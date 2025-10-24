@@ -91,7 +91,7 @@ func MakeUncontextualizedSharedKeyReceiver(viewPriv crypto.PrivateKeyBytes, ephe
 // makeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
 func makeUncontextualizedSharedKeySender(ephemeralPrivKey crypto.PrivateKeyBytes, viewPub *crypto.PublicKeyPoint) (senderReceiverUnctx crypto.X25519PublicKey) {
 	// if K^j_v not in prime order subgroup, then FAIL
-	if viewPub == nil || !viewPub.IsTorsionFree() {
+	if viewPub == nil || !viewPub.IsTorsionFreeVarTime() {
 		return crypto.ZeroX25519PublicKey
 	}
 
