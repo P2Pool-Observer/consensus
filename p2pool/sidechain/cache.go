@@ -170,6 +170,9 @@ func (d *DerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSub
 		Randomness: carrot.GetP2PoolDeterministicCarrotOutputRandomness(&blake2b.Digest{}, seed, blockIndex, a.SpendPublicKey(), a.ViewPublicKey()),
 	}
 
+	// assume all entries here have been checked ahead of time
+	proposal.UnsafeForceTorsionChecked()
+
 	var hasher blake2b.Digest
 	var enote carrot.CoinbaseEnoteV1
 	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)

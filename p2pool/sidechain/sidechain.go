@@ -23,7 +23,6 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type Cache interface {
@@ -752,20 +751,6 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 	// Must have parent
 	if block.Side.Parent == types.ZeroHash {
 		return nil, errors.New("block must have a parent")
-	}
-
-	// Wallet point validity and torsion check, at FCMP++ or one week ahead of time
-	if block.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion || monero.NetworkMajorVersion(c.Consensus().MoneroHardForks, block.Main.Coinbase.GenHeight+720*7) >= monero.HardForkFCMPPlusPlusVersion {
-		var spendPub, viewPub edwards25519.Point
-		if crypto.DecodeCompressedPoint(&spendPub, *block.Side.PublicKey.SpendPublicKey()) == nil || crypto.DecodeCompressedPoint(&viewPub, *block.Side.PublicKey.ViewPublicKey()) == nil {
-			return nil, errors.New("block must have a valid wallet address")
-		}
-		if !spendPub.IsTorsionFreeVarTime() {
-			return nil, errors.New("block must have a non-torsioned spend public key")
-		}
-		if !viewPub.IsTorsionFreeVarTime() {
-			return nil, errors.New("block must have a non-torsioned view public key")
-		}
 	}
 
 	if parent := c.getParent(block); parent != nil {

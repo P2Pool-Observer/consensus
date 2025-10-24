@@ -66,6 +66,7 @@ func makeEnoteEphemeralPrivateKey(hasher *blake2b.Digest, ephemeralPrivateKeyOut
 }
 
 // makeEnoteEphemeralPublicKeySubaddress make_carrot_enote_ephemeral_pubkey_subaddress
+// Precondition: spendPub is torsion free
 func makeEnoteEphemeralPublicKeySubaddress(key *crypto.PrivateKeyScalar, spendKey *crypto.PublicKeyPoint) (out crypto.X25519PublicKey) {
 	// K_e = d_e K^j_s
 	K_e := new(edwards25519.Point).UnsafeVarTimeScalarMult(key.Scalar(), spendKey.Point())
@@ -89,12 +90,8 @@ func MakeUncontextualizedSharedKeyReceiver(viewPriv crypto.PrivateKeyBytes, ephe
 }
 
 // makeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
+// Precondition: viewPub is torsion free
 func makeUncontextualizedSharedKeySender(ephemeralPrivKey crypto.PrivateKeyBytes, viewPub *crypto.PublicKeyPoint) (senderReceiverUnctx crypto.X25519PublicKey) {
-	// if K^j_v not in prime order subgroup, then FAIL
-	if viewPub == nil || !viewPub.IsTorsionFreeVarTime() {
-		return crypto.ZeroX25519PublicKey
-	}
-
 	// s_sr = d_e * ConvertPointE(K^j_v)
 	viewPubkeyX25519 := crypto.ConvertPointE(viewPub.Point())
 	crypto.X25519ScalarMult(&senderReceiverUnctx, ephemeralPrivKey, viewPubkeyX25519)

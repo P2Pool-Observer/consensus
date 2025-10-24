@@ -38,6 +38,8 @@ func ScalarReduce32_BigInt(s *[32]byte) {
 // Since this decodes an Ed25519 point, it does not check the point is in the prime-order
 // subgroup. Torsioned points do have a canonical encoding, and only aren't canonical when
 // considered in relation to the prime-order subgroup.
+//
+// To verify torsion use PublicKeyPoint.IsTorsionFree
 func DecodeCompressedPoint(r *edwards25519.Point, buf [PublicKeySize]byte) *edwards25519.Point {
 	if r == nil {
 		return nil

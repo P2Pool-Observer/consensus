@@ -52,7 +52,7 @@ func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 		crypto.PublicKeyBytes(types.MustHashFromString("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0")),
 		crypto.PublicKeyBytes(types.MustHashFromString("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2")),
 	}
-	proposal := &PaymentProposalV1{
+	prop := &PaymentProposalV1{
 		Destination: DestinationV1{
 			Address:   address.NewPackedAddressWithSubaddress(&addr, false),
 			PaymentId: [monero.PaymentIdSize]byte{},
@@ -61,20 +61,46 @@ func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
 	}
 
-	b.ReportAllocs()
-	b.ResetTimer()
+	b.Run("TorsionChecked", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
-		i := unsafeRandom.Uint64N(math.MaxUint32)
-		var hasher blake2b.Digest
-		for pb.Next() {
-			i++
-			inputContext := MakeCoinbaseInputContext(i)
-			_, _, _, err := proposal.OutputPartial(&hasher, inputContext[:], true)
-			if err != nil {
-				b.Fatalf("failed to generate coinbase enote partial: %s", err)
+		b.RunParallel(func(pb *testing.PB) {
+			proposal := *prop
+
+			i := unsafeRandom.Uint64N(math.MaxUint32)
+			var hasher blake2b.Digest
+			for pb.Next() {
+				i++
+				proposal.torsionChecked = false
+				inputContext := MakeCoinbaseInputContext(i)
+				_, _, _, err := proposal.OutputPartial(&hasher, inputContext[:], true)
+				if err != nil {
+					b.Fatalf("failed to generate coinbase enote partial: %s", err)
+				}
 			}
-		}
+		})
+	})
+
+	b.Run("TorsionUnchecked", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		b.RunParallel(func(pb *testing.PB) {
+			proposal := *prop
+
+			i := unsafeRandom.Uint64N(math.MaxUint32)
+			var hasher blake2b.Digest
+			for pb.Next() {
+				i++
+				proposal.torsionChecked = true
+				inputContext := MakeCoinbaseInputContext(i)
+				_, _, _, err := proposal.OutputPartial(&hasher, inputContext[:], true)
+				if err != nil {
+					b.Fatalf("failed to generate coinbase enote partial: %s", err)
+				}
+			}
+		})
 	})
 
 }
@@ -84,7 +110,7 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 		crypto.PublicKeyBytes(types.MustHashFromString("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0")),
 		crypto.PublicKeyBytes(types.MustHashFromString("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2")),
 	}
-	proposal := &PaymentProposalV1{
+	prop := &PaymentProposalV1{
 		Destination: DestinationV1{
 			Address:   address.NewPackedAddressWithSubaddress(&addr, false),
 			PaymentId: [monero.PaymentIdSize]byte{},
@@ -93,19 +119,44 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
 	}
 
-	b.ReportAllocs()
-	b.ResetTimer()
+	b.Run("TorsionChecked", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
-		var enote CoinbaseEnoteV1
-		i := unsafeRandom.Uint64N(math.MaxUint32)
-		for pb.Next() {
-			i++
-			err := proposal.CoinbaseOutput(&enote, i)
-			if err != nil {
-				b.Fatalf("failed to generate coinbase enote: %s", err)
+		b.RunParallel(func(pb *testing.PB) {
+			proposal := *prop
+
+			var enote CoinbaseEnoteV1
+			i := unsafeRandom.Uint64N(math.MaxUint32)
+			for pb.Next() {
+				i++
+				proposal.torsionChecked = false
+				err := proposal.CoinbaseOutput(&enote, i)
+				if err != nil {
+					b.Fatalf("failed to generate coinbase enote: %s", err)
+				}
 			}
-		}
+		})
+	})
+
+	b.Run("TorsionUnchecked", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		b.RunParallel(func(pb *testing.PB) {
+			proposal := *prop
+
+			var enote CoinbaseEnoteV1
+			i := unsafeRandom.Uint64N(math.MaxUint32)
+			for pb.Next() {
+				i++
+				proposal.torsionChecked = true
+				err := proposal.CoinbaseOutput(&enote, i)
+				if err != nil {
+					b.Fatalf("failed to generate coinbase enote: %s", err)
+				}
+			}
+		})
 	})
 }
 
@@ -116,7 +167,7 @@ func BenchmarkPaymentProposalV1_Output(b *testing.B) {
 	}
 
 	firstKeyImage := crypto.PublicKeyBytes(types.MustHashFromString("a3d1d782671a3622bf393fe8116c8df95e9e12776e2970ab1934645f40748343"))
-	proposal := &PaymentProposalV1{
+	prop := &PaymentProposalV1{
 		Destination: DestinationV1{
 			Address:   address.NewPackedAddressWithSubaddress(&addr, true),
 			PaymentId: [monero.PaymentIdSize]byte{},
@@ -125,18 +176,43 @@ func BenchmarkPaymentProposalV1_Output(b *testing.B) {
 		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
 	}
 
-	b.ReportAllocs()
-	b.ResetTimer()
+	b.Run("TorsionChecked", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
-		var out RCTEnoteProposal
-		i := unsafeRandom.Uint64N(math.MaxUint32)
-		for pb.Next() {
-			i++
-			err := proposal.Output(&out, firstKeyImage)
-			if err != nil {
-				b.Fatalf("failed to generate coinbase enote: %s", err)
+		b.RunParallel(func(pb *testing.PB) {
+			proposal := *prop
+
+			var out RCTEnoteProposal
+			i := unsafeRandom.Uint64N(math.MaxUint32)
+			for pb.Next() {
+				i++
+				proposal.torsionChecked = false
+				err := proposal.Output(&out, firstKeyImage)
+				if err != nil {
+					b.Fatalf("failed to generate coinbase enote: %s", err)
+				}
 			}
-		}
+		})
+	})
+
+	b.Run("TorsionUnchecked", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		b.RunParallel(func(pb *testing.PB) {
+			proposal := *prop
+
+			var out RCTEnoteProposal
+			i := unsafeRandom.Uint64N(math.MaxUint32)
+			for pb.Next() {
+				i++
+				proposal.torsionChecked = true
+				err := proposal.Output(&out, firstKeyImage)
+				if err != nil {
+					b.Fatalf("failed to generate coinbase enote: %s", err)
+				}
+			}
+		})
 	})
 }

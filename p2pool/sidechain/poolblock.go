@@ -23,6 +23,7 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -691,6 +692,20 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 
 	if err = b.Side.FromReader(reader, b.Main.MajorVersion, b.ShareVersion()); err != nil {
 		return err
+	}
+
+	// Wallet point validity and torsion check, at FCMP++ or one week ahead of time
+	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion || monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.GenHeight+720*7) >= monero.HardForkFCMPPlusPlusVersion {
+		var spendPub, viewPub edwards25519.Point
+		if crypto.DecodeCompressedPoint(&spendPub, *b.Side.PublicKey.SpendPublicKey()) == nil || crypto.DecodeCompressedPoint(&viewPub, *b.Side.PublicKey.ViewPublicKey()) == nil {
+			return errors.New("block must have a valid wallet address")
+		}
+		if !spendPub.IsTorsionFreeVarTime() {
+			return errors.New("block must have a non-torsioned spend public key")
+		}
+		if !viewPub.IsTorsionFreeVarTime() {
+			return errors.New("block must have a non-torsioned view public key")
+		}
 	}
 
 	b.FillPrivateKeys(derivationCache)

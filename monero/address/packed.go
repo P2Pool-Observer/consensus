@@ -85,8 +85,15 @@ func (p PackedAddress) ToBase58(typeNetwork uint8, err ...error) []byte {
 	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{typeNetwork}, p[PackedAddressSpend][:], p[PackedAddressView][:], sum[:])
 }
 
+// Valid check that points can be decoded and that they are not torsioned
 func (p PackedAddress) Valid() bool {
-	return p.ViewPublicKey().AsPoint() != nil && p.SpendPublicKey().AsPoint() != nil
+	if spend := p.SpendPublicKey().AsPoint(); spend == nil || !spend.IsTorsionFreeVarTime() {
+		return false
+	}
+	if view := p.ViewPublicKey().AsPoint(); view == nil || !view.IsTorsionFreeVarTime() {
+		return false
+	}
+	return true
 }
 
 func (p PackedAddress) Reference() *PackedAddress {
@@ -126,6 +133,17 @@ func (p *PackedAddressWithSubaddress) IsSubaddress() bool {
 
 func (p *PackedAddressWithSubaddress) PackedAddress() *PackedAddress {
 	return (*PackedAddress)(unsafe.Pointer(p))
+}
+
+// Valid check that points can be decoded and that they are not torsioned
+func (p *PackedAddressWithSubaddress) Valid() bool {
+	if spend := p.SpendPublicKey().AsPoint(); spend == nil || !spend.IsTorsionFreeVarTime() {
+		return false
+	}
+	if view := p.ViewPublicKey().AsPoint(); view == nil || !view.IsTorsionFreeVarTime() {
+		return false
+	}
+	return true
 }
 
 func (p *PackedAddressWithSubaddress) ComparePacked(other *PackedAddressWithSubaddress) int {

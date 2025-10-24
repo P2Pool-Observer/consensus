@@ -17,10 +17,25 @@ type PaymentProposalV1 struct {
 	Amount uint64 `json:"amount"`
 	// Randomness secret 16-byte randomness for Janus anchor
 	Randomness [monero.JanusAnchorSize]byte `json:"randomness"`
+
+	torsionChecked bool
+}
+
+// UnsafeForceTorsionChecked Force torsion checks to pass and be skipped. Useful if Destination has been verified previously
+func (p *PaymentProposalV1) UnsafeForceTorsionChecked() {
+	p.torsionChecked = true
 }
 
 // ECDHParts get_normal_proposal_ecdh_parts
 func (p *PaymentProposalV1) ECDHParts(hasher *blake2b.Digest, inputContext []byte) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey) {
+	if !p.torsionChecked {
+		if !p.Destination.Address.Valid() {
+			// failed decoding or torsion checks
+			return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey
+		}
+		p.torsionChecked = true
+	}
+
 	// 1. d_e = H_n(anchor_norm, input_context, K^j_s, pid))
 	var ephemeralPrivateKey crypto.PrivateKeyScalar
 	makeEnoteEphemeralPrivateKey(hasher, &ephemeralPrivateKey, p.Randomness[:], inputContext, *p.Destination.Address.SpendPublicKey(), p.Destination.PaymentId)
@@ -35,15 +50,9 @@ func (p *PaymentProposalV1) ECDHParts(hasher *blake2b.Digest, inputContext []byt
 }
 
 func (p *PaymentProposalV1) ephemeralPublicKey(key *crypto.PrivateKeyScalar) (out crypto.X25519PublicKey) {
-	spendPub := p.Destination.Address.SpendPublicKey().AsPoint()
-	// EXTRA: verify Spend pub to skip a check after generating the output
-	if spendPub == nil || !spendPub.IsTorsionFreeVarTime() {
-		return crypto.ZeroX25519PublicKey
-	}
-
 	if p.Destination.Address.IsSubaddress() {
 		// D_e = d_e ConvertPointE(K^j_s)
-		return makeEnoteEphemeralPublicKeySubaddress(key, spendPub)
+		return makeEnoteEphemeralPublicKeySubaddress(key, p.Destination.Address.SpendPublicKey().AsPoint())
 	} else {
 		// D_e = d_e B
 		return makeEnoteEphemeralPublicKeyCryptonote(key)
