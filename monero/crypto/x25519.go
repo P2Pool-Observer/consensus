@@ -24,6 +24,7 @@ func X25519ScalarBaseMult(dst *X25519PublicKey, s *edwards25519.Scalar) {
 
 // X25519ScalarMult Multiply a Scalar by the given point, and place result in dst
 // Note this is done unclamped, compared to common implementations
+// Variable time
 func X25519ScalarMult[T1 ~[32]byte](dst *X25519PublicKey, scalar T1, point X25519PublicKey) {
 	var x1, x2, z2, x3, z3, tmp0, tmp1 field.Element
 	_, _ = x1.SetBytes(point[:])
@@ -36,8 +37,10 @@ func X25519ScalarMult[T1 ~[32]byte](dst *X25519PublicKey, scalar T1, point X2551
 		b := scalar[pos/8] >> uint(pos&7)
 		b &= 1
 		swap ^= int(b)
-		x2.Swap(&x3, swap)
-		z2.Swap(&z3, swap)
+		if swap == 1 {
+			x2, x3 = x3, x2
+			z2, z3 = z3, z2
+		}
 		swap = int(b)
 
 		tmp0.Subtract(&x3, &z3)
@@ -54,15 +57,17 @@ func X25519ScalarMult[T1 ~[32]byte](dst *X25519PublicKey, scalar T1, point X2551
 		tmp1.Subtract(&tmp1, &tmp0)
 		z2.Square(&z2)
 
-		z3.Mult32(&tmp1, 121666)
+		z3.Mult121666(&tmp1)
 		x3.Square(&x3)
 		tmp0.Add(&tmp0, &z3)
 		z3.Multiply(&x1, &z2)
 		z2.Multiply(&tmp1, &tmp0)
 	}
 
-	x2.Swap(&x3, swap)
-	z2.Swap(&z3, swap)
+	if swap == 1 {
+		x2, x3 = x3, x2
+		z2, z3 = z3, z2
+	}
 
 	z2.Invert(&z2)
 	x2.Multiply(&x2, &z2)

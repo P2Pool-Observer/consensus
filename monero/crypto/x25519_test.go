@@ -21,6 +21,7 @@ func newX25519TestVector(sc, pt, re string) x25519TestVector {
 	}
 }
 
+// x25519TestVectors Vectors from https://github.com/jeffro256/mx25519/blob/3c3a36d77d7a10e328cbffc2cf2c2bb59ced9d9a/tests/tests.c
 var x25519TestVectors = []x25519TestVector{
 	// RFC 7748 test vectors
 	// the second most significant bit of each private key was set to 1 to match the RFC results
@@ -72,6 +73,21 @@ func TestX25519(t *testing.T) {
 					t.Errorf("expected %x, got %x", vec.Result, pub)
 				}
 			})
+		}
+	})
+}
+
+func BenchmarkX25519ScalarMult(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		var n int
+		var pub X25519PublicKey
+		for pb.Next() {
+			vec := x25519TestVectors[n%len(x25519TestVectors)]
+			X25519ScalarMult(&pub, vec.Scalar, vec.Point)
+			n++
 		}
 	})
 }
