@@ -7,8 +7,6 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
-var generatorHPrecomputedTable = edwards25519.PointTablePrecompute(GeneratorH)
-
 // RctCommit generates C =aG + bH from b, a is mask
 func RctCommit(dst *PublicKeyPoint, amount uint64, mask *PrivateKeyScalar) {
 	var amountBytes PrivateKeyBytes
@@ -18,12 +16,7 @@ func RctCommit(dst *PublicKeyPoint, amount uint64, mask *PrivateKeyScalar) {
 	var amountK edwards25519.Scalar
 	_, _ = amountK.SetCanonicalBytes(amountBytes[:])
 
-	dst.Point().UnsafeVarTimeDoubleScalarBaseMultPrecomputed(&amountK, generatorHPrecomputedTable, mask.Scalar())
-}
-
-// rctGenC
-func rctGenC(dst *PublicKeyPoint, a *PrivateKeyScalar, amount uint64) {
-
+	dst.Point().UnsafeVarTimeDoubleScalarBaseMultPrecomputed(&amountK, GeneratorH.Table, mask.Scalar())
 }
 
 type RCTAmount struct {

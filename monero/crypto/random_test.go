@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func TestRandomScalar(t *testing.T) {
@@ -17,7 +18,7 @@ func TestRandomScalar(t *testing.T) {
 	for e := range results {
 		expected := PrivateKeyBytes(types.MustHashFromString(e[0]))
 
-		key := PrivateKeyFromScalar(RandomScalar(rng))
+		key := PrivateKeyFromScalar(RandomScalar(new(edwards25519.Scalar), rng))
 
 		if key.AsBytes() != expected {
 			t.Errorf("expected %s, got %s", expected.String(), key.String())

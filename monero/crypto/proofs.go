@@ -25,7 +25,7 @@ const (
 
 type TxProofClaim struct {
 	SharedSecret PublicKey
-	Signature    *Signature
+	Signature    Signature
 }
 type TxProof struct {
 	Type    TxProofType
@@ -50,14 +50,14 @@ func (p TxProof) Verify(prefixHash types.Hash, A, B PublicKey, txPubs ...PublicK
 		if len(p.Claims) <= i {
 			return
 		}
-		if VerifyTxProof(prefixHash, pub, A, B, p.Claims[i].SharedSecret, p.Claims[i].Signature, p.Version) {
+		if VerifyTxProof(prefixHash, pub.AsPoint(), A.AsPoint(), PublicKeyAsPoint(B), p.Claims[i].SharedSecret.AsPoint(), p.Claims[i].Signature, p.Version) {
 			return i, true
 		}
 	}
 	return -1, false
 }
 
-func NewTxProofFromSharedSecretSignaturePairs(t TxProofType, version uint8, sharedSecrets []PublicKey, signatures []*Signature) TxProof {
+func NewTxProofFromSharedSecretSignaturePairs(t TxProofType, version uint8, sharedSecrets []PublicKey, signatures []Signature) TxProof {
 	proof := TxProof{
 		Type:    t,
 		Version: version,
@@ -78,7 +78,7 @@ func NewTxProofFromSharedSecretSignaturePairs(t TxProofType, version uint8, shar
 }
 
 var encodedB58SecretSize = len(base58.EncodeMoneroBase58(ZeroPrivateKeyBytes[:]))
-var encodedB58SignatureSize = len(base58.EncodeMoneroBase58((&Signature{edwards25519.NewScalar(), edwards25519.NewScalar()}).Bytes()))
+var encodedB58SignatureSize = len(base58.EncodeMoneroBase58((&Signature{}).Bytes()))
 
 func NewTxProofFromString(str string) (TxProof, error) {
 	proof := TxProof{}
@@ -143,7 +143,7 @@ func NewTxProofFromString(str string) (TxProof, error) {
 
 		proof.Claims = append(proof.Claims, TxProofClaim{
 			SharedSecret: &sharedSecret,
-			Signature:    signature,
+			Signature:    *signature,
 		})
 	}
 	return proof, nil
@@ -151,131 +151,133 @@ func NewTxProofFromString(str string) (TxProof, error) {
 
 var TxProofV2DomainSeparatorHash = Keccak256([]byte("TXPROOF_V2")) // HASH_KEY_TXPROOF_V2
 
-func GenerateTxProofV2(prefixHash types.Hash, R, A, B, D PublicKey, r PrivateKey) (signature *Signature) {
+func GenerateTxProofV2(prefixHash types.Hash, R, A, B, D *PublicKeyPoint, r *PrivateKeyScalar) (signature Signature) {
 	comm := &SignatureComm_2{}
 	comm.Message = prefixHash
 
 	//shared secret
-	comm.D = D
+	comm.D = *D
 
 	comm.Separator = TxProofV2DomainSeparatorHash
-	comm.R = R
-	comm.A = A
+	comm.R = *R
+	comm.A = *A
 
-	signature = CreateSignature(func(k PrivateKey) []byte {
+	signature = CreateSignature(func(k *edwards25519.Scalar) []byte {
 		if B == nil {
 			// compute X = k*G
-			comm.X = k.PublicKey()
+			comm.X.Point().UnsafeVarTimeScalarBaseMult(k)
 			comm.B = nil
 		} else {
 			// compute X = k*B
-			comm.X = k.GetDerivation(B)
+			comm.X.Point().UnsafeVarTimeScalarMult(k, B.Point())
 			comm.B = B
 		}
 
-		comm.Y = k.GetDerivation(A)
+		comm.Y.Point().UnsafeVarTimeScalarMult(k, A.Point())
 
 		return comm.Bytes()
-	}, r, rand.Reader)
+	}, r.Scalar(), rand.Reader)
 
 	return signature
 }
 
-func GenerateTxProofV1(prefixHash types.Hash, A, B, D PublicKey, r PrivateKey) (signature *Signature) {
+func GenerateTxProofV1(prefixHash types.Hash, A, B, D *PublicKeyPoint, r *PrivateKeyScalar) (signature Signature) {
 	comm := &SignatureComm_2_V1{}
 	comm.Message = prefixHash
 
 	//shared secret
-	comm.D = D
+	comm.D = *D
 
-	signature = CreateSignature(func(k PrivateKey) []byte {
+	signature = CreateSignature(func(k *edwards25519.Scalar) []byte {
 		if B == nil {
 			// compute X = k*G
-			comm.X = k.PublicKey()
+			comm.X.Point().UnsafeVarTimeScalarBaseMult(k)
 		} else {
 			// compute X = k*B
-			comm.X = k.GetDerivation(B)
+			comm.X.Point().UnsafeVarTimeScalarMult(k, B.Point())
 		}
 
-		comm.Y = k.GetDerivation(A)
+		comm.Y.Point().UnsafeVarTimeScalarMult(k, A.Point())
 
 		return comm.Bytes()
-	}, r, rand.Reader)
+	}, r.Scalar(), rand.Reader)
 
 	return signature
 }
 
-func VerifyTxProof(prefixHash types.Hash, R, A, B, D PublicKey, sig *Signature, version uint8) (ok bool) {
+func VerifyTxProof(prefixHash types.Hash, R, A, B, D *PublicKeyPoint, sig Signature, version uint8) (ok bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			ok = false
 		}
 	}()
 
-	if sig == nil || A == nil || D == nil || (version > 1 && R == nil) {
+	if A == nil || D == nil || (version > 1 && R == nil) {
 		return false
 	}
 
-	var cR PublicKey
+	var cR edwards25519.Point
 	if version == 1 {
 		// cR = sig.c*G
-		cR = PrivateKeyFromScalar(sig.R).PublicKey()
+		cR.UnsafeVarTimeScalarBaseMult(&sig.R)
 	} else {
 		// cR = sig.c*R
-		cR = PrivateKeyFromScalar(sig.R).GetDerivation(R)
+		cR.UnsafeVarTimeScalarMult(&sig.R, R.Point())
 	}
 
-	var X *PublicKeyPoint
+	var X edwards25519.Point
+
 	if B != nil {
 		// X = sig.c * R + sig.r * B
-		X = cR.AsPoint().Add(PrivateKeyFromScalar(sig.R).GetDerivation(B).AsPoint())
+		X.Add(&cR, new(edwards25519.Point).UnsafeVarTimeScalarMult(&sig.R, B.Point()))
 	} else {
 		// X = sig.c * R + sig.r * G
-		X = cR.AsPoint().Add(PrivateKeyFromScalar(sig.R).PublicKey().AsPoint())
+		X.Add(&cR, new(edwards25519.Point).UnsafeVarTimeScalarBaseMult(&sig.R))
 	}
 
+	var cD, rA, Y edwards25519.Point
+
 	// cD = sig.c*D
-	cD := PrivateKeyFromScalar(sig.C).GetDerivation(D)
+	cD.UnsafeVarTimeScalarMult(&sig.C, D.Point())
 
 	// rA = sig.r*A
-	rA := PrivateKeyFromScalar(sig.R).GetDerivation(A)
+	rA.UnsafeVarTimeScalarMult(&sig.R, A.Point())
 
 	// Y = sig.c*D + sig.r*A
-	Y := cD.AsPoint().Add(rA.AsPoint())
+	Y.Add(&cD, &rA)
 
 	// Compute hash challenge
 	// for v1, c2 = Hs(Msg || D || X || Y)
 	// for v2, c2 = Hs(Msg || D || X || Y || sep || R || A || B)
 
-	var C *edwards25519.Scalar
+	var C edwards25519.Scalar
 	switch version {
 	case 1:
 		comm := SignatureComm_2_V1{
 			Message: prefixHash,
-			D:       D,
-			X:       X,
-			Y:       Y,
+			D:       *D,
+			X:       *PublicKeyFromPoint(&X),
+			Y:       *PublicKeyFromPoint(&Y),
 		}
-
-		C = ScalarDeriveLegacy(comm.Bytes())
+		ScalarDeriveLegacyNoAllocate(&C, comm.Bytes())
 	case 2:
 		comm := SignatureComm_2{
 			Message:   prefixHash,
-			D:         D,
-			R:         R,
-			A:         A,
+			D:         *D,
+			R:         *R,
+			A:         *A,
 			B:         B,
 			Separator: TxProofV2DomainSeparatorHash,
-			X:         X,
-			Y:         Y,
+			X:         *PublicKeyFromPoint(&X),
+			Y:         *PublicKeyFromPoint(&Y),
 		}
 
-		C = ScalarDeriveLegacy(comm.Bytes())
+		ScalarDeriveLegacyNoAllocate(&C, comm.Bytes())
 
 	default:
 		return false
 	}
 
 	// is zero, c2 == sig.c
-	return PrivateKeyFromScalar(C).Subtract(PrivateKeyFromScalar(sig.C)).AsScalar().Scalar().Equal(&edwards25519.Scalar{}) == 0
+	return new(edwards25519.Scalar).Subtract(&C, &sig.C).Equal(&edwards25519.Scalar{}) == 0
 }

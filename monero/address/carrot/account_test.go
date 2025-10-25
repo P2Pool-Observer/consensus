@@ -94,7 +94,7 @@ func TestConvergeAccount(t *testing.T) {
 		proveSpend := crypto.PrivateKeyBytes(types.MustHashFromString("f10bf01839ea216e5d70b7c9ceaa8b8e9a432b5e98e6e48a8043ffb3fa229f0b"))
 
 		var proveSpendPub edwards25519.Point
-		proveSpendPub.UnsafeVarTimeScalarMult(proveSpend.AsScalar().Scalar(), crypto.GeneratorT)
+		proveSpendPub.UnsafeVarTimeScalarMultPrecomputed(proveSpend.AsScalar().Scalar(), crypto.GeneratorT.Table)
 
 		var result crypto.PublicKeyPoint
 		MakeSpendPubFromSpendPub(

@@ -2,9 +2,11 @@ package address
 
 import (
 	"bytes"
+	"crypto/rand"
 	"sync/atomic"
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
@@ -24,6 +26,14 @@ func init() {
 	if _, err := privateKey.SetCanonicalBytes(h); err != nil {
 		utils.Panic(err)
 	}
+}
+
+func randomAddress() (addr *Address, spendKey, viewKey *crypto.PrivateKeyScalar) {
+	// legacy derivation
+	spendKey = crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader))
+	viewKey = crypto.PrivateKeyFromScalar(crypto.ScalarDeriveLegacy(spendKey.AsSlice()))
+
+	return FromRawAddress(monero.TestNetwork, spendKey.PublicKey(), viewKey.PublicKey()), spendKey, viewKey
 }
 
 func TestAddress(t *testing.T) {

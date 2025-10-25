@@ -30,7 +30,7 @@ func TestGenerateSignature(t *testing.T) {
 			continue
 		}
 
-		sig := CreateMessageSignature(prefixHash, &sec, rng)
+		sig := CreateMessageSignature(prefixHash, sec.AsScalar(), rng)
 
 		if bytes.Compare(sig.Bytes(), expectedSig.Bytes()) != 0 {
 			t.Errorf("expected %s, got %s", hex.EncodeToString(sig.Bytes()), hex.EncodeToString(expectedSig.Bytes()))
@@ -52,7 +52,14 @@ func TestCheckSignature(t *testing.T) {
 		sig := NewSignatureFromBytes(sigBytes)
 		result := e[3] == "true"
 
-		if VerifyMessageSignature(prefixHash, &pub, sig) != result {
+		if sig == nil {
+			if result {
+				t.Fatal("expected signature to not be nil")
+			}
+			continue
+		}
+
+		if VerifyMessageSignature(prefixHash, pub.AsPoint(), *sig) != result {
 			t.Fatalf("expected %v, got %v", result, !result)
 		}
 	}

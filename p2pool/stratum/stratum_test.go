@@ -23,6 +23,7 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 	"github.com/ulikunitz/xz"
 )
 
@@ -208,8 +209,8 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 	if n > 2 {
 		for range n / 2 {
 			testAddresses = append(testAddresses, address.NewPackedAddressWithSubaddressFromBytes(
-				crypto.PrivateKeyFromScalar(crypto.RandomScalar(rand.Reader)).PublicKey().AsBytes(),
-				crypto.PrivateKeyFromScalar(crypto.RandomScalar(rand.Reader)).PublicKey().AsBytes(),
+				crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)).PublicKey().AsBytes(),
+				crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)).PublicKey().AsBytes(),
 				sidechain.P2PoolShareVersion(consensus, 0) >= sidechain.ShareVersion_V3 && /* TODO: remove when supported? */ minerData.MajorVersion < monero.HardForkCarrotVersion,
 			))
 		}
@@ -542,7 +543,7 @@ func BenchmarkServer_BuildTemplate(b *testing.B) {
 
 	//generate random keys deterministically
 	for i := range randomKeys {
-		spendPriv, viewPriv := crypto.DeterministicScalar([]byte(fmt.Sprintf("BenchmarkBuildTemplate_%d_spend", i))), crypto.DeterministicScalar([]byte(fmt.Sprintf("BenchmarkBuildTemplate_%d_spend", i)))
+		spendPriv, viewPriv := crypto.DeterministicScalar(new(edwards25519.Scalar), []byte(fmt.Sprintf("BenchmarkBuildTemplate_%d_spend", i))), crypto.DeterministicScalar(new(edwards25519.Scalar), []byte(fmt.Sprintf("BenchmarkBuildTemplate_%d_spend", i)))
 		randomKeys[i][0] = (*crypto.PrivateKeyScalar)(spendPriv).PublicKey().AsBytes()
 		randomKeys[i][1] = (*crypto.PrivateKeyScalar)(viewPriv).PublicKey().AsBytes()
 	}

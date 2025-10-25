@@ -276,7 +276,7 @@ func TestGenerateKeys(t *testing.T) {
 		expectedPub := PublicKeyBytes(types.MustHashFromString(e[0]))
 		expectedPriv := PrivateKeyBytes(types.MustHashFromString(e[1]))
 
-		key := PrivateKeyFromScalar(RandomScalar(rng))
+		key := PrivateKeyFromScalar(RandomScalar(new(edwards25519.Scalar), rng))
 
 		if key.AsBytes() != expectedPriv {
 			t.Errorf("expected %s, got %s", expectedPriv.String(), key.String())

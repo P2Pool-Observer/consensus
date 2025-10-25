@@ -128,8 +128,6 @@ func makeAmountCommitment(amount uint64, amountBlindingFactor *crypto.PrivateKey
 
 var coinbaseAmountBlindingFactor = (&crypto.PrivateKeyBytes{1}).PublicKey().AsPoint().Point()
 
-var generatorHPrecomputedTable = edwards25519.PointTablePrecompute(crypto.GeneratorH)
-
 // makeAmountCommitmentCoinbase Specialized implementation with baked in blinding factor
 // this is faster than makeAmountCommitment, but is specific only for coinbase (as it uses a fixed amount blinding key)
 func makeAmountCommitmentCoinbase(amount uint64) crypto.PublicKeyBytes {
@@ -142,13 +140,11 @@ func makeAmountCommitmentCoinbase(amount uint64) crypto.PublicKeyBytes {
 	_, _ = amountK.SetCanonicalBytes(amountBytes[:])
 
 	var amountCommitment edwards25519.Point
-	amountCommitment.UnsafeVarTimeScalarMultPrecomputed(&amountK, generatorHPrecomputedTable)
+	amountCommitment.UnsafeVarTimeScalarMultPrecomputed(&amountK, crypto.GeneratorH.Table)
 	amountCommitment.Add(&amountCommitment, coinbaseAmountBlindingFactor)
 
 	return crypto.PublicKeyBytes(amountCommitment.Bytes())
 }
-
-var generatorTPrecomputedTable = edwards25519.PointTablePrecompute(crypto.GeneratorT)
 
 // makeOnetimeAddress make_carrot_onetime_address
 func makeOnetimeAddress(hasher *blake2b.Digest, spendPub *crypto.PublicKeyPoint, secretSenderReceiver types.Hash, amountCommitment crypto.PublicKeyBytes) crypto.PublicKeyBytes {
@@ -162,7 +158,7 @@ func makeOnetimeAddress(hasher *blake2b.Digest, spendPub *crypto.PublicKeyPoint,
 
 		// K^o_ext = k^o_g G + k^o_t T
 		// senderExtensionPubkey.Point().VarTimeDoubleScalarBaseMult(&senderExtensionT, crypto.GeneratorT, &senderExtensionG)
-		senderExtensionPubkey.UnsafeVarTimeDoubleScalarBaseMultPrecomputed(&senderExtensionT, generatorTPrecomputedTable, &senderExtensionG)
+		senderExtensionPubkey.UnsafeVarTimeDoubleScalarBaseMultPrecomputed(&senderExtensionT, crypto.GeneratorT.Table, &senderExtensionG)
 	}
 
 	// Ko = K^j_s + K^o_ext

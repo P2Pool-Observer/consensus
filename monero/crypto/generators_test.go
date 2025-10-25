@@ -4,13 +4,12 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type pointTestData struct {
-	Name     string
-	Point    *edwards25519.Point
-	Expected string
+	Name      string
+	Generator *Generator
+	Expected  string
 }
 
 func TestReproduceGenerators(t *testing.T) {
@@ -32,7 +31,7 @@ func TestReproduceGenerators(t *testing.T) {
 
 			expected := PublicKeyBytes(h)
 
-			p := PublicKeyFromPoint(e.Point).AsBytes()
+			p := PublicKeyFromPoint(e.Generator.Point).AsBytes()
 			if p != expected {
 				t.Fatalf("got %s, expected %s", p.String(), expected.String())
 			} else {

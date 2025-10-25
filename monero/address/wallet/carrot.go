@@ -22,7 +22,7 @@ func NewCarrotViewWalletFromMasterSecret(masterSecret types.Hash, addressNetwork
 
 	// precompute
 	var proveSpendPub edwards25519.Point
-	proveSpendPub.UnsafeVarTimeScalarMult(proveSpend.Scalar(), crypto.GeneratorT)
+	proveSpendPub.UnsafeVarTimeScalarMultPrecomputed(proveSpend.Scalar(), crypto.GeneratorT.Table)
 
 	viewBalanceSecret := carrot.MakeViewBalanceSecret(&hasher, masterSecret)
 	return NewCarrotViewWalletFromViewBalanceSecret(crypto.PublicKeyFromPoint(&proveSpendPub), viewBalanceSecret, addressNetwork, accountDepth, indexDepth)

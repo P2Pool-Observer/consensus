@@ -109,7 +109,7 @@ func scanDestInfo(hasher *blake2b.Digest,
 		makeCarrotOnetimeAddressExtensionT(hasher, scan.ExtensionT.Scalar(), senderReceiverSecret, amountCommitment)
 
 		// K^o_ext = k^o_g G + k^o_t T
-		senderExtensionPubkey.UnsafeVarTimeDoubleScalarBaseMultPrecomputed(scan.ExtensionT.Scalar(), generatorTPrecomputedTable, scan.ExtensionG.Scalar())
+		senderExtensionPubkey.UnsafeVarTimeDoubleScalarBaseMultPrecomputed(scan.ExtensionT.Scalar(), crypto.GeneratorT.Table, scan.ExtensionG.Scalar())
 	}
 
 	// K^j_s = Ko - K^o_ext = Ko - (k^o_g G + k^o_t T)

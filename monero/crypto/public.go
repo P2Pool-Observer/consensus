@@ -20,6 +20,13 @@ type PublicKey interface {
 	MarshalJSON() ([]byte, error)
 }
 
+func PublicKeyAsPoint(key PublicKey) *PublicKeyPoint {
+	if key == nil {
+		return nil
+	}
+	return key.AsPoint()
+}
+
 const PublicKeySize = 32
 
 var ZeroPublicKeyBytes PublicKeyBytes

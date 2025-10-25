@@ -11,6 +11,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.SubaddressIndex) {
@@ -26,7 +27,7 @@ func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.Subad
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
-				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar(rand.Reader))
+				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader))
 
 				txPub := txKey.PublicKey().AsBytes()
 
@@ -118,7 +119,7 @@ func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.Subadd
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
-				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar(rand.Reader))
+				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader))
 
 				out, additionalPub, encryptedAmount := address.CalculateTransactionOutput(addr, txKey, 0, amount)
 				out.Reward = 0

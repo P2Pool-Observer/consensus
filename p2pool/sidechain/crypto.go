@@ -36,5 +36,7 @@ func GetDeterministicTransactionPrivateKey(seed, previousMoneroId types.Hash) cr
 	copy(entropy[:], transactionPrivateKeyDomain)
 	copy(entropy[13:], seed[:])
 	copy(entropy[13+types.HashSize:], previousMoneroId[:])
-	return crypto.PrivateKeyFromScalar(crypto.DeterministicScalar(entropy[:13+types.HashSize+types.HashSize]))
+	var k crypto.PrivateKeyScalar
+	crypto.DeterministicScalar(k.Scalar(), entropy[:13+types.HashSize+types.HashSize])
+	return &k
 }

@@ -59,7 +59,7 @@ func MakeGenerateAddressSecret(hasher *blake2b.Digest, viewBalanceSecret types.H
 // MakeSpendPub make_carrot_spend_pubkey
 func MakeSpendPub(addressSpendPubOut *crypto.PublicKeyPoint, generateImage, proveSpend *crypto.PrivateKeyScalar) {
 	// K_s = k_gi G + k_ps T
-	addressSpendPubOut.Point().UnsafeVarTimeDoubleScalarBaseMultPrecomputed(proveSpend.Scalar(), generatorTPrecomputedTable, generateImage.Scalar())
+	addressSpendPubOut.Point().UnsafeVarTimeDoubleScalarBaseMultPrecomputed(proveSpend.Scalar(), crypto.GeneratorT.Table, generateImage.Scalar())
 }
 
 func MakeSpendPubFromSpendPub(addressSpendPubOut *crypto.PublicKeyPoint, generateImage *crypto.PrivateKeyScalar, proveSpendPub *crypto.PublicKeyPoint) {

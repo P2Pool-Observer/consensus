@@ -136,8 +136,8 @@ func UnbiasedHashToPoint(dst *edwards25519.Point, preimage []byte) *edwards25519
 	h := blake2b.Sum512(preimage)
 
 	var first, second edwards25519.Point
-	elligator2WithUniformBytes(&first, [32]byte(h[:32]))
-	elligator2WithUniformBytes(&second, [32]byte(h[32:]))
+	elligator2WithUniformBytes(&first, [PublicKeySize]byte(h[:PublicKeySize]))
+	elligator2WithUniformBytes(&second, [PublicKeySize]byte(h[PublicKeySize:]))
 
 	// Ensure points lie within the prime-order subgroup
 	first.MultByCofactor(&first)

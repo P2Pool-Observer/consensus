@@ -7,8 +7,8 @@ import (
 // SignatureComm Used in normal message signatures
 type SignatureComm struct {
 	Hash types.Hash
-	Key  PublicKey
-	Comm PublicKey
+	Key  PublicKeyPoint
+	Comm PublicKeyPoint
 }
 
 func (s *SignatureComm) Bytes() []byte {
@@ -24,17 +24,17 @@ func (s *SignatureComm) Bytes() []byte {
 type SignatureComm_2 struct {
 	Message types.Hash
 	// D Key Derivation
-	D PublicKey
+	D PublicKeyPoint
 	// X Random Public Key
-	X PublicKey
+	X PublicKeyPoint
 	// Y Random Public Derivation
-	Y PublicKey
+	Y PublicKeyPoint
 	// Separator Domain Separation
 	Separator types.Hash
 	// R Input public key
-	R PublicKey
-	A PublicKey
-	B PublicKey
+	R PublicKeyPoint
+	A PublicKeyPoint
+	B *PublicKeyPoint
 }
 
 func (s *SignatureComm_2) Bytes() []byte {
@@ -58,11 +58,11 @@ func (s *SignatureComm_2) Bytes() []byte {
 type SignatureComm_2_V1 struct {
 	Message types.Hash
 	// D Key Derivation
-	D PublicKey
+	D PublicKeyPoint
 	// X Random Public Key
-	X PublicKey
+	X PublicKeyPoint
 	// Y Random Public Derivation
-	Y PublicKey
+	Y PublicKeyPoint
 }
 
 func (s *SignatureComm_2_V1) Bytes() []byte {

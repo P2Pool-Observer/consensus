@@ -160,12 +160,12 @@ func VerifyMessage(a Interface, message []byte, signature string) SignatureVerif
 		return ResultFail
 	}
 
-	if crypto.VerifyMessageSignature(hash, a.SpendPublicKey(), sig) {
+	if crypto.VerifyMessageSignature(hash, a.SpendPublicKey().AsPoint(), *sig) {
 		return ResultSuccessSpend
 	}
 
 	// Special mode: view wallets in Monero GUI could generate signatures with spend public key proper, with message hash of spend wallet mode, but zero spend private key
-	if crypto.VerifyMessageSignatureSplit(hash, a.SpendPublicKey(), ZeroPrivateKeyAddress.SpendPublicKey(), sig) {
+	if crypto.VerifyMessageSignatureSplit(hash, a.SpendPublicKey().AsPoint(), ZeroPrivateKeyAddress.SpendPublicKey().AsPoint(), *sig) {
 		return ResultFailZeroSpend
 	}
 
@@ -173,7 +173,7 @@ func VerifyMessage(a Interface, message []byte, signature string) SignatureVerif
 		hash = GetMessageHash(a, message, 1)
 	}
 
-	if crypto.VerifyMessageSignature(hash, a.ViewPublicKey(), sig) {
+	if crypto.VerifyMessageSignature(hash, a.ViewPublicKey().AsPoint(), *sig) {
 		return ResultSuccessView
 	}
 
@@ -199,12 +199,12 @@ func VerifyMessageFallbackToZero(a Interface, message []byte, signature string) 
 		return ResultFail
 	}
 
-	if crypto.VerifyMessageSignature(hash, a.SpendPublicKey(), sig) {
+	if crypto.VerifyMessageSignature(hash, a.SpendPublicKey().AsPoint(), *sig) {
 		return ResultSuccessSpend
 	}
 
 	// Special mode: view wallets in Monero GUI could generate signatures with spend public key proper, with message hash of spend wallet mode, but zero spend private key
-	if crypto.VerifyMessageSignatureSplit(hash, a.SpendPublicKey(), ZeroPrivateKeyAddress.SpendPublicKey(), sig) {
+	if crypto.VerifyMessageSignatureSplit(hash, a.SpendPublicKey().AsPoint(), ZeroPrivateKeyAddress.SpendPublicKey().AsPoint(), *sig) {
 		return ResultFailZeroSpend
 	}
 
@@ -212,12 +212,12 @@ func VerifyMessageFallbackToZero(a Interface, message []byte, signature string) 
 		hash = GetMessageHash(a, message, 1)
 	}
 
-	if crypto.VerifyMessageSignature(hash, a.ViewPublicKey(), sig) {
+	if crypto.VerifyMessageSignature(hash, a.ViewPublicKey().AsPoint(), *sig) {
 		return ResultSuccessView
 	}
 
 	// Special mode
-	if crypto.VerifyMessageSignatureSplit(hash, a.ViewPublicKey(), ZeroPrivateKeyAddress.ViewPublicKey(), sig) {
+	if crypto.VerifyMessageSignatureSplit(hash, a.ViewPublicKey().AsPoint(), ZeroPrivateKeyAddress.ViewPublicKey().AsPoint(), *sig) {
 		return ResultFailZeroView
 	}
 

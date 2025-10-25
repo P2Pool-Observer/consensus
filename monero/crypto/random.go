@@ -15,7 +15,7 @@ import (
 )
 
 // RandomScalar Equivalent to Monero's random32_unbiased / random_scalar
-func RandomScalar(r io.Reader) *edwards25519.Scalar {
+func RandomScalar(k *edwards25519.Scalar, r io.Reader) *edwards25519.Scalar {
 	var buf [PrivateKeySize]byte
 	for {
 		if _, err := utils.ReadNoEscape(r, buf[:]); err != nil {
@@ -25,25 +25,22 @@ func RandomScalar(r io.Reader) *edwards25519.Scalar {
 		if !IsLimit32(buf) {
 			continue
 		}
-		scalar := new(edwards25519.Scalar)
-		BytesToScalar32(buf, scalar)
+		BytesToScalar32(buf, k)
 
-		if scalar.Equal(zeroScalar) == 0 {
-			return scalar
+		if k.Equal(zeroScalar) == 0 {
+			return k
 		}
 	}
 }
 
 // DeterministicScalar consensus way of generating a deterministic scalar from given entropy
-func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
+func DeterministicScalar(k *edwards25519.Scalar, entropy []byte) *edwards25519.Scalar {
 
 	var counter uint32
 	var nonce [4]byte
 
 	h := newKeccak256()
 	var hash types.Hash
-
-	scalar := new(edwards25519.Scalar)
 
 	for {
 		counter++
@@ -55,10 +52,10 @@ func DeterministicScalar(entropy []byte) *edwards25519.Scalar {
 			utils.ResetNoEscape(h)
 			continue
 		}
-		BytesToScalar32(hash, scalar)
+		BytesToScalar32(hash, k)
 
-		if scalar.Equal(zeroScalar) == 0 {
-			return scalar
+		if k.Equal(zeroScalar) == 0 {
+			return k
 		}
 		utils.ResetNoEscape(h)
 	}
@@ -121,12 +118,11 @@ func (g *DeterministicTestGenerator) Init(buf []byte) {
 func (g *DeterministicTestGenerator) Write(buf []byte) (n int, err error) {
 	for len(buf) > 0 {
 		g.permute()
+		subtle.XORBytes(g.state[:rateK512], g.state[:rateK512], buf)
 		if len(buf) <= rateK512 {
-			subtle.XORBytes(g.state[:], g.state[:], buf)
 			n += len(buf)
 			return n, nil
 		} else {
-			subtle.XORBytes(g.state[:rateK512], g.state[:rateK512], buf[:rateK512])
 			buf = buf[rateK512:]
 			n += rateK512
 		}
