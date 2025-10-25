@@ -26,14 +26,13 @@ func X25519ScalarBaseMult(dst *X25519PublicKey, s *edwards25519.Scalar) {
 // Note this is done unclamped, compared to common implementations
 func X25519ScalarMult[T1 ~[32]byte](dst *X25519PublicKey, scalar T1, point X25519PublicKey) {
 	var x1, x2, z2, x3, z3, tmp0, tmp1 field.Element
-	// TODO maybe just SetBytes
-	x1.SetBytesPropagate(point[:])
+	_, _ = x1.SetBytes(point[:])
 	x2.One()
 	x3.Set(&x1)
 	z3.One()
 
 	swap := 0
-	for pos := 255; pos >= 0; pos-- {
+	for pos := 254; pos >= 0; pos-- {
 		b := scalar[pos/8] >> uint(pos&7)
 		b &= 1
 		swap ^= int(b)

@@ -1,0 +1,77 @@
+package crypto
+
+import (
+	"fmt"
+	"testing"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+)
+
+type x25519TestVector struct {
+	Scalar PrivateKeyBytes
+	Point  X25519PublicKey
+	Result X25519PublicKey
+}
+
+func newX25519TestVector(sc, pt, re string) x25519TestVector {
+	return x25519TestVector{
+		Scalar: PrivateKeyBytes(types.MustHashFromString(sc)),
+		Point:  X25519PublicKey(types.MustHashFromString(pt)),
+		Result: X25519PublicKey(types.MustHashFromString(re)),
+	}
+}
+
+var x25519TestVectors = []x25519TestVector{
+	// RFC 7748 test vectors
+	// the second most significant bit of each private key was set to 1 to match the RFC results
+	newX25519TestVector(
+		"a046e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4",
+		"e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c",
+		"c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552",
+	),
+	newX25519TestVector(
+		"4866e9d4d1b4673c5ad22691957d6af5c11b6421e0ea01d42ca4169e7918ba4d",
+		"e5210f12786811d3f4b7959d0538ae2c31dbe7106fc03c3efc4cd549c715a493",
+		"95cbde9476e8907d7aade45cb4b873f88b595a68799fa152e6f8f7647aac7957",
+	),
+
+	// base point >2^255-19
+	newX25519TestVector(
+		"a82b2c3964e188a899d6f74b99679013b0a2510b5a6a0a90739e444b23f7bae6",
+		"f6ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+		"18b1569101d55e0e7e8527a73e27d43393a2d4ec73e67078064bc2a56dcb5860",
+	),
+
+	// scalar with bit 254 set to 0
+	newX25519TestVector(
+		"a8c58a54782e87c7052458c2caa461aa27024fb08801ad4bb376b880e449da88",
+		"08558f428dff0dc8ee4bebf2408982cf65538a3ae57dffe4f49f43f5506ccd09",
+		"cd178e864e4f3dd3f5e945c04b87825b84d8a224b6c240784515c5f87af27647",
+	),
+}
+
+func TestX25519(t *testing.T) {
+	t.Run("ScalarBaseMult", func(t *testing.T) {
+		t.Run("One", func(t *testing.T) {
+			one := (&PrivateKeyBytes{1}).AsScalar().Scalar()
+			var pub X25519PublicKey
+			X25519ScalarBaseMult(&pub, one)
+
+			if pub != X25519Basepoint {
+				t.Errorf("expected %x, got %x", X25519Basepoint, pub)
+			}
+		})
+	})
+	t.Run("ScalarMult", func(t *testing.T) {
+		for i, vec := range x25519TestVectors {
+			t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+				var pub X25519PublicKey
+				X25519ScalarMult(&pub, vec.Scalar, vec.Point)
+
+				if pub != vec.Result {
+					t.Errorf("expected %x, got %x", vec.Result, pub)
+				}
+			})
+		}
+	})
+}
