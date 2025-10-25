@@ -80,15 +80,61 @@ func TestDerivePublicKey(t *testing.T) {
 			t.Errorf("derive_public_key differs from no_allocate: %s != %s", sharedData, crypto.PrivateKeyFromScalar(&sharedData2))
 		}
 
-		var addr PackedAddress
-		addr[0] = base
-		derivedKey := GetPublicKeyForSharedData(&addr, sharedData)
+		derivedKey := GetPublicKeyForSharedData(&base, sharedData)
 
 		derivedKey2, _ := GetEphemeralPublicKeyAndViewTagNoAllocate(base.AsPoint().Point(), derivation, outputIndex)
 
 		if derivedKey.AsBytes() != derivedKey2 {
 			t.Errorf("derive_public_key differs from no_allocate: %s != %s", derivedKey, &derivedKey2)
 		}
+
+		if result {
+			if expectedDerivedKey.String() != derivedKey.String() {
+				t.Errorf("expected %s, got %s", expectedDerivedKey.String(), derivedKey.String())
+			}
+		}
+	}
+}
+
+func TestDeriveSecretKey(t *testing.T) {
+	results := GetTestEntries("derive_secret_key", 4)
+	if results == nil {
+		t.Fatal()
+	}
+
+	for e := range results {
+		var expectedDerivedKey types.Hash
+
+		derivation := crypto.PublicKeyBytes(types.MustHashFromString(e[0]))
+		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
+
+		base := crypto.PrivateKeyBytes(types.MustHashFromString(e[2]))
+
+		result := e[3] == "true"
+		if result {
+			expectedDerivedKey = types.MustHashFromString(e[4])
+		}
+
+		scalar := base.AsScalar()
+
+		if result == false && scalar == nil {
+			//expected failure
+			continue
+		} else if scalar == nil {
+			t.Errorf("invalid scalar %s / %s", derivation.String(), base.String())
+			continue
+		}
+
+		sharedData := crypto.GetDerivationSharedDataForOutputIndex(&derivation, outputIndex)
+
+		var sharedData2 edwards25519.Scalar
+		_ = crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedData2, derivation, outputIndex)
+
+		if sharedData.AsBytes() != crypto.PrivateKeyFromScalar(&sharedData2).AsBytes() {
+			t.Errorf("derive_public_key differs from no_allocate: %s != %s", sharedData, crypto.PrivateKeyFromScalar(&sharedData2))
+		}
+
+		derivedKey := GetPrivateKeyForSharedData(&base, sharedData)
 
 		if result {
 			if expectedDerivedKey.String() != derivedKey.String() {

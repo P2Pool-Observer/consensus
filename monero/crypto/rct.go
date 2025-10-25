@@ -11,9 +11,14 @@ var generatorHPrecomputedTable = edwards25519.PointTablePrecompute(GeneratorH)
 
 // RctCommit generates C =aG + bH from b, a is mask
 func RctCommit(dst *PublicKeyPoint, amount uint64, mask *PrivateKeyScalar) {
-	var amountK PrivateKeyBytes
-	binary.LittleEndian.PutUint64(amountK[:], amount)
-	dst.Point().UnsafeVarTimeDoubleScalarBaseMultPrecomputed(amountK.AsScalar().Scalar(), generatorHPrecomputedTable, mask.Scalar())
+	var amountBytes PrivateKeyBytes
+	binary.LittleEndian.PutUint64(amountBytes[:], amount)
+
+	// no reduction is necessary: amountBytes is always lesser than l
+	var amountK edwards25519.Scalar
+	_, _ = amountK.SetCanonicalBytes(amountBytes[:])
+
+	dst.Point().UnsafeVarTimeDoubleScalarBaseMultPrecomputed(&amountK, generatorHPrecomputedTable, mask.Scalar())
 }
 
 // rctGenC

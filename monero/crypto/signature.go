@@ -1,6 +1,8 @@
 package crypto
 
 import (
+	"io"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
@@ -56,8 +58,8 @@ func (s *Signature) Verify(handler SignatureVerificationHandler, publicKey Publi
 }
 
 // CreateSignature produces a Schnorr Signature using H = keccak
-func CreateSignature(handler SignatureSigningHandler, privateKey PrivateKey) *Signature {
-	k := PrivateKeyFromScalar(RandomScalar())
+func CreateSignature(handler SignatureSigningHandler, privateKey PrivateKey, randomReader io.Reader) *Signature {
+	k := PrivateKeyFromScalar(RandomScalar(randomReader))
 
 	signature := &Signature{
 		// e
@@ -71,7 +73,7 @@ func CreateSignature(handler SignatureSigningHandler, privateKey PrivateKey) *Si
 	return signature
 }
 
-func CreateMessageSignature(prefixHash types.Hash, key PrivateKey) *Signature {
+func CreateMessageSignature(prefixHash types.Hash, key PrivateKey, randomReader io.Reader) *Signature {
 	buf := &SignatureComm{}
 	buf.Hash = prefixHash
 	buf.Key = key.PublicKey()
@@ -79,7 +81,7 @@ func CreateMessageSignature(prefixHash types.Hash, key PrivateKey) *Signature {
 	return CreateSignature(func(k PrivateKey) []byte {
 		buf.Comm = k.PublicKey()
 		return buf.Bytes()
-	}, key)
+	}, key, randomReader)
 }
 
 func VerifyMessageSignature(prefixHash types.Hash, publicKey PublicKey, signature *Signature) bool {

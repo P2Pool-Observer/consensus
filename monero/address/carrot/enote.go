@@ -134,11 +134,15 @@ var generatorHPrecomputedTable = edwards25519.PointTablePrecompute(crypto.Genera
 // this is faster than makeAmountCommitment, but is specific only for coinbase (as it uses a fixed amount blinding key)
 func makeAmountCommitmentCoinbase(amount uint64) crypto.PublicKeyBytes {
 
-	var amountK crypto.PrivateKeyBytes
-	binary.LittleEndian.PutUint64(amountK[:], amount)
+	var amountBytes crypto.PrivateKeyBytes
+	binary.LittleEndian.PutUint64(amountBytes[:], amount)
+
+	// no reduction is necessary: amountBytes is always lesser than l
+	var amountK edwards25519.Scalar
+	_, _ = amountK.SetCanonicalBytes(amountBytes[:])
 
 	var amountCommitment edwards25519.Point
-	amountCommitment.UnsafeVarTimeScalarMultPrecomputed(amountK.AsScalar().Scalar(), generatorHPrecomputedTable)
+	amountCommitment.UnsafeVarTimeScalarMultPrecomputed(&amountK, generatorHPrecomputedTable)
 	amountCommitment.Add(&amountCommitment, coinbaseAmountBlindingFactor)
 
 	return crypto.PublicKeyBytes(amountCommitment.Bytes())

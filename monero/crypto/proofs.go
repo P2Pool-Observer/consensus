@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto/rand"
 	"errors"
 	"strings"
 
@@ -175,7 +176,7 @@ func GenerateTxProofV2(prefixHash types.Hash, R, A, B, D PublicKey, r PrivateKey
 		comm.Y = k.GetDerivation(A)
 
 		return comm.Bytes()
-	}, r)
+	}, r, rand.Reader)
 
 	return signature
 }
@@ -199,7 +200,7 @@ func GenerateTxProofV1(prefixHash types.Hash, A, B, D PublicKey, r PrivateKey) (
 		comm.Y = k.GetDerivation(A)
 
 		return comm.Bytes()
-	}, r)
+	}, r, rand.Reader)
 
 	return signature
 }

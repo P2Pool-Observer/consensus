@@ -20,20 +20,24 @@ func init() {
 	ZeroPrivateKeyAddress[PackedAddressView] = crypto.ZeroPrivateKeyBytes.PublicKey().AsBytes()
 }
 
-func GetPublicKeyForSharedData(a Interface, sharedData crypto.PrivateKey) crypto.PublicKey {
-	return sharedData.PublicKey().AsPoint().Add(a.SpendPublicKey().AsPoint())
+func GetPrivateKeyForSharedData(spendKey, sharedData crypto.PrivateKey) crypto.PrivateKey {
+	return sharedData.AsScalar().Add(spendKey.AsScalar())
+}
+
+func GetPublicKeyForSharedData(spendPub crypto.PublicKey, sharedData crypto.PrivateKey) crypto.PublicKey {
+	return sharedData.PublicKey().AsPoint().Add(spendPub.AsPoint())
 }
 
 func GetEphemeralPublicKey(a Interface, txKey crypto.PrivateKey, outputIndex uint64) crypto.PublicKey {
 	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
-		return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(sa.ViewPublicKey()), outputIndex))
+		return GetPublicKeyForSharedData(a.SpendPublicKey(), crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(sa.ViewPublicKey()), outputIndex))
 	} else {
-		return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex))
+		return GetPublicKeyForSharedData(a.SpendPublicKey(), crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex))
 	}
 }
 
 func GetEphemeralPublicKeyWithViewKey(a Interface, txPubKey crypto.PublicKey, viewKey crypto.PrivateKey, outputIndex uint64) crypto.PublicKey {
-	return GetPublicKeyForSharedData(a, crypto.GetDerivationSharedDataForOutputIndex(viewKey.GetDerivationCofactor(txPubKey), outputIndex))
+	return GetPublicKeyForSharedData(a.SpendPublicKey(), crypto.GetDerivationSharedDataForOutputIndex(viewKey.GetDerivationCofactor(txPubKey), outputIndex))
 }
 
 func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *edwards25519.Scalar, outputIndex uint64, p *edwards25519.Point) {
@@ -52,7 +56,7 @@ func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *e
 
 func GetEphemeralPublicKeyAndViewTagWithViewKey(a Interface, txPubKey crypto.PublicKey, viewKey crypto.PrivateKey, outputIndex uint64) (crypto.PublicKey, uint8) {
 	pK, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(viewKey.GetDerivationCofactor(txPubKey), outputIndex)
-	return GetPublicKeyForSharedData(a, pK), viewTag
+	return GetPublicKeyForSharedData(a.SpendPublicKey(), pK), viewTag
 }
 
 func CalculateTransactionOutput(a Interface, txKey crypto.PrivateKey, outputIndex, amount uint64) (out transaction.Output, additionalTxPub crypto.PublicKey, encryptedAmount uint64) {
@@ -68,7 +72,7 @@ func CalculateTransactionOutput(a Interface, txKey crypto.PrivateKey, outputInde
 	out.Type = transaction.TxOutToTaggedKey
 	out.Index = outputIndex
 	out.ViewTag.Slice()[0] = viewTag
-	out.EphemeralPublicKey = GetPublicKeyForSharedData(a, pK).AsBytes()
+	out.EphemeralPublicKey = GetPublicKeyForSharedData(a.SpendPublicKey(), pK).AsBytes()
 
 	return out, additionalTxPub, crypto.DecryptOutputAmount(pK, amount)
 }
@@ -82,7 +86,7 @@ func GetEphemeralPublicKeyAndViewTag(a Interface, txKey crypto.PrivateKey, outpu
 		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex)
 	}
 
-	return GetPublicKeyForSharedData(a, pK), viewTag
+	return GetPublicKeyForSharedData(a.SpendPublicKey(), pK), viewTag
 }
 
 // GetEphemeralPublicKeyAndViewTagNoAllocate Special version of GetEphemeralPublicKeyAndViewTag

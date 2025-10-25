@@ -178,11 +178,11 @@ func TestCheckTorsion(t *testing.T) {
 
 		if p := key.AsPoint(); p == nil {
 			if result {
-				t.Fatalf("expected not nil")
+				t.Errorf("expected not nil")
 			}
 		} else if p.IsSmallOrder() || !p.IsTorsionFree() {
 			if result {
-				t.Fatalf("expected valid")
+				t.Errorf("expected valid")
 			}
 		} else if !result {
 			t.Errorf("expected not valid")
@@ -202,16 +202,90 @@ func TestCheckTorsionVarTime(t *testing.T) {
 
 		if p := key.AsPoint(); p == nil {
 			if result {
-				t.Fatalf("expected not nil")
+				t.Errorf("expected not nil")
 			}
 		} else if p.IsSmallOrder() || !p.IsTorsionFreeVarTime() {
 			if result {
-				t.Fatalf("expected valid")
+				t.Errorf("expected valid")
 			}
 		} else if !result {
 			t.Errorf("expected not valid")
 		}
 	}
+}
+
+func TestCheckScalar(t *testing.T) {
+	results := GetTestEntries("check_scalar", 2)
+	if results == nil {
+		t.Fatal()
+	}
+	for e := range results {
+		key := PrivateKeyBytes(types.MustHashFromString(e[0]))
+		result := e[1] == "true"
+
+		if key.AsScalar() == nil {
+			if result {
+				t.Errorf("expected not nil")
+			}
+		} else if !result {
+			t.Errorf("expected nil, got %s\n", key.AsScalar().String())
+		}
+	}
+}
+
+func TestSecretKeyToPublicKey(t *testing.T) {
+	results := GetTestEntries("secret_key_to_public_key", 2)
+	if results == nil {
+		t.Fatal()
+	}
+	for e := range results {
+		key := PrivateKeyBytes(types.MustHashFromString(e[0]))
+		result := e[1] == "true"
+		var expected PublicKeyBytes
+		if len(e) > 2 {
+			expected = PublicKeyBytes(types.MustHashFromString(e[2]))
+		}
+
+		if key.AsScalar() == nil {
+			if result {
+				t.Errorf("expected not nil")
+			}
+			continue
+		} else if !result {
+			t.Errorf("expected nil, got %s\n", key.AsScalar().String())
+			continue
+		}
+
+		pub := key.PublicKey().AsBytes()
+		if pub != expected {
+			t.Errorf("expected %s, got %s", expected.String(), pub.String())
+		}
+	}
+}
+
+func TestGenerateKeys(t *testing.T) {
+	results := GetTestEntries("generate_keys", 2)
+	if results == nil {
+		t.Fatal()
+	}
+	rng := NewDeterministicTestGenerator()
+
+	rng.Skip(263)
+
+	for e := range results {
+		expectedPub := PublicKeyBytes(types.MustHashFromString(e[0]))
+		expectedPriv := PrivateKeyBytes(types.MustHashFromString(e[1]))
+
+		key := PrivateKeyFromScalar(RandomScalar(rng))
+
+		if key.AsBytes() != expectedPriv {
+			t.Errorf("expected %s, got %s", expectedPriv.String(), key.String())
+		} else if key.PublicKey().AsBytes() != expectedPub {
+			t.Errorf("expected %s, got %s", expectedPub.String(), key.PublicKey().AsBytes())
+		}
+	}
+
+	t.Logf("rng permutations: %d", rng.Permutations())
 }
 
 func TestCheckKey(t *testing.T) {
@@ -225,7 +299,7 @@ func TestCheckKey(t *testing.T) {
 
 		if key.AsPoint() == nil {
 			if result {
-				t.Fatalf("expected not nil")
+				t.Errorf("expected not nil")
 			}
 		} else if !result {
 			t.Errorf("expected nil, got %s\n", key.AsPoint().String())
@@ -266,6 +340,7 @@ func TestHashToPoint(t *testing.T) {
 		point := elligator2WithUniformBytes(new(edwards25519.Point), key)
 		if point == nil {
 			t.Errorf("point is nil")
+			continue
 		}
 
 		image := PublicKeyFromPoint(point).AsBytes()

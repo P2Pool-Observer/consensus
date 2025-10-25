@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -31,12 +32,45 @@ func TestGenerateKeyImage(t *testing.T) {
 
 		if secret.PublicKey().AsBytes() != pub {
 			t.Errorf("public key expected %s, got %s", expected.String(), secret.PublicKey().String())
+			continue
 		}
 
 		keyImage := GetKeyImage(NewKeyPairFromPrivate(&secret))
 
 		if keyImage.AsBytes() != expected {
 			t.Errorf("expected %s, got %s", expected.String(), keyImage.String())
+		}
+	}
+}
+
+func TestHashToScalar(t *testing.T) {
+	results := GetTestEntries("hash_to_scalar", 2)
+	if results == nil {
+		t.Fatal()
+	}
+
+	for e := range results {
+		if e[0] == "x" {
+			// invalid test data
+			continue
+		}
+
+		data, err := hex.DecodeString(e[0])
+		if err != nil {
+			t.Error(err)
+		}
+		expected := PrivateKeyBytes(types.MustHashFromString(e[1]))
+
+		scalar := ScalarDeriveLegacy(data)
+		if scalar == nil {
+			t.Errorf("scalar is nil")
+			continue
+		}
+
+		image := PrivateKeyBytes(scalar.Bytes())
+
+		if image != expected {
+			t.Errorf("%s: expected %s, got %s", hex.EncodeToString(data), expected.String(), image.String())
 		}
 	}
 }

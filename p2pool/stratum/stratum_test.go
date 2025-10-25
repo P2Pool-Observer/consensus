@@ -2,6 +2,7 @@ package stratum
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"math"
 	unsafeRandom "math/rand/v2"
@@ -207,8 +208,8 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 	if n > 2 {
 		for range n / 2 {
 			testAddresses = append(testAddresses, address.NewPackedAddressWithSubaddressFromBytes(
-				crypto.PrivateKeyFromScalar(crypto.RandomScalar()).PublicKey().AsBytes(),
-				crypto.PrivateKeyFromScalar(crypto.RandomScalar()).PublicKey().AsBytes(),
+				crypto.PrivateKeyFromScalar(crypto.RandomScalar(rand.Reader)).PublicKey().AsBytes(),
+				crypto.PrivateKeyFromScalar(crypto.RandomScalar(rand.Reader)).PublicKey().AsBytes(),
 				sidechain.P2PoolShareVersion(consensus, 0) >= sidechain.ShareVersion_V3 && /* TODO: remove when supported? */ minerData.MajorVersion < monero.HardForkCarrotVersion,
 			))
 		}

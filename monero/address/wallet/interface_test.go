@@ -26,7 +26,7 @@ func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.Subad
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
-				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar())
+				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar(rand.Reader))
 
 				txPub := txKey.PublicKey().AsBytes()
 
@@ -118,7 +118,7 @@ func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.Subadd
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
-				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar())
+				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar(rand.Reader))
 
 				out, additionalPub, encryptedAmount := address.CalculateTransactionOutput(addr, txKey, 0, amount)
 				out.Reward = 0

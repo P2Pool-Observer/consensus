@@ -30,7 +30,7 @@ func TestAddress(t *testing.T) {
 	derivation := crypto.PrivateKeyFromScalar(privateKey).GetDerivationCofactor(testAddress.ViewPublicKey())
 
 	sharedData := crypto.GetDerivationSharedDataForOutputIndex(derivation, 37)
-	ephemeralPublicKey := GetPublicKeyForSharedData(testAddress, sharedData)
+	ephemeralPublicKey := GetPublicKeyForSharedData(testAddress.SpendPublicKey(), sharedData)
 
 	if bytes.Compare(ephemeralPublicKey.AsSlice(), ephemeralPubKey) != 0 {
 		t.Fatalf("ephemeral key mismatch, expected %s, got %s", fasthex.EncodeToString(ephemeralPubKey), ephemeralPublicKey.String())
