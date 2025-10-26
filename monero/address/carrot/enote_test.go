@@ -79,6 +79,14 @@ func TestConverge(t *testing.T) {
 		if result != expected {
 			t.Fatalf("expected: %x, got: %x", expected, result)
 		}
+
+		result2 := makeUncontextualizedSharedKeySenderVarTime(
+			crypto.PrivateKeyBytes(types.MustHashFromString("f57ff2d7c898b755137b69e8d826801945ed72e9951850de908e9d645a0bb00d")),
+			viewPub.AsPoint(),
+		)
+		if result2 != expected {
+			t.Fatalf("expected: %x, got: %x", expected, result2)
+		}
 	})
 
 	t.Run("make_carrot_sender_receiver_secret", func(t *testing.T) {

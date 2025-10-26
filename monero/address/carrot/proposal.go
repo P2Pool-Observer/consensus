@@ -27,7 +27,7 @@ func (p *PaymentProposalV1) UnsafeForceTorsionChecked() {
 }
 
 // ECDHParts get_normal_proposal_ecdh_parts
-func (p *PaymentProposalV1) ECDHParts(hasher *blake2b.Digest, inputContext []byte) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey) {
+func (p *PaymentProposalV1) ECDHParts(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey) {
 	if !p.torsionChecked {
 		if !p.Destination.Address.Valid() {
 			// failed decoding or torsion checks
@@ -44,7 +44,11 @@ func (p *PaymentProposalV1) ECDHParts(hasher *blake2b.Digest, inputContext []byt
 	ephemeralPubkey = p.ephemeralPublicKey(&ephemeralPrivateKey)
 
 	// 3. s_sr = d_e ConvertPointE(K^j_v)
-	senderReceiverUnctx = makeUncontextualizedSharedKeySender(ephemeralPrivateKey.AsBytes(), p.Destination.Address.ViewPublicKey().AsPoint())
+	if isCoinbase {
+		senderReceiverUnctx = makeUncontextualizedSharedKeySenderVarTime(ephemeralPrivateKey.AsBytes(), p.Destination.Address.ViewPublicKey().AsPoint())
+	} else {
+		senderReceiverUnctx = makeUncontextualizedSharedKeySender(ephemeralPrivateKey.AsBytes(), p.Destination.Address.ViewPublicKey().AsPoint())
+	}
 
 	return ephemeralPubkey, senderReceiverUnctx
 }
@@ -71,7 +75,7 @@ func (p *PaymentProposalV1) OutputPartial(hasher *blake2b.Digest, inputContext [
 	}
 
 	// 3. make D_e and do external ECDH
-	ephemeralPubkey, senderReceiverUnctx = p.ECDHParts(hasher, inputContext[:])
+	ephemeralPubkey, senderReceiverUnctx = p.ECDHParts(hasher, inputContext[:], isCoinbase)
 
 	// err on twisted view/spend pub
 	if ephemeralPubkey == crypto.ZeroX25519PublicKey || senderReceiverUnctx == crypto.ZeroX25519PublicKey {

@@ -92,10 +92,17 @@ func MakeUncontextualizedSharedKeyReceiver(viewPriv crypto.PrivateKeyBytes, ephe
 // makeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
 // Precondition: viewPub is torsion free
 func makeUncontextualizedSharedKeySender(ephemeralPrivKey crypto.PrivateKeyBytes, viewPub *crypto.PublicKeyPoint) (senderReceiverUnctx crypto.X25519PublicKey) {
-	// s_sr = d_e * ConvertPointE(K^j_v)
+	// s_sr = d_e ConvertPointE(K^j_v)
 	viewPubkeyX25519 := crypto.ConvertPointE(viewPub.Point())
 	crypto.X25519ScalarMult(&senderReceiverUnctx, ephemeralPrivKey, viewPubkeyX25519)
 	return senderReceiverUnctx
+}
+
+// makeUncontextualizedSharedKeySenderVarTime
+// VarTime implementation of makeUncontextualizedSharedKeySender
+func makeUncontextualizedSharedKeySenderVarTime(ephemeralPrivKey crypto.PrivateKeyBytes, viewPub *crypto.PublicKeyPoint) (senderReceiverUnctx crypto.X25519PublicKey) {
+	// s_sr = ConvertPointE(d_e * K^j_v)
+	return crypto.ConvertPointE(new(edwards25519.Point).UnsafeVarTimeScalarMult(ephemeralPrivKey.AsScalar().Scalar(), viewPub.Point()))
 }
 
 // makeSenderReceiverSecret make_carrot_sender_receiver_secret
