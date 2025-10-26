@@ -6,6 +6,7 @@ import (
 	"io"
 	"unsafe"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
@@ -15,17 +16,17 @@ import (
 )
 
 // RandomScalar Equivalent to Monero's random32_unbiased / random_scalar
-func RandomScalar(k *edwards25519.Scalar, r io.Reader) *edwards25519.Scalar {
-	var buf [PrivateKeySize]byte
+func RandomScalar(k *curve25519.Scalar, r io.Reader) *edwards25519.Scalar {
+	var buf [curve25519.PrivateKeySize]byte
 	for {
 		if _, err := utils.ReadNoEscape(r, buf[:]); err != nil {
 			return nil
 		}
 
-		if !IsLimit32(buf) {
+		if !curve25519.ScalarIsLimit32(buf) {
 			continue
 		}
-		BytesToScalar32(buf, k)
+		curve25519.BytesToScalar32(k, buf)
 
 		if k.Equal(zeroScalar) == 0 {
 			return k
@@ -34,7 +35,7 @@ func RandomScalar(k *edwards25519.Scalar, r io.Reader) *edwards25519.Scalar {
 }
 
 // DeterministicScalar consensus way of generating a deterministic scalar from given entropy
-func DeterministicScalar(k *edwards25519.Scalar, entropy []byte) *edwards25519.Scalar {
+func DeterministicScalar(k *curve25519.Scalar, entropy []byte) *edwards25519.Scalar {
 
 	var counter uint32
 	var nonce [4]byte
@@ -48,11 +49,11 @@ func DeterministicScalar(k *edwards25519.Scalar, entropy []byte) *edwards25519.S
 		_, _ = utils.WriteNoEscape(h, entropy)
 		_, _ = utils.WriteNoEscape(h, nonce[:])
 		_, _ = utils.ReadNoEscape(h, hash[:])
-		if !IsLimit32(hash) {
+		if !curve25519.ScalarIsLimit32(hash) {
 			utils.ResetNoEscape(h)
 			continue
 		}
-		BytesToScalar32(hash, k)
+		curve25519.BytesToScalar32(k, hash)
 
 		if k.Equal(zeroScalar) == 0 {
 			return k

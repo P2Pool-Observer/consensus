@@ -1,13 +1,15 @@
 package crypto
 
-type KeyPair struct {
-	PrivateKey PrivateKey
-	PublicKey  PublicKey
+import "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+
+type KeyPair[T curve25519.PointOperations] struct {
+	PrivateKey curve25519.Scalar
+	PublicKey  curve25519.PublicKey[T]
 }
 
-func NewKeyPairFromPrivate(privateKey PrivateKey) *KeyPair {
-	return &KeyPair{
-		PrivateKey: privateKey,
-		PublicKey:  privateKey.PublicKey(),
-	}
+func NewKeyPairFromPrivate[T curve25519.PointOperations](privateKey *curve25519.Scalar) *KeyPair[T] {
+	k := &KeyPair[T]{}
+	k.PrivateKey.Set(privateKey)
+	k.PublicKey.ScalarBaseMult(privateKey)
+	return k
 }

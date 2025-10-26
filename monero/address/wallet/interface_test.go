@@ -9,12 +9,13 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
-func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.SubaddressIndex) {
+func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex) {
 	addr := wallet.Get(ix)
 	if addr == nil {
 		t.Fatal("got nil address")
@@ -23,17 +24,17 @@ func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.Subad
 	t.Run(fmt.Sprintf("Coinbase/#%d,%d", ix.Account, ix.Offset), func(t *testing.T) {
 		const amount = monero.TailEmissionReward
 
-		if lw, ok := wallet.(ViewWalletLegacyInterface); ok {
+		if lw, ok := wallet.(ViewWalletLegacyInterface[T]); ok {
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
-				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader))
+				txKey := crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)
 
-				txPub := txKey.PublicKey().AsBytes()
+				txPub := new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 
 				var addrI address.Interface
 				if addr.IsSubaddress() {
-					if vw, ok := wallet.(*ViewWallet); ok {
+					if vw, ok := wallet.(*ViewWallet[T]); ok {
 						addrI = address.GetSubaddressFakeAddress(addr, vw.ViewKey())
 					} else {
 						t.Skip("not supported")
@@ -42,14 +43,14 @@ func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.Subad
 					addrI = addr
 				}
 
-				out, _, _ := address.CalculateTransactionOutput(addrI, txKey, 0, amount)
+				out, _, _ := address.CalculateTransactionOutput[T](addrI, txKey, 0, amount)
 				out.Reward = 0
 
-				i, pub, _, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes())
+				i, pub, _, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.Bytes())
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
-				if pub.AsBytes() != txPub.AsBytes() {
+				if pub != txPub.Bytes() {
 					t.Fatalf("got pub %s, want %s", pub.String(), txPub.String())
 				}
 				if subaddressIndex != ix {
@@ -63,7 +64,7 @@ func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.Subad
 				t.Skip("not supported")
 			}
 
-			proposal := carrot.PaymentProposalV1{
+			proposal := carrot.PaymentProposalV1[T]{
 				Destination: carrot.DestinationV1{
 					Address: address.NewPackedAddressWithSubaddressFromBytes(addr.SpendPub, addr.ViewPub, addr.IsSubaddress()),
 				},
@@ -86,7 +87,7 @@ func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.Subad
 				ViewTag:              types.MakeFixed(enote.ViewTag),
 			}
 
-			i, scan, subaddressIndex := wallet.MatchCarrotCoinbase(blockIndex, transaction.Outputs{out}, crypto.PublicKeyBytes(enote.EphemeralPubKey))
+			i, scan, subaddressIndex := wallet.MatchCarrotCoinbase(blockIndex, transaction.Outputs{out}, curve25519.PublicKeyBytes(enote.EphemeralPubKey))
 			if i != 0 {
 				t.Fatalf("got index %d, want 0", i)
 			}
@@ -106,7 +107,7 @@ func testScanCoinbase(t *testing.T, wallet ViewWalletInterface, ix address.Subad
 	})
 }
 
-func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.SubaddressIndex) {
+func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex) {
 	addr := wallet.Get(ix)
 	if addr == nil {
 		t.Fatal("got nil address")
@@ -115,31 +116,33 @@ func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.Subadd
 	t.Run(fmt.Sprintf("Payment/#%d,%d", ix.Account, ix.Offset), func(t *testing.T) {
 		const amount = monero.TailEmissionReward
 
-		if lw, ok := wallet.(ViewWalletLegacyInterface); ok {
+		if lw, ok := wallet.(ViewWalletLegacyInterface[T]); ok {
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
-				txKey := crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader))
+				txKey := crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)
 
-				out, additionalPub, encryptedAmount := address.CalculateTransactionOutput(addr, txKey, 0, amount)
+				txPub := new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
+
+				out, additionalPub, encryptedAmount := address.CalculateTransactionOutput[T](addr, txKey, 0, amount)
 				out.Reward = 0
 
 				if additionalPub == nil {
-					additionalPub = txKey.PublicKey()
+					additionalPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 				}
 
-				i, pub, sharedData, subaddressIndex := lw.Match(transaction.Outputs{out}, txKey.PublicKey().AsBytes(), additionalPub.AsBytes())
+				i, pub, sharedData, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.Bytes(), additionalPub.Bytes())
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
-				if pub.AsBytes() != additionalPub.AsBytes() {
+				if pub != additionalPub.Bytes() {
 					t.Fatalf("got pub %s, want %s", pub.String(), additionalPub.String())
 				}
 				if subaddressIndex != ix {
 					t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
 				}
 
-				decryptedAmount := crypto.DecryptOutputAmount(sharedData, encryptedAmount)
+				decryptedAmount := crypto.DecryptOutputAmount(curve25519.PrivateKeyBytes(sharedData.Bytes()), encryptedAmount)
 				if decryptedAmount != amount {
 					t.Fatalf("got amount %d, want %d", decryptedAmount, amount)
 				}
@@ -147,7 +150,7 @@ func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.Subadd
 		}
 
 		t.Run("Carrot", func(t *testing.T) {
-			proposal := carrot.PaymentProposalV1{
+			proposal := carrot.PaymentProposalV1[T]{
 				Destination: carrot.DestinationV1{
 					Address: address.NewPackedAddressWithSubaddressFromBytes(addr.SpendPub, addr.ViewPub, addr.IsSubaddress()),
 				},
@@ -155,7 +158,7 @@ func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.Subadd
 			}
 			_, _ = rand.Read(proposal.Randomness[:])
 
-			var firstKeyImage crypto.PublicKeyBytes
+			var firstKeyImage curve25519.PublicKeyBytes
 			_, _ = rand.Read(firstKeyImage[:])
 			var enote carrot.RCTEnoteProposal
 
@@ -178,7 +181,7 @@ func testScanPayment(t *testing.T, wallet ViewWalletInterface, ix address.Subadd
 						Commitment: enote.Enote.AmountCommitment,
 					},
 				},
-				transaction.Outputs{out}, crypto.PublicKeyBytes(enote.Enote.EphemeralPubKey))
+				transaction.Outputs{out}, curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey))
 			if i != 0 {
 				t.Fatalf("got index %d, want 0", i)
 			}

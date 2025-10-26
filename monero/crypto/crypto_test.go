@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -46,40 +47,6 @@ func GetTestEntries(name string, n int) chan []string {
 	return GetTestEntriesCustom("testdata/monero_crypto_tests.txt", name, n)
 }
 
-func TestGenerateKeyDerivation(t *testing.T) {
-	results := GetTestEntries("generate_key_derivation", 3)
-	if results == nil {
-		t.Fatal()
-	}
-	for e := range results {
-		var expectedDerivation types.Hash
-
-		key1 := PublicKeyBytes(types.MustHashFromString(e[0]))
-		key2 := PrivateKeyBytes(types.MustHashFromString(e[1]))
-		result := e[2] == "true"
-		if result {
-			expectedDerivation = types.MustHashFromString(e[3])
-		}
-
-		point := key1.AsPoint()
-		scalar := key2.AsScalar()
-
-		if result == false && (point == nil || scalar == nil) {
-			//expected failure
-			continue
-		} else if point == nil || scalar == nil {
-			t.Errorf("invalid point %s / scalar %s", key1.String(), key2.String())
-		}
-
-		derivation := scalar.GetDerivationCofactor(point)
-		if result {
-			if expectedDerivation.String() != derivation.String() {
-				t.Errorf("expected %s, got %s", expectedDerivation.String(), derivation.String())
-			}
-		}
-	}
-}
-
 func TestDeriveViewTag(t *testing.T) {
 	results := GetTestEntries("derive_view_tag", 3)
 	if results == nil {
@@ -87,11 +54,11 @@ func TestDeriveViewTag(t *testing.T) {
 	}
 
 	for e := range results {
-		derivation := PublicKeyBytes(types.MustHashFromString(e[0]))
+		derivation := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
 		result, _ := fasthex.DecodeString(e[2])
 
-		viewTag := GetDerivationViewTagForOutputIndex(&derivation, outputIndex)
+		viewTag := GetDerivationViewTagForOutputIndex(derivation, outputIndex)
 
 		var tmp edwards25519.Scalar
 		viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&tmp, derivation, outputIndex)
@@ -112,16 +79,19 @@ func FuzzDeriveViewTag(f *testing.F) {
 		f.Fatal()
 	}
 	for e := range results {
-		derivation := PublicKeyBytes(types.MustHashFromString(e[0]))
+		derivation := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
 
-		f.Add([]byte(derivation.AsSlice()), outputIndex)
+		f.Add(derivation.Slice(), outputIndex)
 	}
 
 	f.Fuzz(func(t *testing.T, derivation []byte, outputIndex uint64) {
-		derivationBytes := (*PublicKeySlice)(&derivation).AsBytes()
+		if len(derivation) != curve25519.PublicKeySize {
+			return
+		}
+		derivationBytes := curve25519.PublicKeyBytes(derivation)
 
-		viewTag := GetDerivationViewTagForOutputIndex(&derivationBytes, outputIndex)
+		viewTag := GetDerivationViewTagForOutputIndex(derivationBytes, outputIndex)
 
 		var tmp edwards25519.Scalar
 		viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&tmp, derivationBytes, outputIndex)
@@ -173,10 +143,10 @@ func TestCheckTorsion(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := PublicKeyBytes(types.MustHashFromString(e[0]))
+		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
 		result := e[1] == "true"
 
-		if p := key.AsPoint(); p == nil {
+		if p := key.Point(); p == nil {
 			if result {
 				t.Errorf("expected not nil")
 			}
@@ -197,14 +167,14 @@ func TestCheckTorsionVarTime(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := PublicKeyBytes(types.MustHashFromString(e[0]))
+		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
 		result := e[1] == "true"
 
-		if p := key.AsPoint(); p == nil {
+		if p := curve25519.To[curve25519.VarTimeOperations](key.Point()); p == nil {
 			if result {
 				t.Errorf("expected not nil")
 			}
-		} else if p.IsSmallOrder() || !p.IsTorsionFreeVarTime() {
+		} else if p.IsSmallOrder() || !p.IsTorsionFree() {
 			if result {
 				t.Errorf("expected valid")
 			}
@@ -220,15 +190,15 @@ func TestCheckScalar(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := PrivateKeyBytes(types.MustHashFromString(e[0]))
+		key := curve25519.PrivateKeyBytes(types.MustHashFromString(e[0]))
 		result := e[1] == "true"
 
-		if key.AsScalar() == nil {
+		if key.Scalar() == nil {
 			if result {
 				t.Errorf("expected not nil")
 			}
 		} else if !result {
-			t.Errorf("expected nil, got %s\n", key.AsScalar().String())
+			t.Errorf("expected nil, got %x\n", key.Scalar().Bytes())
 		}
 	}
 }
@@ -239,24 +209,24 @@ func TestSecretKeyToPublicKey(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := PrivateKeyBytes(types.MustHashFromString(e[0]))
+		key := curve25519.PrivateKeyBytes(types.MustHashFromString(e[0]))
 		result := e[1] == "true"
-		var expected PublicKeyBytes
+		var expected curve25519.PublicKeyBytes
 		if len(e) > 2 {
-			expected = PublicKeyBytes(types.MustHashFromString(e[2]))
+			expected = curve25519.PublicKeyBytes(types.MustHashFromString(e[2]))
 		}
 
-		if key.AsScalar() == nil {
+		if key.Scalar() == nil {
 			if result {
 				t.Errorf("expected not nil")
 			}
 			continue
 		} else if !result {
-			t.Errorf("expected nil, got %s\n", key.AsScalar().String())
+			t.Errorf("expected nil, got %x\n", key.Scalar().Bytes())
 			continue
 		}
 
-		pub := key.PublicKey().AsBytes()
+		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(key.Scalar()).Bytes()
 		if pub != expected {
 			t.Errorf("expected %s, got %s", expected.String(), pub.String())
 		}
@@ -273,15 +243,17 @@ func TestGenerateKeys(t *testing.T) {
 	rng.Skip(263)
 
 	for e := range results {
-		expectedPub := PublicKeyBytes(types.MustHashFromString(e[0]))
-		expectedPriv := PrivateKeyBytes(types.MustHashFromString(e[1]))
+		expectedPub := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		expectedPriv := curve25519.PrivateKeyBytes(types.MustHashFromString(e[1]))
 
-		key := PrivateKeyFromScalar(RandomScalar(new(edwards25519.Scalar), rng))
+		key := RandomScalar(new(edwards25519.Scalar), rng)
 
-		if key.AsBytes() != expectedPriv {
-			t.Errorf("expected %s, got %s", expectedPriv.String(), key.String())
-		} else if key.PublicKey().AsBytes() != expectedPub {
-			t.Errorf("expected %s, got %s", expectedPub.String(), key.PublicKey().AsBytes())
+		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(key)
+
+		if curve25519.PrivateKeyBytes(key.Bytes()) != expectedPriv {
+			t.Errorf("expected %s, got %x", expectedPriv.String(), key.Bytes())
+		} else if pub.Bytes() != expectedPub {
+			t.Errorf("expected %s, got %s", expectedPub.String(), pub.String())
 		}
 	}
 
@@ -294,15 +266,15 @@ func TestCheckKey(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := PublicKeyBytes(types.MustHashFromString(e[0]))
+		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
 		result := e[1] == "true"
 
-		if key.AsPoint() == nil {
+		if key.Point() == nil {
 			if result {
 				t.Errorf("expected not nil")
 			}
 		} else if !result {
-			t.Errorf("expected nil, got %s\n", key.AsPoint().String())
+			t.Errorf("expected nil, got %s\n", key.Point().String())
 		}
 	}
 }
@@ -314,12 +286,12 @@ func TestHashToEC(t *testing.T) {
 	}
 
 	for e := range results {
-		key := PublicKeyBytes(types.MustHashFromString(e[0]))
-		expected := PublicKeyBytes(types.MustHashFromString(e[1]))
+		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		expected := curve25519.PublicKeyBytes(types.MustHashFromString(e[1]))
 
-		point := BiasedHashToPoint(new(edwards25519.Point), key.AsSlice())
+		point := BiasedHashToPoint(new(curve25519.ConstantTimePublicKey), key.Slice())
 
-		image := PublicKeyFromPoint(point).AsBytes()
+		image := point.Bytes()
 
 		if image != expected {
 			t.Errorf("expected %s, got %s", expected.String(), image.String())
@@ -334,16 +306,16 @@ func TestHashToPoint(t *testing.T) {
 	}
 
 	for e := range results {
-		key := PublicKeyBytes(types.MustHashFromString(e[0]))
-		expected := PublicKeyBytes(types.MustHashFromString(e[1]))
+		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		expected := curve25519.PublicKeyBytes(types.MustHashFromString(e[1]))
 
-		point := elligator2WithUniformBytes(new(edwards25519.Point), key)
+		point := curve25519.Elligator2WithUniformBytes(new(curve25519.ConstantTimePublicKey), key)
 		if point == nil {
 			t.Errorf("point is nil")
 			continue
 		}
 
-		image := PublicKeyFromPoint(point).AsBytes()
+		image := point.Bytes()
 
 		if image != expected {
 			t.Errorf("%s: expected %s, got %s", key.String(), expected.String(), image.String())

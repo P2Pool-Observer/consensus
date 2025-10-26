@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -219,7 +219,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 
 		t.Data = make([]byte, size-1)
 	case TxExtraTagPubKey:
-		t.Data = make([]byte, crypto.PublicKeySize)
+		t.Data = make([]byte, curve25519.PublicKeySize)
 		if _, err = utils.ReadFullNoEscape(reader, t.Data); err != nil {
 			return err
 		}

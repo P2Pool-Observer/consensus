@@ -12,6 +12,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -25,7 +26,7 @@ type SideData struct {
 
 	CoinbasePrivateKeySeed types.Hash `json:"coinbase_private_key_seed,omitempty"`
 	// CoinbasePrivateKey filled or calculated on decoding,
-	CoinbasePrivateKey crypto.PrivateKeyBytes `json:"coinbase_private_key"`
+	CoinbasePrivateKey curve25519.PrivateKeyBytes `json:"coinbase_private_key"`
 	// Parent Template Id of the parent of this share, or zero if genesis
 	Parent types.Hash `json:"parent"`
 	// Uncles List of Template Ids of the uncles this share contains
@@ -52,9 +53,9 @@ type SideDataExtraBuffer struct {
 }
 
 func (b *SideData) BufferLength(majorVersion uint8, version ShareVersion) (size int) {
-	size = crypto.PublicKeySize*2 +
+	size = curve25519.PublicKeySize*2 +
 		types.HashSize +
-		crypto.PrivateKeySize +
+		curve25519.PrivateKeySize +
 		utils.UVarInt64Size(len(b.Uncles)) + len(b.Uncles)*types.HashSize +
 		utils.UVarInt64Size(b.Height) +
 		utils.UVarInt64Size(b.Difficulty.Lo) + utils.UVarInt64Size(b.Difficulty.Hi) +

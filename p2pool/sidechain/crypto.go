@@ -2,6 +2,7 @@ package sidechain
 
 import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -18,7 +19,7 @@ func CalculateTransactionPrivateKeySeed(main, side []byte) (result types.Hash) {
 	return result
 }
 
-func GetDeterministicTransactionPrivateKey(seed, previousMoneroId types.Hash) crypto.PrivateKey {
+func GetDeterministicTransactionPrivateKey(out *curve25519.Scalar, seed, previousMoneroId types.Hash) *curve25519.Scalar {
 	/*
 		Current deterministic key issues
 		* This Deterministic private key changes too ofter, and does not fit full purpose (prevent knowledge of private keys on Coinbase without observing of sidechains).
@@ -36,7 +37,5 @@ func GetDeterministicTransactionPrivateKey(seed, previousMoneroId types.Hash) cr
 	copy(entropy[:], transactionPrivateKeyDomain)
 	copy(entropy[13:], seed[:])
 	copy(entropy[13+types.HashSize:], previousMoneroId[:])
-	var k crypto.PrivateKeyScalar
-	crypto.DeterministicScalar(k.Scalar(), entropy[:13+types.HashSize+types.HashSize])
-	return &k
+	return crypto.DeterministicScalar(out, entropy[:13+types.HashSize+types.HashSize])
 }

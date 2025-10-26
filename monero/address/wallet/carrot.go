@@ -8,39 +8,39 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
-func NewCarrotViewWalletFromMasterSecret(masterSecret types.Hash, addressNetwork uint8, accountDepth, indexDepth int) (*CarrotViewWallet, error) {
+func NewCarrotViewWalletFromMasterSecret[T curve25519.PointOperations](masterSecret types.Hash, addressNetwork uint8, accountDepth, indexDepth int) (*CarrotViewWallet[T], error) {
 	var hasher blake2b.Digest
 
 	// todo: use this in other parts
-	var proveSpend crypto.PrivateKeyScalar
+	var proveSpend curve25519.Scalar
 	carrot.MakeProveSpendKey(&hasher, &proveSpend, masterSecret)
 
 	// precompute
-	var proveSpendPub edwards25519.Point
-	proveSpendPub.UnsafeVarTimeScalarMultPrecomputed(proveSpend.Scalar(), crypto.GeneratorT.Table)
+	var proveSpendPub curve25519.PublicKey[T]
+	proveSpendPub.ScalarMult(&proveSpend, curve25519.FromPoint[T](crypto.GeneratorT.Point))
 
 	viewBalanceSecret := carrot.MakeViewBalanceSecret(&hasher, masterSecret)
-	return NewCarrotViewWalletFromViewBalanceSecret(crypto.PublicKeyFromPoint(&proveSpendPub), viewBalanceSecret, addressNetwork, accountDepth, indexDepth)
+	return NewCarrotViewWalletFromViewBalanceSecret(&proveSpendPub, viewBalanceSecret, addressNetwork, accountDepth, indexDepth)
 }
 
-func NewCarrotViewWalletFromViewBalanceSecret(proveSpendPub crypto.PublicKey, viewBalanceSecret types.Hash, addressNetwork uint8, accountDepth, indexDepth int) (*CarrotViewWallet, error) {
+func NewCarrotViewWalletFromViewBalanceSecret[T curve25519.PointOperations](proveSpendPub *curve25519.PublicKey[T], viewBalanceSecret types.Hash, addressNetwork uint8, accountDepth, indexDepth int) (*CarrotViewWallet[T], error) {
 	var hasher blake2b.Digest
 
-	var generateImage, viewIncoming crypto.PrivateKeyScalar
+	var generateImage, viewIncoming curve25519.Scalar
 	carrot.MakeGenerateImageKey(&hasher, &generateImage, viewBalanceSecret)
 	generateAddressSecret := carrot.MakeGenerateAddressSecret(&hasher, viewBalanceSecret)
 	carrot.MakeViewIncomingKey(&hasher, &viewIncoming, viewBalanceSecret)
 
-	var spendPub crypto.PublicKeyPoint
-	carrot.MakeSpendPubFromSpendPub(&spendPub, &generateImage, proveSpendPub.AsPoint())
+	var spendPub curve25519.PublicKey[T]
+	carrot.MakeSpendPubFromSpendPub(&spendPub, &generateImage, proveSpendPub)
 
-	return NewCarrotViewWallet(
-		address.FromRawAddress(addressNetwork, proveSpendPub, viewIncoming.PublicKey()),
+	return NewCarrotViewWallet[T](
+		address.FromRawAddress(addressNetwork, proveSpendPub.Bytes(), new(curve25519.PublicKey[T]).ScalarBaseMult(&viewIncoming).Bytes()),
 		&generateImage,
 		&viewIncoming,
 		generateAddressSecret,
@@ -49,30 +49,30 @@ func NewCarrotViewWalletFromViewBalanceSecret(proveSpendPub crypto.PublicKey, vi
 	)
 }
 
-type CarrotViewWallet struct {
+type CarrotViewWallet[T curve25519.PointOperations] struct {
 	primaryAddress *address.Address
 	// generateImageKeyScalar can be nil
-	generateImageKeyScalar *crypto.PrivateKeyScalar
-	viewIncomingKey        crypto.PrivateKeyBytes
+	generateImageKeyScalar *curve25519.Scalar
+	viewIncomingKeyScalar  curve25519.Scalar
+	viewIncomingKey        curve25519.PrivateKeyBytes
 
 	generateAddressSecret types.Hash
 
 	// carrot public keys (minus K^0_v, which is shared with legacy K^0_v)
-	accountSpendPub crypto.PublicKeyPoint
-	accountViewPub  crypto.PublicKeyPoint
+	accountSpendPub curve25519.PublicKey[T]
+	accountViewPub  curve25519.PublicKey[T]
 
 	// spendMap used to lookup spend keys to subaddress index
-	spendMap map[crypto.PublicKeyBytes]address.SubaddressIndex
+	spendMap map[curve25519.PublicKeyBytes]address.SubaddressIndex
 }
 
 // NewCarrotViewWallet Creates a new CarrotViewWallet with the specified account and index depth. The main address is always tracked
-func NewCarrotViewWallet(primaryAddress *address.Address, generateImageKey, viewIncomingKey crypto.PrivateKey, generateAddressSecret types.Hash, accountDepth, indexDepth int) (*CarrotViewWallet, error) {
+func NewCarrotViewWallet[T curve25519.PointOperations](primaryAddress *address.Address, generateImageKey, viewIncomingKey *curve25519.Scalar, generateAddressSecret types.Hash, accountDepth, indexDepth int) (*CarrotViewWallet[T], error) {
 	if primaryAddress == nil || primaryAddress.IsSubaddress() || !primaryAddress.Valid() {
 		return nil, errors.New("address must be a main valid one")
 	}
 
-	viewIncomingKeyScalar := viewIncomingKey.AsScalar()
-	if viewIncomingKeyScalar == nil {
+	if viewIncomingKey == nil {
 		return nil, errors.New("view incoming key must be valid")
 	}
 
@@ -80,29 +80,28 @@ func NewCarrotViewWallet(primaryAddress *address.Address, generateImageKey, view
 		return nil, errors.New("generate address secret must be non-zero")
 	}
 
-	if viewIncomingKeyScalar.PublicKey().AsBytes() != *primaryAddress.ViewPublicKey() {
+	if new(curve25519.PublicKey[T]).ScalarBaseMult(viewIncomingKey).Bytes() != *primaryAddress.ViewPublicKey() {
 		return nil, errors.New("view incoming key public must be equal to primary address pub key")
 	}
 
-	accountSpendPub := primaryAddress.SpendPublicKey().AsPoint()
+	var accountSpendPub, accountViewPub curve25519.PublicKey[T]
+	if curve25519.DecodeCompressedPoint(&accountSpendPub, *primaryAddress.SpendPublicKey()) == nil {
+		return nil, errors.New("account spend pub key must be valid")
+	}
+	carrot.MakeAccountViewPub(&accountViewPub, viewIncomingKey, &accountSpendPub)
 
-	var accountViewPub crypto.PublicKeyPoint
-	carrot.MakeAccountViewPub(&accountViewPub, viewIncomingKeyScalar, accountSpendPub)
-
-	w := &CarrotViewWallet{
-		primaryAddress:        primaryAddress,
-		accountViewPub:        accountViewPub,
-		accountSpendPub:       *accountSpendPub,
-		viewIncomingKey:       viewIncomingKey.AsBytes(),
-		generateAddressSecret: generateAddressSecret,
-		spendMap:              make(map[crypto.PublicKeyBytes]address.SubaddressIndex),
+	w := &CarrotViewWallet[T]{
+		primaryAddress:         primaryAddress,
+		generateImageKeyScalar: generateImageKey,
+		accountViewPub:         accountViewPub,
+		accountSpendPub:        accountSpendPub,
+		viewIncomingKeyScalar:  *viewIncomingKey,
+		viewIncomingKey:        curve25519.PrivateKeyBytes(viewIncomingKey.Bytes()),
+		generateAddressSecret:  generateAddressSecret,
+		spendMap:               make(map[curve25519.PublicKeyBytes]address.SubaddressIndex),
 	}
 
-	if generateImageKey != nil {
-		w.generateImageKeyScalar = generateImageKey.AsScalar()
-	}
-
-	w.spendMap[accountSpendPub.AsBytes()] = address.ZeroSubaddressIndex
+	w.spendMap[accountSpendPub.Bytes()] = address.ZeroSubaddressIndex
 
 	var hasher blake2b.Digest
 
@@ -120,12 +119,12 @@ func NewCarrotViewWallet(primaryAddress *address.Address, generateImageKey, view
 }
 
 // Track Adds the subaddress index to track map
-func (w *CarrotViewWallet) Track(ix address.SubaddressIndex) error {
+func (w *CarrotViewWallet[T]) Track(ix address.SubaddressIndex) error {
 	var hasher blake2b.Digest
 	return w.track(&hasher, ix)
 }
 
-func (w *CarrotViewWallet) track(hasher *blake2b.Digest, ix address.SubaddressIndex) error {
+func (w *CarrotViewWallet[T]) track(hasher *blake2b.Digest, ix address.SubaddressIndex) error {
 	if ix == address.ZeroSubaddressIndex {
 		return nil
 	}
@@ -134,7 +133,7 @@ func (w *CarrotViewWallet) track(hasher *blake2b.Digest, ix address.SubaddressIn
 	return nil
 }
 
-func (w *CarrotViewWallet) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs ...crypto.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 	scan = &carrot.ScanV1{}
 	for _, pub := range txPubs {
@@ -146,7 +145,7 @@ func (w *CarrotViewWallet) MatchCarrotCoinbase(blockIndex uint64, outputs transa
 				Amount:          out.Reward,
 				EncryptedAnchor: out.EncryptedJanusAnchor.Value(),
 				ViewTag:         out.ViewTag.Value(),
-				EphemeralPubKey: crypto.X25519PublicKey(pub),
+				EphemeralPubKey: curve25519.X25519PublicKey(pub),
 				BlockIndex:      blockIndex,
 			}
 
@@ -161,7 +160,7 @@ func (w *CarrotViewWallet) MatchCarrotCoinbase(blockIndex uint64, outputs transa
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-func (w *CarrotViewWallet) MatchCarrot(firstKeyImage crypto.PublicKeyBytes, commitments []crypto.RCTAmount, outputs transaction.Outputs, txPubs ...crypto.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, commitments []crypto.RCTAmount, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeInputContext(firstKeyImage)
 	scan = &carrot.ScanV1{}
 
@@ -179,7 +178,7 @@ func (w *CarrotViewWallet) MatchCarrot(firstKeyImage crypto.PublicKeyBytes, comm
 				EncryptedAmount:  commitments[i].Encrypted,
 				AmountCommitment: commitments[i].Commitment,
 				ViewTag:          out.ViewTag.Value(),
-				EphemeralPubKey:  crypto.X25519PublicKey(pub),
+				EphemeralPubKey:  curve25519.X25519PublicKey(pub),
 				FirstKeyImage:    firstKeyImage,
 			}
 
@@ -194,12 +193,12 @@ func (w *CarrotViewWallet) MatchCarrot(firstKeyImage crypto.PublicKeyBytes, comm
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-func (w *CarrotViewWallet) HasSpend(spendPub crypto.PublicKeyBytes) (address.SubaddressIndex, bool) {
+func (w *CarrotViewWallet[T]) HasSpend(spendPub curve25519.PublicKeyBytes) (address.SubaddressIndex, bool) {
 	ix, ok := w.spendMap[spendPub]
 	return ix, ok
 }
 
-func (w *CarrotViewWallet) Get(index address.SubaddressIndex) *address.Address {
+func (w *CarrotViewWallet[T]) Get(index address.SubaddressIndex) *address.Address {
 	if index.IsZero() {
 		return w.primaryAddress
 	}
@@ -211,24 +210,24 @@ func (w *CarrotViewWallet) Get(index address.SubaddressIndex) *address.Address {
 
 	switch w.primaryAddress.TypeNetwork {
 	case monero.MainNetwork:
-		return address.FromRawAddress(monero.SubAddressMainNetwork, sa.Address.SpendPublicKey(), sa.Address.ViewPublicKey())
+		return address.FromRawAddress(monero.SubAddressMainNetwork, *sa.Address.SpendPublicKey(), *sa.Address.ViewPublicKey())
 	case monero.TestNetwork:
-		return address.FromRawAddress(monero.SubAddressTestNetwork, sa.Address.SpendPublicKey(), sa.Address.ViewPublicKey())
+		return address.FromRawAddress(monero.SubAddressTestNetwork, *sa.Address.SpendPublicKey(), *sa.Address.ViewPublicKey())
 	case monero.StageNetwork:
-		return address.FromRawAddress(monero.SubAddressStageNetwork, sa.Address.SpendPublicKey(), sa.Address.ViewPublicKey())
+		return address.FromRawAddress(monero.SubAddressStageNetwork, *sa.Address.SpendPublicKey(), *sa.Address.ViewPublicKey())
 	default:
 		return nil
 	}
 }
 
-func (w *CarrotViewWallet) GenerateImageKey() crypto.PrivateKey {
+func (w *CarrotViewWallet[T]) GenerateImageKey() *curve25519.Scalar {
 	return w.generateImageKeyScalar
 }
 
-func (w *CarrotViewWallet) GenerateAddressSecret() types.Hash {
+func (w *CarrotViewWallet[T]) GenerateAddressSecret() types.Hash {
 	return w.generateAddressSecret
 }
 
-func (w *CarrotViewWallet) ViewIncomingKey() crypto.PrivateKey {
-	return &w.viewIncomingKey
+func (w *CarrotViewWallet[T]) ViewIncomingKey() *curve25519.Scalar {
+	return &w.viewIncomingKeyScalar
 }

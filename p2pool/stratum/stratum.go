@@ -19,7 +19,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
@@ -34,10 +34,10 @@ import (
 const HighFeeValue uint64 = 6000000000
 const TimeInMempool = time.Second * 5
 
-type ephemeralPubKeyCacheKey [crypto.PublicKeySize*2 + 8]byte
+type ephemeralPubKeyCacheKey [curve25519.PublicKeySize*2 + 8]byte
 
 type ephemeralPubKeyCacheEntry struct {
-	PublicKey crypto.PublicKeyBytes
+	PublicKey curve25519.PublicKeyBytes
 	ViewTag   uint8
 }
 
@@ -49,8 +49,8 @@ type NewTemplateData struct {
 	CumulativeDifficulty      types.Difficulty
 	TransactionPrivateKeySeed types.Hash
 	// TransactionPrivateKey Generated from TransactionPrivateKeySeed
-	TransactionPrivateKey crypto.PrivateKeyBytes
-	TransactionPublicKey  crypto.PublicKeySlice
+	TransactionPrivateKey curve25519.PrivateKeyBytes
+	TransactionPublicKey  curve25519.PublicKeyBytes
 	Timestamp             uint64
 
 	// Weights List of weights, first with zero index, second for all other entries
@@ -235,8 +235,8 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 
 	kP := s.sidechain.DerivationCache().GetDeterministicTransactionKey(s.newTemplateData.TransactionPrivateKeySeed, s.minerData.PrevId)
-	s.newTemplateData.TransactionPrivateKey = kP.PrivateKey.AsBytes()
-	s.newTemplateData.TransactionPublicKey = kP.PublicKey.AsSlice()
+	s.newTemplateData.TransactionPrivateKey = curve25519.PrivateKeyBytes(kP.PrivateKey.Bytes())
+	s.newTemplateData.TransactionPublicKey = kP.PublicKey.Bytes()
 
 	minorVersion := min(monero.HardForkSupportedVersion, s.minerData.MinorVersion)
 	if minorVersion == 0 {
@@ -472,8 +472,8 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 	s.newTemplateData.Window.EphemeralPubKeyCache = make(map[ephemeralPubKeyCacheKey]*ephemeralPubKeyCacheEntry)
 
-	txPrivateKeySlice := s.newTemplateData.TransactionPrivateKey.AsSlice()
-	txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.AsScalar()
+	txPrivateKey := s.newTemplateData.TransactionPrivateKey
+	txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.Scalar()
 
 	//TODO: parallelize this
 	// generate ephemeral pubkeys based on indices
@@ -485,12 +485,12 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			return
 		}
 		copy(tempPubKey[:], addr.Bytes())
-		binary.LittleEndian.PutUint64(tempPubKey[crypto.PublicKeySize*2:], uint64(index))
+		binary.LittleEndian.PutUint64(tempPubKey[curve25519.PublicKeySize*2:], uint64(index))
 		if e, ok := oldPubKeyCache[tempPubKey]; ok {
 			s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = e
 		} else {
 			var e ephemeralPubKeyCacheEntry
-			e.PublicKey, e.ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr, txPrivateKeySlice, txPrivateKeyScalar, uint64(index))
+			e.PublicKey, e.ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr, txPrivateKey, txPrivateKeyScalar, uint64(index))
 			s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = &e
 		}
 	}
@@ -752,7 +752,7 @@ func (s *Server) coinbaseTransactionWeight(shareVersion sidechain.ShareVersion, 
 
 	if txType == transaction.TxOutToCarrotV1 {
 		// add additional pubkeys
-		txExtraSize += 1 + utils.UVarInt64Size(len(rewards)) + crypto.PublicKeySize*len(rewards)
+		txExtraSize += 1 + utils.UVarInt64Size(len(rewards)) + curve25519.PublicKeySize*len(rewards)
 	} else {
 		// tx pubkey
 		txExtraSize += 1 + types.HashSize
@@ -826,7 +826,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 		Extra: transaction.ExtraTags{
 			transaction.ExtraTag{
 				Tag:  transaction.TxExtraTagPubKey,
-				Data: types.Bytes(s.newTemplateData.TransactionPublicKey),
+				Data: types.Bytes(s.newTemplateData.TransactionPublicKey[:]),
 			},
 			transaction.ExtraTag{
 				Tag:       transaction.TxExtraTagNonce,
@@ -847,7 +847,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			Tag:       transaction.TxExtraTagAdditionalPubKeys,
 			VarInt:    uint64(len(shares)),
 			HasVarInt: true,
-			Data:      make(types.Bytes, crypto.PublicKeySize*len(shares)),
+			Data:      make(types.Bytes, curve25519.PublicKeySize*len(shares)),
 		})
 
 	}
@@ -855,8 +855,8 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 	tx.Outputs = make(transaction.Outputs, len(shares))
 
 	if final {
-		txPrivateKeySlice := s.newTemplateData.TransactionPrivateKey.AsSlice()
-		txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.AsScalar()
+		txPrivateKey := s.newTemplateData.TransactionPrivateKey
+		txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.Scalar()
 
 		if txType == transaction.TxOutToCarrotV1 {
 			carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(shares))
@@ -881,7 +881,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 				tx.Outputs[outputIndex] = sidechain.CalculateOutputCarrot(enote, txType, outputIndex)
 
 				//ephemeral pubkeys: D_e
-				copy(pubs.Data[crypto.PublicKeySize*outputIndex:], enote.EphemeralPubKey[:])
+				copy(pubs.Data[curve25519.PublicKeySize*outputIndex:], enote.EphemeralPubKey[:])
 			}
 		} else {
 			var k ephemeralPubKeyCacheKey
@@ -895,11 +895,11 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 				tx.Outputs[outputIndex].Type = txType
 				tx.Outputs[outputIndex].Reward = rewards[outputIndex]
 				copy(k[:], shares[outputIndex].Address.PackedAddress().Bytes())
-				binary.LittleEndian.PutUint64(k[crypto.PublicKeySize*2:], outputIndex)
+				binary.LittleEndian.PutUint64(k[curve25519.PublicKeySize*2:], outputIndex)
 				if e, ok := s.newTemplateData.Window.EphemeralPubKeyCache[k]; ok {
 					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag.Slice()[0] = e.PublicKey, e.ViewTag
 				} else {
-					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag.Slice()[0] = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
+					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag.Slice()[0] = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, outputIndex)
 				}
 			}
 		}
@@ -1330,8 +1330,8 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 												return errors.New("invalid address in user, wrong network")
 											} else if a.IsSubaddress() {
 												if h, err := types.HashFromString(client.Password); err == nil {
-													viewKey := crypto.PrivateKeyBytes(h)
-													fa := address.GetSubaddressFakeAddress(a, &viewKey)
+													viewKey := curve25519.PrivateKeyBytes(h)
+													fa := address.GetSubaddressFakeAddress(a, viewKey.Scalar())
 													if fa == nil {
 														return errors.New("invalid address in user, invalid subaddress conversion")
 													}
@@ -1352,7 +1352,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 
 													pa := sa.ToPackedAddress()
 													client.Subaddress = &pa
-													client.Address = address.NewPackedAddress(sa.SpendPublicKey(), a.ViewPublicKey())
+													client.Address = address.NewPackedAddressFromBytes(*sa.SpendPublicKey(), *a.ViewPublicKey())
 
 													// cleanup
 													client.Password = ""
@@ -1627,7 +1627,7 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 
 	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion && shareVersion >= sidechain.ShareVersion_V3 {
 		// explicitly add old subaddress tagging information before hardfork
-		var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
+		var subaddressViewPubBuf [curve25519.PublicKeySize + 2]byte
 		copy(subaddressViewPubBuf[:], c.Subaddress.ViewPublicKey()[:])
 		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 	}
@@ -1698,7 +1698,7 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 
 	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion && shareVersion >= sidechain.ShareVersion_V3 {
 		// explicitly add old subaddress tagging information before hardfork
-		var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
+		var subaddressViewPubBuf [curve25519.PublicKeySize + 2]byte
 		copy(subaddressViewPubBuf[:], c.Subaddress.ViewPublicKey()[:])
 		mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 	}

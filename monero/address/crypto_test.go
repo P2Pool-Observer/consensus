@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
@@ -51,17 +52,17 @@ func TestDerivePublicKey(t *testing.T) {
 	for e := range results {
 		var expectedDerivedKey types.Hash
 
-		derivation := crypto.PublicKeyBytes(types.MustHashFromString(e[0]))
+		derivation := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
 
-		base := crypto.PublicKeyBytes(types.MustHashFromString(e[2]))
+		base := curve25519.PublicKeyBytes(types.MustHashFromString(e[2]))
 
 		result := e[3] == "true"
 		if result {
 			expectedDerivedKey = types.MustHashFromString(e[4])
 		}
 
-		point2 := base.AsPoint()
+		point2 := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), base)
 
 		if result == false && point2 == nil {
 			//expected failure
@@ -71,20 +72,20 @@ func TestDerivePublicKey(t *testing.T) {
 			continue
 		}
 
-		sharedData := crypto.GetDerivationSharedDataForOutputIndex(&derivation, outputIndex)
+		sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation, outputIndex)
 
 		var sharedData2 edwards25519.Scalar
 		_ = crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedData2, derivation, outputIndex)
 
-		if sharedData.AsBytes() != crypto.PrivateKeyFromScalar(&sharedData2).AsBytes() {
-			t.Errorf("derive_public_key differs from no_allocate: %s != %s", sharedData, crypto.PrivateKeyFromScalar(&sharedData2))
+		if curve25519.PrivateKeyBytes(sharedData.Bytes()) != curve25519.PrivateKeyBytes(sharedData2.Bytes()) {
+			t.Errorf("derive_public_key differs from no_allocate: %x != %x", sharedData.Bytes(), sharedData2.Bytes())
 		}
 
-		derivedKey := GetPublicKeyForSharedData(&base, sharedData)
+		derivedKey := GetPublicKeyForSharedData(point2, sharedData)
 
-		derivedKey2, _ := GetEphemeralPublicKeyAndViewTagNoAllocate(base.AsPoint().Point(), derivation, outputIndex)
+		derivedKey2, _ := GetEphemeralPublicKeyAndViewTagNoAllocate(point2.P(), derivation, outputIndex)
 
-		if derivedKey.AsBytes() != derivedKey2 {
+		if derivedKey.Bytes() != derivedKey2 {
 			t.Errorf("derive_public_key differs from no_allocate: %s != %s", derivedKey, &derivedKey2)
 		}
 
@@ -103,19 +104,19 @@ func TestDeriveSecretKey(t *testing.T) {
 	}
 
 	for e := range results {
-		var expectedDerivedKey types.Hash
+		var expectedDerivedKey curve25519.PrivateKeyBytes
 
-		derivation := crypto.PublicKeyBytes(types.MustHashFromString(e[0]))
+		derivation := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
 
-		base := crypto.PrivateKeyBytes(types.MustHashFromString(e[2]))
+		base := curve25519.PrivateKeyBytes(types.MustHashFromString(e[2]))
 
 		result := e[3] == "true"
 		if result {
-			expectedDerivedKey = types.MustHashFromString(e[4])
+			expectedDerivedKey = curve25519.PrivateKeyBytes(types.MustHashFromString(e[4]))
 		}
 
-		scalar := base.AsScalar()
+		scalar := base.Scalar()
 
 		if result == false && scalar == nil {
 			//expected failure
@@ -125,20 +126,55 @@ func TestDeriveSecretKey(t *testing.T) {
 			continue
 		}
 
-		sharedData := crypto.GetDerivationSharedDataForOutputIndex(&derivation, outputIndex)
+		sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation, outputIndex)
 
 		var sharedData2 edwards25519.Scalar
 		_ = crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedData2, derivation, outputIndex)
 
-		if sharedData.AsBytes() != crypto.PrivateKeyFromScalar(&sharedData2).AsBytes() {
-			t.Errorf("derive_public_key differs from no_allocate: %s != %s", sharedData, crypto.PrivateKeyFromScalar(&sharedData2))
+		if curve25519.PrivateKeyBytes(sharedData.Bytes()) != curve25519.PrivateKeyBytes(sharedData2.Bytes()) {
+			t.Errorf("derive_secret_key differs from no_allocate: %x != %x", sharedData.Bytes(), sharedData2.Bytes())
 		}
 
-		derivedKey := GetPrivateKeyForSharedData(&base, sharedData)
+		derivedKey := GetPrivateKeyForSharedData(scalar, sharedData)
 
 		if result {
-			if expectedDerivedKey.String() != derivedKey.String() {
-				t.Errorf("expected %s, got %s", expectedDerivedKey.String(), derivedKey.String())
+			if expectedDerivedKey != curve25519.PrivateKeyBytes(derivedKey.Bytes()) {
+				t.Errorf("expected %s, got %x", expectedDerivedKey.String(), derivedKey.Bytes())
+			}
+		}
+	}
+}
+
+func TestGenerateKeyDerivation(t *testing.T) {
+	results := GetTestEntries("generate_key_derivation", 3)
+	if results == nil {
+		t.Fatal()
+	}
+	for e := range results {
+		var expectedDerivation types.Hash
+
+		key1 := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		key2 := curve25519.PrivateKeyBytes(types.MustHashFromString(e[1]))
+		result := e[2] == "true"
+		if result {
+			expectedDerivation = types.MustHashFromString(e[3])
+		}
+
+		point := key1.Point()
+		scalar := key2.Scalar()
+
+		if result == false && (point == nil || scalar == nil) {
+			//expected failure
+			continue
+		} else if point == nil || scalar == nil {
+			t.Errorf("invalid point %s / scalar %s", key1.String(), key2.String())
+			continue
+		}
+
+		derivation := GetDerivation(new(curve25519.ConstantTimePublicKey), point, scalar)
+		if result {
+			if expectedDerivation.String() != derivation.String() {
+				t.Errorf("expected %s, got %s", expectedDerivation.String(), derivation.String())
 			}
 		}
 	}

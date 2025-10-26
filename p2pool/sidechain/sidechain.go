@@ -17,7 +17,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
@@ -208,7 +208,7 @@ func (c *SideChain) isPoolBlockTransactionKeyIsDeterministic(block *PoolBlock) b
 	if len(pubs) != 1 {
 		return false
 	}
-	return bytes.Compare(pubs[0].AsSlice(), kP.PublicKey.AsSlice()) == 0 && block.Side.CoinbasePrivateKey == kP.PrivateKey.AsBytes()
+	return bytes.Compare(pubs[0].Slice(), kP.PublicKey.Slice()) == 0 && block.Side.CoinbasePrivateKey == curve25519.PrivateKeyBytes(kP.PrivateKey.Bytes())
 }
 
 func (c *SideChain) getSeedByHeightFunc() mainblock.GetSeedByHeightFunc {
@@ -947,8 +947,8 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				}
 			} else {
 				//prevent multiple allocations
-				txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
-				txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
+				txPrivateKey := block.Side.CoinbasePrivateKey
+				txPrivateKeyScalar := block.Side.CoinbasePrivateKey.Scalar()
 
 				if len(pubs) != 1 {
 					return nil, utils.ErrorfNoEscape("invalid number of public keys, got %d, expected %d", len(pubs), 1)
@@ -963,7 +963,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 					if addr.IsSubaddress() {
 						return utils.ErrorfNoEscape("is not main address at index %d", workIndex)
 					}
-					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, out.Reward)
+					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, workIndex, out.Reward)
 					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
 						return utils.ErrorfNoEscape("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
 					} else if out.Type == transaction.TxOutToTaggedKey && calculated.ViewTag != out.ViewTag {
@@ -1331,14 +1331,6 @@ func (c *SideChain) GetMissingBlocks() []types.Hash {
 	}
 
 	return missingBlocks
-}
-
-// calculateOutputs
-// Deprecated
-func (c *SideChain) calculateOutputs(block *PoolBlock) (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error) {
-	preAllocatedShares := c.preAllocatedSharesPool.Get()
-	defer c.preAllocatedSharesPool.Put(preAllocatedShares)
-	return CalculateOutputs(block, c.Consensus(), c.server.GetDifficultyByHeight, c.getPoolBlockByTemplateId, c.derivationCache, preAllocatedShares, c.preAllocatedRewards)
 }
 
 func (c *SideChain) Server() P2PoolInterface {

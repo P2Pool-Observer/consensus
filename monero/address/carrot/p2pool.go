@@ -5,7 +5,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -21,7 +21,7 @@ const DomainSeparatorP2PoolDeterministicCarrotOutputRandomness = "P2Pool determi
 // This issue would get worse as more XOR cancellation is possible.
 //
 // While extremely unlikely to happen (16 zero bytes), this function ensures a non-zero output for the Randomness field by using a nonce counter that starts at 0.
-func GetP2PoolDeterministicCarrotOutputRandomness(hasher *blake2b.Digest, seed types.Hash, blockIndex uint64, spendPub, viewPub *crypto.PublicKeyBytes) (out [monero.JanusAnchorSize]byte) {
+func GetP2PoolDeterministicCarrotOutputRandomness(hasher *blake2b.Digest, seed types.Hash, blockIndex uint64, spendPub, viewPub *curve25519.PublicKeyBytes) (out [monero.JanusAnchorSize]byte) {
 	inputContext := MakeCoinbaseInputContext(blockIndex)
 	// a = H_16("..P2Pool..", seed, inputContext, j_s, j_v, nonce)
 

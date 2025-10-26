@@ -6,12 +6,13 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 )
 
 type Address struct {
-	SpendPub    crypto.PublicKeyBytes
-	ViewPub     crypto.PublicKeyBytes
+	SpendPub    curve25519.PublicKeyBytes
+	ViewPub     curve25519.PublicKeyBytes
 	TypeNetwork uint8
 	hasChecksum bool
 	checksum    Checksum
@@ -33,15 +34,11 @@ func (a *Address) Compare(b Interface) int {
 	return crypto.CompareConsensusPublicKeyBytes(&a.ViewPub, b.ViewPublicKey())
 }
 
-func (a *Address) PublicKeys() (spend, view crypto.PublicKey) {
-	return &a.SpendPub, &a.ViewPub
-}
-
-func (a *Address) SpendPublicKey() *crypto.PublicKeyBytes {
+func (a *Address) SpendPublicKey() *curve25519.PublicKeyBytes {
 	return &a.SpendPub
 }
 
-func (a *Address) ViewPublicKey() *crypto.PublicKeyBytes {
+func (a *Address) ViewPublicKey() *curve25519.PublicKeyBytes {
 	return &a.ViewPub
 }
 
@@ -148,18 +145,18 @@ func checksumHash(data []byte) (sum [ChecksumLength]byte) {
 	return sum
 }
 
-func FromRawAddress(typeNetwork uint8, spend, view crypto.PublicKey) *Address {
+func FromRawAddress(typeNetwork uint8, spend, view curve25519.PublicKeyBytes) *Address {
 	var nice [69]byte
 	nice[0] = typeNetwork
-	copy(nice[1:], spend.AsSlice())
-	copy(nice[33:], view.AsSlice())
+	copy(nice[1:], spend[:])
+	copy(nice[33:], view[:])
 
 	return &Address{
 		TypeNetwork: nice[0],
 		checksum:    checksumHash(nice[:65]),
 		hasChecksum: true,
-		SpendPub:    spend.AsBytes(),
-		ViewPub:     view.AsBytes(),
+		SpendPub:    spend,
+		ViewPub:     view,
 	}
 }
 
@@ -167,8 +164,8 @@ func (a *Address) verifyChecksum() {
 	if !a.hasChecksum {
 		var nice [69]byte
 		nice[0] = a.TypeNetwork
-		copy(nice[1:], a.SpendPub.AsSlice())
-		copy(nice[1+crypto.PublicKeySize:], a.ViewPub.AsSlice())
+		copy(nice[1:], a.SpendPub[:])
+		copy(nice[1+curve25519.PublicKeySize:], a.ViewPub[:])
 		//this race is ok
 		a.checksum = checksumHash(nice[:65])
 		a.hasChecksum = true
@@ -177,10 +174,11 @@ func (a *Address) verifyChecksum() {
 
 // Valid check that points can be decoded and that they are not torsioned
 func (a *Address) Valid() bool {
-	if spend := a.SpendPublicKey().AsPoint(); spend == nil || !spend.IsTorsionFreeVarTime() {
+	var spendPub, viewPub curve25519.PublicKey[curve25519.VarTimeOperations]
+	if curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey()) == nil || !spendPub.IsTorsionFree() {
 		return false
 	}
-	if view := a.ViewPublicKey().AsPoint(); view == nil || !view.IsTorsionFreeVarTime() {
+	if curve25519.DecodeCompressedPoint(&viewPub, *a.ViewPublicKey()) == nil || !viewPub.IsTorsionFree() {
 		return false
 	}
 	return true
@@ -189,14 +187,14 @@ func (a *Address) Valid() bool {
 func (a *Address) ToBase58() []byte {
 	a.verifyChecksum()
 	buf := make([]byte, 0, 95)
-	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{a.TypeNetwork}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
+	return base58.EncodeMoneroBase58PreAllocated(buf, []byte{a.TypeNetwork}, a.SpendPub[:], a.ViewPub[:], a.checksum[:])
 }
 
 func (a *Address) MarshalJSON() ([]byte, error) {
 	a.verifyChecksum()
 	buf := make([]byte, 95+2)
 	buf[0] = '"'
-	base58.EncodeMoneroBase58PreAllocated(buf[1:1], []byte{a.TypeNetwork}, a.SpendPub.AsSlice(), a.ViewPub.AsSlice(), a.checksum[:])
+	base58.EncodeMoneroBase58PreAllocated(buf[1:1], []byte{a.TypeNetwork}, a.SpendPub[:], a.ViewPub[:], a.checksum[:])
 	buf[len(buf)-1] = '"'
 	return buf, nil
 }

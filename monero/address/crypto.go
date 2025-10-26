@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
@@ -15,34 +16,45 @@ import (
 // Useful to detect unsupported signatures from hardware wallets on Monero GUI
 var ZeroPrivateKeyAddress PackedAddress
 
+var zeroKeyPub = new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.ZeroPrivateKeyBytes.Scalar())
+
 func init() {
-	ZeroPrivateKeyAddress[PackedAddressSpend] = crypto.ZeroPrivateKeyBytes.PublicKey().AsBytes()
-	ZeroPrivateKeyAddress[PackedAddressView] = crypto.ZeroPrivateKeyBytes.PublicKey().AsBytes()
+	ZeroPrivateKeyAddress[PackedAddressSpend] = zeroKeyPub.Bytes()
+	ZeroPrivateKeyAddress[PackedAddressView] = zeroKeyPub.Bytes()
 }
 
-func GetPrivateKeyForSharedData(spendKey, sharedData crypto.PrivateKey) crypto.PrivateKey {
-	return sharedData.AsScalar().Add(spendKey.AsScalar())
+func GetPrivateKeyForSharedData(spendKey, sharedData *curve25519.Scalar) *curve25519.Scalar {
+	return new(curve25519.Scalar).Add(sharedData, spendKey)
 }
 
-func GetPublicKeyForSharedData(spendPub crypto.PublicKey, sharedData crypto.PrivateKey) crypto.PublicKey {
-	return sharedData.PublicKey().AsPoint().Add(spendPub.AsPoint())
+func GetPublicKeyForSharedData[T curve25519.PointOperations](spendPub *curve25519.PublicKey[T], sharedData *curve25519.Scalar) *curve25519.PublicKey[T] {
+	var result curve25519.PublicKey[T]
+	result.ScalarBaseMult(sharedData)
+	result.Add(&result, spendPub)
+	return &result
 }
 
-func GetEphemeralPublicKey(a Interface, txKey crypto.PrivateKey, outputIndex uint64) crypto.PublicKey {
-	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
-		return GetPublicKeyForSharedData(a.SpendPublicKey(), crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(sa.ViewPublicKey()), outputIndex))
-	} else {
-		return GetPublicKeyForSharedData(a.SpendPublicKey(), crypto.GetDerivationSharedDataForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex))
-	}
+func GetEphemeralPublicKey[T curve25519.PointOperations](a Interface, txKey *curve25519.Scalar, outputIndex uint64) *curve25519.PublicKey[T] {
+	derivation := GetDerivation(new(curve25519.PublicKey[T]), curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.ViewPublicKey()), txKey)
+
+	return GetPublicKeyForSharedData(
+		curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.SpendPublicKey()),
+		crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), outputIndex),
+	)
 }
 
-func GetEphemeralPublicKeyWithViewKey(a Interface, txPubKey crypto.PublicKey, viewKey crypto.PrivateKey, outputIndex uint64) crypto.PublicKey {
-	return GetPublicKeyForSharedData(a.SpendPublicKey(), crypto.GetDerivationSharedDataForOutputIndex(viewKey.GetDerivationCofactor(txPubKey), outputIndex))
+func GetEphemeralPublicKeyWithViewKey[T curve25519.PointOperations](a Interface, txPubKey *curve25519.PublicKey[T], viewKey *curve25519.Scalar, outputIndex uint64) *curve25519.PublicKey[T] {
+	derivation := GetDerivation(new(curve25519.PublicKey[T]), txPubKey, viewKey)
+
+	return GetPublicKeyForSharedData(
+		curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.SpendPublicKey()),
+		crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), outputIndex),
+	)
 }
 
 func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *edwards25519.Scalar, outputIndex uint64, p *edwards25519.Point) {
 	//derivation
-	p.UnsafeVarTimeScalarMult(txKey, viewPub).MultByCofactor(p)
+	p.VarTimeScalarMult(txKey, viewPub).MultByCofactor(p)
 
 	derivationAsBytes := p.Bytes()
 	var varIntBuf [binary.MaxVarintLen64]byte
@@ -51,72 +63,79 @@ func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *e
 	crypto.ScalarDeriveLegacyNoAllocate(&sharedData, derivationAsBytes, varIntBuf[:binary.PutUvarint(varIntBuf[:], outputIndex)])
 
 	//public key + add
-	p.UnsafeVarTimeScalarBaseMult(&sharedData).Add(p, spendPub)
+	p.VarTimeScalarBaseMult(&sharedData).Add(p, spendPub)
 }
 
-func GetEphemeralPublicKeyAndViewTagWithViewKey(a Interface, txPubKey crypto.PublicKey, viewKey crypto.PrivateKey, outputIndex uint64) (crypto.PublicKey, uint8) {
-	pK, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(viewKey.GetDerivationCofactor(txPubKey), outputIndex)
-	return GetPublicKeyForSharedData(a.SpendPublicKey(), pK), viewTag
+func GetEphemeralPublicKeyAndViewTagWithViewKey[T curve25519.PointOperations](a Interface, txPubKey *curve25519.PublicKey[T], viewKey *curve25519.Scalar, outputIndex uint64) (*curve25519.PublicKey[T], uint8) {
+	derivation := GetDerivation(new(curve25519.PublicKey[T]), txPubKey, viewKey)
+
+	pK, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), outputIndex)
+	return GetPublicKeyForSharedData(curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.SpendPublicKey()), pK), viewTag
 }
 
-func CalculateTransactionOutput(a Interface, txKey crypto.PrivateKey, outputIndex, amount uint64) (out transaction.Output, additionalTxPub crypto.PublicKey, encryptedAmount uint64) {
-	var pK crypto.PrivateKey
-	var viewTag uint8
+func CalculateTransactionOutput[T curve25519.PointOperations](a Interface, txKey *curve25519.Scalar, outputIndex, amount uint64) (out transaction.Output, additionalTxPub *curve25519.PublicKey[T], encryptedAmount uint64) {
+	var pK curve25519.Scalar
+
+	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.SpendPublicKey())
 	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
-		additionalTxPub = txKey.GetDerivation(sa.SpendPublicKey())
-		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(sa.ViewPublicKey()), outputIndex)
-	} else {
-		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex)
+		additionalTxPub = new(curve25519.PublicKey[T]).ScalarMult(txKey, spendPub)
 	}
+
+	derivation := GetDerivation(new(curve25519.PublicKey[T]), curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.ViewPublicKey()), txKey)
+
+	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation.Bytes(), outputIndex)
 
 	out.Type = transaction.TxOutToTaggedKey
 	out.Index = outputIndex
 	out.ViewTag.Slice()[0] = viewTag
-	out.EphemeralPublicKey = GetPublicKeyForSharedData(a.SpendPublicKey(), pK).AsBytes()
+	out.EphemeralPublicKey = GetPublicKeyForSharedData(spendPub, &pK).Bytes()
 
-	return out, additionalTxPub, crypto.DecryptOutputAmount(pK, amount)
+	return out, additionalTxPub, crypto.DecryptOutputAmount(curve25519.PrivateKeyBytes(pK.Bytes()), amount)
 }
 
-func GetEphemeralPublicKeyAndViewTag(a Interface, txKey crypto.PrivateKey, outputIndex uint64) (crypto.PublicKey, uint8) {
-	var pK crypto.PrivateKey
-	var viewTag uint8
-	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
-		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(sa.ViewPublicKey()), outputIndex)
-	} else {
-		pK, viewTag = crypto.GetDerivationSharedDataAndViewTagForOutputIndex(txKey.GetDerivationCofactor(a.ViewPublicKey()), outputIndex)
-	}
+func GetEphemeralPublicKeyAndViewTag[T curve25519.PointOperations](a Interface, txKey *curve25519.Scalar, outputIndex uint64) (*curve25519.PublicKey[T], uint8) {
+	derivation := GetDerivation(new(curve25519.PublicKey[T]), curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.ViewPublicKey()), txKey)
 
-	return GetPublicKeyForSharedData(a.SpendPublicKey(), pK), viewTag
+	var pK curve25519.Scalar
+	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation.Bytes(), outputIndex)
+
+	return GetPublicKeyForSharedData(curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.SpendPublicKey()), &pK), viewTag
 }
 
 // GetEphemeralPublicKeyAndViewTagNoAllocate Special version of GetEphemeralPublicKeyAndViewTag
-func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519.Point, derivation crypto.PublicKeyBytes, outputIndex uint64) (crypto.PublicKeyBytes, uint8) {
+func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519.Point, derivation curve25519.PublicKeyBytes, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
 	var intermediatePublicKey, ephemeralPublicKey edwards25519.Point
 	var derivationSharedData edwards25519.Scalar
 	viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&derivationSharedData, derivation, outputIndex)
 
-	intermediatePublicKey.UnsafeVarTimeScalarBaseMult(&derivationSharedData)
+	intermediatePublicKey.VarTimeScalarBaseMult(&derivationSharedData)
 	ephemeralPublicKey.Add(&intermediatePublicKey, spendPublicKeyPoint)
 
-	var ephemeralPublicKeyBytes crypto.PublicKeyBytes
+	var ephemeralPublicKeyBytes curve25519.PublicKeyBytes
 	copy(ephemeralPublicKeyBytes[:], ephemeralPublicKey.Bytes())
 
 	return ephemeralPublicKeyBytes, viewTag
 }
 
+func GetDerivation[T curve25519.PointOperations](out *curve25519.PublicKey[T], viewPub *curve25519.PublicKey[T], txKey *edwards25519.Scalar) *curve25519.PublicKey[T] {
+	out.ScalarMult(txKey, viewPub)
+	out.MultByCofactor(out)
+	return out
+}
+
 // GetDerivationNoAllocate Special version
 func GetDerivationNoAllocate(derivation *edwards25519.Point, viewPublicKeyPoint *edwards25519.Point, txKey *edwards25519.Scalar) {
-	derivation.UnsafeVarTimeScalarMult(txKey, viewPublicKeyPoint)
+	derivation.VarTimeScalarMult(txKey, viewPublicKeyPoint)
 	derivation.MultByCofactor(derivation)
 }
 
 // GetDerivationNoAllocateTable Special version but with table
-func GetDerivationNoAllocateTable(viewPublicKeyTable *edwards25519.PrecomputedTable, txKey *edwards25519.Scalar) crypto.PublicKeyBytes {
+func GetDerivationNoAllocateTable(viewPublicKeyTable *edwards25519.PrecomputedTable, txKey *edwards25519.Scalar) curve25519.PublicKeyBytes {
 	var point, derivation edwards25519.Point
-	point.UnsafeVarTimeScalarMultPrecomputed(txKey, viewPublicKeyTable)
+	point.VarTimeScalarMultPrecomputed(txKey, viewPublicKeyTable)
 	derivation.MultByCofactor(&point)
 
-	return crypto.PublicKeyBytes(derivation.Bytes())
+	return curve25519.PublicKeyBytes(derivation.Bytes())
 }
 
 type SignatureVerifyResult int
@@ -134,8 +153,8 @@ const (
 func GetMessageHash(a Interface, message []byte, mode uint8) types.Hash {
 	return crypto.Keccak256Var(
 		[]byte("MoneroMessageSignature\x00"),
-		a.SpendPublicKey().AsSlice(),
-		a.ViewPublicKey().AsSlice(),
+		a.SpendPublicKey()[:],
+		a.ViewPublicKey()[:],
 		[]byte{mode},
 		binary.AppendUvarint(nil, uint64(len(message))),
 		message,
@@ -154,18 +173,22 @@ func VerifyMessage(a Interface, message []byte, signature string) SignatureVerif
 	}
 	raw := base58.DecodeMoneroBase58([]byte(signature[5:]))
 
-	sig := crypto.NewSignatureFromBytes(raw)
+	sig := crypto.NewSignatureFromBytes[curve25519.VarTimeOperations](raw)
 
 	if sig == nil {
 		return ResultFail
 	}
 
-	if crypto.VerifyMessageSignature(hash, a.SpendPublicKey().AsPoint(), *sig) {
+	var spendPub, viewPub curve25519.VarTimePublicKey
+	curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
+	curve25519.DecodeCompressedPoint(&viewPub, *a.ViewPublicKey())
+
+	if crypto.VerifyMessageSignature(hash, &spendPub, *sig) {
 		return ResultSuccessSpend
 	}
 
 	// Special mode: view wallets in Monero GUI could generate signatures with spend public key proper, with message hash of spend wallet mode, but zero spend private key
-	if crypto.VerifyMessageSignatureSplit(hash, a.SpendPublicKey().AsPoint(), ZeroPrivateKeyAddress.SpendPublicKey().AsPoint(), *sig) {
+	if crypto.VerifyMessageSignatureSplit(hash, &spendPub, zeroKeyPub, *sig) {
 		return ResultFailZeroSpend
 	}
 
@@ -173,7 +196,7 @@ func VerifyMessage(a Interface, message []byte, signature string) SignatureVerif
 		hash = GetMessageHash(a, message, 1)
 	}
 
-	if crypto.VerifyMessageSignature(hash, a.ViewPublicKey().AsPoint(), *sig) {
+	if crypto.VerifyMessageSignature(hash, &viewPub, *sig) {
 		return ResultSuccessView
 	}
 
@@ -193,18 +216,22 @@ func VerifyMessageFallbackToZero(a Interface, message []byte, signature string) 
 	}
 	raw := base58.DecodeMoneroBase58([]byte(signature[5:]))
 
-	sig := crypto.NewSignatureFromBytes(raw)
+	sig := crypto.NewSignatureFromBytes[curve25519.VarTimeOperations](raw)
 
 	if sig == nil {
 		return ResultFail
 	}
 
-	if crypto.VerifyMessageSignature(hash, a.SpendPublicKey().AsPoint(), *sig) {
+	var spendPub, viewPub curve25519.VarTimePublicKey
+	curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
+	curve25519.DecodeCompressedPoint(&viewPub, *a.ViewPublicKey())
+
+	if crypto.VerifyMessageSignature(hash, &spendPub, *sig) {
 		return ResultSuccessSpend
 	}
 
 	// Special mode: view wallets in Monero GUI could generate signatures with spend public key proper, with message hash of spend wallet mode, but zero spend private key
-	if crypto.VerifyMessageSignatureSplit(hash, a.SpendPublicKey().AsPoint(), ZeroPrivateKeyAddress.SpendPublicKey().AsPoint(), *sig) {
+	if crypto.VerifyMessageSignatureSplit(hash, &spendPub, zeroKeyPub, *sig) {
 		return ResultFailZeroSpend
 	}
 
@@ -212,12 +239,12 @@ func VerifyMessageFallbackToZero(a Interface, message []byte, signature string) 
 		hash = GetMessageHash(a, message, 1)
 	}
 
-	if crypto.VerifyMessageSignature(hash, a.ViewPublicKey().AsPoint(), *sig) {
+	if crypto.VerifyMessageSignature(hash, &viewPub, *sig) {
 		return ResultSuccessView
 	}
 
 	// Special mode
-	if crypto.VerifyMessageSignatureSplit(hash, a.ViewPublicKey().AsPoint(), ZeroPrivateKeyAddress.ViewPublicKey().AsPoint(), *sig) {
+	if crypto.VerifyMessageSignatureSplit(hash, &viewPub, zeroKeyPub, *sig) {
 		return ResultFailZeroView
 	}
 

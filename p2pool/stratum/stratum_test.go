@@ -18,6 +18,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
@@ -209,8 +210,8 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 	if n > 2 {
 		for range n / 2 {
 			testAddresses = append(testAddresses, address.NewPackedAddressWithSubaddressFromBytes(
-				crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)).PublicKey().AsBytes(),
-				crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)).PublicKey().AsBytes(),
+				new(curve25519.VarTimePublicKey).ScalarBaseMult(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)).Bytes(),
+				new(curve25519.VarTimePublicKey).ScalarBaseMult(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)).Bytes(),
 				sidechain.P2PoolShareVersion(consensus, 0) >= sidechain.ShareVersion_V3 && /* TODO: remove when supported? */ minerData.MajorVersion < monero.HardForkCarrotVersion,
 			))
 		}
@@ -276,7 +277,7 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 
 		if testAddresses[minerId].IsSubaddress() && tpl.MajorVersion() < monero.HardForkCarrotVersion {
 			// explicitly add old subaddress tagging information before hardfork
-			var subaddressViewPubBuf [crypto.PublicKeySize + 2]byte
+			var subaddressViewPubBuf [curve25519.PublicKeySize + 2]byte
 			copy(subaddressViewPubBuf[:], testAddresses[minerId].ViewPublicKey()[:])
 			mmExtra = mmExtra.Set(sidechain.ExtraChainKeySubaddressViewPub, subaddressViewPubBuf[:])
 		}
@@ -544,8 +545,8 @@ func BenchmarkServer_BuildTemplate(b *testing.B) {
 	//generate random keys deterministically
 	for i := range randomKeys {
 		spendPriv, viewPriv := crypto.DeterministicScalar(new(edwards25519.Scalar), []byte(fmt.Sprintf("BenchmarkBuildTemplate_%d_spend", i))), crypto.DeterministicScalar(new(edwards25519.Scalar), []byte(fmt.Sprintf("BenchmarkBuildTemplate_%d_spend", i)))
-		randomKeys[i][0] = (*crypto.PrivateKeyScalar)(spendPriv).PublicKey().AsBytes()
-		randomKeys[i][1] = (*crypto.PrivateKeyScalar)(viewPriv).PublicKey().AsBytes()
+		randomKeys[i][0] = new(curve25519.VarTimePublicKey).ScalarBaseMult(spendPriv).Bytes()
+		randomKeys[i][1] = new(curve25519.VarTimePublicKey).ScalarBaseMult(viewPriv).Bytes()
 	}
 
 	b.ResetTimer()

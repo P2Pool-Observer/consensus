@@ -1,13 +1,14 @@
 package sidechain
 
 import (
+	"encoding/hex"
 	"os"
 	"path"
 	"runtime"
 	"strings"
 	"testing"
 
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -19,11 +20,11 @@ func TestDeterministicTransactionPrivateKey(t *testing.T) {
 	previousId, _ := types.HashFromString("b64ec18bf2dfa4658693d7f35836d212e66dee47af6f7263ab2bf00e422bcd68")
 	publicSpendKeyBytes, _ := fasthex.DecodeString("f2be6705a034f8f485ee9bc3c21b6309cd0d9dd2111441cc32753ba2bac41b6d")
 	p, _ := (&edwards25519.Point{}).SetBytes(publicSpendKeyBytes)
-	spendPublicKey := crypto.PublicKeyFromPoint(p)
+	spendPublicKey := curve25519.FromPoint[curve25519.VarTimeOperations](p)
 
-	calculatedPrivateKey := GetDeterministicTransactionPrivateKey(types.Hash(spendPublicKey.AsBytes()), previousId)
-	if calculatedPrivateKey.String() != expectedPrivateKey {
-		t.Fatalf("got %s, expected %s", calculatedPrivateKey.String(), expectedPrivateKey)
+	calculatedPrivateKey := GetDeterministicTransactionPrivateKey(new(edwards25519.Scalar), types.Hash(spendPublicKey.Bytes()), previousId)
+	if hex.EncodeToString(calculatedPrivateKey.Bytes()) != expectedPrivateKey {
+		t.Fatalf("got %x, expected %s", calculatedPrivateKey.Bytes(), expectedPrivateKey)
 	}
 }
 
@@ -67,11 +68,11 @@ func TestGetTxKeys(t *testing.T) {
 		expectedPublicKey := types.MustHashFromString(e[2])
 		expectedSecretKey := types.MustHashFromString(e[3])
 
-		privateKey := GetDeterministicTransactionPrivateKey(walletSpendKey, moneroBlockId)
-		publicKey := privateKey.PublicKey()
+		privateKey := GetDeterministicTransactionPrivateKey(new(edwards25519.Scalar), walletSpendKey, moneroBlockId)
+		publicKey := new(curve25519.VarTimePublicKey).ScalarBaseMult(privateKey)
 
-		if expectedSecretKey.String() != privateKey.String() {
-			t.Fatalf("expected %s, got %s", expectedSecretKey.String(), privateKey.String())
+		if expectedSecretKey.String() != hex.EncodeToString(privateKey.Bytes()) {
+			t.Fatalf("expected %s, got %x", expectedSecretKey.String(), privateKey.Bytes())
 		}
 		if expectedPublicKey.String() != publicKey.String() {
 			t.Fatalf("expected %s, got %s", expectedPublicKey.String(), publicKey.String())

@@ -1,4 +1,4 @@
-package crypto
+package curve25519
 
 import (
 	"git.gammaspectra.live/P2Pool/edwards25519"
@@ -13,13 +13,13 @@ var X25519Basepoint = X25519PublicKey{9}
 
 // X25519ScalarBaseMult Multiply a Scalar by the Basepoint, and place result in dst
 // This is done by doing it in edwards then converting to Montgomery
-func X25519ScalarBaseMult(dst *X25519PublicKey, s *edwards25519.Scalar) {
+func X25519ScalarBaseMult[T PointOperations](dst *X25519PublicKey, s *Scalar) {
 	// X25519ScalarMult(dst, scalar, X25519Basepoint)
 
-	var p edwards25519.Point
-	p.UnsafeVarTimeScalarBaseMult(s)
+	var p PublicKey[T]
+	p.ScalarBaseMult(s)
 
-	*dst = ConvertPointE(&p)
+	*dst = p.Montgomery()
 }
 
 // X25519ScalarMult Multiply a Scalar by the given point, and place result in dst

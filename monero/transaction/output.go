@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -115,7 +115,7 @@ type Output struct {
 	// https://github.com/SChernykh/p2pool/blob/10d583adb67d0566af6c36a6c97fed69545421a2/src/pool_block.h#L104-L106
 	Reward uint64 `json:"reward"`
 	// Type would be here
-	EphemeralPublicKey   crypto.PublicKeyBytes                           `json:"ephemeral_public_key"`
+	EphemeralPublicKey   curve25519.PublicKeyBytes                       `json:"ephemeral_public_key"`
 	EncryptedJanusAnchor types.FixedBytes[[monero.JanusAnchorSize]uint8] `json:"encrypted_janus_anchor,omitempty"`
 
 	// Type re-arranged here to improve memory layout space
@@ -127,7 +127,7 @@ type Output struct {
 func (o Output) BufferLength() (n int) {
 	n += utils.UVarInt64Size(o.Reward) +
 		1 +
-		crypto.PublicKeySize
+		curve25519.PublicKeySize
 	if o.Type == TxOutToTaggedKey {
 		n++
 	} else if o.Type == TxOutToCarrotV1 {

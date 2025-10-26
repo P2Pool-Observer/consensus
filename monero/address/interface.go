@@ -1,16 +1,14 @@
 package address
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 )
 
 type Interface interface {
 	Compare(b Interface) int
 
-	PublicKeys() (spend, view crypto.PublicKey)
-
-	SpendPublicKey() *crypto.PublicKeyBytes
-	ViewPublicKey() *crypto.PublicKeyBytes
+	SpendPublicKey() *curve25519.PublicKeyBytes
+	ViewPublicKey() *curve25519.PublicKeyBytes
 
 	ToAddress(network uint8, err ...error) *Address
 	ToPackedAddress() PackedAddress

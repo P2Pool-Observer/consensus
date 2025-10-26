@@ -1,30 +1,19 @@
 package crypto
 
-import "git.gammaspectra.live/P2Pool/edwards25519"
+import (
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/edwards25519"
+)
 
 func inlineKeccak[T ~[]byte | ~string](data T) []byte {
 	h := Keccak256(data)
 	return h[:]
 }
 
-type Generator struct {
-	// Point The point used as Generator
-	Point *edwards25519.Point
-	// Table Precomputed table of Point to be used in VarTime Precomputed scalar point multiplication
-	Table *edwards25519.PrecomputedTable
-}
-
-func newGenerator(point *edwards25519.Point) *Generator {
-	return &Generator{
-		Point: point,
-		Table: edwards25519.PointTablePrecompute(point),
-	}
-}
-
 var (
 	// GeneratorG generator of 𝔾E
 	// G = {x, 4/5 mod q}
-	GeneratorG = newGenerator(edwards25519.NewGeneratorPoint())
+	GeneratorG = curve25519.NewGenerator(edwards25519.NewGeneratorPoint())
 
 	// GeneratorH H_p^1(G)
 	// H = 8*to_point(keccak(G))
@@ -34,17 +23,17 @@ var (
 	//        normally)
 	//
 	// Contrary to convention (`G` for values, `H` for randomness), `H` is used by Monero for amounts within Pedersen commitments
-	GeneratorH = newGenerator(HopefulHashToPoint(new(edwards25519.Point), GeneratorG.Point.Bytes()))
+	GeneratorH = curve25519.NewGenerator(HopefulHashToPoint(new(curve25519.VarTimePublicKey), GeneratorG.Point.Bytes()).P())
 
 	// GeneratorT H_p^2(Keccak256("Monero Generator T"))
 	// Used to blind the key-image commitment present within output keys
-	GeneratorT = newGenerator(UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero Generator T")))
+	GeneratorT = curve25519.NewGenerator(UnbiasedHashToPoint(new(curve25519.VarTimePublicKey), inlineKeccak("Monero Generator T")).P())
 
 	// GeneratorU H_p^2(Keccak256("Monero FCMP++ Generator U"))
 	// FCMP++s's key-image generator blinding generator U
-	GeneratorU = newGenerator(UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero FCMP++ Generator U")))
+	GeneratorU = curve25519.NewGenerator(UnbiasedHashToPoint(new(curve25519.VarTimePublicKey), inlineKeccak("Monero FCMP++ Generator U")).P())
 
 	// GeneratorV H_p^2(Keccak256("Monero FCMP++ Generator V"))
 	// FCMP++s's randomness commitment generator V
-	GeneratorV = newGenerator(UnbiasedHashToPoint(new(edwards25519.Point), inlineKeccak("Monero FCMP++ Generator V")))
+	GeneratorV = curve25519.NewGenerator(UnbiasedHashToPoint(new(curve25519.VarTimePublicKey), inlineKeccak("Monero FCMP++ Generator V")).P())
 )

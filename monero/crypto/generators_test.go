@@ -3,12 +3,13 @@ package crypto
 import (
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 type pointTestData struct {
 	Name      string
-	Generator *Generator
+	Generator *curve25519.Generator
 	Expected  string
 }
 
@@ -29,9 +30,9 @@ func TestReproduceGenerators(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			expected := PublicKeyBytes(h)
+			expected := curve25519.PublicKeyBytes(h)
 
-			p := PublicKeyFromPoint(e.Generator.Point).AsBytes()
+			p := curve25519.FromPoint[curve25519.VarTimeOperations](e.Generator.Point).Bytes()
 			if p != expected {
 				t.Fatalf("got %s, expected %s", p.String(), expected.String())
 			} else {

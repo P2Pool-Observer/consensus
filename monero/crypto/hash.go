@@ -5,9 +5,9 @@ import (
 	"io"
 
 	"git.gammaspectra.live/P2Pool/blake2b"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -86,8 +86,8 @@ func TransactionIdHash(dst *types.Hash, coinbaseBlobMinusBaseRTC, baseRTC, pruna
 
 // HopefulHashToPoint
 // Defined as H_p^1 in Carrot
-func HopefulHashToPoint(dst *edwards25519.Point, data []byte) *edwards25519.Point {
-	result := DecodeCompressedPoint(dst, Keccak256(data))
+func HopefulHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], data []byte) *curve25519.PublicKey[T] {
+	result := curve25519.DecodeCompressedPoint(dst, Keccak256(data))
 	if result == nil {
 		return nil
 	}
@@ -120,8 +120,8 @@ func HopefulHashToPoint(dst *edwards25519.Point, data []byte) *edwards25519.Poin
 // As this only applies Elligator 2 once, it's limited to a subset of points where a certain
 // derivative of their `u` coordinates (in Montgomery form) are quadratic residues. It's biased
 // accordingly.
-func BiasedHashToPoint(dst *edwards25519.Point, data []byte) *edwards25519.Point {
-	elligator2WithUniformBytes(dst, Keccak256(data))
+func BiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], data []byte) *curve25519.PublicKey[T] {
+	curve25519.Elligator2WithUniformBytes(dst, Keccak256(data))
 
 	// Ensure points lie within the prime-order subgroup
 	dst.MultByCofactor(dst)
@@ -132,12 +132,12 @@ func BiasedHashToPoint(dst *edwards25519.Point, data []byte) *edwards25519.Point
 // Defined as H_p^2 in Carrot
 //
 // Similar to https://github.com/seraphis-migration/monero/blob/74a254f8c215986042c40e6875a0f97bd6169a1e/src/crypto/crypto.cpp#L622
-func UnbiasedHashToPoint(dst *edwards25519.Point, preimage []byte) *edwards25519.Point {
+func UnbiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], preimage []byte) *curve25519.PublicKey[T] {
 	h := blake2b.Sum512(preimage)
 
-	var first, second edwards25519.Point
-	elligator2WithUniformBytes(&first, [PublicKeySize]byte(h[:PublicKeySize]))
-	elligator2WithUniformBytes(&second, [PublicKeySize]byte(h[PublicKeySize:]))
+	var first, second curve25519.PublicKey[T]
+	curve25519.Elligator2WithUniformBytes(&first, [curve25519.PublicKeySize]byte(h[:curve25519.PublicKeySize]))
+	curve25519.Elligator2WithUniformBytes(&second, [curve25519.PublicKeySize]byte(h[curve25519.PublicKeySize:]))
 
 	// Ensure points lie within the prime-order subgroup
 	first.MultByCofactor(&first)

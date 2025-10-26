@@ -17,7 +17,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	mainblock "git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
@@ -320,7 +320,7 @@ func (b *PoolBlock) FastSideTemplateId(consensus *Consensus) types.Hash {
 	}
 }
 
-func (b *PoolBlock) fillCoinbasePublicKeys(pubs []crypto.PublicKeyBytes) error {
+func (b *PoolBlock) fillCoinbasePublicKeys(pubs []curve25519.PublicKeyBytes) error {
 	if len(pubs) == 0 {
 		return nil
 	}
@@ -342,11 +342,11 @@ func (b *PoolBlock) fillCoinbasePublicKeys(pubs []crypto.PublicKeyBytes) error {
 		Tag:       transaction.TxExtraTagAdditionalPubKeys,
 		HasVarInt: true,
 		VarInt:    uint64(len(pubs)),
-		Data:      make(types.Bytes, crypto.PublicKeySize*(len(pubs))),
+		Data:      make(types.Bytes, curve25519.PublicKeySize*(len(pubs))),
 	}
 
 	for i, pub := range pubs {
-		copy(tag.Data[i*crypto.PublicKeySize:], pub[:])
+		copy(tag.Data[i*curve25519.PublicKeySize:], pub[:])
 	}
 	// add last
 	extra = append(extra, tag)
@@ -356,21 +356,21 @@ func (b *PoolBlock) fillCoinbasePublicKeys(pubs []crypto.PublicKeyBytes) error {
 	return nil
 }
 
-func (b *PoolBlock) CoinbasePublicKeys() (result []crypto.PublicKeyBytes) {
+func (b *PoolBlock) CoinbasePublicKeys() (result []curve25519.PublicKeyBytes) {
 	// first tag
 	if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagPubKey); t != nil {
-		if len(t.Data) != crypto.PublicKeySize {
+		if len(t.Data) != curve25519.PublicKeySize {
 			return nil
 		}
-		return []crypto.PublicKeyBytes{crypto.PublicKeyBytes(t.Data)}
+		return []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(t.Data)}
 	}
 
 	if b.Main.MajorVersion >= monero.HardForkCarrotVersion {
 		if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys); t != nil {
-			if len(t.Data)%crypto.PublicKeySize != 0 || len(t.Data) == 0 {
+			if len(t.Data)%curve25519.PublicKeySize != 0 || len(t.Data) == 0 {
 				return nil
 			}
-			return unsafe.Slice((*crypto.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(t.Data))), len(t.Data)/crypto.PublicKeySize)
+			return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(t.Data))), len(t.Data)/curve25519.PublicKeySize)
 		}
 	}
 
@@ -696,14 +696,14 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 
 	// Wallet point validity and torsion check, at FCMP++ or one week ahead of time
 	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion || monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.GenHeight+720*7) >= monero.HardForkFCMPPlusPlusVersion {
-		var spendPub, viewPub edwards25519.Point
-		if crypto.DecodeCompressedPoint(&spendPub, *b.Side.PublicKey.SpendPublicKey()) == nil || crypto.DecodeCompressedPoint(&viewPub, *b.Side.PublicKey.ViewPublicKey()) == nil {
+		var spendPub, viewPub curve25519.VarTimePublicKey
+		if curve25519.DecodeCompressedPoint(&spendPub, *b.Side.PublicKey.SpendPublicKey()) == nil || curve25519.DecodeCompressedPoint(&viewPub, *b.Side.PublicKey.ViewPublicKey()) == nil {
 			return errors.New("block must have a valid wallet address")
 		}
-		if !spendPub.IsTorsionFreeVarTime() {
+		if !spendPub.IsTorsionFree() {
 			return errors.New("block must have a non-torsioned spend public key")
 		}
-		if !viewPub.IsTorsionFreeVarTime() {
+		if !viewPub.IsTorsionFree() {
 			return errors.New("block must have a non-torsioned view public key")
 		}
 	}
@@ -715,13 +715,13 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 
 // PreProcessBlock processes and fills the block data from either pruned or compact modes
 func (b *PoolBlock) PreProcessBlock(consensus *Consensus, derivationCache DerivationCacheInterface, preAllocatedShares Shares, difficultyByHeight mainblock.GetDifficultyByHeightFunc, getTemplateById GetByTemplateIdFunc) (missingBlocks []types.Hash, err error) {
-	return b.PreProcessBlockWithOutputs(consensus, getTemplateById, func() (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error) {
+	return b.PreProcessBlockWithOutputs(consensus, getTemplateById, func() (outputs transaction.Outputs, pubs []curve25519.PublicKeyBytes, bottomHeight uint64, err error) {
 		return CalculateOutputs(b, consensus, difficultyByHeight, getTemplateById, derivationCache, preAllocatedShares, nil)
 	})
 }
 
 // PreProcessBlockWithOutputs processes and fills the block data from either pruned or compact modes
-func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplateById GetByTemplateIdFunc, calculateOutputs func() (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error)) (missingBlocks []types.Hash, err error) {
+func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplateById GetByTemplateIdFunc, calculateOutputs func() (outputs transaction.Outputs, pubs []curve25519.PublicKeyBytes, bottomHeight uint64, err error)) (missingBlocks []types.Hash, err error) {
 
 	getTemplateByIdFillingTx := func(h types.Hash) *PoolBlock {
 		chain := make(UniquePoolBlockSlice, 0, 1)
@@ -818,10 +818,10 @@ func (b *PoolBlock) NeedsPostProcess() bool {
 func (b *PoolBlock) FillPrivateKeys(derivationCache DerivationCacheInterface) {
 	if b.Main.MajorVersion < monero.HardForkCarrotVersion {
 		if b.ShareVersion() >= ShareVersion_V2 {
-			if b.Side.CoinbasePrivateKey == crypto.ZeroPrivateKeyBytes {
+			if b.Side.CoinbasePrivateKey == curve25519.ZeroPrivateKeyBytes {
 				//Fill Private Key
 				kP := derivationCache.GetDeterministicTransactionKey(b.GetPrivateKeySeed(), b.Main.PreviousId)
-				b.Side.CoinbasePrivateKey = kP.PrivateKey.AsBytes()
+				b.Side.CoinbasePrivateKey = curve25519.PrivateKeyBytes(kP.PrivateKey.Bytes())
 			}
 		} else {
 			b.Side.CoinbasePrivateKeySeed = b.GetPrivateKeySeed()
@@ -865,7 +865,7 @@ func (b *PoolBlock) GetPrivateKeySeed() types.Hash {
 	}
 
 	oldSeed := types.Hash(b.Side.PublicKey[address.PackedAddressSpend])
-	if b.Main.MajorVersion < monero.HardForkViewTagsVersion && GetDeterministicTransactionPrivateKey(oldSeed, b.Main.PreviousId).AsBytes() != b.Side.CoinbasePrivateKey {
+	if b.Main.MajorVersion < monero.HardForkViewTagsVersion && curve25519.PrivateKeyBytes(GetDeterministicTransactionPrivateKey(new(edwards25519.Scalar), oldSeed, b.Main.PreviousId).Bytes()) != b.Side.CoinbasePrivateKey {
 		return types.ZeroHash
 	}
 
@@ -892,10 +892,10 @@ func (b *PoolBlock) GetAddress() address.PackedAddressWithSubaddress {
 }
 
 func (b *PoolBlock) GetMergeMineExtraSubaddress() *address.PackedAddressWithSubaddress {
-	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) >= crypto.PublicKeySize {
+	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) >= curve25519.PublicKeySize {
 		// subaddress
-		viewPub := crypto.PublicKeyBytes(d[:crypto.PublicKeySize])
-		if viewPub.AsPoint() != nil {
+		viewPub := curve25519.PublicKeyBytes(d[:curve25519.PublicKeySize])
+		if viewPub.Point() != nil {
 			out := address.NewPackedAddressWithSubaddressFromBytes(*b.Side.PublicKey.SpendPublicKey(), viewPub, true)
 			return &out
 		}
@@ -905,10 +905,10 @@ func (b *PoolBlock) GetMergeMineExtraSubaddress() *address.PackedAddressWithSuba
 }
 
 func (b *PoolBlock) GetOnionAddressV3() *p2pooltypes.OnionAddressV3 {
-	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeyOnionAddressV3); ok && len(d) == crypto.PublicKeySize+2 {
+	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeyOnionAddressV3); ok && len(d) == curve25519.PublicKeySize+2 {
 		var pubkey p2pooltypes.OnionAddressV3
-		copy(pubkey[:], d[:crypto.PublicKeySize])
-		d = d[crypto.PublicKeySize:]
+		copy(pubkey[:], d[:curve25519.PublicKeySize])
+		d = d[curve25519.PublicKeySize:]
 		if d[0] != 0 || d[1] != 0 {
 			return nil
 		}
@@ -938,7 +938,7 @@ func (b *PoolBlock) GetPayoutAddress(networkType NetworkType) *address.Address {
 	if b.Main.MajorVersion < monero.HardForkCarrotVersion {
 		if sa := b.GetMergeMineExtraSubaddress(); sa != nil {
 			if n, err := networkType.SubaddressNetwork(); err == nil {
-				return address.FromRawAddress(n, sa.SpendPublicKey(), sa.ViewPublicKey())
+				return address.FromRawAddress(n, *sa.SpendPublicKey(), *sa.ViewPublicKey())
 			} else {
 				return nil
 			}
@@ -947,11 +947,11 @@ func (b *PoolBlock) GetPayoutAddress(networkType NetworkType) *address.Address {
 
 	if b.Side.IsSubaddress {
 		if n, err := networkType.SubaddressNetwork(); err == nil {
-			return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), b.Side.PublicKey.ViewPublicKey())
+			return address.FromRawAddress(n, *b.Side.PublicKey.SpendPublicKey(), *b.Side.PublicKey.ViewPublicKey())
 		}
 	} else {
 		if n, err := networkType.AddressNetwork(); err == nil {
-			return address.FromRawAddress(n, b.Side.PublicKey.SpendPublicKey(), b.Side.PublicKey.ViewPublicKey())
+			return address.FromRawAddress(n, *b.Side.PublicKey.SpendPublicKey(), *b.Side.PublicKey.ViewPublicKey())
 		}
 	}
 	return nil

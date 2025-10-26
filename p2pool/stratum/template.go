@@ -9,6 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
@@ -117,12 +118,12 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 		}
 
 		// side data up to the end of side data
-		if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2+1:]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2+1:]); err != nil {
 			return err
 		}
 	} else {
 		// side data up to the end of side data
-		if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2:]); err != nil {
+		if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2:]); err != nil {
 			return err
 		}
 	}
@@ -202,13 +203,13 @@ func (tpl *Template) Blob(preAllocatedBuffer []byte, consensus *sidechain.Consen
 
 	// set own data
 	copy(buf[tpl.TemplateSideDataOffset:], addr.SpendPublicKey()[:])
-	copy(buf[tpl.TemplateSideDataOffset+crypto.PublicKeySize:], addr.ViewPublicKey()[:])
+	copy(buf[tpl.TemplateSideDataOffset+curve25519.PublicKeySize:], addr.ViewPublicKey()[:])
 
 	if tpl.MajorVersion() >= monero.HardForkCarrotVersion {
 		if addr.IsSubaddress() {
-			buf[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2] = 1
+			buf[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2] = 1
 		} else {
-			buf[tpl.TemplateSideDataOffset+crypto.PublicKeySize*2] = 0
+			buf[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2] = 0
 		}
 	}
 
@@ -430,7 +431,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
 		fcmpOffset = 1 + types.HashSize
 		// remove the additional pub keys
-		fcmpMerkleRootOffset = 1 + utils.UVarInt64Size(len(b.Main.Coinbase.Outputs)) + crypto.PublicKeySize*len(b.Main.Coinbase.Outputs)
+		fcmpMerkleRootOffset = 1 + utils.UVarInt64Size(len(b.Main.Coinbase.Outputs)) + curve25519.PublicKeySize*len(b.Main.Coinbase.Outputs)
 	}
 
 	tpl.NonceOffset = mainBufferLength - (4 + coinbaseLength + utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions) + fcmpOffset)

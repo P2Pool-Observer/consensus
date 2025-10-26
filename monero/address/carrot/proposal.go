@@ -7,11 +7,12 @@ import (
 
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
-type PaymentProposalV1 struct {
+type PaymentProposalV1[T curve25519.PointOperations] struct {
 	Destination DestinationV1 `json:"destination"`
 
 	Amount uint64 `json:"amount"`
@@ -22,44 +23,56 @@ type PaymentProposalV1 struct {
 }
 
 // UnsafeForceTorsionChecked Force torsion checks to pass and be skipped. Useful if Destination has been verified previously
-func (p *PaymentProposalV1) UnsafeForceTorsionChecked() {
+func (p *PaymentProposalV1[T]) UnsafeForceTorsionChecked() {
 	p.torsionChecked = true
 }
 
 // ECDHParts get_normal_proposal_ecdh_parts
-func (p *PaymentProposalV1) ECDHParts(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey) {
+func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx curve25519.X25519PublicKey) {
+	var spendPub, viewPub curve25519.PublicKey[T]
+
+	if curve25519.DecodeCompressedPoint[T](&spendPub, *p.Destination.Address.SpendPublicKey()) == nil {
+		// failed decoding or torsion checks
+		return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey
+	}
+	if curve25519.DecodeCompressedPoint[T](&viewPub, *p.Destination.Address.ViewPublicKey()) == nil {
+		// failed decoding or torsion checks
+		return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey
+	}
+
 	if !p.torsionChecked {
-		if !p.Destination.Address.Valid() {
+		if !viewPub.IsTorsionFree() || !spendPub.IsTorsionFree() {
 			// failed decoding or torsion checks
-			return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey
+			return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey
 		}
+
 		p.torsionChecked = true
 	}
 
 	// 1. d_e = H_n(anchor_norm, input_context, K^j_s, pid))
-	var ephemeralPrivateKey crypto.PrivateKeyScalar
+	var ephemeralPrivateKey curve25519.Scalar
 	makeEnoteEphemeralPrivateKey(hasher, &ephemeralPrivateKey, p.Randomness[:], inputContext, *p.Destination.Address.SpendPublicKey(), p.Destination.PaymentId)
 
 	// 2. make D_e
-	ephemeralPubkey = p.ephemeralPublicKey(&ephemeralPrivateKey)
+	ephemeralPubkey = p.ephemeralPublicKey(&ephemeralPrivateKey, &spendPub)
 
 	// 3. s_sr = d_e ConvertPointE(K^j_v)
 	if isCoinbase {
-		senderReceiverUnctx = makeUncontextualizedSharedKeySenderVarTime(ephemeralPrivateKey.AsBytes(), p.Destination.Address.ViewPublicKey().AsPoint())
+		senderReceiverUnctx = makeUncontextualizedSharedKeySenderVarTime(&ephemeralPrivateKey, &viewPub)
 	} else {
-		senderReceiverUnctx = makeUncontextualizedSharedKeySender(ephemeralPrivateKey.AsBytes(), p.Destination.Address.ViewPublicKey().AsPoint())
+		senderReceiverUnctx = makeUncontextualizedSharedKeySender(curve25519.PrivateKeyBytes(ephemeralPrivateKey.Bytes()), &viewPub)
 	}
 
 	return ephemeralPubkey, senderReceiverUnctx
 }
 
-func (p *PaymentProposalV1) ephemeralPublicKey(key *crypto.PrivateKeyScalar) (out crypto.X25519PublicKey) {
+func (p *PaymentProposalV1[T]) ephemeralPublicKey(key *edwards25519.Scalar, spendPub *curve25519.PublicKey[T]) (out curve25519.X25519PublicKey) {
 	if p.Destination.Address.IsSubaddress() {
 		// D_e = d_e ConvertPointE(K^j_s)
-		return makeEnoteEphemeralPublicKeySubaddress(key, p.Destination.Address.SpendPublicKey().AsPoint())
+		return makeEnoteEphemeralPublicKeySubaddress(key, spendPub)
 	} else {
 		// D_e = d_e B
-		return makeEnoteEphemeralPublicKeyCryptonote(key)
+		return makeEnoteEphemeralPublicKeyCryptonote[T](key)
 	}
 }
 
@@ -69,17 +82,17 @@ var ErrInvalidRandomness = errors.New("invalid randomness for janus anchor (zero
 var ErrTwistedReceiver = errors.New("receiver public key is twisted or invalid")
 
 // OutputPartial Calculates cacheable partial values
-func (p *PaymentProposalV1) OutputPartial(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey, secretSenderReceiver types.Hash, err error) {
+func (p *PaymentProposalV1[T]) OutputPartial(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx curve25519.X25519PublicKey, secretSenderReceiver types.Hash, err error) {
 	if err = p.Check(isCoinbase); err != nil {
-		return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey, types.ZeroHash, err
+		return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey, types.ZeroHash, err
 	}
 
 	// 3. make D_e and do external ECDH
 	ephemeralPubkey, senderReceiverUnctx = p.ECDHParts(hasher, inputContext[:], isCoinbase)
 
 	// err on twisted view/spend pub
-	if ephemeralPubkey == crypto.ZeroX25519PublicKey || senderReceiverUnctx == crypto.ZeroX25519PublicKey {
-		return crypto.ZeroX25519PublicKey, crypto.ZeroX25519PublicKey, types.ZeroHash, ErrTwistedReceiver
+	if ephemeralPubkey == curve25519.ZeroX25519PublicKey || senderReceiverUnctx == curve25519.ZeroX25519PublicKey {
+		return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey, types.ZeroHash, ErrTwistedReceiver
 	}
 
 	// 4. build the output enote address pieces
@@ -88,7 +101,7 @@ func (p *PaymentProposalV1) OutputPartial(hasher *blake2b.Digest, inputContext [
 	return ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, nil
 }
 
-func (p *PaymentProposalV1) Check(isCoinbase bool) error {
+func (p *PaymentProposalV1[T]) Check(isCoinbase bool) error {
 	if p.Randomness == [monero.JanusAnchorSize]byte{} {
 		return ErrInvalidRandomness
 	}
@@ -104,8 +117,11 @@ func (p *PaymentProposalV1) Check(isCoinbase bool) error {
 }
 
 // CoinbaseOutputFromPartial Make a coinbase payment output from OutputPartial values
-func (p *PaymentProposalV1) CoinbaseOutputFromPartial(hasher *blake2b.Digest, enote *CoinbaseEnoteV1, inputContext []byte, ephemeralPubkey, senderReceiverUnctx crypto.X25519PublicKey, secretSenderReceiver types.Hash) {
+func (p *PaymentProposalV1[T]) CoinbaseOutputFromPartial(hasher *blake2b.Digest, enote *CoinbaseEnoteV1, inputContext []byte, ephemeralPubkey, senderReceiverUnctx curve25519.X25519PublicKey, secretSenderReceiver types.Hash) {
 	enote.EphemeralPubKey = ephemeralPubkey
+
+	var spendPub curve25519.PublicKey[T]
+	curve25519.DecodeCompressedPoint[T](&spendPub, *p.Destination.Address.SpendPublicKey())
 
 	// 4. build the output enote address pieces
 	{
@@ -113,10 +129,10 @@ func (p *PaymentProposalV1) CoinbaseOutputFromPartial(hasher *blake2b.Digest, en
 		// 2. get other parts: k_a, C_a, Ko, a_enc, pid_enc
 		{
 			// 2. C_a = k_a G + a H
-			amountCommitment := makeAmountCommitmentCoinbase(p.Amount)
+			amountCommitment := makeAmountCommitmentCoinbase[T](p.Amount)
 
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			enote.OneTimeAddress = makeOnetimeAddress(hasher, p.Destination.Address.SpendPublicKey().AsPoint(), secretSenderReceiver, amountCommitment)
+			enote.OneTimeAddress = makeOnetimeAddress(hasher, &spendPub, secretSenderReceiver, amountCommitment)
 		}
 
 		// 3. vt = H_3(s_sr || input_context || Ko)
@@ -132,7 +148,7 @@ func (p *PaymentProposalV1) CoinbaseOutputFromPartial(hasher *blake2b.Digest, en
 }
 
 // CoinbaseOutput Make a coinbase payment output
-func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex uint64) (err error) {
+func (p *PaymentProposalV1[T]) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex uint64) (err error) {
 	// 2. coinbase input context
 	inputContext := MakeCoinbaseInputContext(blockIndex)
 
@@ -151,7 +167,7 @@ func (p *PaymentProposalV1) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex ui
 }
 
 // Output Make a normal payment output, non-change
-func (p *PaymentProposalV1) Output(out *RCTEnoteProposal, firstKeyImage crypto.PublicKeyBytes) (err error) {
+func (p *PaymentProposalV1[T]) Output(out *RCTEnoteProposal, firstKeyImage curve25519.PublicKeyBytes) (err error) {
 
 	// 2. input context
 	inputContext := MakeInputContext(firstKeyImage)
@@ -163,6 +179,9 @@ func (p *PaymentProposalV1) Output(out *RCTEnoteProposal, firstKeyImage crypto.P
 		return err
 	}
 
+	var spendPub curve25519.PublicKey[T]
+	curve25519.DecodeCompressedPoint[T](&spendPub, *p.Destination.Address.SpendPublicKey())
+
 	out.Enote.FirstKeyImage = firstKeyImage
 	out.Enote.EphemeralPubKey = ephemeralPubkey
 
@@ -173,15 +192,15 @@ func (p *PaymentProposalV1) Output(out *RCTEnoteProposal, firstKeyImage crypto.P
 		{
 
 			// 1. k_a = H_n(s^ctx_sr, a, K^j_s, enote_type) if !coinbase, else 1
-			var amountBlindingFactor crypto.PrivateKeyScalar
+			var amountBlindingFactor curve25519.Scalar
 			makeAmountBlindingFactor(&hasher, &amountBlindingFactor, secretSenderReceiver, p.Amount, *p.Destination.Address.SpendPublicKey(), EnoteTypePayment)
 
 			// 2. C_a = k_a G + a H
-			out.Enote.AmountCommitment = makeAmountCommitment(p.Amount, &amountBlindingFactor)
-			out.AmountBlindingFactor = amountBlindingFactor.AsBytes()
+			out.Enote.AmountCommitment = makeAmountCommitment[T](p.Amount, &amountBlindingFactor)
+			out.AmountBlindingFactor = curve25519.PrivateKeyBytes(amountBlindingFactor.Bytes())
 
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			out.Enote.OneTimeAddress = makeOnetimeAddress(&hasher, p.Destination.Address.SpendPublicKey().AsPoint(), secretSenderReceiver, out.Enote.AmountCommitment)
+			out.Enote.OneTimeAddress = makeOnetimeAddress(&hasher, &spendPub, secretSenderReceiver, out.Enote.AmountCommitment)
 
 			// 4. a_enc = a XOR m_a
 			amountMask := makeAmountEncryptionMask(&hasher, secretSenderReceiver, out.Enote.OneTimeAddress)
@@ -218,7 +237,7 @@ func MakeCoinbaseInputContext(blockIndex uint64) (inputContext [1 + types.HashSi
 }
 
 // MakeInputContext make_carrot_input_context
-func MakeInputContext(firstRctKeyImage crypto.PublicKeyBytes) (inputContext [1 + types.HashSize]byte) {
+func MakeInputContext(firstRctKeyImage curve25519.PublicKeyBytes) (inputContext [1 + types.HashSize]byte) {
 	inputContext[0] = DomainSeparatorInputContextRingCT
 	copy(inputContext[1:], firstRctKeyImage[:])
 	return inputContext

@@ -2,8 +2,7 @@ package carrot
 
 import (
 	"git.gammaspectra.live/P2Pool/blake2b"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
-	"git.gammaspectra.live/P2Pool/edwards25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 )
 
 // HashedTranscript Equivalent to H_b(key, Transcript(...))
@@ -20,9 +19,9 @@ func HashedTranscript[S ~[]byte](dst S, hasher *blake2b.Digest, key []byte, doma
 }
 
 // ScalarTranscript Equivalent to crypto.ScalarDerive(key, Transcript(...))
-func ScalarTranscript(dst *edwards25519.Scalar, hasher *blake2b.Digest, key []byte, domainSeparator []byte, args ...[]byte) {
+func ScalarTranscript(dst *curve25519.Scalar, hasher *blake2b.Digest, key []byte, domainSeparator []byte, args ...[]byte) {
 	var h [blake2b.Size]byte
 	HashedTranscript(h[:], hasher, key, domainSeparator, args...)
 
-	crypto.BytesToScalar64(h, dst)
+	curve25519.BytesToScalar64(dst, h)
 }

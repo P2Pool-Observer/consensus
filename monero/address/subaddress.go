@@ -5,6 +5,8 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 var ZeroSubaddressIndex = SubaddressIndex{
@@ -26,93 +28,106 @@ func (index SubaddressIndex) IsZero() bool {
 var hashKeySubaddress = []byte("SubAddr\x00") // HASH_KEY_SUBADDRESS
 
 // SecretKey Hs(a || index_major || index_minor)
-func (index SubaddressIndex) SecretKey(viewKey crypto.PrivateKeyBytes) crypto.PrivateKey {
+func (index SubaddressIndex) SecretKey(out *edwards25519.Scalar, viewKey curve25519.PrivateKeyBytes) *edwards25519.Scalar {
 	var major, minor [4]byte
 	binary.LittleEndian.PutUint32(major[:], index.Account)
 	binary.LittleEndian.PutUint32(minor[:], index.Offset)
-	return crypto.PrivateKeyFromScalar(crypto.ScalarDeriveLegacy(
+	return crypto.ScalarDeriveLegacyNoAllocate(
+		out,
 		hashKeySubaddress,
 		viewKey[:],
 		major[:],
 		minor[:],
-	))
+	)
 }
 
-func GetSubaddressSpendPub(a *Address, viewKeyBytes crypto.PrivateKeyBytes, index SubaddressIndex) crypto.PublicKeyBytes {
-	m := index.SecretKey(viewKeyBytes)
+func GetSubaddressSpendPub[T curve25519.PointOperations](spendPub *curve25519.PublicKey[T], viewKeyBytes curve25519.PrivateKeyBytes, index SubaddressIndex) curve25519.PublicKeyBytes {
+	var m curve25519.Scalar
+	index.SecretKey(&m, viewKeyBytes)
+
+	var M, D curve25519.PublicKey[T]
 
 	// spend pub
 	// M = m*G
-	M := m.PublicKey()
+	M.ScalarBaseMult(&m)
 
 	// D = B + M
-	D := a.SpendPublicKey().AsPoint().Add(M.AsPoint())
+	D.Add(spendPub, &M)
 
-	return D.AsBytes()
+	return D.Bytes()
 }
 
-func GetSubaddressNoAllocate(a *Address, viewKeyScalar *crypto.PrivateKeyScalar, viewKeyBytes crypto.PrivateKeyBytes, index SubaddressIndex) *Address {
-	if a == nil || a.IsSubaddress() {
-		// cannot derive
-		return nil
-	}
-
+func GetSubaddressNoAllocate[T curve25519.PointOperations](baseNetwork uint8, spendPub *curve25519.PublicKey[T], viewKeyScalar *curve25519.Scalar, viewKeyBytes curve25519.PrivateKeyBytes, index SubaddressIndex) *Address {
 	// special case
 	if index == ZeroSubaddressIndex {
-		return a
+		panic("unreachable")
 	}
 
-	m := index.SecretKey(viewKeyBytes)
+	var m curve25519.Scalar
+	index.SecretKey(&m, viewKeyBytes)
+
+	var M, D, C curve25519.PublicKey[T]
 
 	// spend pub
 	// M = m*G
-	M := m.PublicKey()
+	M.ScalarBaseMult(&m)
 
 	// D = B + M
-	D := a.SpendPublicKey().AsPoint().Add(M.AsPoint())
+	D.Add(spendPub, &M)
 
 	// view pub
-	C := viewKeyScalar.GetDerivation(D)
+	C.ScalarMult(viewKeyScalar, &D)
 
-	switch a.BaseNetwork() {
+	switch baseNetwork {
 	case monero.MainNetwork:
-		return FromRawAddress(monero.SubAddressMainNetwork, D, C)
+		return FromRawAddress(monero.SubAddressMainNetwork, D.Bytes(), C.Bytes())
 	case monero.TestNetwork:
-		return FromRawAddress(monero.SubAddressTestNetwork, D, C)
+		return FromRawAddress(monero.SubAddressTestNetwork, D.Bytes(), C.Bytes())
 	case monero.StageNetwork:
-		return FromRawAddress(monero.SubAddressStageNetwork, D, C)
+		return FromRawAddress(monero.SubAddressStageNetwork, D.Bytes(), C.Bytes())
 	default:
 		return nil
 	}
 }
 
-func GetSubaddress(a *Address, viewKey crypto.PrivateKey, index SubaddressIndex) *Address {
-	return GetSubaddressNoAllocate(a, viewKey.AsScalar(), viewKey.AsBytes(), index)
+func GetSubaddress(a *Address, viewKey *curve25519.Scalar, index SubaddressIndex) *Address {
+	if index == ZeroSubaddressIndex {
+		return a
+	}
+	var spendPub curve25519.VarTimePublicKey
+	curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
+
+	return GetSubaddressNoAllocate(a.BaseNetwork(), &spendPub, viewKey, curve25519.PrivateKeyBytes(viewKey.Bytes()), index)
 }
 
-func GetSubaddressFakeAddress(sa InterfaceSubaddress, viewKey crypto.PrivateKey) Interface {
+func GetSubaddressFakeAddress(sa InterfaceSubaddress, viewKey *edwards25519.Scalar) Interface {
 	if !sa.IsSubaddress() {
 		return sa
 	}
 
+	var spendPub, viewPub curve25519.VarTimePublicKey
+	curve25519.DecodeCompressedPoint(&spendPub, *sa.SpendPublicKey())
+
 	// mismatched view key
-	if viewKey.GetDerivation(sa.SpendPublicKey()).AsBytes() != sa.ViewPublicKey().AsBytes() {
+	if new(curve25519.VarTimePublicKey).ScalarMult(viewKey, &spendPub).Bytes() != *sa.ViewPublicKey() {
 		return nil
 	}
+
+	viewPub.ScalarBaseMult(viewKey)
 
 	switch t := sa.(type) {
 	case *Address:
 		switch t.TypeNetwork {
 		case monero.SubAddressMainNetwork:
-			return FromRawAddress(monero.MainNetwork, sa.SpendPublicKey(), viewKey.PublicKey())
+			return FromRawAddress(monero.MainNetwork, *sa.SpendPublicKey(), viewPub.Bytes())
 		case monero.SubAddressTestNetwork:
-			return FromRawAddress(monero.TestNetwork, sa.SpendPublicKey(), viewKey.PublicKey())
+			return FromRawAddress(monero.TestNetwork, *sa.SpendPublicKey(), viewPub.Bytes())
 		case monero.SubAddressStageNetwork:
-			return FromRawAddress(monero.StageNetwork, sa.SpendPublicKey(), viewKey.PublicKey())
+			return FromRawAddress(monero.StageNetwork, *sa.SpendPublicKey(), viewPub.Bytes())
 		default:
 			return nil
 		}
 	default:
-		return &PackedAddress{sa.SpendPublicKey().AsBytes(), viewKey.PublicKey().AsBytes()}
+		return &PackedAddress{*sa.SpendPublicKey(), viewPub.Bytes()}
 	}
 }

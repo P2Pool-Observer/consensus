@@ -5,6 +5,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -15,20 +16,20 @@ func (d *NilDerivationCache) Clear() {
 
 }
 
-func (d *NilDerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, _ crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64) (crypto.PublicKeyBytes, uint8) {
-	var derivation crypto.PublicKeyPoint
-	address.GetDerivationNoAllocate(derivation.Point(), a.ViewPublicKey().AsPoint().Point(), txKeyScalar.Scalar())
-	ephemeralPubKey, viewTag := address.GetEphemeralPublicKeyAndViewTagNoAllocate(a.SpendPublicKey().AsPoint().Point(), derivation.AsBytes(), outputIndex)
+func (d *NilDerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, _ curve25519.PrivateKeyBytes, txKeyScalar *curve25519.Scalar, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
+	var derivation curve25519.VarTimePublicKey
+	address.GetDerivation(&derivation, curve25519.To[curve25519.VarTimeOperations](a.ViewPublicKey().Point()), txKeyScalar)
+	ephemeralPubKey, viewTag := address.GetEphemeralPublicKeyAndViewTagNoAllocate(a.SpendPublicKey().Point().P(), derivation.Bytes(), outputIndex)
 
-	return ephemeralPubKey.AsBytes(), viewTag
+	return ephemeralPubKey, viewTag
 }
 
-func (d *NilDerivationCache) GetDeterministicTransactionKey(seed types.Hash, prevId types.Hash) *crypto.KeyPair {
-	return crypto.NewKeyPairFromPrivate(GetDeterministicTransactionPrivateKey(seed, prevId))
+func (d *NilDerivationCache) GetDeterministicTransactionKey(seed types.Hash, prevId types.Hash) *crypto.KeyPair[curve25519.VarTimeOperations] {
+	return crypto.NewKeyPairFromPrivate[curve25519.VarTimeOperations](GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), seed, prevId))
 }
 
 func (d *NilDerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) *carrot.CoinbaseEnoteV1 {
-	proposal := carrot.PaymentProposalV1{
+	proposal := carrot.PaymentProposalV1[curve25519.VarTimeOperations]{
 		Destination: carrot.DestinationV1{
 			Address: *a,
 		},

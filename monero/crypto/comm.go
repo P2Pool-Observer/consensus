@@ -1,75 +1,76 @@
 package crypto
 
 import (
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 // SignatureComm Used in normal message signatures
-type SignatureComm struct {
+type SignatureComm[T curve25519.PointOperations] struct {
 	Hash types.Hash
-	Key  PublicKeyPoint
-	Comm PublicKeyPoint
+	Key  curve25519.PublicKey[T]
+	Comm curve25519.PublicKey[T]
 }
 
-func (s *SignatureComm) Bytes() []byte {
-	var buf [types.HashSize + PublicKeySize*2]byte
+func (s *SignatureComm[T]) Bytes() []byte {
+	var buf [types.HashSize + curve25519.PublicKeySize*2]byte
 
 	copy(buf[:], s.Hash[:])
-	copy(buf[types.HashSize:], s.Key.AsSlice()[:])
-	copy(buf[types.HashSize+PublicKeySize:], s.Comm.AsSlice()[:])
+	copy(buf[types.HashSize:], s.Key.Slice())
+	copy(buf[types.HashSize+curve25519.PublicKeySize:], s.Comm.Slice())
 	return buf[:]
 }
 
 // SignatureComm_2 Used in v1/v2 tx proofs
-type SignatureComm_2 struct {
+type SignatureComm_2[T curve25519.PointOperations] struct {
 	Message types.Hash
 	// D Key Derivation
-	D PublicKeyPoint
+	D curve25519.PublicKey[T]
 	// X Random Public Key
-	X PublicKeyPoint
+	X curve25519.PublicKey[T]
 	// Y Random Public Derivation
-	Y PublicKeyPoint
+	Y curve25519.PublicKey[T]
 	// Separator Domain Separation
 	Separator types.Hash
 	// R Input public key
-	R PublicKeyPoint
-	A PublicKeyPoint
-	B *PublicKeyPoint
+	R curve25519.PublicKey[T]
+	A curve25519.PublicKey[T]
+	B *curve25519.PublicKey[T]
 }
 
-func (s *SignatureComm_2) Bytes() []byte {
-	buf := make([]byte, 0, types.HashSize*2+PublicKeySize*6)
+func (s *SignatureComm_2[T]) Bytes() []byte {
+	buf := make([]byte, 0, types.HashSize*2+curve25519.PublicKeySize*6)
 	buf = append(buf, s.Message[:]...)
-	buf = append(buf, s.D.AsSlice()...)
-	buf = append(buf, s.X.AsSlice()...)
-	buf = append(buf, s.Y.AsSlice()...)
+	buf = append(buf, s.D.Slice()...)
+	buf = append(buf, s.X.Slice()...)
+	buf = append(buf, s.Y.Slice()...)
 	buf = append(buf, s.Separator[:]...)
-	buf = append(buf, s.R.AsSlice()...)
-	buf = append(buf, s.A.AsSlice()...)
+	buf = append(buf, s.R.Slice()...)
+	buf = append(buf, s.A.Slice()...)
 	if s.B == nil {
 		buf = append(buf, types.ZeroHash[:]...)
 	} else {
-		buf = append(buf, s.B.AsSlice()...)
+		buf = append(buf, s.B.Slice()...)
 	}
 	return buf
 }
 
 // SignatureComm_2_V1 Used in v1 tx proofs
-type SignatureComm_2_V1 struct {
+type SignatureComm_2_V1[T curve25519.PointOperations] struct {
 	Message types.Hash
 	// D Key Derivation
-	D PublicKeyPoint
+	D curve25519.PublicKey[T]
 	// X Random Public Key
-	X PublicKeyPoint
+	X curve25519.PublicKey[T]
 	// Y Random Public Derivation
-	Y PublicKeyPoint
+	Y curve25519.PublicKey[T]
 }
 
-func (s *SignatureComm_2_V1) Bytes() []byte {
-	buf := make([]byte, 0, types.HashSize+PublicKeySize*3)
+func (s *SignatureComm_2_V1[T]) Bytes() []byte {
+	buf := make([]byte, 0, types.HashSize+curve25519.PublicKeySize*3)
 	buf = append(buf, s.Message[:]...)
-	buf = append(buf, s.D.AsSlice()...)
-	buf = append(buf, s.X.AsSlice()...)
-	buf = append(buf, s.Y.AsSlice()...)
+	buf = append(buf, s.D.Slice()...)
+	buf = append(buf, s.X.Slice()...)
+	buf = append(buf, s.Y.Slice()...)
 	return buf
 }

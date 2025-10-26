@@ -7,18 +7,19 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"github.com/tmthrgd/go-hex"
 )
 
 var testGeneralFundAddr = address.FromBase58("44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A")
-var testGeneralFundViewKey = crypto.PrivateKeyBytes(types.MustHashFromString("f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501"))
+var testGeneralFundViewKey = curve25519.PrivateKeyBytes(types.MustHashFromString("f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501"))
 var testGeneralFundDonationAddr = address.FromBase58("888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H")
 var testGeneralFundSubaddressIndex = address.SubaddressIndex{Account: 0, Offset: 70}
 
 func TestViewWallet_GeneralFund(t *testing.T) {
-	vw, err := NewViewWallet(testGeneralFundAddr, &testGeneralFundViewKey, 0, 80)
+	vw, err := NewViewWallet[curve25519.VarTimeOperations](testGeneralFundAddr, testGeneralFundViewKey.Scalar(), 0, 80)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,19 +41,19 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 		ecdhInfo = append(ecdhInfo, binary.LittleEndian.Uint64(buf))
 	}
 
-	txPub := crypto.PublicKeyBytes(types.MustHashFromString("889432b1c870f2c5748b4c6f8bd2f28879cc698859674940b082b5fb5fef7e90"))
+	txPub := curve25519.PublicKeyBytes(types.MustHashFromString("889432b1c870f2c5748b4c6f8bd2f28879cc698859674940b082b5fb5fef7e90"))
 	outputs := transaction.Outputs{
 		{
 			Index:              0,
 			Reward:             0,
-			EphemeralPublicKey: crypto.PublicKeyBytes(types.MustHashFromString("892251b8fa9b95f90397f17f20178e05be9122338c1be821cb208237ce3397ca")),
+			EphemeralPublicKey: curve25519.PublicKeyBytes(types.MustHashFromString("892251b8fa9b95f90397f17f20178e05be9122338c1be821cb208237ce3397ca")),
 			Type:               transaction.TxOutToTaggedKey,
 			ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0xc0}),
 		},
 		{
 			Index:              1,
 			Reward:             0,
-			EphemeralPublicKey: crypto.PublicKeyBytes(types.MustHashFromString("8219a994a9055ce3f99298fae343afea6b2d658098b33099b65b78e160cbd72e")),
+			EphemeralPublicKey: curve25519.PublicKeyBytes(types.MustHashFromString("8219a994a9055ce3f99298fae343afea6b2d658098b33099b65b78e160cbd72e")),
 			Type:               transaction.TxOutToTaggedKey,
 			ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0x82}),
 		},
@@ -71,28 +72,31 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 	}
 
 	const expected = 3284260000
-	if amount := crypto.DecryptOutputAmount(sharedData, ecdhInfo[i]); amount != expected {
+	if amount := crypto.DecryptOutputAmount(curve25519.PrivateKeyBytes(sharedData.Bytes()), ecdhInfo[i]); amount != expected {
 		t.Fatalf("expected %d, got %d", expected, amount)
 	}
 
-	inProof := address.GetInProofV2(sa, txId, vw.ViewKey(), &pub, "")
+	var txPubPoint curve25519.VarTimePublicKey
+	curve25519.DecodeCompressedPoint(&txPubPoint, txPub)
+
+	inProof := address.GetInProofV2(sa, txId, vw.ViewKey(), &txPubPoint, "")
 	t.Logf("tx proof: %s", inProof)
 
-	pI, pOk := address.VerifyTxProof(inProof, sa, txId, &pub, "")
+	pI, pOk := address.VerifyTxProof(inProof, sa, txId, &txPubPoint, "")
 	if pI == -1 || !pOk {
 		t.Fatal("expected to verify proof")
 	}
 }
 
 func TestViewWallet_Match(t *testing.T) {
-	vw, err := NewViewWallet(testGeneralFundAddr, &testGeneralFundViewKey, 0, 80)
+	vw, err := NewViewWallet[curve25519.ConstantTimeOperations](testGeneralFundAddr, testGeneralFundViewKey.Scalar(), 0, 80)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testScanCoinbase(t, vw, address.ZeroSubaddressIndex)
-	testScanCoinbase(t, vw, testGeneralFundSubaddressIndex)
+	testScanCoinbase[curve25519.ConstantTimeOperations](t, vw, address.ZeroSubaddressIndex)
+	testScanCoinbase[curve25519.ConstantTimeOperations](t, vw, testGeneralFundSubaddressIndex)
 
-	testScanPayment(t, vw, address.ZeroSubaddressIndex)
-	testScanPayment(t, vw, testGeneralFundSubaddressIndex)
+	testScanPayment[curve25519.ConstantTimeOperations](t, vw, address.ZeroSubaddressIndex)
+	testScanPayment[curve25519.ConstantTimeOperations](t, vw, testGeneralFundSubaddressIndex)
 }

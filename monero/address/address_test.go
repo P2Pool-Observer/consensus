@@ -8,6 +8,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -28,21 +29,24 @@ func init() {
 	}
 }
 
-func randomAddress() (addr *Address, spendKey, viewKey *crypto.PrivateKeyScalar) {
+func randomAddress() (addr *Address, spendKey, viewKey *curve25519.Scalar) {
 	// legacy derivation
-	spendKey = crypto.PrivateKeyFromScalar(crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader))
-	viewKey = crypto.PrivateKeyFromScalar(crypto.ScalarDeriveLegacy(spendKey.AsSlice()))
+	spendKey = crypto.RandomScalar(new(curve25519.Scalar), rand.Reader)
+	viewKey = crypto.ScalarDeriveLegacy(spendKey.Bytes())
 
-	return FromRawAddress(monero.TestNetwork, spendKey.PublicKey(), viewKey.PublicKey()), spendKey, viewKey
+	return FromRawAddress(monero.TestNetwork, new(curve25519.VarTimePublicKey).ScalarBaseMult(spendKey).Bytes(), new(curve25519.VarTimePublicKey).ScalarBaseMult(viewKey).Bytes()), spendKey, viewKey
 }
 
 func TestAddress(t *testing.T) {
-	derivation := crypto.PrivateKeyFromScalar(privateKey).GetDerivationCofactor(testAddress.ViewPublicKey())
+	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress.SpendPublicKey())
+	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress.ViewPublicKey())
+	derivation := new(curve25519.VarTimePublicKey).ScalarMult(privateKey, viewPub)
+	derivation.MultByCofactor(derivation)
 
-	sharedData := crypto.GetDerivationSharedDataForOutputIndex(derivation, 37)
-	ephemeralPublicKey := GetPublicKeyForSharedData(testAddress.SpendPublicKey(), sharedData)
+	sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), 37)
+	ephemeralPublicKey := GetPublicKeyForSharedData(spendPub, sharedData)
 
-	if bytes.Compare(ephemeralPublicKey.AsSlice(), ephemeralPubKey) != 0 {
+	if bytes.Compare(ephemeralPublicKey.Slice(), ephemeralPubKey) != 0 {
 		t.Fatalf("ephemeral key mismatch, expected %s, got %s", fasthex.EncodeToString(ephemeralPubKey), ephemeralPublicKey.String())
 	}
 }
@@ -56,41 +60,42 @@ func TestSort(t *testing.T) {
 func BenchmarkCoinbaseDerivation(b *testing.B) {
 	b.ReportAllocs()
 	packed := testAddress3.ToPackedAddress()
-	txKey := crypto.PrivateKeyFromScalar(privateKey)
+	txKey := privateKey
 	var i atomic.Uint64
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			GetEphemeralPublicKeyAndViewTag(&packed, txKey, i.Add(1))
+			GetEphemeralPublicKeyAndViewTag[curve25519.VarTimeOperations](&packed, txKey, i.Add(1))
 		}
 	})
 	b.ReportAllocs()
 }
 
 func BenchmarkCoinbaseDerivationInline(b *testing.B) {
-	spendPub, viewPub := testAddress3.SpendPublicKey().AsPoint().Point(), testAddress3.ViewPublicKey().AsPoint().Point()
+	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.SpendPublicKey())
+	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.ViewPublicKey())
 
 	var i atomic.Uint64
 	b.RunParallel(func(pb *testing.PB) {
 		p := new(edwards25519.Point)
 		for pb.Next() {
-			getEphemeralPublicKeyInline(spendPub, viewPub, privateKey, i.Add(1), p)
+			getEphemeralPublicKeyInline(spendPub.P(), viewPub.P(), privateKey, i.Add(1), p)
 		}
 	})
 	b.ReportAllocs()
 }
 
 func BenchmarkCoinbaseDerivationNoAllocate(b *testing.B) {
-
-	spendPub, viewPub := testAddress3.SpendPublicKey().AsPoint().Point(), testAddress3.ViewPublicKey().AsPoint().Point()
+	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.SpendPublicKey())
+	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.ViewPublicKey())
 
 	txKey := privateKey
 
 	var i atomic.Uint64
 	b.RunParallel(func(pb *testing.PB) {
-		var derivation crypto.PublicKeyPoint
+		var derivation curve25519.VarTimePublicKey
 		for pb.Next() {
-			GetDerivationNoAllocate(derivation.Point(), viewPub, txKey)
-			GetEphemeralPublicKeyAndViewTagNoAllocate(spendPub, derivation.AsBytes(), i.Add(1))
+			GetDerivationNoAllocate(derivation.P(), viewPub.P(), txKey)
+			GetEphemeralPublicKeyAndViewTagNoAllocate(spendPub.P(), derivation.Bytes(), i.Add(1))
 		}
 	})
 	b.ReportAllocs()

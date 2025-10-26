@@ -11,6 +11,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -27,16 +28,16 @@ type GetBySideHeightFunc func(height uint64) UniquePoolBlockSlice
 // GetChainMainByHashFunc if h = types.ZeroHash, return tip
 type GetChainMainByHashFunc func(h types.Hash) *ChainMain
 
-func _getEphemeralPublicKey(derivationCache DerivationCacheInterface, a *address.PackedAddress, txKeySlice crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64) (crypto.PublicKeyBytes, uint8) {
-	return derivationCache.GetEphemeralPublicKey(a, txKeySlice, txKeyScalar, outputIndex)
+func _getEphemeralPublicKey(derivationCache DerivationCacheInterface, a *address.PackedAddress, txKey curve25519.PrivateKeyBytes, txKeyScalar *curve25519.Scalar, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
+	return derivationCache.GetEphemeralPublicKey(a, txKey, txKeyScalar, outputIndex)
 }
 
 //go:noescape
 //go:linkname getEphemeralPublicKey git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain._getEphemeralPublicKey
-func getEphemeralPublicKey(derivationCache DerivationCacheInterface, a *address.PackedAddress, txKeySlice crypto.PrivateKeySlice, txKeyScalar *crypto.PrivateKeyScalar, outputIndex uint64) (crypto.PublicKeyBytes, uint8)
+func getEphemeralPublicKey(derivationCache DerivationCacheInterface, a *address.PackedAddress, txKey curve25519.PrivateKeyBytes, txKeyScalar *curve25519.Scalar, outputIndex uint64) (curve25519.PublicKeyBytes, uint8)
 
-func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType uint8, a *address.PackedAddress, txPrivateKeySlice crypto.PrivateKeySlice, txPrivateKeyScalar *crypto.PrivateKeyScalar, outputIndex, amount uint64) transaction.Output {
-	ephemeralPubKey, viewTag := getEphemeralPublicKey(derivationCache, a, txPrivateKeySlice, txPrivateKeyScalar, outputIndex)
+func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType uint8, a *address.PackedAddress, txPrivateKey curve25519.PrivateKeyBytes, txPrivateKeyScalar *curve25519.Scalar, outputIndex, amount uint64) transaction.Output {
+	ephemeralPubKey, viewTag := getEphemeralPublicKey(derivationCache, a, txPrivateKey, txPrivateKeyScalar, outputIndex)
 	return transaction.Output{
 		Index:              outputIndex,
 		Type:               txType,
@@ -69,7 +70,7 @@ func CalculateOutputCarrot(enote *carrot.CoinbaseEnoteV1, txType uint8, outputIn
 	}
 }
 
-func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, derivationCache DerivationCacheInterface, preAllocatedShares Shares, preAllocatedRewards []uint64) (outputs transaction.Outputs, pubs []crypto.PublicKeyBytes, bottomHeight uint64, err error) {
+func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight block.GetDifficultyByHeightFunc, getByTemplateId GetByTemplateIdFunc, derivationCache DerivationCacheInterface, preAllocatedShares Shares, preAllocatedRewards []uint64) (outputs transaction.Outputs, pubs []curve25519.PublicKeyBytes, bottomHeight uint64, err error) {
 	tmpShares, bottomHeight, err := GetShares(block, consensus, difficultyByHeight, getByTemplateId, preAllocatedShares)
 	if err != nil {
 		return nil, nil, 0, err
@@ -90,7 +91,7 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 	outputs = make(transaction.Outputs, n)
 
 	if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
-		pubs = make([]crypto.PublicKeyBytes, n)
+		pubs = make([]curve25519.PublicKeyBytes, n)
 		carrotEnotes := make([]*carrot.CoinbaseEnoteV1, n)
 
 		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
@@ -112,20 +113,20 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 		for i, enote := range carrotEnotes {
 			outputIndex := uint64(i)
 			outputs[outputIndex] = CalculateOutputCarrot(enote, txType, outputIndex)
-			pubs[outputIndex] = crypto.PublicKeyBytes(enote.EphemeralPubKey)
+			pubs[outputIndex] = curve25519.PublicKeyBytes(enote.EphemeralPubKey)
 		}
 
 		return outputs, pubs, bottomHeight, nil
 	} else {
-		txPrivateKeySlice := block.Side.CoinbasePrivateKey.AsSlice()
-		txPrivateKeyScalar := block.Side.CoinbasePrivateKey.AsScalar()
+		txPrivateKey := block.Side.CoinbasePrivateKey
+		txPrivateKeyScalar := block.Side.CoinbasePrivateKey.Scalar()
 
 		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
 			addr := &tmpShares[workIndex].Address
 			if addr.IsSubaddress() {
 				return utils.ErrorfNoEscape("is not main address at index %d", workIndex)
 			}
-			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKeySlice, txPrivateKeyScalar, workIndex, tmpRewards[workIndex])
+			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, workIndex, tmpRewards[workIndex])
 
 			return nil
 		}, nil)

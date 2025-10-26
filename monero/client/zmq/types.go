@@ -1,7 +1,7 @@
 package zmq
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
@@ -29,16 +29,16 @@ type MinimalChainMain struct {
 type TxOutput struct {
 	Amount uint64 `json:"amount"`
 	ToKey  *struct {
-		Key crypto.PublicKeyBytes `json:"key"`
+		Key curve25519.PublicKeyBytes `json:"key"`
 	} `json:"to_key,omitempty"`
 	ToTaggedKey *struct {
-		Key     crypto.PublicKeyBytes `json:"key"`
-		ViewTag types.Bytes           `json:"view_tag"`
+		Key     curve25519.PublicKeyBytes `json:"key"`
+		ViewTag types.Bytes               `json:"view_tag"`
 	} `json:"to_tagged_key,omitempty"`
 	ToCarrotV1 *struct {
-		Key                  crypto.PublicKeyBytes `json:"key"`
-		ViewTag              types.Bytes           `json:"view_tag"`
-		EncryptedJanusAnchor types.Bytes           `json:"encrypted_janus_anchor"`
+		Key                  curve25519.PublicKeyBytes `json:"key"`
+		ViewTag              types.Bytes               `json:"view_tag"`
+		EncryptedJanusAnchor types.Bytes               `json:"encrypted_janus_anchor"`
 	} `json:"carrot_v1,omitempty"`
 }
 

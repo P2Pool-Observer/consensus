@@ -1,4 +1,4 @@
-package crypto
+package curve25519
 
 import (
 	"fmt"
@@ -54,9 +54,9 @@ var x25519TestVectors = []x25519TestVector{
 func TestX25519(t *testing.T) {
 	t.Run("ScalarBaseMult", func(t *testing.T) {
 		t.Run("One", func(t *testing.T) {
-			one := (&PrivateKeyBytes{1}).AsScalar().Scalar()
+			one := (&PrivateKeyBytes{1}).Scalar()
 			var pub X25519PublicKey
-			X25519ScalarBaseMult(&pub, one)
+			X25519ScalarBaseMult[VarTimeOperations](&pub, one)
 
 			if pub != X25519Basepoint {
 				t.Errorf("expected %x, got %x", X25519Basepoint, pub)

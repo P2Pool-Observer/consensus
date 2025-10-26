@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -19,7 +19,7 @@ func (s Shares) Index(addr address.PackedAddressWithSubaddress) int {
 
 func fastShareCompare(a *Share, b *Share) int {
 	// Fast tests first. Skips further checks
-	if diff := int(a.Address.SpendPublicKey()[crypto.PublicKeySize-1]) - int(b.Address.SpendPublicKey()[crypto.PublicKeySize-1]); diff != 0 {
+	if diff := int(a.Address.SpendPublicKey()[curve25519.PublicKeySize-1]) - int(b.Address.SpendPublicKey()[curve25519.PublicKeySize-1]); diff != 0 {
 		return diff
 	}
 	if a.Address == b.Address {

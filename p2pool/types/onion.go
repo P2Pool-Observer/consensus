@@ -6,14 +6,14 @@ import (
 	"encoding/base32"
 	"errors"
 
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 )
 
 var onionBase32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567")
 
 const OnionPort = 28722
 
-type OnionAddressV3 crypto.PublicKeyBytes
+type OnionAddressV3 curve25519.PublicKeyBytes
 
 func MustOnionAddressV3FromString(s string) (addr OnionAddressV3) {
 	err := addr.UnmarshalText([]byte(s))
@@ -35,7 +35,7 @@ func (pub *OnionAddressV3) UnmarshalText(buf []byte) error {
 		return ErrInvalidOnionAddress
 	}
 
-	var addr [crypto.PublicKeySize + onionChecksumSize + 1]byte
+	var addr [curve25519.PublicKeySize + onionChecksumSize + 1]byte
 	if len(addr) != onionBase32Encoding.DecodedLen(len(buf)-len(onionDomainSuffix)) {
 		return ErrInvalidOnionAddress
 	}
@@ -43,7 +43,7 @@ func (pub *OnionAddressV3) UnmarshalText(buf []byte) error {
 		return err
 	}
 
-	if addr[crypto.PublicKeySize+onionChecksumSize] != onionVersion {
+	if addr[curve25519.PublicKeySize+onionChecksumSize] != onionVersion {
 		return ErrInvalidOnionAddress
 	}
 
@@ -57,7 +57,7 @@ func (pub *OnionAddressV3) UnmarshalText(buf []byte) error {
 	var checkSum [32]byte
 	hasher.Sum(checkSum[:0])
 
-	if !bytes.Equal(addr[crypto.PublicKeySize:crypto.PublicKeySize+onionChecksumSize], checkSum[:onionChecksumSize]) {
+	if !bytes.Equal(addr[curve25519.PublicKeySize:curve25519.PublicKeySize+onionChecksumSize], checkSum[:onionChecksumSize]) {
 		return ErrInvalidOnionAddress
 	}
 
@@ -74,10 +74,10 @@ func (pub *OnionAddressV3) MarshalText() ([]byte, error) {
 	var checkSum [32]byte
 	hasher.Sum(checkSum[:0])
 
-	var addr [crypto.PublicKeySize + onionChecksumSize + 1]byte
+	var addr [curve25519.PublicKeySize + onionChecksumSize + 1]byte
 	copy(addr[:], pub[:])
-	copy(addr[crypto.PublicKeySize:], checkSum[:onionChecksumSize])
-	addr[crypto.PublicKeySize+onionChecksumSize] = onionVersion
+	copy(addr[curve25519.PublicKeySize:], checkSum[:onionChecksumSize])
+	addr[curve25519.PublicKeySize+onionChecksumSize] = onionVersion
 
 	encodedLen := onionBase32Encoding.EncodedLen(len(addr))
 	buf := make([]byte, encodedLen+len(onionDomainSuffix))
@@ -89,7 +89,7 @@ func (pub *OnionAddressV3) MarshalText() ([]byte, error) {
 
 func (pub *OnionAddressV3) Valid() bool {
 	// check pubkey encoding
-	return (*crypto.PublicKeyBytes)(pub).AsPoint() != nil && crypto.PublicKeyBytes(*pub) != crypto.ZeroPublicKeyBytes
+	return (*curve25519.PublicKeyBytes)(pub).Point() != nil && curve25519.PublicKeyBytes(*pub) != curve25519.ZeroPublicKeyBytes
 }
 
 func (pub OnionAddressV3) String() string {
