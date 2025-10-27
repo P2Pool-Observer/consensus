@@ -9,6 +9,8 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
+// RingSignature Implements Pre-RingCT Traceable Ring Signature
+// This is used in SpendProof
 type RingSignature[T curve25519.PointOperations] struct {
 	Ring       []curve25519.PublicKey[T]
 	Signatures []crypto.Signature[T]

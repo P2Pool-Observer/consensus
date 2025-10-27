@@ -1,10 +1,11 @@
-package crypto
+package proofs
 
 import (
 	"crypto/rand"
 	"errors"
 	"strings"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -25,7 +26,7 @@ const (
 
 type TxProofClaim[T curve25519.PointOperations] struct {
 	SharedSecret curve25519.PublicKey[T]
-	Signature    Signature[T]
+	Signature    crypto.Signature[T]
 }
 type TxProof[T curve25519.PointOperations] struct {
 	Type    TxProofType
@@ -71,7 +72,7 @@ func (p TxProof[T]) Verify(prefixHash types.Hash, viewPub, spendPub *curve25519.
 	return -1, false
 }
 
-func NewTxProofFromSharedSecretSignaturePairs[T curve25519.PointOperations](t TxProofType, version uint8, sharedSecrets []curve25519.PublicKey[T], signatures []Signature[T]) TxProof[T] {
+func NewTxProofFromSharedSecretSignaturePairs[T curve25519.PointOperations](t TxProofType, version uint8, sharedSecrets []curve25519.PublicKey[T], signatures []crypto.Signature[T]) TxProof[T] {
 	proof := TxProof[T]{
 		Type:    t,
 		Version: version,
@@ -92,7 +93,7 @@ func NewTxProofFromSharedSecretSignaturePairs[T curve25519.PointOperations](t Tx
 }
 
 var encodedB58SecretSize = len(base58.EncodeMoneroBase58(curve25519.ZeroPrivateKeyBytes[:]))
-var encodedB58SignatureSize = len(base58.EncodeMoneroBase58((&Signature[curve25519.ConstantTimeOperations]{}).Bytes()))
+var encodedB58SignatureSize = len(base58.EncodeMoneroBase58((&crypto.Signature[curve25519.ConstantTimeOperations]{}).Bytes()))
 
 func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T], error) {
 	proof := TxProof[T]{}
@@ -111,11 +112,11 @@ func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T],
 		return TxProof[T]{}, errors.New("invalid tx proof")
 	}
 
-	if str[offset+1] != 'V' {
+	if str[offset] != 'V' {
 		return TxProof[T]{}, errors.New("invalid tx proof")
 	}
 
-	switch str[offset+2] {
+	switch str[offset+1] {
 	case '1':
 		proof.Version = 1
 	case '2':
@@ -128,7 +129,7 @@ func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T],
 
 	recordSize := encodedB58SecretSize + encodedB58SignatureSize
 
-	if len(str)-offset == 0 || (len(str)-offset)-offset%recordSize != 0 {
+	if len(str)-offset == 0 || (len(str)-offset)%recordSize != 0 {
 		return TxProof[T]{}, errors.New("invalid tx proof: wrong length")
 	}
 
@@ -150,7 +151,7 @@ func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T],
 			return TxProof[T]{}, errors.New("invalid tx proof: invalid signature encoding")
 		}
 
-		signature := NewSignatureFromBytes[T](signatureBuf)
+		signature := crypto.NewSignatureFromBytes[T](signatureBuf)
 		if signature == nil {
 			return TxProof[T]{}, errors.New("invalid tx proof: invalid signature")
 		}
@@ -163,9 +164,9 @@ func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T],
 	return proof, nil
 }
 
-var TxProofV2DomainSeparatorHash = Keccak256([]byte("TXPROOF_V2")) // HASH_KEY_TXPROOF_V2
+var TxProofV2DomainSeparatorHash = crypto.Keccak256([]byte("TXPROOF_V2")) // HASH_KEY_TXPROOF_V2
 
-func GenerateTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B, D *curve25519.PublicKey[T], r *curve25519.Scalar, version uint8) (signature Signature[T]) {
+func GenerateTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B, D *curve25519.PublicKey[T], r *curve25519.Scalar, version uint8) (signature crypto.Signature[T]) {
 	if version != 1 && version != 2 {
 		panic("unsupported version")
 	}
@@ -182,7 +183,7 @@ func GenerateTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, 
 	}
 	comm.A = *A
 
-	signature = CreateSignature[T](func(k *curve25519.Scalar) []byte {
+	signature = crypto.CreateSignature[T](func(k *curve25519.Scalar) []byte {
 		if B == nil {
 			// compute X = k*G
 			comm.X.ScalarBaseMult(k)
@@ -201,7 +202,7 @@ func GenerateTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, 
 	return signature
 }
 
-func VerifyTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B, D *curve25519.PublicKey[T], sig Signature[T], version uint8) (ok bool) {
+func VerifyTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B, D *curve25519.PublicKey[T], sig crypto.Signature[T], version uint8) (ok bool) {
 	if version != 1 && version != 2 {
 		return false
 	}
@@ -245,7 +246,7 @@ func VerifyTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B,
 
 	var C curve25519.Scalar
 
-	ScalarDeriveLegacyNoAllocate(&C, comm.Bytes(version))
+	crypto.ScalarDeriveLegacyNoAllocate(&C, comm.Bytes(version))
 
 	// is zero, c2 == sig.c
 	result := new(curve25519.Scalar).Subtract(&C, &sig.C)
