@@ -34,7 +34,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_enote_ephemeral_pubkey_cryptonote", func(t *testing.T) {
-		expected := curve25519.X25519PublicKey(types.MustHashFromString("2987777565c02409dfe871cc27b2334f5ade9d4ad014012c568367b80e99c666"))
+		expected := curve25519.MontgomeryPoint(types.MustHashFromString("2987777565c02409dfe871cc27b2334f5ade9d4ad014012c568367b80e99c666"))
 		ephemeralPrivateKey := curve25519.PrivateKeyBytes(types.MustHashFromString("f57ff2d7c898b755137b69e8d826801945ed72e9951850de908e9d645a0bb00d"))
 		result := makeEnoteEphemeralPublicKeyCryptonote[curve25519.VarTimeOperations](
 			ephemeralPrivateKey.Scalar(),
@@ -45,7 +45,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_enote_ephemeral_pubkey_subaddress", func(t *testing.T) {
-		expected := curve25519.X25519PublicKey(types.MustHashFromString("d8b8ce01943edd05d7db66aeb15109c58ec270796f0c76c03d58a398926aca55"))
+		expected := curve25519.MontgomeryPoint(types.MustHashFromString("d8b8ce01943edd05d7db66aeb15109c58ec270796f0c76c03d58a398926aca55"))
 		priv := curve25519.PrivateKeyBytes(types.MustHashFromString("f57ff2d7c898b755137b69e8d826801945ed72e9951850de908e9d645a0bb00d"))
 		spendPub := curve25519.PublicKeyBytes(types.MustHashFromString("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0"))
 		spendPubPoint := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), spendPub)
@@ -59,11 +59,12 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_uncontextualized_shared_key_receiver", func(t *testing.T) {
-		expected := curve25519.X25519PublicKey(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451"))
+		expected := curve25519.MontgomeryPoint(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451"))
 		viewPriv := curve25519.PrivateKeyBytes(types.MustHashFromString("60eff3ec120a12bb44d4258816e015952fc5651040da8c8af58c17676485f200"))
+		ephemeralPub := curve25519.MontgomeryPoint(types.MustHashFromString("d8b8ce01943edd05d7db66aeb15109c58ec270796f0c76c03d58a398926aca55"))
 		result := MakeUncontextualizedSharedKeyReceiver(
-			viewPriv,
-			curve25519.X25519PublicKey(types.MustHashFromString("d8b8ce01943edd05d7db66aeb15109c58ec270796f0c76c03d58a398926aca55")),
+			viewPriv.Scalar(),
+			&ephemeralPub,
 		)
 		if result != expected {
 			t.Fatalf("expected: %x, got: %x", expected, result)
@@ -71,12 +72,12 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_uncontextualized_shared_key_sender", func(t *testing.T) {
-		expected := curve25519.X25519PublicKey(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451"))
+		expected := curve25519.MontgomeryPoint(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451"))
 		viewPub := curve25519.PublicKeyBytes(types.MustHashFromString("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2"))
 		viewPubPoint := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), viewPub)
 		ephemeralPrivateKey := curve25519.PrivateKeyBytes(types.MustHashFromString("f57ff2d7c898b755137b69e8d826801945ed72e9951850de908e9d645a0bb00d"))
 		result := makeUncontextualizedSharedKeySender(
-			ephemeralPrivateKey,
+			ephemeralPrivateKey.Scalar(),
 			viewPubPoint,
 		)
 		if result != expected {
@@ -96,8 +97,8 @@ func TestConverge(t *testing.T) {
 		expected := types.MustHashFromString("232e62041ee1262cb3fce0d10fdbd018cca5b941ff92283676d6112aa426f76c")
 		result := makeSenderReceiverSecret(
 			&blake2b.Digest{},
-			curve25519.X25519PublicKey(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451")),
-			curve25519.X25519PublicKey(types.MustHashFromString("d8b8ce01943edd05d7db66aeb15109c58ec270796f0c76c03d58a398926aca55")),
+			curve25519.MontgomeryPoint(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451")),
+			curve25519.MontgomeryPoint(types.MustHashFromString("d8b8ce01943edd05d7db66aeb15109c58ec270796f0c76c03d58a398926aca55")),
 			hex.MustDecodeString("9423f74f3e869dc8427d8b35bb24c917480409c3f4750bff3c742f8e4d5af7bef7"),
 		)
 		if result != expected {
@@ -168,7 +169,7 @@ func TestConverge(t *testing.T) {
 		expected := [monero.CarrotViewTagSize]byte(hex.MustDecodeString("0176f6"))
 		result := makeViewTag(
 			&blake2b.Digest{},
-			curve25519.X25519PublicKey(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451")),
+			curve25519.MontgomeryPoint(types.MustHashFromString("baa47cfc380374b15cb5a3048099968962a66e287d78654c75b550d711e58451")),
 			hex.MustDecodeString("9423f74f3e869dc8427d8b35bb24c917480409c3f4750bff3c742f8e4d5af7bef7"),
 			curve25519.PublicKeyBytes(types.MustHashFromString("4c93cf2d7ff8556eac73025ab3019a0db220b56bdf0387e0524724cc0e409d92")),
 		)
@@ -217,7 +218,7 @@ func TestConverge(t *testing.T) {
 		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("31afa8f580feaf736cd424ecc9ae5fd2"))
 		result := makeJanusAnchorSpecial(
 			&blake2b.Digest{},
-			curve25519.X25519PublicKey(types.MustHashFromString("d8b8ce01943edd05d7db66aeb15109c58ec270796f0c76c03d58a398926aca55")),
+			curve25519.MontgomeryPoint(types.MustHashFromString("d8b8ce01943edd05d7db66aeb15109c58ec270796f0c76c03d58a398926aca55")),
 			hex.MustDecodeString("9423f74f3e869dc8427d8b35bb24c917480409c3f4750bff3c742f8e4d5af7bef7"),
 			curve25519.PublicKeyBytes(types.MustHashFromString("4c93cf2d7ff8556eac73025ab3019a0db220b56bdf0387e0524724cc0e409d92")),
 			curve25519.PrivateKeyBytes(types.MustHashFromString("60eff3ec120a12bb44d4258816e015952fc5651040da8c8af58c17676485f200")),

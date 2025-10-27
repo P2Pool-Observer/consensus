@@ -9,15 +9,15 @@ import (
 
 type x25519TestVector struct {
 	Scalar PrivateKeyBytes
-	Point  X25519PublicKey
-	Result X25519PublicKey
+	Point  MontgomeryPoint
+	Result MontgomeryPoint
 }
 
 func newX25519TestVector(sc, pt, re string) x25519TestVector {
 	return x25519TestVector{
 		Scalar: PrivateKeyBytes(types.MustHashFromString(sc)),
-		Point:  X25519PublicKey(types.MustHashFromString(pt)),
-		Result: X25519PublicKey(types.MustHashFromString(re)),
+		Point:  MontgomeryPoint(types.MustHashFromString(pt)),
+		Result: MontgomeryPoint(types.MustHashFromString(re)),
 	}
 }
 
@@ -55,22 +55,22 @@ func TestX25519(t *testing.T) {
 	t.Run("ScalarBaseMult", func(t *testing.T) {
 		t.Run("One", func(t *testing.T) {
 			one := (&PrivateKeyBytes{1}).Scalar()
-			var pub X25519PublicKey
-			X25519ScalarBaseMult[VarTimeOperations](&pub, one)
+			var pub MontgomeryPoint
+			MontgomeryScalarBaseMult[VarTimeOperations](&pub, one)
 
-			if pub != X25519Basepoint {
-				t.Errorf("expected %x, got %x", X25519Basepoint, pub)
+			if pub != MontgomeryBasepoint {
+				t.Errorf("expected %s, got %s", MontgomeryBasepoint.String(), pub.String())
 			}
 		})
 	})
 	t.Run("ScalarMult", func(t *testing.T) {
 		for i, vec := range x25519TestVectors {
 			t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
-				var pub X25519PublicKey
-				X25519ScalarMult(&pub, vec.Scalar, vec.Point)
+				var pub MontgomeryPoint
+				MontgomeryUnclampedScalarMult(&pub, vec.Scalar, vec.Point)
 
 				if pub != vec.Result {
-					t.Errorf("expected %x, got %x", vec.Result, pub)
+					t.Errorf("expected %s, got %s", vec.Result.String(), pub.String())
 				}
 			})
 		}
@@ -83,10 +83,10 @@ func BenchmarkX25519ScalarMult(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		var n int
-		var pub X25519PublicKey
+		var pub MontgomeryPoint
 		for pb.Next() {
 			vec := x25519TestVectors[n%len(x25519TestVectors)]
-			X25519ScalarMult(&pub, vec.Scalar, vec.Point)
+			MontgomeryUnclampedScalarMult(&pub, vec.Scalar, vec.Point)
 			n++
 		}
 	})

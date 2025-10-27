@@ -20,7 +20,7 @@ type CoinbaseEnoteV1 struct {
 	ViewTag         [monero.CarrotViewTagSize]byte `json:"view_tag"`
 
 	// EphemeralPubKey D_e
-	EphemeralPubKey curve25519.X25519PublicKey `json:"ephemeral_pub_key"`
+	EphemeralPubKey curve25519.MontgomeryPoint `json:"ephemeral_pub_key"`
 
 	BlockIndex uint64 `json:"block_index"`
 }
@@ -44,7 +44,7 @@ type EnoteV1 struct {
 	ViewTag         [monero.CarrotViewTagSize]byte `json:"view_tag"`
 
 	// EphemeralPubKey D_e
-	EphemeralPubKey curve25519.X25519PublicKey `json:"ephemeral_pub_key"`
+	EphemeralPubKey curve25519.MontgomeryPoint `json:"ephemeral_pub_key"`
 
 	FirstKeyImage curve25519.PublicKeyBytes `json:"tx_first_key_image"`
 }
@@ -67,7 +67,7 @@ func makeEnoteEphemeralPrivateKey(hasher *blake2b.Digest, ephemeralPrivateKeyOut
 
 // makeEnoteEphemeralPublicKeySubaddress make_carrot_enote_ephemeral_pubkey_subaddress
 // Precondition: spendPub is torsion free
-func makeEnoteEphemeralPublicKeySubaddress[T curve25519.PointOperations](key *curve25519.Scalar, spendKey *curve25519.PublicKey[T]) (out curve25519.X25519PublicKey) {
+func makeEnoteEphemeralPublicKeySubaddress[T curve25519.PointOperations](key *curve25519.Scalar, spendKey *curve25519.PublicKey[T]) (out curve25519.MontgomeryPoint) {
 	// K_e = d_e K^j_s
 	var K_e curve25519.PublicKey[T]
 	// D_e = ConvertPointE(K_e)
@@ -75,38 +75,38 @@ func makeEnoteEphemeralPublicKeySubaddress[T curve25519.PointOperations](key *cu
 }
 
 // makeEnoteEphemeralPublicKeyCryptonote make_carrot_enote_ephemeral_pubkey_cryptonote
-func makeEnoteEphemeralPublicKeyCryptonote[T curve25519.PointOperations](key *curve25519.Scalar) (out curve25519.X25519PublicKey) {
+func makeEnoteEphemeralPublicKeyCryptonote[T curve25519.PointOperations](key *curve25519.Scalar) (out curve25519.MontgomeryPoint) {
 	// D_e = d_e B
-	curve25519.X25519ScalarBaseMult[T](&out, key)
+	curve25519.MontgomeryScalarBaseMult[T](&out, key)
 
 	return out
 }
 
 // MakeUncontextualizedSharedKeyReceiver make_carrot_uncontextualized_shared_key_receiver
-func MakeUncontextualizedSharedKeyReceiver(viewPriv curve25519.PrivateKeyBytes, ephemeralPubKey curve25519.X25519PublicKey) (senderReceiverUnctx curve25519.X25519PublicKey) {
-	curve25519.X25519ScalarMult(&senderReceiverUnctx, viewPriv, ephemeralPubKey)
+func MakeUncontextualizedSharedKeyReceiver(viewPriv *curve25519.Scalar, ephemeralPubKey *curve25519.MontgomeryPoint) (senderReceiverUnctx curve25519.MontgomeryPoint) {
+	senderReceiverUnctx.ScalarMult(viewPriv, ephemeralPubKey)
 	return senderReceiverUnctx
 }
 
 // makeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
 // Precondition: viewPub is torsion free
-func makeUncontextualizedSharedKeySender[T curve25519.PointOperations](ephemeralPrivKey curve25519.PrivateKeyBytes, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.X25519PublicKey) {
+func makeUncontextualizedSharedKeySender[T curve25519.PointOperations](ephemeralPrivKey *curve25519.Scalar, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.MontgomeryPoint) {
 	// s_sr = d_e ConvertPointE(K^j_v)
 	viewPubkeyX25519 := viewPub.Montgomery()
-	curve25519.X25519ScalarMult(&senderReceiverUnctx, ephemeralPrivKey, viewPubkeyX25519)
+	senderReceiverUnctx.ScalarMult(ephemeralPrivKey, &viewPubkeyX25519)
 	return senderReceiverUnctx
 }
 
 // makeUncontextualizedSharedKeySenderVarTime
 // VarTime implementation of makeUncontextualizedSharedKeySender
-func makeUncontextualizedSharedKeySenderVarTime[T curve25519.PointOperations](ephemeralPrivKey *curve25519.Scalar, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.X25519PublicKey) {
+func makeUncontextualizedSharedKeySenderVarTime[T curve25519.PointOperations](ephemeralPrivKey *curve25519.Scalar, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.MontgomeryPoint) {
 	// s_sr = ConvertPointE(d_e * K^j_v)
 	var tmp curve25519.PublicKey[T]
 	return tmp.ScalarMult(ephemeralPrivKey, viewPub).Montgomery()
 }
 
 // makeSenderReceiverSecret make_carrot_sender_receiver_secret
-func makeSenderReceiverSecret(hasher *blake2b.Digest, senderReceiverUnctx, ephemeralPubKey curve25519.X25519PublicKey, inputContext []byte) (out types.Hash) {
+func makeSenderReceiverSecret(hasher *blake2b.Digest, senderReceiverUnctx, ephemeralPubKey curve25519.MontgomeryPoint, inputContext []byte) (out types.Hash) {
 	// 1. s^ctx_sr = H_32(s_sr, D_e, input_context)
 	HashedTranscript(
 		out[:], hasher, senderReceiverUnctx[:],
@@ -174,7 +174,7 @@ func makeOnetimeAddress[T curve25519.PointOperations](hasher *blake2b.Digest, sp
 }
 
 // makeViewTag make_carrot_view_tag
-func makeViewTag(hasher *blake2b.Digest, senderReceiverUnctx curve25519.X25519PublicKey, inputContext []byte, oneTimeAddress curve25519.PublicKeyBytes) (out [monero.CarrotViewTagSize]byte) {
+func makeViewTag(hasher *blake2b.Digest, senderReceiverUnctx curve25519.MontgomeryPoint, inputContext []byte, oneTimeAddress curve25519.PublicKeyBytes) (out [monero.CarrotViewTagSize]byte) {
 	// vt = H_3(s_sr || input_context || Ko)
 
 	HashedTranscript(
@@ -215,7 +215,7 @@ func makePaymentIdEncryptionMask(hasher *blake2b.Digest, secretSenderReceiver ty
 }
 
 // makeJanusAnchorSpecial make_carrot_janus_anchor_special
-func makeJanusAnchorSpecial(hasher *blake2b.Digest, ephemeralPubKey curve25519.X25519PublicKey, inputContext []byte, oneTimeAddress curve25519.PublicKeyBytes, viewSecret curve25519.PrivateKeyBytes) (out [monero.JanusAnchorSize]byte) {
+func makeJanusAnchorSpecial(hasher *blake2b.Digest, ephemeralPubKey curve25519.MontgomeryPoint, inputContext []byte, oneTimeAddress curve25519.PublicKeyBytes, viewSecret curve25519.PrivateKeyBytes) (out [monero.JanusAnchorSize]byte) {
 	// anchor_sp = H_16(D_e, input_context, Ko, k_v)
 	HashedTranscript(
 		out[:], hasher, viewSecret[:],

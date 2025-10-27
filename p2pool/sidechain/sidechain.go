@@ -942,7 +942,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 					}
 
 					if !bytes.Equal(pubs[i][:], enote.EphemeralPubKey[:]) {
-						return nil, utils.ErrorfNoEscape("has incorrect public key at index %d, got %x, expected %s", i, enote.EphemeralPubKey[:], pubs[i].String())
+						return nil, utils.ErrorfNoEscape("has incorrect public key at index %d, got %s, expected %s", i, enote.EphemeralPubKey.String(), pubs[i].String())
 					}
 				}
 			} else {

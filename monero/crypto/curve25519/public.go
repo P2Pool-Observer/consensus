@@ -15,6 +15,7 @@ var ZeroPublicKeyBytes = PublicKeyBytes{}
 type VarTimePublicKey = PublicKey[VarTimeOperations]
 type ConstantTimePublicKey = PublicKey[ConstantTimeOperations]
 
+// PublicKey An Edwards25519 point with canonical encoding
 type PublicKey[T PointOperations] struct {
 	p  Point
 	op T
@@ -28,10 +29,9 @@ func FromPoint[T PointOperations](u *Point) *PublicKey[T] {
 	return (*PublicKey[T])(unsafe.Pointer(u))
 }
 
-func (v *PublicKey[T]) NewPoint(u *Point) *PublicKey[T] {
-	n := new(PublicKey[T])
-	n.p.Set(u)
-	return n
+// Equal returns 1 if v is equivalent to u, and 0 otherwise.
+func (v *PublicKey[T]) Equal(u *PublicKey[T]) int {
+	return v.P().Equal(u.P())
 }
 
 func (v *PublicKey[T]) Add(p, q *PublicKey[T]) *PublicKey[T] {
@@ -110,11 +110,12 @@ func (v *PublicKey[T]) P() *Point {
 
 // Montgomery Convert the Ed25519 point to Montgomery
 // Equivalent to ConvertPointE
-func (v *PublicKey[T]) Montgomery() (out X25519PublicKey) {
+func (v *PublicKey[T]) Montgomery() (out MontgomeryPoint) {
 	copy(out[:], v.p.BytesMontgomery())
 	return out
 }
 
+// PublicKeyBytes A compressed Edwards25519 Y point
 type PublicKeyBytes [PublicKeySize]byte
 
 func (k *PublicKeyBytes) Slice() []byte {

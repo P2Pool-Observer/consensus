@@ -19,7 +19,7 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 		Amount:          monero.TailEmissionReward,
 		EncryptedAnchor: [monero.JanusAnchorSize]byte(hex.MustDecodeString("fa1d74f7a4891086a900e72776c521ed")),
 		ViewTag:         [monero.CarrotViewTagSize]byte(hex.MustDecodeString("74b582")),
-		EphemeralPubKey: curve25519.X25519PublicKey(types.MustHashFromString("1b10ce3755cc36e2fda4031a56b589f29e2e727ab0e222be05f30f84c5c1b747")),
+		EphemeralPubKey: curve25519.MontgomeryPoint(types.MustHashFromString("1b10ce3755cc36e2fda4031a56b589f29e2e727ab0e222be05f30f84c5c1b747")),
 		BlockIndex:      123456,
 	}
 

@@ -123,7 +123,7 @@ func HopefulHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[
 func BiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], data []byte) *curve25519.PublicKey[T] {
 	curve25519.Elligator2WithUniformBytes(dst, Keccak256(data))
 
-	// Ensure points lie within the prime-order subgroup
+	// Ensure point lies within the prime-order subgroup
 	dst.MultByCofactor(dst)
 	return dst
 }

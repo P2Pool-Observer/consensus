@@ -12,6 +12,9 @@ type Point = edwards25519.Point
 
 // DecodeMontgomeryPoint
 // Constant time
+//
+// To decompress the Montgomery u coordinate to an `EdwardsPoint`,
+// we apply the birational map to obtain the Edwards y coordinate, then do Edwards decompression.
 func DecodeMontgomeryPoint[T PointOperations](r *PublicKey[T], u *field.Element, sign int) *PublicKey[T] {
 	if u == nil || u.Equal(_NEGATIVE_ONE) == 1 {
 		return nil
@@ -25,7 +28,7 @@ func DecodeMontgomeryPoint[T PointOperations](r *PublicKey[T], u *field.Element,
 		tmp2.Invert(tmp2.Add(u, _ONE)),
 	)
 
-	var yBytes [32]byte
+	var yBytes [PublicKeySize]byte
 	copy(yBytes[:], y.Bytes())
 	yBytes[31] ^= byte(sign << 7)
 
@@ -74,6 +77,8 @@ func elementFromUint64(x uint64) *field.Element {
 var (
 	_ONE          = new(field.Element).One()
 	_NEGATIVE_ONE = new(field.Element).Negate(_ONE)
-	_A            = elementFromUint64(486662)
-	_NEGATIVE_A   = new(field.Element).Negate(_A)
+
+	// _MontgomeryA is equal to 486662, which is a constant of the curve equation for Curve25519 in its Montgomery form.
+	_MontgomeryA         = elementFromUint64(486662)
+	_MontgomeryNegativeA = new(field.Element).Negate(_MontgomeryA)
 )

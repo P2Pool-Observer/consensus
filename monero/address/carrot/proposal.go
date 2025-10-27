@@ -27,22 +27,22 @@ func (p *PaymentProposalV1[T]) UnsafeForceTorsionChecked() {
 }
 
 // ECDHParts get_normal_proposal_ecdh_parts
-func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx curve25519.X25519PublicKey) {
+func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx curve25519.MontgomeryPoint) {
 	var spendPub, viewPub curve25519.PublicKey[T]
 
 	if curve25519.DecodeCompressedPoint[T](&spendPub, *p.Destination.Address.SpendPublicKey()) == nil {
 		// failed decoding or torsion checks
-		return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey
+		return curve25519.ZeroMontgomeryPoint, curve25519.ZeroMontgomeryPoint
 	}
 	if curve25519.DecodeCompressedPoint[T](&viewPub, *p.Destination.Address.ViewPublicKey()) == nil {
 		// failed decoding or torsion checks
-		return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey
+		return curve25519.ZeroMontgomeryPoint, curve25519.ZeroMontgomeryPoint
 	}
 
 	if !p.torsionChecked {
 		if !viewPub.IsTorsionFree() || !spendPub.IsTorsionFree() {
 			// failed decoding or torsion checks
-			return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey
+			return curve25519.ZeroMontgomeryPoint, curve25519.ZeroMontgomeryPoint
 		}
 
 		p.torsionChecked = true
@@ -59,13 +59,13 @@ func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []
 	if isCoinbase {
 		senderReceiverUnctx = makeUncontextualizedSharedKeySenderVarTime(&ephemeralPrivateKey, &viewPub)
 	} else {
-		senderReceiverUnctx = makeUncontextualizedSharedKeySender(curve25519.PrivateKeyBytes(ephemeralPrivateKey.Bytes()), &viewPub)
+		senderReceiverUnctx = makeUncontextualizedSharedKeySender(&ephemeralPrivateKey, &viewPub)
 	}
 
 	return ephemeralPubkey, senderReceiverUnctx
 }
 
-func (p *PaymentProposalV1[T]) ephemeralPublicKey(key *curve25519.Scalar, spendPub *curve25519.PublicKey[T]) (out curve25519.X25519PublicKey) {
+func (p *PaymentProposalV1[T]) ephemeralPublicKey(key *curve25519.Scalar, spendPub *curve25519.PublicKey[T]) (out curve25519.MontgomeryPoint) {
 	if p.Destination.Address.IsSubaddress() {
 		// D_e = d_e ConvertPointE(K^j_s)
 		return makeEnoteEphemeralPublicKeySubaddress(key, spendPub)
@@ -81,17 +81,17 @@ var ErrInvalidRandomness = errors.New("invalid randomness for janus anchor (zero
 var ErrTwistedReceiver = errors.New("receiver public key is twisted or invalid")
 
 // OutputPartial Calculates cacheable partial values
-func (p *PaymentProposalV1[T]) OutputPartial(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx curve25519.X25519PublicKey, secretSenderReceiver types.Hash, err error) {
+func (p *PaymentProposalV1[T]) OutputPartial(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx curve25519.MontgomeryPoint, secretSenderReceiver types.Hash, err error) {
 	if err = p.Check(isCoinbase); err != nil {
-		return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey, types.ZeroHash, err
+		return curve25519.ZeroMontgomeryPoint, curve25519.ZeroMontgomeryPoint, types.ZeroHash, err
 	}
 
 	// 3. make D_e and do external ECDH
 	ephemeralPubkey, senderReceiverUnctx = p.ECDHParts(hasher, inputContext[:], isCoinbase)
 
 	// err on twisted view/spend pub
-	if ephemeralPubkey == curve25519.ZeroX25519PublicKey || senderReceiverUnctx == curve25519.ZeroX25519PublicKey {
-		return curve25519.ZeroX25519PublicKey, curve25519.ZeroX25519PublicKey, types.ZeroHash, ErrTwistedReceiver
+	if ephemeralPubkey == curve25519.ZeroMontgomeryPoint || senderReceiverUnctx == curve25519.ZeroMontgomeryPoint {
+		return curve25519.ZeroMontgomeryPoint, curve25519.ZeroMontgomeryPoint, types.ZeroHash, ErrTwistedReceiver
 	}
 
 	// 4. build the output enote address pieces
@@ -116,7 +116,7 @@ func (p *PaymentProposalV1[T]) Check(isCoinbase bool) error {
 }
 
 // CoinbaseOutputFromPartial Make a coinbase payment output from OutputPartial values
-func (p *PaymentProposalV1[T]) CoinbaseOutputFromPartial(hasher *blake2b.Digest, enote *CoinbaseEnoteV1, inputContext []byte, ephemeralPubkey, senderReceiverUnctx curve25519.X25519PublicKey, secretSenderReceiver types.Hash) {
+func (p *PaymentProposalV1[T]) CoinbaseOutputFromPartial(hasher *blake2b.Digest, enote *CoinbaseEnoteV1, inputContext []byte, ephemeralPubkey, senderReceiverUnctx curve25519.MontgomeryPoint, secretSenderReceiver types.Hash) {
 	enote.EphemeralPubKey = ephemeralPubkey
 
 	var spendPub curve25519.PublicKey[T]

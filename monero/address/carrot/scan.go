@@ -33,7 +33,7 @@ var ErrJanusProtectionFailed = errors.New("janus protection check failed")
 var ErrMismatchedAmountCommitment = errors.New("mismatched amount commitment")
 
 // TryScanEnoteChecked try_scan_carrot_coinbase_enote_checked
-func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, senderReceiverUnctx curve25519.X25519PublicKey, mainAddressSpendPub curve25519.PublicKeyBytes) error {
+func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, senderReceiverUnctx curve25519.MontgomeryPoint, mainAddressSpendPub curve25519.PublicKeyBytes) error {
 	var hasher blake2b.Digest
 
 	// if vt' != vt, then FAIL
@@ -71,7 +71,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 }
 
 // TryScanEnoteChecked try_scan_carrot_enote_external_normal_checked
-func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, senderReceiverUnctx curve25519.X25519PublicKey, mainAddressSpendPub curve25519.PublicKeyBytes) (err error) {
+func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, senderReceiverUnctx curve25519.MontgomeryPoint, mainAddressSpendPub curve25519.PublicKeyBytes) (err error) {
 	var hasher blake2b.Digest
 
 	// if vt' != vt, then FAIL
@@ -170,7 +170,7 @@ func tryRecomputeCarrotAmountCommitment[T curve25519.PointOperations](hasher *bl
 }
 
 // verifyNormalJanusProtection verify_carrot_normal_janus_protection
-func verifyNormalJanusProtection[T curve25519.PointOperations](hasher *blake2b.Digest, nominalAnchor [monero.JanusAnchorSize]byte, inputContext []byte, nominalSpendPub curve25519.PublicKeyBytes, isSubaddress bool, nominalPaymentId [monero.PaymentIdSize]byte, ephemeralPub curve25519.X25519PublicKey) bool {
+func verifyNormalJanusProtection[T curve25519.PointOperations](hasher *blake2b.Digest, nominalAnchor [monero.JanusAnchorSize]byte, inputContext []byte, nominalSpendPub curve25519.PublicKeyBytes, isSubaddress bool, nominalPaymentId [monero.PaymentIdSize]byte, ephemeralPub curve25519.MontgomeryPoint) bool {
 
 	// d_e' = H_n(anchor_norm, input_context, K^j_s, pid))
 	var ephemeralPrivateKey curve25519.Scalar

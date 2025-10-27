@@ -18,8 +18,8 @@ type ephemeralPublicKeyCacheKey [curve25519.PrivateKeySize + curve25519.PublicKe
 type derivationCacheKey [curve25519.PrivateKeySize + curve25519.PublicKeySize]byte
 
 type carrotEnoteCache struct {
-	EphemeralPubkey      curve25519.X25519PublicKey
-	SenderReceiverUnctx  curve25519.X25519PublicKey
+	EphemeralPubkey      curve25519.MontgomeryPoint
+	SenderReceiverUnctx  curve25519.MontgomeryPoint
 	SecretSenderReceiver types.Hash
 }
 type ephemeralPublicKeyWithViewTag struct {
