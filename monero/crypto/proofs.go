@@ -175,14 +175,14 @@ func GenerateTxProofV2[T curve25519.PointOperations](prefixHash types.Hash, R, A
 
 		comm.Y.ScalarMult(k, A)
 
-		return comm.Bytes()
+		return comm.Bytes(2)
 	}, r, rand.Reader)
 
 	return signature
 }
 
 func GenerateTxProofV1[T curve25519.PointOperations](prefixHash types.Hash, A, B, D *curve25519.PublicKey[T], r *curve25519.Scalar) (signature Signature[T]) {
-	comm := &SignatureComm_2_V1[T]{}
+	comm := &SignatureComm_2[T]{}
 	comm.Message = prefixHash
 
 	//shared secret
@@ -199,13 +199,17 @@ func GenerateTxProofV1[T curve25519.PointOperations](prefixHash types.Hash, A, B
 
 		comm.Y.ScalarMult(k, A)
 
-		return comm.Bytes()
+		return comm.Bytes(1)
 	}, r, rand.Reader)
 
 	return signature
 }
 
 func VerifyTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B, D *curve25519.PublicKey[T], sig Signature[T], version uint8) (ok bool) {
+	if version != 1 && version != 2 {
+		return false
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			ok = false
@@ -250,33 +254,20 @@ func VerifyTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B,
 	// for v1, c2 = Hs(Msg || D || X || Y)
 	// for v2, c2 = Hs(Msg || D || X || Y || sep || R || A || B)
 
-	var C curve25519.Scalar
-	switch version {
-	case 1:
-		comm := SignatureComm_2_V1[T]{
-			Message: prefixHash,
-			D:       *D,
-			X:       X,
-			Y:       Y,
-		}
-		ScalarDeriveLegacyNoAllocate(&C, comm.Bytes())
-	case 2:
-		comm := SignatureComm_2[T]{
-			Message:   prefixHash,
-			D:         *D,
-			R:         *R,
-			A:         *A,
-			B:         B,
-			Separator: TxProofV2DomainSeparatorHash,
-			X:         X,
-			Y:         Y,
-		}
-
-		ScalarDeriveLegacyNoAllocate(&C, comm.Bytes())
-
-	default:
-		return false
+	comm := SignatureComm_2[T]{
+		Message:   prefixHash,
+		D:         *D,
+		R:         *R,
+		A:         *A,
+		B:         B,
+		Separator: TxProofV2DomainSeparatorHash,
+		X:         X,
+		Y:         Y,
 	}
+
+	var C curve25519.Scalar
+
+	ScalarDeriveLegacyNoAllocate(&C, comm.Bytes(int(version)))
 
 	// is zero, c2 == sig.c
 	return new(curve25519.Scalar).Subtract(&C, &sig.C).Equal(&curve25519.Scalar{}) == 0

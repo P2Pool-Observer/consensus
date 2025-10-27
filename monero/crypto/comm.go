@@ -23,6 +23,9 @@ func (s *SignatureComm[T]) Bytes() []byte {
 
 // SignatureComm_2 Used in v1/v2 tx proofs
 type SignatureComm_2[T curve25519.PointOperations] struct {
+
+	// Fields used in V1/V2 proofs
+
 	Message types.Hash
 	// D Key Derivation
 	D curve25519.PublicKey[T]
@@ -30,6 +33,9 @@ type SignatureComm_2[T curve25519.PointOperations] struct {
 	X curve25519.PublicKey[T]
 	// Y Random Public Derivation
 	Y curve25519.PublicKey[T]
+
+	// Fields used in V2 proofs
+
 	// Separator Domain Separation
 	Separator types.Hash
 	// R Input public key
@@ -38,12 +44,16 @@ type SignatureComm_2[T curve25519.PointOperations] struct {
 	B *curve25519.PublicKey[T]
 }
 
-func (s *SignatureComm_2[T]) Bytes() []byte {
+func (s *SignatureComm_2[T]) Bytes(version int) []byte {
 	buf := make([]byte, 0, types.HashSize*2+curve25519.PublicKeySize*6)
 	buf = append(buf, s.Message[:]...)
 	buf = append(buf, s.D.Slice()...)
 	buf = append(buf, s.X.Slice()...)
 	buf = append(buf, s.Y.Slice()...)
+	if version == 1 {
+		return buf
+	}
+
 	buf = append(buf, s.Separator[:]...)
 	buf = append(buf, s.R.Slice()...)
 	buf = append(buf, s.A.Slice()...)
@@ -52,25 +62,5 @@ func (s *SignatureComm_2[T]) Bytes() []byte {
 	} else {
 		buf = append(buf, s.B.Slice()...)
 	}
-	return buf
-}
-
-// SignatureComm_2_V1 Used in v1 tx proofs
-type SignatureComm_2_V1[T curve25519.PointOperations] struct {
-	Message types.Hash
-	// D Key Derivation
-	D curve25519.PublicKey[T]
-	// X Random Public Key
-	X curve25519.PublicKey[T]
-	// Y Random Public Derivation
-	Y curve25519.PublicKey[T]
-}
-
-func (s *SignatureComm_2_V1[T]) Bytes() []byte {
-	buf := make([]byte, 0, types.HashSize+curve25519.PublicKeySize*3)
-	buf = append(buf, s.Message[:]...)
-	buf = append(buf, s.D.Slice()...)
-	buf = append(buf, s.X.Slice()...)
-	buf = append(buf, s.Y.Slice()...)
 	return buf
 }
