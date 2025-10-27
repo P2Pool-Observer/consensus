@@ -33,6 +33,11 @@ func (comm RingSignatureComm[T]) Bytes() []byte {
 
 // Sign Equivalent to Monero's generate_ring_signature
 func (s *RingSignature[T]) Sign(prefixHash types.Hash, keyPair *crypto.KeyPair[T], keyIndex int, randomReader io.Reader) {
+	keyImage := crypto.GetKeyImage(new(curve25519.PublicKey[T]), keyPair)
+	s.sign(prefixHash, keyImage, &keyPair.PrivateKey, keyIndex, randomReader)
+}
+
+func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.PublicKey[T], key *curve25519.Scalar, keyIndex int, randomReader io.Reader) {
 	if len(s.Ring) == 0 || keyIndex < 0 || keyIndex >= len(s.Ring) {
 		panic("no public keys defined")
 	}
@@ -42,8 +47,6 @@ func (s *RingSignature[T]) Sign(prefixHash types.Hash, keyPair *crypto.KeyPair[T
 		PrefixHash: prefixHash,
 		AB:         make([][2]curve25519.PublicKey[T], len(s.Ring)),
 	}
-
-	keyImage := crypto.GetKeyImage(new(curve25519.PublicKey[T]), keyPair)
 
 	precomputedImage := curve25519.NewGenerator(keyImage.P())
 
@@ -79,19 +82,23 @@ func (s *RingSignature[T]) Sign(prefixHash types.Hash, keyPair *crypto.KeyPair[T
 	crypto.ScalarDeriveLegacyNoAllocate(&result, buf.Bytes())
 	s.Signatures[keyIndex].C.Subtract(&result, &sum)
 
-	s.Signatures[keyIndex].R.Subtract(&k, new(curve25519.Scalar).Multiply(&s.Signatures[keyIndex].C, &keyPair.PrivateKey))
+	s.Signatures[keyIndex].R.Subtract(&k, new(curve25519.Scalar).Multiply(&s.Signatures[keyIndex].C, key))
 }
 
 // Verify Equivalent to Monero's check_ring_signature
 func (s *RingSignature[T]) Verify(prefixHash types.Hash, keyImage *curve25519.PublicKey[T]) bool {
+	if !keyImage.IsTorsionFree() {
+		return false
+	}
+
+	return s.verify(prefixHash, keyImage)
+}
+
+func (s *RingSignature[T]) verify(prefixHash types.Hash, keyImage *curve25519.PublicKey[T]) bool {
 	if len(s.Signatures) == 0 {
 		return false
 	}
 	if len(s.Signatures) != len(s.Ring) {
-		return false
-	}
-
-	if !keyImage.IsTorsionFree() {
 		return false
 	}
 
@@ -131,5 +138,6 @@ func (s *RingSignature[T]) Verify(prefixHash types.Hash, keyImage *curve25519.Pu
 		sum.Add(&sum, &sig.C)
 	}
 
-	return sum.Equal(crypto.ScalarDeriveLegacyNoAllocate(&result, buf.Bytes())) == 1
+	crypto.ScalarDeriveLegacyNoAllocate(&result, buf.Bytes())
+	return sum.Equal(&result) == 1
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 	"github.com/tmthrgd/go-hex"
 )
 
@@ -209,4 +211,73 @@ func TestGenerateRingSignature(t *testing.T) {
 	}
 
 	t.Logf("rng permutations: %d", rng.Permutations())
+}
+
+// TestRingSignatureLowOrderGenerator
+// Implements an attack on RingSignature based on the low order generator bug
+// Disclosed on https://www.getmonero.org/2017/05/17/disclosure-of-a-major-bug-in-cryptonote-based-currencies.html
+// Also https://jonasnick.github.io/blog/2017/05/23/exploiting-low-order-generators-in-one-time-ring-signatures/
+func TestRingSignatureLowOrderGenerator(t *testing.T) {
+
+	rng := crypto.NewDeterministicTestGenerator()
+
+	keyPair := crypto.NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](crypto.RandomScalar(new(curve25519.Scalar), rng))
+
+	t.Logf("secret    = %x", keyPair.PrivateKey.Bytes())
+	t.Logf("public    = %x", keyPair.PublicKey.Bytes())
+
+	var rs RingSignature[curve25519.ConstantTimeOperations]
+
+	rs.Ring = append(rs.Ring, keyPair.PublicKey)
+	for range 3 {
+		rs.Ring = append(rs.Ring, *new(curve25519.ConstantTimePublicKey).ScalarBaseMult(crypto.RandomScalar(new(curve25519.Scalar), rng)))
+	}
+
+	keyImage := crypto.GetKeyImage(new(curve25519.ConstantTimePublicKey), keyPair)
+	rs.Sign(types.ZeroHash, keyPair, 0, rng)
+
+	// we have a passing ring signature for keyImage
+	if !rs.Verify(types.ZeroHash, keyImage) {
+		t.Fatal("signature verification failed")
+	}
+
+	// prepare a low order point to twist key image
+	const torsionIndex = 1
+	torsion := curve25519.FromPoint[curve25519.ConstantTimeOperations](edwards25519.EightTorsion[torsionIndex])
+	if torsion.P().Equal(edwards25519.NewIdentityPoint()) == 1 {
+		t.Fatal("torsion must not be identity")
+	}
+	if torsion.IsTorsionFree() {
+		t.Fatal("torsion must not be torsion free")
+	}
+
+	// it's twisting time!
+	torsionedKeyImage := new(curve25519.ConstantTimePublicKey).Add(keyImage, torsion)
+
+	// prepare twisted ring signature commiting to new key image, but same private key and ring
+	trs := RingSignature[curve25519.ConstantTimeOperations]{
+		Ring: slices.Clone(rs.Ring),
+	}
+
+	t.Logf("image     = %s", keyImage)
+
+	// it may take a few tries due to random trials
+	for range 1024 {
+		// keep signing until e*I = e*I', given o divides e
+		trs.sign(types.ZeroHash, torsionedKeyImage, &keyPair.PrivateKey, 0, rng)
+
+		// check if we are twisted all over
+		if !trs.verify(types.ZeroHash, torsionedKeyImage) {
+			continue
+		}
+		if trs.Verify(types.ZeroHash, torsionedKeyImage) {
+			t.Errorf("torsioned image I' = I * E[%d] returned true on RingSignature.verify, true on RingSignature.Verify (expected false)", torsionIndex)
+		} else {
+
+			t.Logf("torsioned = %s", torsionedKeyImage)
+			t.Logf("torsioned image I' = I * E[%d] returned true on RingSignature.verify, false on RingSignature.Verify", torsionIndex)
+			return
+		}
+	}
+	t.Fatal("could not find torsioned image")
 }
