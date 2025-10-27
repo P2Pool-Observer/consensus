@@ -133,7 +133,7 @@ func TestPoolBlockDecodeV4(t *testing.T) {
 			types.MustHashFromString("0906c001cc0900098fe1b62593f8ba52bd1ae2a0806096aa361a9f1702000000"),
 			types.MustHashFromString("3351277ffdfc4ed2321f148b061d27013ea696c4bff9742dd2c6268aa24ec79f"),
 			types.MustHashFromString("60d8a8ecc49d9801dde848e74b4089c3f1fbb57c043fd8083aae357ac6868eae"),
-			curve25519.PrivateKeyBytes(types.MustHashFromString("aa2d1b60be7daafd95985c0a6c859f5dd1c7dbe8540dd56d015d2aec9d4f6f0c")),
+			types.MustBytes32FromString[curve25519.PrivateKeyBytes]("aa2d1b60be7daafd95985c0a6c859f5dd1c7dbe8540dd56d015d2aec9d4f6f0c"),
 		)
 	}
 }
@@ -159,7 +159,7 @@ func TestPoolBlockDecodeV2(t *testing.T) {
 			types.MustHashFromString("aa7a3c4a2d67cb6a728e244288219bf038024f3b511b0da197a19ec601000000"),
 			types.MustHashFromString("fd7b5f77c79e624e26b939028a15f14b250fdb217cd40b4ce524eab9b17082ca"),
 			types.MustHashFromString("b52a9222eb2712c43742ed3a598df34c821bfb5d3b5a25d41bb4bdb014505ca9"),
-			curve25519.PrivateKeyBytes(types.MustHashFromString("ba757262420e8bfa7c1931c75da051955cd2d4dff35dff7bfff42a1569941405")),
+			types.MustBytes32FromString[curve25519.PrivateKeyBytes]("ba757262420e8bfa7c1931c75da051955cd2d4dff35dff7bfff42a1569941405"),
 		)
 	}
 }
@@ -185,7 +185,7 @@ func TestPoolBlockDecodeV1(t *testing.T) {
 			types.MustHashFromString("f76d731c61c9c9b6c3f46be2e60c9478930b49b4455feecd41ecb9420d000000"),
 			types.ZeroHash,
 			types.MustHashFromString("09f4ead399cd8357eff7403562e43fe472f79e47deb39148ff3d681fc8f113ea"),
-			curve25519.PrivateKeyBytes(types.MustHashFromString("fed259c99cb7d21ac94ade82f2909ad1ccabdeafd16eeb60db4ca5eedca86a0a")),
+			types.MustBytes32FromString[curve25519.PrivateKeyBytes]("fed259c99cb7d21ac94ade82f2909ad1ccabdeafd16eeb60db4ca5eedca86a0a"),
 		)
 	}
 }

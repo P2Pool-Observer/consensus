@@ -14,7 +14,7 @@ import (
 )
 
 var testGeneralFundAddr = address.FromBase58("44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A")
-var testGeneralFundViewKey = curve25519.PrivateKeyBytes(types.MustHashFromString("f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501"))
+var testGeneralFundViewKey = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501")
 var testGeneralFundDonationAddr = address.FromBase58("888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H")
 var testGeneralFundSubaddressIndex = address.SubaddressIndex{Account: 0, Offset: 70}
 
@@ -41,19 +41,19 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 		ecdhInfo = append(ecdhInfo, binary.LittleEndian.Uint64(buf))
 	}
 
-	txPub := curve25519.PublicKeyBytes(types.MustHashFromString("889432b1c870f2c5748b4c6f8bd2f28879cc698859674940b082b5fb5fef7e90"))
+	txPub := types.MustBytes32FromString[curve25519.PublicKeyBytes]("889432b1c870f2c5748b4c6f8bd2f28879cc698859674940b082b5fb5fef7e90")
 	outputs := transaction.Outputs{
 		{
 			Index:              0,
 			Reward:             0,
-			EphemeralPublicKey: curve25519.PublicKeyBytes(types.MustHashFromString("892251b8fa9b95f90397f17f20178e05be9122338c1be821cb208237ce3397ca")),
+			EphemeralPublicKey: types.MustBytes32FromString[curve25519.PublicKeyBytes]("892251b8fa9b95f90397f17f20178e05be9122338c1be821cb208237ce3397ca"),
 			Type:               transaction.TxOutToTaggedKey,
 			ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0xc0}),
 		},
 		{
 			Index:              1,
 			Reward:             0,
-			EphemeralPublicKey: curve25519.PublicKeyBytes(types.MustHashFromString("8219a994a9055ce3f99298fae343afea6b2d658098b33099b65b78e160cbd72e")),
+			EphemeralPublicKey: types.MustBytes32FromString[curve25519.PublicKeyBytes]("8219a994a9055ce3f99298fae343afea6b2d658098b33099b65b78e160cbd72e"),
 			Type:               transaction.TxOutToTaggedKey,
 			ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0x82}),
 		},

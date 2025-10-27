@@ -21,8 +21,8 @@ func TestGenerateSignature(t *testing.T) {
 
 	for e := range results {
 		prefixHash := types.MustHashFromString(e[0])
-		expectedPub := curve25519.PublicKeyBytes(types.MustHashFromString(e[1]))
-		sec := curve25519.PrivateKeyBytes(types.MustHashFromString(e[2]))
+		expectedPub := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1])
+		sec := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[2])
 		sigBytes, _ := hex.DecodeString(e[3])
 		expectedSig := NewSignatureFromBytes[curve25519.ConstantTimeOperations](sigBytes)
 
@@ -50,7 +50,7 @@ func TestCheckSignature(t *testing.T) {
 	}
 	for e := range results {
 		prefixHash := types.MustHashFromString(e[0])
-		pub := curve25519.PublicKeyBytes(types.MustHashFromString(e[1]))
+		pub := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1])
 		sigBytes, _ := hex.DecodeString(e[2])
 		sig := NewSignatureFromBytes[curve25519.ConstantTimeOperations](sigBytes)
 		result := e[3] == "true"

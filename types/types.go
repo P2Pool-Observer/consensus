@@ -24,25 +24,33 @@ func (h Hash) MarshalJSON() ([]byte, error) {
 	return buf[:], nil
 }
 
-func MustHashFromString(s string) Hash {
-	if h, err := HashFromString(s); err != nil {
+func MustBytes32FromString[T ~[32]byte](s string) T {
+	if h, err := Bytes32FromString[T](s); err != nil {
 		panic(err)
 	} else {
 		return h
 	}
 }
 
-func HashFromString(s string) (Hash, error) {
-	var h Hash
+func Bytes32FromString[T ~[32]byte](s string) (T, error) {
+	var h T
 	if buf, err := fasthex.DecodeString(s); err != nil {
 		return h, err
 	} else {
-		if len(buf) != HashSize {
-			return h, errors.New("wrong hash size")
+		if len(buf) != 32 {
+			return h, errors.New("wrong size")
 		}
 		copy(h[:], buf)
 		return h, nil
 	}
+}
+
+func MustHashFromString(s string) Hash {
+	return MustBytes32FromString[Hash](s)
+}
+
+func HashFromString(s string) (Hash, error) {
+	return Bytes32FromString[Hash](s)
 }
 
 func HashFromBytes(buf []byte) (h Hash) {

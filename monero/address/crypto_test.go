@@ -51,10 +51,10 @@ func TestDerivePublicKey(t *testing.T) {
 	for e := range results {
 		var expectedDerivedKey types.Hash
 
-		derivation := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		derivation := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
 
-		base := curve25519.PublicKeyBytes(types.MustHashFromString(e[2]))
+		base := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[2])
 
 		result := e[3] == "true"
 		if result {
@@ -105,14 +105,14 @@ func TestDeriveSecretKey(t *testing.T) {
 	for e := range results {
 		var expectedDerivedKey curve25519.PrivateKeyBytes
 
-		derivation := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		derivation := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
 
-		base := curve25519.PrivateKeyBytes(types.MustHashFromString(e[2]))
+		base := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[2])
 
 		result := e[3] == "true"
 		if result {
-			expectedDerivedKey = curve25519.PrivateKeyBytes(types.MustHashFromString(e[4]))
+			expectedDerivedKey = types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[4])
 		}
 
 		scalar := base.Scalar()
@@ -152,8 +152,8 @@ func TestGenerateKeyDerivation(t *testing.T) {
 	for e := range results {
 		var expectedDerivation types.Hash
 
-		key1 := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
-		key2 := curve25519.PrivateKeyBytes(types.MustHashFromString(e[1]))
+		key1 := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
+		key2 := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[1])
 		result := e[2] == "true"
 		if result {
 			expectedDerivation = types.MustHashFromString(e[3])

@@ -15,9 +15,9 @@ type x25519TestVector struct {
 
 func newX25519TestVector(sc, pt, re string) x25519TestVector {
 	return x25519TestVector{
-		Scalar: PrivateKeyBytes(types.MustHashFromString(sc)),
-		Point:  MontgomeryPoint(types.MustHashFromString(pt)),
-		Result: MontgomeryPoint(types.MustHashFromString(re)),
+		Scalar: types.MustBytes32FromString[PrivateKeyBytes](sc),
+		Point:  types.MustBytes32FromString[MontgomeryPoint](pt),
+		Result: types.MustBytes32FromString[MontgomeryPoint](re),
 	}
 }
 

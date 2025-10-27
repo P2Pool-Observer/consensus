@@ -53,7 +53,7 @@ func TestDeriveViewTag(t *testing.T) {
 	}
 
 	for e := range results {
-		derivation := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		derivation := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
 		result, _ := fasthex.DecodeString(e[2])
 
@@ -78,7 +78,7 @@ func FuzzDeriveViewTag(f *testing.F) {
 		f.Fatal()
 	}
 	for e := range results {
-		derivation := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		derivation := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
 
 		f.Add(derivation.Slice(), outputIndex)
@@ -142,7 +142,7 @@ func TestCheckTorsion(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		result := e[1] == "true"
 
 		if p := key.Point(); p == nil {
@@ -166,7 +166,7 @@ func TestCheckTorsionVarTime(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		result := e[1] == "true"
 
 		if p := curve25519.To[curve25519.VarTimeOperations](key.Point()); p == nil {
@@ -189,7 +189,7 @@ func TestCheckScalar(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := curve25519.PrivateKeyBytes(types.MustHashFromString(e[0]))
+		key := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[0])
 		result := e[1] == "true"
 
 		if key.Scalar() == nil {
@@ -208,11 +208,11 @@ func TestSecretKeyToPublicKey(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := curve25519.PrivateKeyBytes(types.MustHashFromString(e[0]))
+		key := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[0])
 		result := e[1] == "true"
 		var expected curve25519.PublicKeyBytes
 		if len(e) > 2 {
-			expected = curve25519.PublicKeyBytes(types.MustHashFromString(e[2]))
+			expected = types.MustBytes32FromString[curve25519.PublicKeyBytes](e[2])
 		}
 
 		if key.Scalar() == nil {
@@ -242,8 +242,8 @@ func TestGenerateKeys(t *testing.T) {
 	rng.Skip(263)
 
 	for e := range results {
-		expectedPub := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
-		expectedPriv := curve25519.PrivateKeyBytes(types.MustHashFromString(e[1]))
+		expectedPub := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
+		expectedPriv := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[1])
 
 		key := RandomScalar(new(curve25519.Scalar), rng)
 
@@ -265,7 +265,7 @@ func TestCheckKey(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
+		key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		result := e[1] == "true"
 
 		if key.Point() == nil {
@@ -285,8 +285,8 @@ func TestHashToEC(t *testing.T) {
 	}
 
 	for e := range results {
-		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
-		expected := curve25519.PublicKeyBytes(types.MustHashFromString(e[1]))
+		key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
+		expected := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1])
 
 		point := BiasedHashToPoint(new(curve25519.ConstantTimePublicKey), key.Slice())
 
@@ -305,8 +305,8 @@ func TestHashToPoint(t *testing.T) {
 	}
 
 	for e := range results {
-		key := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
-		expected := curve25519.PublicKeyBytes(types.MustHashFromString(e[1]))
+		key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
+		expected := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1])
 
 		point := curve25519.Elligator2WithUniformBytes(new(curve25519.ConstantTimePublicKey), key)
 		if point == nil {

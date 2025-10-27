@@ -16,7 +16,7 @@ func TestRandomScalar(t *testing.T) {
 	rng := NewDeterministicTestGenerator()
 
 	for e := range results {
-		expected := curve25519.PrivateKeyBytes(types.MustHashFromString(e[0]))
+		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[0])
 
 		key := RandomScalar(new(curve25519.Scalar), rng)
 

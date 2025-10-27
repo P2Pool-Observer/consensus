@@ -26,9 +26,9 @@ func TestGenerateKeyImage(t *testing.T) {
 		t.Fatal()
 	}
 	for e := range results {
-		expectedPub := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
-		secret := curve25519.PrivateKeyBytes(types.MustHashFromString(e[1]))
-		expected := curve25519.PublicKeyBytes(types.MustHashFromString(e[2]))
+		expectedPub := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
+		secret := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[1])
+		expected := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[2])
 
 		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(secret.Scalar())
 
@@ -61,7 +61,7 @@ func TestHashToScalar(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		expected := curve25519.PrivateKeyBytes(types.MustHashFromString(e[1]))
+		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[1])
 
 		scalar := ScalarDeriveLegacy(data)
 		if scalar == nil {

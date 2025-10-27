@@ -13,7 +13,7 @@ import (
 func TestConvergeAccount(t *testing.T) {
 
 	t.Run("make_carrot_provespend_key", func(t *testing.T) {
-		expected := curve25519.PrivateKeyBytes(types.MustHashFromString("f10bf01839ea216e5d70b7c9ceaa8b8e9a432b5e98e6e48a8043ffb3fa229f0b"))
+		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f10bf01839ea216e5d70b7c9ceaa8b8e9a432b5e98e6e48a8043ffb3fa229f0b")
 		var result curve25519.Scalar
 		MakeProveSpendKey(
 			&blake2b.Digest{},
@@ -37,7 +37,7 @@ func TestConvergeAccount(t *testing.T) {
 	})
 
 	t.Run("make_carrot_generateimage_key", func(t *testing.T) {
-		expected := curve25519.PrivateKeyBytes(types.MustHashFromString("336e3af233b3aa5bc95d5589aba67aab727727419899823acc6a6c4479e4ea04"))
+		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("336e3af233b3aa5bc95d5589aba67aab727727419899823acc6a6c4479e4ea04")
 		var result curve25519.Scalar
 		MakeGenerateImageKey(
 			&blake2b.Digest{},
@@ -50,7 +50,7 @@ func TestConvergeAccount(t *testing.T) {
 	})
 
 	t.Run("make_carrot_viewincoming_key", func(t *testing.T) {
-		expected := curve25519.PrivateKeyBytes(types.MustHashFromString("60eff3ec120a12bb44d4258816e015952fc5651040da8c8af58c17676485f200"))
+		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("60eff3ec120a12bb44d4258816e015952fc5651040da8c8af58c17676485f200")
 		var result curve25519.Scalar
 		MakeViewIncomingKey(
 			&blake2b.Digest{},
@@ -74,9 +74,9 @@ func TestConvergeAccount(t *testing.T) {
 	})
 
 	t.Run("make_carrot_spend_pubkey", func(t *testing.T) {
-		expected := curve25519.PublicKeyBytes(types.MustHashFromString("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f"))
-		generateImage := curve25519.PrivateKeyBytes(types.MustHashFromString("336e3af233b3aa5bc95d5589aba67aab727727419899823acc6a6c4479e4ea04"))
-		proveSpend := curve25519.PrivateKeyBytes(types.MustHashFromString("f10bf01839ea216e5d70b7c9ceaa8b8e9a432b5e98e6e48a8043ffb3fa229f0b"))
+		expected := types.MustBytes32FromString[curve25519.PublicKeyBytes]("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f")
+		generateImage := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("336e3af233b3aa5bc95d5589aba67aab727727419899823acc6a6c4479e4ea04")
+		proveSpend := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f10bf01839ea216e5d70b7c9ceaa8b8e9a432b5e98e6e48a8043ffb3fa229f0b")
 		var result curve25519.VarTimePublicKey
 		MakeSpendPub(
 			&result,
@@ -89,9 +89,9 @@ func TestConvergeAccount(t *testing.T) {
 	})
 
 	t.Run("make_carrot_spend_pubkey_from_spendpub", func(t *testing.T) {
-		expected := curve25519.PublicKeyBytes(types.MustHashFromString("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f"))
-		generateImage := curve25519.PrivateKeyBytes(types.MustHashFromString("336e3af233b3aa5bc95d5589aba67aab727727419899823acc6a6c4479e4ea04"))
-		proveSpend := curve25519.PrivateKeyBytes(types.MustHashFromString("f10bf01839ea216e5d70b7c9ceaa8b8e9a432b5e98e6e48a8043ffb3fa229f0b"))
+		expected := types.MustBytes32FromString[curve25519.PublicKeyBytes]("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f")
+		generateImage := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("336e3af233b3aa5bc95d5589aba67aab727727419899823acc6a6c4479e4ea04")
+		proveSpend := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f10bf01839ea216e5d70b7c9ceaa8b8e9a432b5e98e6e48a8043ffb3fa229f0b")
 
 		var proveSpendPub curve25519.VarTimePublicKey
 		proveSpendPub.ScalarMultPrecomputed(proveSpend.Scalar(), crypto.GeneratorT)
@@ -121,12 +121,12 @@ func TestConvergeAccount(t *testing.T) {
 	})
 
 	t.Run("make_carrot_subaddress_scalar", func(t *testing.T) {
-		expected := curve25519.PrivateKeyBytes(types.MustHashFromString("25d97acc4f6b58478ee97ee9b308be756401130c1e9f3a48a5370c1a2ce0e50e"))
+		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("25d97acc4f6b58478ee97ee9b308be756401130c1e9f3a48a5370c1a2ce0e50e")
 		var result curve25519.Scalar
 		makeSubaddressScalar(
 			&blake2b.Digest{},
 			&result,
-			curve25519.PublicKeyBytes(types.MustHashFromString("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f")),
+			types.MustBytes32FromString[curve25519.PublicKeyBytes]("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f"),
 			types.MustHashFromString("79ad2383f44b4d26413adb7ae79c5658b2a8c20b6f5046bfa9f229bfcf1744a7"),
 			address.SubaddressIndex{Account: 5, Offset: 16},
 		)
