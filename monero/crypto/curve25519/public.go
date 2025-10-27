@@ -16,7 +16,8 @@ type VarTimePublicKey = PublicKey[VarTimeOperations]
 type ConstantTimePublicKey = PublicKey[ConstantTimeOperations]
 
 type PublicKey[T PointOperations] struct {
-	p Point
+	p  Point
+	op T
 }
 
 func To[T2 PointOperations, T1 PointOperations](u *PublicKey[T1]) *PublicKey[T2] {
@@ -33,33 +34,28 @@ func (v *PublicKey[T]) NewPoint(u *Point) *PublicKey[T] {
 	return n
 }
 
-func (v *PublicKey[T]) op() T {
-	var t T
-	return t
-}
-
 func (v *PublicKey[T]) Add(p, q *PublicKey[T]) *PublicKey[T] {
-	v.op().Add(&v.p, &p.p, &q.p)
+	add(v.op, &v.p, &p.p, &q.p)
 	return v
 }
 
 func (v *PublicKey[T]) Subtract(p, q *PublicKey[T]) *PublicKey[T] {
-	v.op().Subtract(&v.p, &p.p, &q.p)
+	subtract(v.op, &v.p, &p.p, &q.p)
 	return v
 }
 
 func (v *PublicKey[T]) ScalarBaseMult(x *Scalar) *PublicKey[T] {
-	v.op().ScalarBaseMult(&v.p, x)
+	scalarBaseMult(v.op, &v.p, x)
 	return v
 }
 
 func (v *PublicKey[T]) ScalarMult(x *Scalar, q *PublicKey[T]) *PublicKey[T] {
-	v.op().ScalarMult(&v.p, x, &q.p)
+	scalarMult(v.op, &v.p, x, &q.p)
 	return v
 }
 
 func (v *PublicKey[T]) ScalarMultPrecomputed(x *Scalar, q *Generator) *PublicKey[T] {
-	v.op().ScalarMultPrecomputed(&v.p, x, q)
+	scalarMultPrecomputed(v.op, &v.p, x, q)
 	return v
 }
 
@@ -69,31 +65,31 @@ func (v *PublicKey[T]) MultByCofactor(q *PublicKey[T]) *PublicKey[T] {
 }
 
 func (v *PublicKey[T]) DoubleScalarBaseMult(a *Scalar, A *PublicKey[T], b *Scalar) *PublicKey[T] {
-	v.op().DoubleScalarBaseMult(&v.p, a, &A.p, b)
+	doubleScalarBaseMult(v.op, &v.p, a, &A.p, b)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarBaseMultPrecomputed(a *Scalar, A *Generator, b *Scalar) *PublicKey[T] {
-	v.op().DoubleScalarBaseMultPrecomputed(&v.p, a, A, b)
+	doubleScalarBaseMultPrecomputed(v.op, &v.p, a, A, b)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarMult(a *Scalar, A *PublicKey[T], b *Scalar, B *PublicKey[T]) *PublicKey[T] {
-	v.op().DoubleScalarMult(&v.p, a, &A.p, b, &B.p)
+	v.op.DoubleScalarMult(&v.p, a, &A.p, b, &B.p)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarBasePrecomputed(a *Scalar, A *Generator, b *Scalar, B *Generator) *PublicKey[T] {
-	v.op().DoubleScalarMultPrecomputed(&v.p, a, A, b, B)
+	v.op.DoubleScalarMultPrecomputed(&v.p, a, A, b, B)
 	return v
 }
 
 func (v *PublicKey[T]) IsSmallOrder() bool {
-	return v.op().IsSmallOrder(&v.p)
+	return isSmallOrder(v.op, &v.p)
 }
 
 func (v *PublicKey[T]) IsTorsionFree() bool {
-	return v.op().IsTorsionFree(&v.p)
+	return isTorsionFree(v.op, &v.p)
 }
 
 func (v *PublicKey[T]) Bytes() PublicKeyBytes {
