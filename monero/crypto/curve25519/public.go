@@ -79,8 +79,13 @@ func (v *PublicKey[T]) DoubleScalarMult(a *Scalar, A *PublicKey[T], b *Scalar, B
 	return v
 }
 
-func (v *PublicKey[T]) DoubleScalarBasePrecomputed(a *Scalar, A *Generator, b *Scalar, B *Generator) *PublicKey[T] {
+func (v *PublicKey[T]) DoubleScalarMultPrecomputed(a *Scalar, A *Generator, b *Scalar, B *Generator) *PublicKey[T] {
 	v.op.DoubleScalarMultPrecomputed(&v.p, a, A, b, B)
+	return v
+}
+
+func (v *PublicKey[T]) DoubleScalarMultPrecomputedB(a *Scalar, A *PublicKey[T], b *Scalar, B *Generator) *PublicKey[T] {
+	v.op.DoubleScalarMultPrecomputedB(&v.p, a, &A.p, b, B)
 	return v
 }
 

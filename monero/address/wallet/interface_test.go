@@ -10,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
@@ -141,7 +142,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 					t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
 				}
 
-				decryptedAmount := crypto.DecryptOutputAmount(curve25519.PrivateKeyBytes(sharedData.Bytes()), encryptedAmount)
+				decryptedAmount := ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(sharedData.Bytes()), encryptedAmount)
 				if decryptedAmount != amount {
 					t.Fatalf("got amount %d, want %d", decryptedAmount, amount)
 				}
@@ -174,7 +175,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 				ViewTag:              types.MakeFixed(enote.Enote.ViewTag),
 			}
 			i, scan, subaddressIndex := wallet.MatchCarrot(firstKeyImage,
-				[]crypto.RCTAmount{
+				[]ringct.Amount{
 					{
 						Encrypted:  enote.Enote.EncryptedAmount,
 						Commitment: enote.Enote.AmountCommitment,

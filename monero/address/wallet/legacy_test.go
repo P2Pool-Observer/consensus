@@ -6,8 +6,8 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"github.com/tmthrgd/go-hex"
@@ -72,14 +72,14 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 	}
 
 	const expected = 3284260000
-	if amount := crypto.DecryptOutputAmount(curve25519.PrivateKeyBytes(sharedData.Bytes()), ecdhInfo[i]); amount != expected {
+	if amount := ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(sharedData.Bytes()), ecdhInfo[i]); amount != expected {
 		t.Fatalf("expected %d, got %d", expected, amount)
 	}
 
 	var txPubPoint curve25519.VarTimePublicKey
 	curve25519.DecodeCompressedPoint(&txPubPoint, txPub)
 
-	inProof := address.GetInProofV2(sa, txId, vw.ViewKey(), &txPubPoint, "")
+	inProof := address.GetInProof(sa, txId, vw.ViewKey(), &txPubPoint, "", 2)
 	t.Logf("tx proof: %s", inProof)
 
 	pI, pOk := address.VerifyTxProof(inProof, sa, txId, &txPubPoint, "")

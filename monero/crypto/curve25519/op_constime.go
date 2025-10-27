@@ -1,7 +1,8 @@
 package curve25519
 
-import "git.gammaspectra.live/P2Pool/edwards25519"
-
+// ConstantTimeOperations Implements Constant time operations for Edwards25519 points
+//
+// Safe to use with private data or scalars
 type ConstantTimeOperations struct{}
 
 func (e ConstantTimeOperations) Add(v *Point, p, q *Point) *Point {
@@ -48,19 +49,14 @@ func (e ConstantTimeOperations) DoubleScalarMultPrecomputed(v *Point, a *Scalar,
 	return v.Add(aA, bB)
 }
 
+func (e ConstantTimeOperations) DoubleScalarMultPrecomputedB(v *Point, a *Scalar, A *Point, b *Scalar, B *Generator) *Point {
+	aA := new(Point).ScalarMult(a, A)
+	bB := new(Point).ScalarMultPrecomputed(b, B.Table)
+	return v.Add(aA, bB)
+}
+
 func (e ConstantTimeOperations) MultiScalarMult(v *Point, scalars []*Scalar, points []*Point) *Point {
-	if len(scalars) != len(points) {
-		panic("curve25519: called MultiScalarMult with different size inputs")
-	}
-
-	v.Set(edwards25519.NewIdentityPoint())
-
-	//TODO: better algorithm?
-	var tmp Point
-	for i := range scalars {
-		v.Add(v, tmp.ScalarMult(scalars[i], points[i]))
-	}
-	return v
+	return v.MultiScalarMult(scalars, points)
 }
 
 func (e ConstantTimeOperations) IsSmallOrder(v *Point) bool {

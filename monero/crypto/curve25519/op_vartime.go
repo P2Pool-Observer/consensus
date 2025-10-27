@@ -1,5 +1,9 @@
 package curve25519
 
+// VarTimeOperations Implements Variable time operations for Edwards25519 points
+// Some operations may be implemented as constant time operations if no variable alternative exists
+//
+// Unsafe to use with private data or scalars
 type VarTimeOperations struct{}
 
 func (e VarTimeOperations) Add(v *Point, p, q *Point) *Point {
@@ -38,8 +42,14 @@ func (e VarTimeOperations) DoubleScalarMultPrecomputed(v *Point, a *Scalar, A *G
 	return v.VarTimeDoubleScalarMultPrecomputed(a, A.Table, b, B.Table)
 }
 
+func (e VarTimeOperations) DoubleScalarMultPrecomputedB(v *Point, a *Scalar, A *Point, b *Scalar, B *Generator) *Point {
+	aA := new(Point).VarTimeScalarMult(a, A)
+	bB := new(Point).VarTimeScalarMultPrecomputed(b, B.Table)
+	return v.Add(aA, bB)
+}
+
 func (e VarTimeOperations) MultiScalarMult(v *Point, scalars []*Scalar, points []*Point) *Point {
-	return v.MultiScalarMult(scalars, points)
+	return v.VarTimeMultiScalarMult(scalars, points)
 }
 
 func (e VarTimeOperations) IsSmallOrder(v *Point) bool {

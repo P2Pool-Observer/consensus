@@ -7,6 +7,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -129,7 +130,7 @@ func makeAmountBlindingFactor(hasher *blake2b.Digest, amountBlindingKeyOut *curv
 // makeAmountCommitment make_carrot_amount_commitment
 func makeAmountCommitment[T curve25519.PointOperations](amount uint64, amountBlindingFactor *curve25519.Scalar) curve25519.PublicKeyBytes {
 	var amountCommitment curve25519.PublicKey[T]
-	crypto.RctCommit(&amountCommitment, amount, amountBlindingFactor)
+	ringct.Commit(&amountCommitment, amount, amountBlindingFactor)
 	return amountCommitment.Bytes()
 }
 

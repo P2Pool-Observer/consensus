@@ -29,18 +29,6 @@ func GetDerivationSharedDataAndViewTagForOutputIndex(k *curve25519.Scalar, deriv
 	return pK, Keccak256Var(viewTagDomain, derivation[:], varIntBuf[:n])[0]
 }
 
-var encryptedAmountKey = []byte("amount")
-
-// DecryptOutputAmount Decrypts or encrypts an amount field from ECDH Info
-func DecryptOutputAmount(k curve25519.PrivateKeyBytes, ciphertext uint64) uint64 {
-	var key [8]byte
-	h := newKeccak256()
-	_, _ = utils.WriteNoEscape(h, encryptedAmountKey)
-	_, _ = utils.WriteNoEscape(h, k[:])
-	_, _ = utils.ReadNoEscape(h, key[:])
-	return ciphertext ^ binary.LittleEndian.Uint64(key[:])
-}
-
 // GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate Special version of GetDerivationSharedDataAndViewTagForOutputIndex
 func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(dst *curve25519.Scalar, k curve25519.PublicKeyBytes, outputIndex uint64) (viewTag uint8) {
 	var buf [binary.MaxVarintLen64]byte
@@ -101,6 +89,7 @@ func ScalarDerive(key []byte, data ...[]byte) *curve25519.Scalar {
 }
 
 // ScalarDeriveLegacy As defined in Carrot = BytesToInt256(Keccak256(x)) mod ℓ
+// Equivalent to hash_to_scalar
 func ScalarDeriveLegacy(data ...[]byte) *curve25519.Scalar {
 	h := Keccak256Var(data...)
 

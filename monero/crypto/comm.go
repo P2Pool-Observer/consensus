@@ -44,7 +44,7 @@ type SignatureComm_2[T curve25519.PointOperations] struct {
 	B *curve25519.PublicKey[T]
 }
 
-func (s *SignatureComm_2[T]) Bytes(version int) []byte {
+func (s *SignatureComm_2[T]) Bytes(version uint8) []byte {
 	buf := make([]byte, 0, types.HashSize*2+curve25519.PublicKeySize*6)
 	buf = append(buf, s.Message[:]...)
 	buf = append(buf, s.D.Slice()...)

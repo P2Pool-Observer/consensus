@@ -18,6 +18,7 @@ type PointOperations interface {
 
 	DoubleScalarMult(v *Point, a *Scalar, A *Point, b *Scalar, B *Point) *Point
 	DoubleScalarMultPrecomputed(v *Point, a *Scalar, A *Generator, b *Scalar, B *Generator) *Point
+	DoubleScalarMultPrecomputedB(v *Point, a *Scalar, A *Point, b *Scalar, B *Generator) *Point
 
 	MultiScalarMult(v *Point, scalars []*Scalar, points []*Point) *Point
 

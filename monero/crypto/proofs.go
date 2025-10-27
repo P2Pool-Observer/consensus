@@ -45,15 +45,29 @@ func (p TxProof[T]) String() string {
 	return strings.Join(output, "")
 }
 
-func (p TxProof[T]) Verify(prefixHash types.Hash, A, B *curve25519.PublicKey[T], txPubs ...curve25519.PublicKey[T]) (index int, ok bool) {
-	for i, pub := range txPubs {
-		if len(p.Claims) <= i {
-			return
+func (p TxProof[T]) Verify(prefixHash types.Hash, viewPub, spendPub *curve25519.PublicKey[T], txPubs ...curve25519.PublicKey[T]) (index int, ok bool) {
+	if p.Type == OutProof {
+		for i, pub := range txPubs {
+			if len(p.Claims) <= i {
+				return
+			}
+			if VerifyTxProof(prefixHash, &pub, viewPub, spendPub, &p.Claims[i].SharedSecret, p.Claims[i].Signature, p.Version) {
+				return i, true
+			}
 		}
-		if VerifyTxProof(prefixHash, &pub, A, B, &p.Claims[i].SharedSecret, p.Claims[i].Signature, p.Version) {
-			return i, true
+	} else if p.Type == InProof {
+		for i, pub := range txPubs {
+			if len(p.Claims) <= i {
+				return
+			}
+			if VerifyTxProof(prefixHash, viewPub, &pub, spendPub, &p.Claims[i].SharedSecret, p.Claims[i].Signature, p.Version) {
+				return i, true
+			}
 		}
+	} else {
+		return -1, false
 	}
+
 	return -1, false
 }
 
@@ -151,7 +165,11 @@ func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T],
 
 var TxProofV2DomainSeparatorHash = Keccak256([]byte("TXPROOF_V2")) // HASH_KEY_TXPROOF_V2
 
-func GenerateTxProofV2[T curve25519.PointOperations](prefixHash types.Hash, R, A, B, D *curve25519.PublicKey[T], r *curve25519.Scalar) (signature Signature[T]) {
+func GenerateTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B, D *curve25519.PublicKey[T], r *curve25519.Scalar, version uint8) (signature Signature[T]) {
+	if version != 1 && version != 2 {
+		panic("unsupported version")
+	}
+
 	comm := &SignatureComm_2[T]{}
 	comm.Message = prefixHash
 
@@ -159,7 +177,9 @@ func GenerateTxProofV2[T curve25519.PointOperations](prefixHash types.Hash, R, A
 	comm.D = *D
 
 	comm.Separator = TxProofV2DomainSeparatorHash
-	comm.R = *R
+	if R != nil {
+		comm.R = *R
+	}
 	comm.A = *A
 
 	signature = CreateSignature[T](func(k *curve25519.Scalar) []byte {
@@ -175,31 +195,7 @@ func GenerateTxProofV2[T curve25519.PointOperations](prefixHash types.Hash, R, A
 
 		comm.Y.ScalarMult(k, A)
 
-		return comm.Bytes(2)
-	}, r, rand.Reader)
-
-	return signature
-}
-
-func GenerateTxProofV1[T curve25519.PointOperations](prefixHash types.Hash, A, B, D *curve25519.PublicKey[T], r *curve25519.Scalar) (signature Signature[T]) {
-	comm := &SignatureComm_2[T]{}
-	comm.Message = prefixHash
-
-	//shared secret
-	comm.D = *D
-
-	signature = CreateSignature[T](func(k *curve25519.Scalar) []byte {
-		if B == nil {
-			// compute X = k*G
-			comm.X.ScalarBaseMult(k)
-		} else {
-			// compute X = k*B
-			comm.X.ScalarMult(k, B)
-		}
-
-		comm.Y.ScalarMult(k, A)
-
-		return comm.Bytes(1)
+		return comm.Bytes(version)
 	}, r, rand.Reader)
 
 	return signature
@@ -220,35 +216,17 @@ func VerifyTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B,
 		return false
 	}
 
-	var cR curve25519.PublicKey[T]
-	if version == 1 {
-		// cR = sig.c*G
-		cR.ScalarBaseMult(&sig.R)
-	} else {
-		// cR = sig.c*R
-		cR.ScalarMult(&sig.R, R)
-	}
-
-	var X, tmp curve25519.PublicKey[T]
-
+	var X, Y curve25519.PublicKey[T]
 	if B != nil {
 		// X = sig.c * R + sig.r * B
-		X.Add(&cR, tmp.ScalarMult(&sig.R, B))
+		X.DoubleScalarMult(&sig.C, R, &sig.R, B)
 	} else {
-		// X = sig.c * R + sig.r * G
-		X.Add(&cR, tmp.ScalarBaseMult(&sig.R))
+		// X = sig.c*R + sig.r*G
+		X.DoubleScalarBaseMult(&sig.C, R, &sig.R)
 	}
 
-	var cD, rA, Y curve25519.PublicKey[T]
-
-	// cD = sig.c*D
-	cD.ScalarMult(&sig.C, D)
-
-	// rA = sig.r*A
-	rA.ScalarMult(&sig.R, A)
-
 	// Y = sig.c*D + sig.r*A
-	Y.Add(&cD, &rA)
+	Y.DoubleScalarMult(&sig.C, D, &sig.R, A)
 
 	// Compute hash challenge
 	// for v1, c2 = Hs(Msg || D || X || Y)
@@ -267,8 +245,9 @@ func VerifyTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B,
 
 	var C curve25519.Scalar
 
-	ScalarDeriveLegacyNoAllocate(&C, comm.Bytes(int(version)))
+	ScalarDeriveLegacyNoAllocate(&C, comm.Bytes(version))
 
 	// is zero, c2 == sig.c
-	return new(curve25519.Scalar).Subtract(&C, &sig.C).Equal(&curve25519.Scalar{}) == 0
+	result := new(curve25519.Scalar).Subtract(&C, &sig.C)
+	return result.Equal(&curve25519.Scalar{}) == 1
 }

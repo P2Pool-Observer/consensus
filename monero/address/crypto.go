@@ -6,6 +6,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
@@ -89,7 +90,7 @@ func CalculateTransactionOutput[T curve25519.PointOperations](a Interface, txKey
 	out.ViewTag.Slice()[0] = viewTag
 	out.EphemeralPublicKey = GetPublicKeyForSharedData(spendPub, &pK).Bytes()
 
-	return out, additionalTxPub, crypto.DecryptOutputAmount(curve25519.PrivateKeyBytes(pK.Bytes()), amount)
+	return out, additionalTxPub, ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(pK.Bytes()), amount)
 }
 
 func GetEphemeralPublicKeyAndViewTag[T curve25519.PointOperations](a Interface, txKey *curve25519.Scalar, outputIndex uint64) (*curve25519.PublicKey[T], uint8) {
