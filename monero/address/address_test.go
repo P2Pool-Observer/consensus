@@ -10,11 +10,10 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
-var privateKey = edwards25519.NewScalar()
+var privateKey = new(curve25519.Scalar)
 
 var testAddress = FromBase58("42HEEF3NM9cHkJoPpDhNyJHuZ6DFhdtymCohF9CwP5KPM1Mp3eH2RVXCPRrxe4iWRogT7299R8PP7drGvThE8bHmRDq1qWp")
 var testAddress2 = FromBase58("4AQ3YkqG2XdWsPHEgrDGdyQLq1qMMGFqWTFJfrVQW99qPmCzZKvJqzxgf5342KC17o9bchfJcUzLhVW9QgNKTYUBLg876Gt")
@@ -76,7 +75,7 @@ func BenchmarkCoinbaseDerivationInline(b *testing.B) {
 
 	var i atomic.Uint64
 	b.RunParallel(func(pb *testing.PB) {
-		p := new(edwards25519.Point)
+		p := new(curve25519.Point)
 		for pb.Next() {
 			getEphemeralPublicKeyInline(spendPub.P(), viewPub.P(), privateKey, i.Add(1), p)
 		}

@@ -5,7 +5,6 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 // Signature Schnorr signature
@@ -79,7 +78,7 @@ func CreateMessageSignature[T curve25519.PointOperations](prefixHash types.Hash,
 	buf.Hash = prefixHash
 	buf.Key.ScalarBaseMult(key)
 
-	return CreateSignature[T](func(k *edwards25519.Scalar) []byte {
+	return CreateSignature[T](func(k *curve25519.Scalar) []byte {
 		buf.Comm.ScalarBaseMult(k)
 		return buf.Bytes()
 	}, key, randomReader)

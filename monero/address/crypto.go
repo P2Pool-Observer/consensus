@@ -8,7 +8,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 )
 
@@ -52,14 +51,14 @@ func GetEphemeralPublicKeyWithViewKey[T curve25519.PointOperations](a Interface,
 	)
 }
 
-func getEphemeralPublicKeyInline(spendPub, viewPub *edwards25519.Point, txKey *edwards25519.Scalar, outputIndex uint64, p *edwards25519.Point) {
+func getEphemeralPublicKeyInline(spendPub, viewPub *curve25519.Point, txKey *curve25519.Scalar, outputIndex uint64, p *curve25519.Point) {
 	//derivation
 	p.VarTimeScalarMult(txKey, viewPub).MultByCofactor(p)
 
 	derivationAsBytes := p.Bytes()
 	var varIntBuf [binary.MaxVarintLen64]byte
 
-	var sharedData edwards25519.Scalar
+	var sharedData curve25519.Scalar
 	crypto.ScalarDeriveLegacyNoAllocate(&sharedData, derivationAsBytes, varIntBuf[:binary.PutUvarint(varIntBuf[:], outputIndex)])
 
 	//public key + add
@@ -103,9 +102,9 @@ func GetEphemeralPublicKeyAndViewTag[T curve25519.PointOperations](a Interface, 
 }
 
 // GetEphemeralPublicKeyAndViewTagNoAllocate Special version of GetEphemeralPublicKeyAndViewTag
-func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519.Point, derivation curve25519.PublicKeyBytes, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
-	var intermediatePublicKey, ephemeralPublicKey edwards25519.Point
-	var derivationSharedData edwards25519.Scalar
+func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *curve25519.Point, derivation curve25519.PublicKeyBytes, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
+	var intermediatePublicKey, ephemeralPublicKey curve25519.Point
+	var derivationSharedData curve25519.Scalar
 	viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&derivationSharedData, derivation, outputIndex)
 
 	intermediatePublicKey.VarTimeScalarBaseMult(&derivationSharedData)
@@ -117,22 +116,22 @@ func GetEphemeralPublicKeyAndViewTagNoAllocate(spendPublicKeyPoint *edwards25519
 	return ephemeralPublicKeyBytes, viewTag
 }
 
-func GetDerivation[T curve25519.PointOperations](out *curve25519.PublicKey[T], viewPub *curve25519.PublicKey[T], txKey *edwards25519.Scalar) *curve25519.PublicKey[T] {
+func GetDerivation[T curve25519.PointOperations](out *curve25519.PublicKey[T], viewPub *curve25519.PublicKey[T], txKey *curve25519.Scalar) *curve25519.PublicKey[T] {
 	out.ScalarMult(txKey, viewPub)
 	out.MultByCofactor(out)
 	return out
 }
 
 // GetDerivationNoAllocate Special version
-func GetDerivationNoAllocate(derivation *edwards25519.Point, viewPublicKeyPoint *edwards25519.Point, txKey *edwards25519.Scalar) {
+func GetDerivationNoAllocate(derivation *curve25519.Point, viewPublicKeyPoint *curve25519.Point, txKey *curve25519.Scalar) {
 	derivation.VarTimeScalarMult(txKey, viewPublicKeyPoint)
 	derivation.MultByCofactor(derivation)
 }
 
 // GetDerivationNoAllocateTable Special version but with table
-func GetDerivationNoAllocateTable(viewPublicKeyTable *edwards25519.PrecomputedTable, txKey *edwards25519.Scalar) curve25519.PublicKeyBytes {
-	var point, derivation edwards25519.Point
-	point.VarTimeScalarMultPrecomputed(txKey, viewPublicKeyTable)
+func GetDerivationNoAllocateTable(viewPublicKeyTable *curve25519.Generator, txKey *curve25519.Scalar) curve25519.PublicKeyBytes {
+	var point, derivation curve25519.Point
+	point.VarTimeScalarMultPrecomputed(txKey, viewPublicKeyTable.Table)
 	derivation.MultByCofactor(&point)
 
 	return curve25519.PublicKeyBytes(derivation.Bytes())

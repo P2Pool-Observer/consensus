@@ -10,7 +10,6 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -60,7 +59,7 @@ func TestDeriveViewTag(t *testing.T) {
 
 		viewTag := GetDerivationViewTagForOutputIndex(derivation, outputIndex)
 
-		var tmp edwards25519.Scalar
+		var tmp curve25519.Scalar
 		viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&tmp, derivation, outputIndex)
 
 		if viewTag != viewTag2 {
@@ -93,7 +92,7 @@ func FuzzDeriveViewTag(f *testing.F) {
 
 		viewTag := GetDerivationViewTagForOutputIndex(derivationBytes, outputIndex)
 
-		var tmp edwards25519.Scalar
+		var tmp curve25519.Scalar
 		viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&tmp, derivationBytes, outputIndex)
 
 		if viewTag != viewTag2 {
@@ -246,7 +245,7 @@ func TestGenerateKeys(t *testing.T) {
 		expectedPub := curve25519.PublicKeyBytes(types.MustHashFromString(e[0]))
 		expectedPriv := curve25519.PrivateKeyBytes(types.MustHashFromString(e[1]))
 
-		key := RandomScalar(new(edwards25519.Scalar), rng)
+		key := RandomScalar(new(curve25519.Scalar), rng)
 
 		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(key)
 

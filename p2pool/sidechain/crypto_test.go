@@ -10,7 +10,6 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -19,10 +18,10 @@ func TestDeterministicTransactionPrivateKey(t *testing.T) {
 
 	previousId, _ := types.HashFromString("b64ec18bf2dfa4658693d7f35836d212e66dee47af6f7263ab2bf00e422bcd68")
 	publicSpendKeyBytes, _ := fasthex.DecodeString("f2be6705a034f8f485ee9bc3c21b6309cd0d9dd2111441cc32753ba2bac41b6d")
-	p, _ := (&edwards25519.Point{}).SetBytes(publicSpendKeyBytes)
+	p, _ := (&curve25519.Point{}).SetBytes(publicSpendKeyBytes)
 	spendPublicKey := curve25519.FromPoint[curve25519.VarTimeOperations](p)
 
-	calculatedPrivateKey := GetDeterministicTransactionPrivateKey(new(edwards25519.Scalar), types.Hash(spendPublicKey.Bytes()), previousId)
+	calculatedPrivateKey := GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), types.Hash(spendPublicKey.Bytes()), previousId)
 	if hex.EncodeToString(calculatedPrivateKey.Bytes()) != expectedPrivateKey {
 		t.Fatalf("got %x, expected %s", calculatedPrivateKey.Bytes(), expectedPrivateKey)
 	}
@@ -68,7 +67,7 @@ func TestGetTxKeys(t *testing.T) {
 		expectedPublicKey := types.MustHashFromString(e[2])
 		expectedSecretKey := types.MustHashFromString(e[3])
 
-		privateKey := GetDeterministicTransactionPrivateKey(new(edwards25519.Scalar), walletSpendKey, moneroBlockId)
+		privateKey := GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), walletSpendKey, moneroBlockId)
 		publicKey := new(curve25519.VarTimePublicKey).ScalarBaseMult(privateKey)
 
 		if expectedSecretKey.String() != hex.EncodeToString(privateKey.Bytes()) {

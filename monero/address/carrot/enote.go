@@ -8,7 +8,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type CoinbaseEnoteV1 struct {
@@ -144,7 +143,7 @@ func makeAmountCommitmentCoinbase[T curve25519.PointOperations](amount uint64) c
 	binary.LittleEndian.PutUint64(amountBytes[:], amount)
 
 	// no reduction is necessary: amountBytes is always lesser than l
-	var amountK edwards25519.Scalar
+	var amountK curve25519.Scalar
 	_, _ = amountK.SetCanonicalBytes(amountBytes[:])
 
 	var amountCommitment curve25519.PublicKey[T]

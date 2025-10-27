@@ -11,7 +11,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func init() {
@@ -74,7 +73,7 @@ func TestDerivePublicKey(t *testing.T) {
 
 		sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation, outputIndex)
 
-		var sharedData2 edwards25519.Scalar
+		var sharedData2 curve25519.Scalar
 		_ = crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedData2, derivation, outputIndex)
 
 		if curve25519.PrivateKeyBytes(sharedData.Bytes()) != curve25519.PrivateKeyBytes(sharedData2.Bytes()) {
@@ -128,7 +127,7 @@ func TestDeriveSecretKey(t *testing.T) {
 
 		sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation, outputIndex)
 
-		var sharedData2 edwards25519.Scalar
+		var sharedData2 curve25519.Scalar
 		_ = crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedData2, derivation, outputIndex)
 
 		if curve25519.PrivateKeyBytes(sharedData.Bytes()) != curve25519.PrivateKeyBytes(sharedData2.Bytes()) {

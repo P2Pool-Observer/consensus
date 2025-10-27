@@ -9,7 +9,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type PaymentProposalV1[T curve25519.PointOperations] struct {
@@ -66,7 +65,7 @@ func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []
 	return ephemeralPubkey, senderReceiverUnctx
 }
 
-func (p *PaymentProposalV1[T]) ephemeralPublicKey(key *edwards25519.Scalar, spendPub *curve25519.PublicKey[T]) (out curve25519.X25519PublicKey) {
+func (p *PaymentProposalV1[T]) ephemeralPublicKey(key *curve25519.Scalar, spendPub *curve25519.PublicKey[T]) (out curve25519.X25519PublicKey) {
 	if p.Destination.Address.IsSubaddress() {
 		// D_e = d_e ConvertPointE(K^j_s)
 		return makeEnoteEphemeralPublicKeySubaddress(key, spendPub)

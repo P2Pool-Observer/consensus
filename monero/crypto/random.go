@@ -9,14 +9,13 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	"golang.org/x/sys/cpu"
 
 	_ "unsafe"
 )
 
 // RandomScalar Equivalent to Monero's random32_unbiased / random_scalar
-func RandomScalar(k *curve25519.Scalar, r io.Reader) *edwards25519.Scalar {
+func RandomScalar(k *curve25519.Scalar, r io.Reader) *curve25519.Scalar {
 	var buf [curve25519.PrivateKeySize]byte
 	for {
 		if _, err := utils.ReadNoEscape(r, buf[:]); err != nil {
@@ -35,7 +34,7 @@ func RandomScalar(k *curve25519.Scalar, r io.Reader) *edwards25519.Scalar {
 }
 
 // DeterministicScalar consensus way of generating a deterministic scalar from given entropy
-func DeterministicScalar(k *curve25519.Scalar, entropy []byte) *edwards25519.Scalar {
+func DeterministicScalar(k *curve25519.Scalar, entropy []byte) *curve25519.Scalar {
 
 	var counter uint32
 	var nonce [4]byte

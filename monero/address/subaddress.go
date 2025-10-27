@@ -6,7 +6,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 var ZeroSubaddressIndex = SubaddressIndex{
@@ -28,7 +27,7 @@ func (index SubaddressIndex) IsZero() bool {
 var hashKeySubaddress = []byte("SubAddr\x00") // HASH_KEY_SUBADDRESS
 
 // SecretKey Hs(a || index_major || index_minor)
-func (index SubaddressIndex) SecretKey(out *edwards25519.Scalar, viewKey curve25519.PrivateKeyBytes) *edwards25519.Scalar {
+func (index SubaddressIndex) SecretKey(out *curve25519.Scalar, viewKey curve25519.PrivateKeyBytes) *curve25519.Scalar {
 	var major, minor [4]byte
 	binary.LittleEndian.PutUint32(major[:], index.Account)
 	binary.LittleEndian.PutUint32(minor[:], index.Offset)
@@ -100,7 +99,7 @@ func GetSubaddress(a *Address, viewKey *curve25519.Scalar, index SubaddressIndex
 	return GetSubaddressNoAllocate(a.BaseNetwork(), &spendPub, viewKey, curve25519.PrivateKeyBytes(viewKey.Bytes()), index)
 }
 
-func GetSubaddressFakeAddress(sa InterfaceSubaddress, viewKey *edwards25519.Scalar) Interface {
+func GetSubaddressFakeAddress(sa InterfaceSubaddress, viewKey *curve25519.Scalar) Interface {
 	if !sa.IsSubaddress() {
 		return sa
 	}

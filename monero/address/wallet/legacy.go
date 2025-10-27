@@ -8,7 +8,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type ViewWallet[T curve25519.PointOperations] struct {
@@ -81,7 +80,7 @@ func (w *ViewWallet[T]) Track(ix address.SubaddressIndex) error {
 func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, txPub curve25519.PublicKeyBytes, sharedData *curve25519.Scalar, addressIndex address.SubaddressIndex) {
 	var sharedDataPub, ephemeralPub curve25519.PublicKey[T]
 	var err error
-	var sharedDataScalar edwards25519.Scalar
+	var sharedDataScalar curve25519.Scalar
 	var derivation curve25519.PublicKey[T]
 	var publicKey curve25519.PublicKey[T]
 	for _, pub := range txPubs {
@@ -186,6 +185,6 @@ func (w *ViewWallet[T]) Get(index address.SubaddressIndex) *address.Address {
 	return address.GetSubaddressNoAllocate(w.primaryAddress.BaseNetwork(), &w.accountSpendPub, &w.viewKeyScalar, w.viewKey, index)
 }
 
-func (w *ViewWallet[T]) ViewKey() *edwards25519.Scalar {
+func (w *ViewWallet[T]) ViewKey() *curve25519.Scalar {
 	return &w.viewKeyScalar
 }

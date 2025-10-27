@@ -10,7 +10,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type ScanV1 struct {
@@ -174,7 +173,7 @@ func tryRecomputeCarrotAmountCommitment[T curve25519.PointOperations](hasher *bl
 func verifyNormalJanusProtection[T curve25519.PointOperations](hasher *blake2b.Digest, nominalAnchor [monero.JanusAnchorSize]byte, inputContext []byte, nominalSpendPub curve25519.PublicKeyBytes, isSubaddress bool, nominalPaymentId [monero.PaymentIdSize]byte, ephemeralPub curve25519.X25519PublicKey) bool {
 
 	// d_e' = H_n(anchor_norm, input_context, K^j_s, pid))
-	var ephemeralPrivateKey edwards25519.Scalar
+	var ephemeralPrivateKey curve25519.Scalar
 	makeEnoteEphemeralPrivateKey(hasher, &ephemeralPrivateKey, nominalAnchor[:], inputContext, nominalSpendPub, nominalPaymentId)
 
 	// recompute D_e' for d_e' and address type

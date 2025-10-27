@@ -7,7 +7,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func GetDerivationSharedDataForOutputIndex(k *curve25519.Scalar, derivation curve25519.PublicKeyBytes, outputIndex uint64) *curve25519.Scalar {
@@ -87,7 +86,7 @@ func SecretDerive(key []byte, data ...[]byte) types.Hash {
 }
 
 // ScalarDerive As defined in Carrot = BytesToInt512(H_64(x)) mod ℓ
-func ScalarDerive(key []byte, data ...[]byte) *edwards25519.Scalar {
+func ScalarDerive(key []byte, data ...[]byte) *curve25519.Scalar {
 	hasher, _ := blake2b.New512(key)
 	for _, b := range data {
 		_, _ = utils.WriteNoEscape(hasher, b)
@@ -95,23 +94,23 @@ func ScalarDerive(key []byte, data ...[]byte) *edwards25519.Scalar {
 	var h [blake2b.Size]byte
 	utils.SumNoEscape(hasher, h[:0])
 
-	c := new(edwards25519.Scalar)
+	c := new(curve25519.Scalar)
 	curve25519.BytesToScalar64(c, h)
 
 	return c
 }
 
 // ScalarDeriveLegacy As defined in Carrot = BytesToInt256(Keccak256(x)) mod ℓ
-func ScalarDeriveLegacy(data ...[]byte) *edwards25519.Scalar {
+func ScalarDeriveLegacy(data ...[]byte) *curve25519.Scalar {
 	h := Keccak256Var(data...)
 
-	c := new(edwards25519.Scalar)
+	c := new(curve25519.Scalar)
 	curve25519.BytesToScalar32(c, h)
 
 	return c
 }
 
-func ScalarDeriveLegacyNoAllocate(c *edwards25519.Scalar, data ...[]byte) *edwards25519.Scalar {
+func ScalarDeriveLegacyNoAllocate(c *curve25519.Scalar, data ...[]byte) *curve25519.Scalar {
 	h := Keccak256Var(data...)
 
 	curve25519.BytesToScalar32(c, h)

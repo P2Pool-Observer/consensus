@@ -4,7 +4,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func GetOutProofV2[T curve25519.PointOperations](a Interface, txId types.Hash, txKey *curve25519.Scalar, message string, additionalTxKeys ...curve25519.Scalar) crypto.TxProof[T] {
@@ -69,7 +68,7 @@ func GetOutProofV1[T curve25519.PointOperations](a Interface, txId types.Hash, t
 	return crypto.NewTxProofFromSharedSecretSignaturePairs(crypto.OutProof, 1, sharedSecret, signature)
 }
 
-func GetInProofV2[T curve25519.PointOperations](a Interface, txId types.Hash, viewKey *edwards25519.Scalar, txPubKey *curve25519.PublicKey[T], message string, additionalTxPubKeys ...curve25519.PublicKey[T]) crypto.TxProof[T] {
+func GetInProofV2[T curve25519.PointOperations](a Interface, txId types.Hash, viewKey *curve25519.Scalar, txPubKey *curve25519.PublicKey[T], message string, additionalTxPubKeys ...curve25519.PublicKey[T]) crypto.TxProof[T] {
 	prefixHash := crypto.Keccak256Var(txId[:], []byte(message))
 
 	sharedSecret := make([]curve25519.PublicKey[T], 1, 1+len(additionalTxPubKeys))

@@ -127,7 +127,7 @@ func (d *DerivationCache) getDerivation(viewPublicKeyBytes curve25519.PublicKeyB
 	if derivation, ok := d.derivationCache.Get(key); ok {
 		return derivation
 	} else {
-		derivation = address.GetDerivationNoAllocateTable(g.Table, txKeyScalar)
+		derivation = address.GetDerivationNoAllocateTable(g, txKeyScalar)
 		d.derivationCache.Set(key, derivation)
 		return derivation
 	}

@@ -8,7 +8,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 )
 
@@ -163,7 +162,7 @@ func GenerateTxProofV2[T curve25519.PointOperations](prefixHash types.Hash, R, A
 	comm.R = *R
 	comm.A = *A
 
-	signature = CreateSignature[T](func(k *edwards25519.Scalar) []byte {
+	signature = CreateSignature[T](func(k *curve25519.Scalar) []byte {
 		if B == nil {
 			// compute X = k*G
 			comm.X.ScalarBaseMult(k)
@@ -189,7 +188,7 @@ func GenerateTxProofV1[T curve25519.PointOperations](prefixHash types.Hash, A, B
 	//shared secret
 	comm.D = *D
 
-	signature = CreateSignature[T](func(k *edwards25519.Scalar) []byte {
+	signature = CreateSignature[T](func(k *curve25519.Scalar) []byte {
 		if B == nil {
 			// compute X = k*G
 			comm.X.ScalarBaseMult(k)

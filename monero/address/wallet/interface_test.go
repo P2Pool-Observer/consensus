@@ -12,7 +12,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex) {
@@ -28,7 +27,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
-				txKey := crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)
+				txKey := crypto.RandomScalar(new(curve25519.Scalar), rand.Reader)
 
 				txPub := new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 
@@ -120,7 +119,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
-				txKey := crypto.RandomScalar(new(edwards25519.Scalar), rand.Reader)
+				txKey := crypto.RandomScalar(new(curve25519.Scalar), rand.Reader)
 
 				txPub := new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 

@@ -23,7 +23,6 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -865,7 +864,7 @@ func (b *PoolBlock) GetPrivateKeySeed() types.Hash {
 	}
 
 	oldSeed := types.Hash(b.Side.PublicKey[address.PackedAddressSpend])
-	if b.Main.MajorVersion < monero.HardForkViewTagsVersion && curve25519.PrivateKeyBytes(GetDeterministicTransactionPrivateKey(new(edwards25519.Scalar), oldSeed, b.Main.PreviousId).Bytes()) != b.Side.CoinbasePrivateKey {
+	if b.Main.MajorVersion < monero.HardForkViewTagsVersion && curve25519.PrivateKeyBytes(GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), oldSeed, b.Main.PreviousId).Bytes()) != b.Side.CoinbasePrivateKey {
 		return types.ZeroHash
 	}
 

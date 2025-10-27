@@ -5,7 +5,6 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func TestRandomScalar(t *testing.T) {
@@ -19,7 +18,7 @@ func TestRandomScalar(t *testing.T) {
 	for e := range results {
 		expected := curve25519.PrivateKeyBytes(types.MustHashFromString(e[0]))
 
-		key := RandomScalar(new(edwards25519.Scalar), rng)
+		key := RandomScalar(new(curve25519.Scalar), rng)
 
 		if curve25519.PrivateKeyBytes(key.Bytes()) != expected {
 			t.Errorf("expected %s, got %x", expected.String(), key.Bytes())
