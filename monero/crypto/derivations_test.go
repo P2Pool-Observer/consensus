@@ -13,7 +13,7 @@ func TestKeyImageRaw(t *testing.T) {
 	sec, _ := fasthex.DecodeString("981d477fb18897fa1f784c89721a9d600bf283f06b89cb018a077f41dcefef0f")
 
 	scalar, _ := (&curve25519.Scalar{}).SetCanonicalBytes(sec)
-	keyImage := GetKeyImage(NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](scalar))
+	keyImage := GetKeyImage(new(curve25519.ConstantTimePublicKey), NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](scalar))
 
 	if keyImage.String() != "a637203ec41eab772532d30420eac80612fce8e44f1758bc7e2cb1bdda815887" {
 		t.Fatalf("key image expected %s, got %s", "a637203ec41eab772532d30420eac80612fce8e44f1758bc7e2cb1bdda815887", keyImage.String())
@@ -37,7 +37,7 @@ func TestGenerateKeyImage(t *testing.T) {
 			continue
 		}
 
-		keyImage := GetKeyImage(NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](secret.Scalar()))
+		keyImage := GetKeyImage(new(curve25519.ConstantTimePublicKey), NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](secret.Scalar()))
 
 		if keyImage.Bytes() != expected {
 			t.Errorf("expected %s, got %s", expected.String(), keyImage.String())

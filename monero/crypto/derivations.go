@@ -41,8 +41,8 @@ func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(dst *curve25519.S
 	return h[0]
 }
 
-func GetKeyImage[T curve25519.PointOperations](pair *KeyPair[T]) *curve25519.PublicKey[T] {
-	hP := BiasedHashToPoint(new(curve25519.PublicKey[T]), pair.PublicKey.Slice())
+func GetKeyImage[T curve25519.PointOperations](out *curve25519.PublicKey[T], pair *KeyPair[T]) *curve25519.PublicKey[T] {
+	hP := BiasedHashToPoint(out, pair.PublicKey.Slice())
 	hP.ScalarMult(&pair.PrivateKey, hP)
 	return hP
 }
