@@ -329,15 +329,16 @@ func (b *Block) HashingBlob(preAllocatedBuf []byte) []byte {
 	}
 
 	merkleTree := make(crypto.MerkleTree, len(b.Transactions)+reserve)
+
+	merkleTree[reserveOffset] = b.Coinbase.CalculateId()
+	reserveOffset++
+
 	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
 		merkleTree[reserveOffset][0] = b.FCMPTreeLayers
 		reserveOffset++
 		merkleTree[reserveOffset] = b.FCMPTreeRoot
 		reserveOffset++
 	}
-
-	merkleTree[reserveOffset] = b.Coinbase.CalculateId()
-	reserveOffset++
 
 	copy(merkleTree[reserveOffset:], b.Transactions)
 	txTreeHash := merkleTree.RootHash()
