@@ -85,8 +85,8 @@ func GetEphemeralPublicKeyAndViewTag[T curve25519.PointOperations](out, spendPub
 	return GetPublicKeyForSharedData(out, spendPub, &pK), viewTag
 }
 
-func GetDerivation[T curve25519.PointOperations](out *curve25519.PublicKey[T], viewPub *curve25519.PublicKey[T], txKey *curve25519.Scalar) *curve25519.PublicKey[T] {
-	out.ScalarMult(txKey, viewPub)
+func GetDerivation[T curve25519.PointOperations](out *curve25519.PublicKey[T], pub *curve25519.PublicKey[T], key *curve25519.Scalar) *curve25519.PublicKey[T] {
+	out.ScalarMult(key, pub)
 	out.MultByCofactor(out)
 	return out
 }

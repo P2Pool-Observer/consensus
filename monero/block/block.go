@@ -14,6 +14,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
+// MaxTransactionCount TODO: this differs from P2Pool's num_transactions >= MAX_BLOCK_SIZE / HASH_SIZE)
 const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize
 
 // FCMPPlusPlusMaxLayers Restricting n layers keeps the proof_len table size very small and portable

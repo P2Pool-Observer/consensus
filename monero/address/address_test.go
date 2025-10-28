@@ -39,8 +39,8 @@ func randomAddress() (addr *Address, spendKey, viewKey *curve25519.Scalar) {
 func TestAddress(t *testing.T) {
 	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress.SpendPublicKey())
 	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress.ViewPublicKey())
-	derivation := new(curve25519.VarTimePublicKey).ScalarMult(privateKey, viewPub)
-	derivation.MultByCofactor(derivation)
+
+	derivation := GetDerivation(new(curve25519.VarTimePublicKey), viewPub, privateKey)
 
 	sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), 37)
 	ephemeralPublicKey := GetPublicKeyForSharedData(new(curve25519.VarTimePublicKey), spendPub, sharedData)

@@ -88,8 +88,7 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.
 		if curve25519.DecodeCompressedPoint(&publicKey, pub) == nil {
 			continue
 		}
-		derivation.ScalarMult(&w.viewKeyScalar, &publicKey)
-		derivation.MultByCofactor(&derivation)
+		address.GetDerivation(&derivation, &publicKey, &w.viewKeyScalar)
 		//TODO: optimize order?
 		for _, out := range outputs {
 			_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&sharedDataScalar, derivation.Bytes(), out.Index)
