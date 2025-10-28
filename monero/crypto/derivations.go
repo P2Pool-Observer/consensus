@@ -29,18 +29,6 @@ func GetDerivationSharedDataAndViewTagForOutputIndex(k *curve25519.Scalar, deriv
 	return pK, Keccak256Var(viewTagDomain, derivation[:], varIntBuf[:n])[0]
 }
 
-// GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate Special version of GetDerivationSharedDataAndViewTagForOutputIndex
-func GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(dst *curve25519.Scalar, k curve25519.PublicKeyBytes, outputIndex uint64) (viewTag uint8) {
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(buf[:], outputIndex)
-	h := Keccak256Var(k[:], buf[:n])
-	curve25519.BytesToScalar32(dst, h)
-
-	h = Keccak256Var(viewTagDomain, k[:], buf[:n])
-
-	return h[0]
-}
-
 func GetKeyImage[T curve25519.PointOperations](out *curve25519.PublicKey[T], pair *KeyPair[T]) *curve25519.PublicKey[T] {
 	hP := BiasedHashToPoint(out, pair.PublicKey.Slice())
 	hP.ScalarMult(&pair.PrivateKey, hP)

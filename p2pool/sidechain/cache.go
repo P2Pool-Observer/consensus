@@ -38,8 +38,6 @@ type DerivationCache struct {
 	deterministicKeyCache   utils.Cache[deterministicTransactionCacheKey, *crypto.KeyPair[curve25519.VarTimeOperations]]
 	derivationCache         utils.Cache[derivationCacheKey, curve25519.PublicKeyBytes]
 	ephemeralPublicKeyCache utils.Cache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag]
-	pubKeyToTableCache      utils.Cache[curve25519.PublicKeyBytes, *curve25519.Generator]
-	pubKeyToPointCache      utils.Cache[curve25519.PublicKeyBytes, *curve25519.VarTimePublicKey]
 }
 
 func NewDerivationLRUCache() *DerivationCache {
@@ -48,8 +46,6 @@ func NewDerivationLRUCache() *DerivationCache {
 		deterministicKeyCache:   utils.NewLRUCache[deterministicTransactionCacheKey, *crypto.KeyPair[curve25519.VarTimeOperations]](32),
 		ephemeralPublicKeyCache: utils.NewLRUCache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag](2000),
 		derivationCache:         utils.NewLRUCache[derivationCacheKey, curve25519.PublicKeyBytes](2000),
-		pubKeyToTableCache:      utils.NewLRUCache[curve25519.PublicKeyBytes, *curve25519.Generator](2000),
-		pubKeyToPointCache:      utils.NewLRUCache[curve25519.PublicKeyBytes, *curve25519.VarTimePublicKey](2000),
 	}
 	return d
 }
@@ -60,8 +56,6 @@ func NewDerivationMapCache() *DerivationCache {
 		deterministicKeyCache:   utils.NewMapCache[deterministicTransactionCacheKey, *crypto.KeyPair[curve25519.VarTimeOperations]](32),
 		ephemeralPublicKeyCache: utils.NewMapCache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag](2000),
 		derivationCache:         utils.NewMapCache[derivationCacheKey, curve25519.PublicKeyBytes](2000),
-		pubKeyToTableCache:      utils.NewMapCache[curve25519.PublicKeyBytes, *curve25519.Generator](2000),
-		pubKeyToPointCache:      utils.NewMapCache[curve25519.PublicKeyBytes, *curve25519.VarTimePublicKey](2000),
 	}
 	return d
 }
@@ -72,8 +66,6 @@ func NewDerivationNilCache() *DerivationCache {
 		deterministicKeyCache:   utils.NewNilCache[deterministicTransactionCacheKey, *crypto.KeyPair[curve25519.VarTimeOperations]](),
 		ephemeralPublicKeyCache: utils.NewNilCache[ephemeralPublicKeyCacheKey, ephemeralPublicKeyWithViewTag](),
 		derivationCache:         utils.NewNilCache[derivationCacheKey, curve25519.PublicKeyBytes](),
-		pubKeyToTableCache:      utils.NewNilCache[curve25519.PublicKeyBytes, *curve25519.Generator](),
-		pubKeyToPointCache:      utils.NewNilCache[curve25519.PublicKeyBytes, *curve25519.VarTimePublicKey](),
 	}
 	return d
 }
@@ -83,8 +75,6 @@ func (d *DerivationCache) Clear() {
 	d.deterministicKeyCache.Clear()
 	d.ephemeralPublicKeyCache.Clear()
 	d.derivationCache.Clear()
-	d.pubKeyToPointCache.Clear()
-	d.pubKeyToTableCache.Clear()
 }
 
 func (d *DerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, txKey curve25519.PrivateKeyBytes, txKeyScalar *curve25519.Scalar, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
@@ -96,12 +86,16 @@ func (d *DerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, txKey 
 	if ephemeralPubKey, ok := d.ephemeralPublicKeyCache.Get(key); ok {
 		return ephemeralPubKey.PublicKey, ephemeralPubKey.ViewTag
 	} else {
-		viewTable := d.getPublicKeyTable(*a.ViewPublicKey())
-		spendPoint := d.getPublicKeyPoint(*a.SpendPublicKey())
-		derivation := d.getDerivation(*a.ViewPublicKey(), txKey, viewTable, txKeyScalar)
-		pKB, viewTag := address.GetEphemeralPublicKeyAndViewTagNoAllocate(spendPoint.P(), derivation, outputIndex)
-		d.ephemeralPublicKeyCache.Set(key, ephemeralPublicKeyWithViewTag{PublicKey: pKB, ViewTag: viewTag})
-		return pKB, viewTag
+		spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *a.SpendPublicKey())
+		viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *a.ViewPublicKey())
+		derivation := d.getDerivation(*a.ViewPublicKey(), txKey, viewPub, txKeyScalar)
+
+		var pK curve25519.Scalar
+		_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation, outputIndex)
+		ephPub := address.GetPublicKeyForSharedData(new(curve25519.VarTimePublicKey), spendPub, &pK).Bytes()
+
+		d.ephemeralPublicKeyCache.Set(key, ephemeralPublicKeyWithViewTag{PublicKey: ephPub, ViewTag: viewTag})
+		return ephPub, viewTag
 	}
 }
 
@@ -119,7 +113,7 @@ func (d *DerivationCache) GetDeterministicTransactionKey(seed types.Hash, prevId
 	}
 }
 
-func (d *DerivationCache) getDerivation(viewPublicKeyBytes curve25519.PublicKeyBytes, txKey curve25519.PrivateKeyBytes, g *curve25519.Generator, txKeyScalar *curve25519.Scalar) curve25519.PublicKeyBytes {
+func (d *DerivationCache) getDerivation(viewPublicKeyBytes curve25519.PublicKeyBytes, txKey curve25519.PrivateKeyBytes, viewPub *curve25519.VarTimePublicKey, txKeyScalar *curve25519.Scalar) curve25519.PublicKeyBytes {
 	var key derivationCacheKey
 	copy(key[:], viewPublicKeyBytes[:])
 	copy(key[curve25519.PublicKeySize:], txKey[:])
@@ -127,29 +121,9 @@ func (d *DerivationCache) getDerivation(viewPublicKeyBytes curve25519.PublicKeyB
 	if derivation, ok := d.derivationCache.Get(key); ok {
 		return derivation
 	} else {
-		derivation = address.GetDerivationNoAllocateTable(g, txKeyScalar)
+		derivation = address.GetDerivation(new(curve25519.VarTimePublicKey), viewPub, txKeyScalar).Bytes()
 		d.derivationCache.Set(key, derivation)
 		return derivation
-	}
-}
-
-func (d *DerivationCache) getPublicKeyPoint(publicKey curve25519.PublicKeyBytes) *curve25519.VarTimePublicKey {
-	if point, ok := d.pubKeyToPointCache.Get(publicKey); ok {
-		return point
-	} else {
-		point = curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), publicKey)
-		d.pubKeyToPointCache.Set(publicKey, point)
-		return point
-	}
-}
-
-func (d *DerivationCache) getPublicKeyTable(publicKey curve25519.PublicKeyBytes) *curve25519.Generator {
-	if table, ok := d.pubKeyToTableCache.Get(publicKey); ok {
-		return table
-	} else {
-		table = curve25519.NewGenerator(publicKey.Point().P())
-		d.pubKeyToTableCache.Set(publicKey, table)
-		return table
 	}
 }
 

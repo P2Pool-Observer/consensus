@@ -73,25 +73,14 @@ func TestDerivePublicKey(t *testing.T) {
 
 		sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation, outputIndex)
 
-		var sharedData2 curve25519.Scalar
-		_ = crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedData2, derivation, outputIndex)
-
-		if curve25519.PrivateKeyBytes(sharedData.Bytes()) != curve25519.PrivateKeyBytes(sharedData2.Bytes()) {
-			t.Errorf("derive_public_key differs from no_allocate: %x != %x", sharedData.Bytes(), sharedData2.Bytes())
-		}
-
-		derivedKey := GetPublicKeyForSharedData(point2, sharedData)
-
-		derivedKey2, _ := GetEphemeralPublicKeyAndViewTagNoAllocate(point2.P(), derivation, outputIndex)
-
-		if derivedKey.Bytes() != derivedKey2 {
-			t.Errorf("derive_public_key differs from no_allocate: %s != %s", derivedKey, &derivedKey2)
-		}
+		ephemeralPub := GetPublicKeyForSharedData(new(curve25519.VarTimePublicKey), point2, sharedData)
 
 		if result {
-			if expectedDerivedKey.String() != derivedKey.String() {
-				t.Errorf("expected %s, got %s", expectedDerivedKey.String(), derivedKey.String())
+			if expectedDerivedKey.String() != ephemeralPub.String() {
+				t.Errorf("expected %s, got %s", expectedDerivedKey.String(), ephemeralPub.String())
 			}
+		} else if ephemeralPub != nil {
+			t.Fatal()
 		}
 	}
 }
@@ -126,13 +115,6 @@ func TestDeriveSecretKey(t *testing.T) {
 		}
 
 		sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation, outputIndex)
-
-		var sharedData2 curve25519.Scalar
-		_ = crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedData2, derivation, outputIndex)
-
-		if curve25519.PrivateKeyBytes(sharedData.Bytes()) != curve25519.PrivateKeyBytes(sharedData2.Bytes()) {
-			t.Errorf("derive_secret_key differs from no_allocate: %x != %x", sharedData.Bytes(), sharedData2.Bytes())
-		}
 
 		derivedKey := GetPrivateKeyForSharedData(scalar, sharedData)
 
@@ -215,7 +197,7 @@ func TestSignature(t *testing.T) {
 	if result != ResultFail {
 		t.Fatalf("unexpected %d", result)
 	}
-	result = VerifyMessage(&ZeroPrivateKeyAddress, signatureMessage, SignatureViewSuccess)
+	result = VerifyMessage(&ZeroKeyAddress, signatureMessage, SignatureViewSuccess)
 	if result != ResultFail {
 		t.Fatalf("unexpected %d", result)
 	}

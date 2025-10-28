@@ -92,7 +92,7 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.
 		derivation.MultByCofactor(&derivation)
 		//TODO: optimize order?
 		for _, out := range outputs {
-			viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&sharedDataScalar, derivation.Bytes(), out.Index)
+			_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&sharedDataScalar, derivation.Bytes(), out.Index)
 			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag.Slice()[0] {
 				continue
 			}

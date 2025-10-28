@@ -16,18 +16,18 @@ func TestSpendProof(t *testing.T) {
 	const n = 10
 
 	t.Run("Constant", func(t *testing.T) {
-		if err := testSpendProof[curve25519.ConstantTimeOperations](t, decoys, n, 1, rand.Reader); err != nil {
+		if err := testSpendProof[curve25519.ConstantTimeOperations](decoys, n, 1, rand.Reader); err != nil {
 			t.Fatal(err)
 		}
 	})
 	t.Run("Variable", func(t *testing.T) {
-		if err := testSpendProof[curve25519.VarTimeOperations](t, decoys, n, 1, rand.Reader); err != nil {
+		if err := testSpendProof[curve25519.VarTimeOperations](decoys, n, 1, rand.Reader); err != nil {
 			t.Fatal(err)
 		}
 	})
 }
 
-func testSpendProof[T curve25519.PointOperations](t *testing.T, decoys, n, version int, randomReader io.Reader) error {
+func testSpendProof[T curve25519.PointOperations](decoys, n, version int, randomReader io.Reader) error {
 	var keyPairs []*crypto.KeyPair[T]
 	var rings [][]curve25519.PublicKey[T]
 

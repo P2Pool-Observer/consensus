@@ -17,11 +17,11 @@ func (d *NilDerivationCache) Clear() {
 }
 
 func (d *NilDerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, _ curve25519.PrivateKeyBytes, txKeyScalar *curve25519.Scalar, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
-	var derivation curve25519.VarTimePublicKey
-	address.GetDerivation(&derivation, curve25519.To[curve25519.VarTimeOperations](a.ViewPublicKey().Point()), txKeyScalar)
-	ephemeralPubKey, viewTag := address.GetEphemeralPublicKeyAndViewTagNoAllocate(a.SpendPublicKey().Point().P(), derivation.Bytes(), outputIndex)
+	spendPub := curve25519.DecodeCompressedPoint[curve25519.VarTimeOperations](new(curve25519.VarTimePublicKey), *a.SpendPublicKey())
+	viewPub := curve25519.DecodeCompressedPoint[curve25519.VarTimeOperations](new(curve25519.VarTimePublicKey), *a.ViewPublicKey())
+	ephemeralPubKey, viewTag := address.GetEphemeralPublicKeyAndViewTag(new(curve25519.VarTimePublicKey), spendPub, viewPub, txKeyScalar, outputIndex)
 
-	return ephemeralPubKey, viewTag
+	return ephemeralPubKey.Bytes(), viewTag
 }
 
 func (d *NilDerivationCache) GetDeterministicTransactionKey(seed types.Hash, prevId types.Hash) *crypto.KeyPair[curve25519.VarTimeOperations] {

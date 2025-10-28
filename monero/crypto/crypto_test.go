@@ -4,13 +4,11 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	fasthex "github.com/tmthrgd/go-hex"
 )
 
 func init() {
@@ -44,62 +42,6 @@ func GetTestEntriesCustom(path, name string, n int) chan []string {
 
 func GetTestEntries(name string, n int) chan []string {
 	return GetTestEntriesCustom("testdata/monero_crypto_tests.txt", name, n)
-}
-
-func TestDeriveViewTag(t *testing.T) {
-	results := GetTestEntries("derive_view_tag", 3)
-	if results == nil {
-		t.Fatal()
-	}
-
-	for e := range results {
-		derivation := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
-		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
-		result, _ := fasthex.DecodeString(e[2])
-
-		viewTag := GetDerivationViewTagForOutputIndex(derivation, outputIndex)
-
-		var tmp curve25519.Scalar
-		viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&tmp, derivation, outputIndex)
-
-		if viewTag != viewTag2 {
-			t.Errorf("derive_view_tag differs from no_allocate: %d != %d", viewTag, &viewTag2)
-		}
-
-		if result[0] != viewTag {
-			t.Errorf("expected %s, got %s", fasthex.EncodeToString(result), fasthex.EncodeToString([]byte{viewTag}))
-		}
-	}
-}
-
-func FuzzDeriveViewTag(f *testing.F) {
-	results := GetTestEntries("derive_view_tag", 3)
-	if results == nil {
-		f.Fatal()
-	}
-	for e := range results {
-		derivation := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
-		outputIndex, _ := strconv.ParseUint(e[1], 10, 0)
-
-		f.Add(derivation.Slice(), outputIndex)
-	}
-
-	f.Fuzz(func(t *testing.T, derivation []byte, outputIndex uint64) {
-		if len(derivation) != curve25519.PublicKeySize {
-			return
-		}
-		derivationBytes := curve25519.PublicKeyBytes(derivation)
-
-		viewTag := GetDerivationViewTagForOutputIndex(derivationBytes, outputIndex)
-
-		var tmp curve25519.Scalar
-		viewTag2 := GetDerivationSharedDataAndViewTagForOutputIndexNoAllocate(&tmp, derivationBytes, outputIndex)
-
-		if viewTag != viewTag2 {
-			t.Errorf("derive_view_tag differs from no_allocate: %d != %d", viewTag, &viewTag2)
-		}
-	})
-
 }
 
 /*

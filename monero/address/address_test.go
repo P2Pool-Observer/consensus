@@ -43,7 +43,7 @@ func TestAddress(t *testing.T) {
 	derivation.MultByCofactor(derivation)
 
 	sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), 37)
-	ephemeralPublicKey := GetPublicKeyForSharedData(spendPub, sharedData)
+	ephemeralPublicKey := GetPublicKeyForSharedData(new(curve25519.VarTimePublicKey), spendPub, sharedData)
 
 	if bytes.Compare(ephemeralPublicKey.Slice(), ephemeralPubKey) != 0 {
 		t.Fatalf("ephemeral key mismatch, expected %s, got %s", fasthex.EncodeToString(ephemeralPubKey), ephemeralPublicKey.String())
@@ -56,45 +56,35 @@ func TestSort(t *testing.T) {
 	}
 }
 
-func BenchmarkCoinbaseDerivation(b *testing.B) {
+func BenchmarkGetEphemeralPublicKey(b *testing.B) {
 	b.ReportAllocs()
-	packed := testAddress3.ToPackedAddress()
 	txKey := privateKey
 	var i atomic.Uint64
+
+	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.SpendPublicKey())
+	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.ViewPublicKey())
+
 	b.RunParallel(func(pb *testing.PB) {
+		var out curve25519.VarTimePublicKey
 		for pb.Next() {
-			GetEphemeralPublicKeyAndViewTag[curve25519.VarTimeOperations](&packed, txKey, i.Add(1))
+			GetEphemeralPublicKey(&out, spendPub, viewPub, txKey, i.Add(1))
 		}
 	})
 	b.ReportAllocs()
 }
 
-func BenchmarkCoinbaseDerivationInline(b *testing.B) {
-	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.SpendPublicKey())
-	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.ViewPublicKey())
-
-	var i atomic.Uint64
-	b.RunParallel(func(pb *testing.PB) {
-		p := new(curve25519.Point)
-		for pb.Next() {
-			getEphemeralPublicKeyInline(spendPub.P(), viewPub.P(), privateKey, i.Add(1), p)
-		}
-	})
+func BenchmarkGetEphemeralPublicKeyAndViewTag(b *testing.B) {
 	b.ReportAllocs()
-}
+	txKey := privateKey
+	var i atomic.Uint64
 
-func BenchmarkCoinbaseDerivationNoAllocate(b *testing.B) {
 	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.SpendPublicKey())
 	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress3.ViewPublicKey())
 
-	txKey := privateKey
-
-	var i atomic.Uint64
 	b.RunParallel(func(pb *testing.PB) {
-		var derivation curve25519.VarTimePublicKey
+		var out curve25519.VarTimePublicKey
 		for pb.Next() {
-			GetDerivationNoAllocate(derivation.P(), viewPub.P(), txKey)
-			GetEphemeralPublicKeyAndViewTagNoAllocate(spendPub.P(), derivation.Bytes(), i.Add(1))
+			GetEphemeralPublicKeyAndViewTag(&out, spendPub, viewPub, txKey, i.Add(1))
 		}
 	})
 	b.ReportAllocs()

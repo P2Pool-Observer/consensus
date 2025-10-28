@@ -737,7 +737,7 @@ func TestSideChain(t *testing.T) {
 			total := max(1, hits+misses)
 			t.Logf("Ephemeral Public Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
 
-			hits, misses = s.DerivationCache().carrotEnoteCache.Stats()
+			hits, misses = s.DerivationCache().deterministicKeyCache.Stats()
 			total = max(1, hits+misses)
 			t.Logf("Deterministic Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
 
@@ -745,14 +745,9 @@ func TestSideChain(t *testing.T) {
 			total = max(1, hits+misses)
 			t.Logf("Derivation Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
 
-			hits, misses = s.DerivationCache().pubKeyToTableCache.Stats()
+			hits, misses = s.DerivationCache().carrotEnoteCache.Stats()
 			total = max(1, hits+misses)
-			t.Logf("PubKeyToTable Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
-
-			hits, misses = s.DerivationCache().pubKeyToPointCache.Stats()
-			total = max(1, hits+misses)
-			t.Logf("PubKeyToPoint Key Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
-
+			t.Logf("Carrot Partial Enote Cache hits = %d (%.02f%%), misses = %d (%.02f%%), total = %d", hits, (float64(hits)/float64(total))*100, misses, (float64(misses)/float64(total))*100, total)
 		})
 	}
 }
