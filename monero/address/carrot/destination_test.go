@@ -11,8 +11,8 @@ import (
 
 func TestDestinationV1_ConvergeMakeSubaddress(t *testing.T) {
 	expected := address.NewPackedAddressFromBytes(
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0"),
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2"),
+		types.MustBytes32FromString[curve25519.PublicKeyBytes]("cb84becce21364e6fc91f6cec459ae917287bc3d87791369f8ff0fc40e4fcc08"),
+		types.MustBytes32FromString[curve25519.PublicKeyBytes]("82800b2b97f50a798768d3235eabe9d4b3d5bd6d12956975b79db53f29895bdd"),
 	)
 
 	generateAddress := types.MustHashFromString("593ece76c5d24cbfe3c7ac9e2d455cdd4b372c89584700bf1c2e7bef2b70a4d1")

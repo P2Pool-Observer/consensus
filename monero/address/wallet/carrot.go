@@ -130,7 +130,7 @@ func (w *CarrotViewWallet[T]) track(hasher *blake2b.Digest, ix address.Subaddres
 		return nil
 	}
 
-	w.spendMap[carrot.MakeDestinationSubaddressSpendPub(hasher, &w.accountSpendPub, w.generateAddressSecret, ix)] = ix
+	w.spendMap[carrot.MakeDestinationSubaddressSpendPub(hasher, &w.accountSpendPub, &w.accountViewPub, w.generateAddressSecret, ix)] = ix
 	return nil
 }
 

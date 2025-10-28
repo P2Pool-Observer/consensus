@@ -94,13 +94,13 @@ func makeIndexExtensionGenerator(hasher *blake2b.Digest, generateAddressSecret t
 }
 
 // makeSubaddressScalar make_carrot_subaddress_scalar
-func makeSubaddressScalar(hasher *blake2b.Digest, addressIndexGeneratorSecretOut *curve25519.Scalar, spendPub curve25519.PublicKeyBytes, addressIndexGeneratorSecret types.Hash, i address.SubaddressIndex) {
-	// k^j_subscal = H_n(K_s, j_major, j_minor, s^j_gen)
+func makeSubaddressScalar(hasher *blake2b.Digest, addressIndexGeneratorSecretOut *curve25519.Scalar, accountSpendPub, accountViewPub curve25519.PublicKeyBytes, addressIndexGeneratorSecret types.Hash, i address.SubaddressIndex) {
+	// k^j_subscal = H_n[s^j_gen](K_s, K_v, j_major, j_minor)
 	var buf [8]byte
 	binary.LittleEndian.PutUint32(buf[:], i.Account)
 	binary.LittleEndian.PutUint32(buf[4:], i.Offset)
 	ScalarTranscript(
 		addressIndexGeneratorSecretOut, hasher, addressIndexGeneratorSecret[:],
-		[]byte(DomainSeparatorSubaddressScalar), spendPub[:], buf[:],
+		[]byte(DomainSeparatorSubaddressScalar), accountSpendPub[:], accountViewPub[:], buf[:],
 	)
 }

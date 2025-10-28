@@ -121,12 +121,13 @@ func TestConvergeAccount(t *testing.T) {
 	})
 
 	t.Run("make_carrot_subaddress_scalar", func(t *testing.T) {
-		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("25d97acc4f6b58478ee97ee9b308be756401130c1e9f3a48a5370c1a2ce0e50e")
+		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("824e9710a9ee164dcf225be9ced906ceb53a0e93326b199a79340f6c0c7e050d")
 		var result curve25519.Scalar
 		makeSubaddressScalar(
 			&blake2b.Digest{},
 			&result,
 			types.MustBytes32FromString[curve25519.PublicKeyBytes]("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f"),
+			types.MustBytes32FromString[curve25519.PublicKeyBytes]("a30c1b720a66557c03a9784c6dd0902c95ee56670e04907d18eaa20608a72e7e"),
 			types.MustHashFromString("79ad2383f44b4d26413adb7ae79c5658b2a8c20b6f5046bfa9f229bfcf1744a7"),
 			address.SubaddressIndex{Account: 5, Offset: 16},
 		)
