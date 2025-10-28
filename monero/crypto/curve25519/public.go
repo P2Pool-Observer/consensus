@@ -44,6 +44,16 @@ func (v *PublicKey[T]) Subtract(p, q *PublicKey[T]) *PublicKey[T] {
 	return v
 }
 
+func (v *PublicKey[T]) Double(x *PublicKey[T]) *PublicKey[T] {
+	double(v.op, &v.p, &x.p)
+	return v
+}
+
+func (v *PublicKey[T]) Negate(x *PublicKey[T]) *PublicKey[T] {
+	negate(v.op, &v.p, &x.p)
+	return v
+}
+
 func (v *PublicKey[T]) ScalarBaseMult(x *Scalar) *PublicKey[T] {
 	scalarBaseMult(v.op, &v.p, x)
 	return v
@@ -60,7 +70,7 @@ func (v *PublicKey[T]) ScalarMultPrecomputed(x *Scalar, q *Generator) *PublicKey
 }
 
 func (v *PublicKey[T]) MultByCofactor(q *PublicKey[T]) *PublicKey[T] {
-	v.p.MultByCofactor(&q.p)
+	multByCofactor(v.op, &v.p, &q.p)
 	return v
 }
 
@@ -75,17 +85,17 @@ func (v *PublicKey[T]) DoubleScalarBaseMultPrecomputed(a *Scalar, A *Generator, 
 }
 
 func (v *PublicKey[T]) DoubleScalarMult(a *Scalar, A *PublicKey[T], b *Scalar, B *PublicKey[T]) *PublicKey[T] {
-	v.op.DoubleScalarMult(&v.p, a, &A.p, b, &B.p)
+	doubleScalarMult(v.op, &v.p, a, &A.p, b, &B.p)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarMultPrecomputed(a *Scalar, A *Generator, b *Scalar, B *Generator) *PublicKey[T] {
-	v.op.DoubleScalarMultPrecomputed(&v.p, a, A, b, B)
+	doubleScalarMultPrecomputed(v.op, &v.p, a, A, b, B)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarMultPrecomputedB(a *Scalar, A *PublicKey[T], b *Scalar, B *Generator) *PublicKey[T] {
-	v.op.DoubleScalarMultPrecomputedB(&v.p, a, &A.p, b, B)
+	doubleScalarMultPrecomputedB(v.op, &v.p, a, &A.p, b, B)
 	return v
 }
 

@@ -14,6 +14,18 @@ func (e VarTimeOperations) Subtract(v *Point, p, q *Point) *Point {
 	return v.Subtract(p, q)
 }
 
+func (e VarTimeOperations) Double(v *Point, x *Point) *Point {
+	return v.Double(x)
+}
+
+func (e VarTimeOperations) Negate(v *Point, x *Point) *Point {
+	return v.Negate(x)
+}
+
+func (e VarTimeOperations) MultByCofactor(v *Point, x *Point) *Point {
+	return v.MultByCofactor(x)
+}
+
 func (e VarTimeOperations) ScalarBaseMult(v *Point, x *Scalar) *Point {
 	return v.VarTimeScalarBaseMult(x)
 }

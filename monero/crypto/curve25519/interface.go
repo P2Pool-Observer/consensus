@@ -7,6 +7,10 @@ import (
 type PointOperations interface {
 	Add(v *Point, p, q *Point) *Point
 	Subtract(v *Point, p, q *Point) *Point
+	Double(v *Point, x *Point) *Point
+	Negate(v *Point, x *Point) *Point
+
+	MultByCofactor(v *Point, x *Point) *Point
 
 	ScalarBaseMult(v *Point, x *Scalar) *Point
 
@@ -47,6 +51,30 @@ func _subtract(op PointOperations, v *Point, p, q *Point) *Point {
 //go:linkname subtract git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._subtract
 func subtract(op PointOperations, v *Point, p, q *Point) *Point
 
+func _double(op PointOperations, v *Point, x *Point) *Point {
+	return op.Double(v, x)
+}
+
+//go:noescape
+//go:linkname double git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._double
+func double(op PointOperations, v *Point, x *Point) *Point
+
+func _negate(op PointOperations, v *Point, x *Point) *Point {
+	return op.Negate(v, x)
+}
+
+//go:noescape
+//go:linkname negate git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._negate
+func negate(op PointOperations, v *Point, x *Point) *Point
+
+func _multByCofactor(op PointOperations, v *Point, x *Point) *Point {
+	return op.MultByCofactor(v, x)
+}
+
+//go:noescape
+//go:linkname multByCofactor git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._multByCofactor
+func multByCofactor(op PointOperations, v *Point, x *Point) *Point
+
 func _scalarBaseMult(op PointOperations, v *Point, x *Scalar) *Point {
 	return op.ScalarBaseMult(v, x)
 }
@@ -86,6 +114,30 @@ func _doubleScalarBaseMultPrecomputed(op PointOperations, v *Point, a *Scalar, A
 //go:noescape
 //go:linkname doubleScalarBaseMultPrecomputed git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarBaseMultPrecomputed
 func doubleScalarBaseMultPrecomputed(op PointOperations, v *Point, a *Scalar, A *Generator, b *Scalar) *Point
+
+func _doubleScalarMultPrecomputed(op PointOperations, v *Point, a *Scalar, A *Generator, b *Scalar, B *Generator) *Point {
+	return op.DoubleScalarMultPrecomputed(v, a, A, b, B)
+}
+
+func _doubleScalarMult(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Point) *Point {
+	return op.DoubleScalarMult(v, a, A, b, B)
+}
+
+//go:noescape
+//go:linkname doubleScalarMult git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarMult
+func doubleScalarMult(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Point) *Point
+
+//go:noescape
+//go:linkname doubleScalarMultPrecomputed git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarMultPrecomputed
+func doubleScalarMultPrecomputed(op PointOperations, v *Point, a *Scalar, A *Generator, b *Scalar, B *Generator) *Point
+
+func _doubleScalarMultPrecomputedB(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Generator) *Point {
+	return op.DoubleScalarMultPrecomputedB(v, a, A, b, B)
+}
+
+//go:noescape
+//go:linkname doubleScalarMultPrecomputedB git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarMultPrecomputedB
+func doubleScalarMultPrecomputedB(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Generator) *Point
 
 func _isSmallOrder(op PointOperations, v *Point) bool {
 	return op.IsSmallOrder(v)
