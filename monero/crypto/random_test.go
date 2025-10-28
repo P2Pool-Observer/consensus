@@ -18,7 +18,7 @@ func TestRandomScalar(t *testing.T) {
 	for e := range results {
 		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[0])
 
-		key := RandomScalar(new(curve25519.Scalar), rng)
+		key := curve25519.RandomScalar(new(curve25519.Scalar), rng)
 
 		if curve25519.PrivateKeyBytes(key.Bytes()) != expected {
 			t.Errorf("expected %s, got %x", expected.String(), key.Bytes())

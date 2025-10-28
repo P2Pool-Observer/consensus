@@ -32,7 +32,7 @@ func testSpendProof[T curve25519.PointOperations](decoys, n, version int, random
 	var rings [][]curve25519.PublicKey[T]
 
 	for i := range n {
-		keyPair := crypto.NewKeyPairFromPrivate[T](crypto.RandomScalar(new(curve25519.Scalar), randomReader))
+		keyPair := crypto.NewKeyPairFromPrivate[T](curve25519.RandomScalar(new(curve25519.Scalar), randomReader))
 		rings = append(rings, make([]curve25519.PublicKey[T], 0, decoys+1))
 		keyIndex := i
 		for j := range decoys + 1 {
@@ -40,7 +40,7 @@ func testSpendProof[T curve25519.PointOperations](decoys, n, version int, random
 			if j == keyIndex {
 				rings[i] = append(rings[i], keyPair.PublicKey)
 			} else {
-				rings[i] = append(rings[i], *new(curve25519.PublicKey[T]).ScalarBaseMult(crypto.RandomScalar(new(curve25519.Scalar), randomReader)))
+				rings[i] = append(rings[i], *new(curve25519.PublicKey[T]).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), randomReader)))
 			}
 		}
 		keyPairs = append(keyPairs, keyPair)

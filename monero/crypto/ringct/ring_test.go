@@ -221,7 +221,7 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 
 	rng := crypto.NewDeterministicTestGenerator()
 
-	keyPair := crypto.NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](crypto.RandomScalar(new(curve25519.Scalar), rng))
+	keyPair := crypto.NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](curve25519.RandomScalar(new(curve25519.Scalar), rng))
 
 	t.Logf("secret    = %x", keyPair.PrivateKey.Bytes())
 	t.Logf("public    = %x", keyPair.PublicKey.Bytes())
@@ -230,7 +230,7 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 
 	rs.Ring = append(rs.Ring, keyPair.PublicKey)
 	for range 3 {
-		rs.Ring = append(rs.Ring, *new(curve25519.ConstantTimePublicKey).ScalarBaseMult(crypto.RandomScalar(new(curve25519.Scalar), rng)))
+		rs.Ring = append(rs.Ring, *new(curve25519.ConstantTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rng)))
 	}
 
 	keyImage := crypto.GetKeyImage(new(curve25519.ConstantTimePublicKey), keyPair)

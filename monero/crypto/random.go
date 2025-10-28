@@ -3,7 +3,6 @@ package crypto
 import (
 	"crypto/subtle"
 	"encoding/binary"
-	"io"
 	"unsafe"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
@@ -13,25 +12,6 @@ import (
 
 	_ "unsafe"
 )
-
-// RandomScalar Equivalent to Monero's random32_unbiased / random_scalar
-func RandomScalar(k *curve25519.Scalar, r io.Reader) *curve25519.Scalar {
-	var buf [curve25519.PrivateKeySize]byte
-	for {
-		if _, err := utils.ReadNoEscape(r, buf[:]); err != nil {
-			return nil
-		}
-
-		if !curve25519.ScalarIsLimit32(buf) {
-			continue
-		}
-		curve25519.BytesToScalar32(k, buf)
-
-		if k.Equal(zeroScalar) == 0 {
-			return k
-		}
-	}
-}
 
 // DeterministicScalar consensus way of generating a deterministic scalar from given entropy
 func DeterministicScalar(k *curve25519.Scalar, entropy []byte) *curve25519.Scalar {

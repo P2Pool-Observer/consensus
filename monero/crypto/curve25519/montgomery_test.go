@@ -1,10 +1,12 @@
 package curve25519
 
 import (
+	"crypto/rand"
 	"fmt"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type x25519TestVector struct {
@@ -73,6 +75,51 @@ func TestX25519(t *testing.T) {
 					t.Errorf("expected %s, got %s", vec.Result.String(), pub.String())
 				}
 			})
+		}
+	})
+
+	// convergence unit tests from Monero
+
+	t.Run("ConvertPointE_Base", func(t *testing.T) {
+		// generate a random point P and test that ConvertPointE(P) == ConvertPointE(-P)
+
+		G := FromPoint[VarTimeOperations](edwards25519.NewGeneratorPoint())
+
+		actualB := G.Montgomery()
+
+		if actualB.Equal(&MontgomeryBasepoint) == 0 {
+			t.Error("expected equality")
+		}
+	})
+
+	t.Run("ConvertPointE_EraseSign", func(t *testing.T) {
+		// generate a random point P and test that ConvertPointE(P) == ConvertPointE(-P)
+
+		P := RandomPoint(new(VarTimePublicKey), rand.Reader)
+		negP := new(VarTimePublicKey).Negate(P)
+
+		montgomeryP := P.Montgomery()
+		montgomeryNegP := negP.Montgomery()
+
+		if montgomeryP.Equal(&montgomeryNegP) == 0 {
+			t.Error("expected equality")
+		}
+	})
+
+	t.Run("small_order_mul_eq_0", func(t *testing.T) {
+		var key PrivateKeyBytes
+		_, _ = rand.Read(key[:])
+
+		// clamp 3 LSBs
+		key[0] &= 0xf8
+
+		for i, p := range MontgomerySmallOrderPoints {
+			var Q MontgomeryPoint
+			MontgomeryUnclampedScalarMult(&Q, key, p)
+
+			if Q.Equal(&ZeroMontgomeryPoint) == 0 {
+				t.Errorf("expected k * S[%d] = 0, got %s", i, Q.String())
+			}
 		}
 	})
 }

@@ -209,8 +209,8 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 	if n > 2 {
 		for range n / 2 {
 			testAddresses = append(testAddresses, address.NewPackedAddressWithSubaddressFromBytes(
-				new(curve25519.VarTimePublicKey).ScalarBaseMult(crypto.RandomScalar(new(curve25519.Scalar), rand.Reader)).Bytes(),
-				new(curve25519.VarTimePublicKey).ScalarBaseMult(crypto.RandomScalar(new(curve25519.Scalar), rand.Reader)).Bytes(),
+				new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)).Bytes(),
+				new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)).Bytes(),
 				sidechain.P2PoolShareVersion(consensus, 0) >= sidechain.ShareVersion_V3 && /* TODO: remove when supported? */ minerData.MajorVersion < monero.HardForkCarrotVersion,
 			))
 		}

@@ -57,7 +57,7 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.Publ
 
 	for i, pub := range s.Ring {
 		if i == keyIndex {
-			if crypto.RandomScalar(&k, randomReader) == nil {
+			if curve25519.RandomScalar(&k, randomReader) == nil {
 				panic("unreachable")
 			}
 			buf.AB[i][0].ScalarBaseMult(&k)
@@ -65,10 +65,10 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.Publ
 			buf.AB[i][1].ScalarMult(&k, &tmpH2P)
 		} else {
 			sig := &s.Signatures[i]
-			if crypto.RandomScalar(&sig.C, randomReader) == nil {
+			if curve25519.RandomScalar(&sig.C, randomReader) == nil {
 				panic("unreachable")
 			}
-			if crypto.RandomScalar(&sig.R, randomReader) == nil {
+			if curve25519.RandomScalar(&sig.R, randomReader) == nil {
 				panic("unreachable")
 			}
 			buf.AB[i][0].DoubleScalarBaseMult(&sig.C, &pub, &sig.R)

@@ -239,3 +239,5 @@ func BytesToScalar32(c *Scalar, buf [32]byte) {
 	ScalarReduce32(&buf)
 	_, _ = c.SetCanonicalBytes(buf[:])
 }
+
+var zeroScalar = ZeroPrivateKeyBytes.Scalar()

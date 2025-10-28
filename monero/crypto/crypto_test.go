@@ -187,7 +187,7 @@ func TestGenerateKeys(t *testing.T) {
 		expectedPub := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		expectedPriv := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[1])
 
-		key := RandomScalar(new(curve25519.Scalar), rng)
+		key := curve25519.RandomScalar(new(curve25519.Scalar), rng)
 
 		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(key)
 

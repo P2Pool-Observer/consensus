@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"testing"
 
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/proofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -16,7 +15,7 @@ func TestProofs(t *testing.T) {
 	var txId types.Hash
 	_, _ = rand.Read(txId[:])
 
-	txKey := crypto.RandomScalar(new(curve25519.Scalar), rand.Reader)
+	txKey := curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)
 	txPubKey := new(curve25519.PublicKey[curve25519.ConstantTimeOperations]).ScalarBaseMult(txKey)
 
 	t.Run("OutProofV1", func(t *testing.T) {

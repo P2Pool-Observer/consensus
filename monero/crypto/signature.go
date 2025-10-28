@@ -57,7 +57,7 @@ func (s Signature[T]) Verify(handler SignatureVerificationHandler[T], publicKey 
 // CreateSignature produces a Schnorr Signature using H = keccak
 func CreateSignature[T curve25519.PointOperations](handler SignatureSigningHandler, privateKey *curve25519.Scalar, randomReader io.Reader) Signature[T] {
 	var k, C curve25519.Scalar
-	RandomScalar(&k, randomReader)
+	curve25519.RandomScalar(&k, randomReader)
 
 	ScalarDeriveLegacyNoAllocate(&C, handler(&k))
 
