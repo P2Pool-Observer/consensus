@@ -262,7 +262,7 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 	t.Logf("image     = %s", keyImage)
 
 	// it may take a few tries due to random trials
-	for range 1024 {
+	for i := range 1024 {
 		// keep signing until e*I = e*I', given o divides e
 		trs.sign(types.ZeroHash, torsionedKeyImage, &keyPair.PrivateKey, 0, rng)
 
@@ -271,11 +271,12 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 			continue
 		}
 		if trs.Verify(types.ZeroHash, torsionedKeyImage) {
-			t.Errorf("torsioned image I' = I * E[%d] returned true on RingSignature.verify, true on RingSignature.Verify (expected false)", torsionIndex)
+			t.Errorf("torsioned image I' = I + E[%d] returned true on RingSignature.verify, true on RingSignature.Verify (expected false)", torsionIndex)
 		} else {
 
 			t.Logf("torsioned = %s", torsionedKeyImage)
-			t.Logf("torsioned image I' = I * E[%d] returned true on RingSignature.verify, false on RingSignature.Verify", torsionIndex)
+			t.Logf("torsioned image I' = I + E[%d] returned true on RingSignature.verify, false on RingSignature.Verify", torsionIndex)
+			t.Logf("took %d tries", i+1)
 			return
 		}
 	}
