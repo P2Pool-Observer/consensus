@@ -88,6 +88,24 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, conta
 		return nil, utils.ErrorfNoEscape("minor version %d smaller than major %d", b.MinorVersion, b.MajorVersion)
 	}
 
+	if b.MajorVersion >= monero.HardForkRejectManyMinerOutputs {
+		// TODO: check this on pruned?
+
+		if len(b.Coinbase.Outputs) > monero.MaxMinerOutputs {
+			return nil, utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.Outputs), monero.MaxMinerOutputs)
+		}
+	}
+
+	if b.MajorVersion >= monero.HardForkRejectLargeExtra {
+		// TODO: check this on pruned?
+
+		// Scale extra limit by number of outputs since Carrot requires 1 32-byte ephemeral pubkey per output (for Janus).
+		maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.Outputs)*monero.MinerTxExtraSizePerOutput
+		if b.Coinbase.Extra.BufferLength() >= maxExtraSize {
+			return nil, utils.ErrorfNoEscape("too large tx extra: %d >= %d", b.Coinbase.Extra.BufferLength(), maxExtraSize)
+		}
+	}
+
 	buf = binary.AppendUvarint(buf, uint64(b.MajorVersion))
 	buf = binary.AppendUvarint(buf, uint64(b.MinorVersion))
 
@@ -193,6 +211,24 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 	{
 		if err = b.Coinbase.FromReader(reader, canBePruned, containsAuxiliaryTemplateId); err != nil {
 			return err
+		}
+
+		if b.MajorVersion >= monero.HardForkRejectManyMinerOutputs {
+			// TODO: check this on pruned?
+
+			if len(b.Coinbase.Outputs) > monero.MaxMinerOutputs {
+				return utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.Outputs), monero.MaxMinerOutputs)
+			}
+		}
+
+		if b.MajorVersion >= monero.HardForkRejectLargeExtra {
+			// TODO: check this on pruned?
+
+			// Scale extra limit by number of outputs since Carrot requires 1 32-byte ephemeral pubkey per output (for Janus).
+			maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.Outputs)*monero.MinerTxExtraSizePerOutput
+			if b.Coinbase.Extra.BufferLength() >= maxExtraSize {
+				return utils.ErrorfNoEscape("too large tx extra: %d >= %d", b.Coinbase.Extra.BufferLength(), maxExtraSize)
+			}
 		}
 	}
 
