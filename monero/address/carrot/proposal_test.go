@@ -23,13 +23,9 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 		BlockIndex:      123456,
 	}
 
-	addr := address.PackedAddress{
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0"),
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2"),
-	}
 	proposal := &PaymentProposalV1[curve25519.VarTimeOperations]{
 		Destination: DestinationV1{
-			Address:   address.NewPackedAddressWithSubaddress(&addr, false),
+			Address:   address.NewPackedAddressWithSubaddress(&testAddress, false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
@@ -48,13 +44,9 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 }
 
 func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
-	addr := address.PackedAddress{
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0"),
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2"),
-	}
 	prop := &PaymentProposalV1[curve25519.VarTimeOperations]{
 		Destination: DestinationV1{
-			Address:   address.NewPackedAddressWithSubaddress(&addr, false),
+			Address:   address.NewPackedAddressWithSubaddress(&testAddress, false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
@@ -106,13 +98,9 @@ func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 }
 
 func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
-	addr := address.PackedAddress{
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0"),
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2"),
-	}
 	prop := &PaymentProposalV1[curve25519.VarTimeOperations]{
 		Destination: DestinationV1{
-			Address:   address.NewPackedAddressWithSubaddress(&addr, false),
+			Address:   address.NewPackedAddressWithSubaddress(&testAddress, false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
@@ -161,15 +149,10 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 }
 
 func BenchmarkPaymentProposalV1_Output(b *testing.B) {
-	addr := address.PackedAddress{
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("1ebcddd5d98e26788ed8d8510de7f520e973902238e107a070aad104e166b6a0"),
-		types.MustBytes32FromString[curve25519.PublicKeyBytes]("75b7bc7759da5d9ad5ff421650949b27a13ea369685eb4d1bd59abc518e25fe2"),
-	}
-
 	firstKeyImage := types.MustBytes32FromString[curve25519.PublicKeyBytes]("a3d1d782671a3622bf393fe8116c8df95e9e12776e2970ab1934645f40748343")
 	prop := &PaymentProposalV1[curve25519.VarTimeOperations]{
 		Destination: DestinationV1{
-			Address:   address.NewPackedAddressWithSubaddress(&addr, true),
+			Address:   address.NewPackedAddressWithSubaddress(&testAddress, true),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,

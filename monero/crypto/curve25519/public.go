@@ -108,6 +108,7 @@ func (v *PublicKey[T]) IsTorsionFree() bool {
 }
 
 // SetBytes Decompress a canonically-encoded Ed25519 point.
+// Canonical encoded means that the X coordinate is reduced, and that negative zero is not allowed
 // Equivalent to Monero's check_key or ge_frombytes_vartime (with constant or vartime implementations)
 func (v *PublicKey[T]) SetBytes(x []byte) (*PublicKey[T], error) {
 	_, err := setBytes(v.op, &v.p, x)
@@ -149,6 +150,10 @@ func (k *PublicKeyBytes) Slice() []byte {
 
 func (k *PublicKeyBytes) Point() *ConstantTimePublicKey {
 	return DecodeCompressedPoint(new(ConstantTimePublicKey), *k)
+}
+
+func (k *PublicKeyBytes) PointVarTime() *VarTimePublicKey {
+	return DecodeCompressedPoint(new(VarTimePublicKey), *k)
 }
 
 func (k *PublicKeyBytes) String() string {

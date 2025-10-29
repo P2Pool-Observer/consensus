@@ -110,7 +110,7 @@ func TestConvergeAccount(t *testing.T) {
 	t.Run("make_carrot_index_extension_generator", func(t *testing.T) {
 		expected := types.MustHashFromString("79ad2383f44b4d26413adb7ae79c5658b2a8c20b6f5046bfa9f229bfcf1744a7")
 		generateAddressSecret := types.MustHashFromString("593ece76c5d24cbfe3c7ac9e2d455cdd4b372c89584700bf1c2e7bef2b70a4d1")
-		result := makeIndexExtensionGenerator(
+		result := MakeIndexExtensionGenerator(
 			&blake2b.Digest{},
 			generateAddressSecret,
 			address.SubaddressIndex{Account: 5, Offset: 16},
@@ -123,7 +123,7 @@ func TestConvergeAccount(t *testing.T) {
 	t.Run("make_carrot_subaddress_scalar", func(t *testing.T) {
 		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("824e9710a9ee164dcf225be9ced906ceb53a0e93326b199a79340f6c0c7e050d")
 		var result curve25519.Scalar
-		makeSubaddressScalar(
+		MakeSubaddressScalar(
 			&blake2b.Digest{},
 			&result,
 			types.MustBytes32FromString[curve25519.PublicKeyBytes]("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f"),

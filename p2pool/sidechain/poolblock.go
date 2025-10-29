@@ -894,7 +894,7 @@ func (b *PoolBlock) GetMergeMineExtraSubaddress() *address.PackedAddressWithSuba
 	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) >= curve25519.PublicKeySize {
 		// subaddress
 		viewPub := curve25519.PublicKeyBytes(d[:curve25519.PublicKeySize])
-		if viewPub.Point() != nil {
+		if viewPub.PointVarTime() != nil {
 			out := address.NewPackedAddressWithSubaddressFromBytes(*b.Side.PublicKey.SpendPublicKey(), viewPub, true)
 			return &out
 		}

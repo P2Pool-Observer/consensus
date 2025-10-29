@@ -89,7 +89,7 @@ func (pub *OnionAddressV3) MarshalText() ([]byte, error) {
 
 func (pub *OnionAddressV3) Valid() bool {
 	// check pubkey encoding
-	return (*curve25519.PublicKeyBytes)(pub).Point() != nil && curve25519.PublicKeyBytes(*pub) != curve25519.ZeroPublicKeyBytes
+	return (*curve25519.PublicKeyBytes)(pub).PointVarTime() != nil && curve25519.PublicKeyBytes(*pub) != curve25519.ZeroPublicKeyBytes
 }
 
 func (pub OnionAddressV3) String() string {

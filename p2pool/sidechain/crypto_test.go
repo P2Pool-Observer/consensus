@@ -10,16 +10,14 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	fasthex "github.com/tmthrgd/go-hex"
 )
 
 func TestDeterministicTransactionPrivateKey(t *testing.T) {
 	expectedPrivateKey := "c93cbd34c66ba4d5b3ddcccd3f550a0169e02225c8d045bc6418dbca4819260b"
 
-	previousId, _ := types.HashFromString("b64ec18bf2dfa4658693d7f35836d212e66dee47af6f7263ab2bf00e422bcd68")
-	publicSpendKeyBytes, _ := fasthex.DecodeString("f2be6705a034f8f485ee9bc3c21b6309cd0d9dd2111441cc32753ba2bac41b6d")
-	p, _ := (&curve25519.Point{}).SetBytes(publicSpendKeyBytes)
-	spendPublicKey := curve25519.FromPoint[curve25519.VarTimeOperations](p)
+	previousId := types.MustHashFromString("b64ec18bf2dfa4658693d7f35836d212e66dee47af6f7263ab2bf00e422bcd68")
+	publicSpendKeyBytes := types.MustBytes32FromString[curve25519.PublicKeyBytes]("f2be6705a034f8f485ee9bc3c21b6309cd0d9dd2111441cc32753ba2bac41b6d")
+	spendPublicKey := publicSpendKeyBytes.PointVarTime()
 
 	calculatedPrivateKey := GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), types.Hash(spendPublicKey.Bytes()), previousId)
 	if hex.EncodeToString(calculatedPrivateKey.Bytes()) != expectedPrivateKey {

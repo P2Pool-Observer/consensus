@@ -52,7 +52,7 @@ func TestCheckSignature(t *testing.T) {
 		prefixHash := types.MustHashFromString(e[0])
 		pub := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1])
 		sigBytes, _ := hex.DecodeString(e[2])
-		sig := NewSignatureFromBytes[curve25519.ConstantTimeOperations](sigBytes)
+		sig := NewSignatureFromBytes[curve25519.VarTimeOperations](sigBytes)
 		result := e[3] == "true"
 
 		if sig == nil {
@@ -62,7 +62,7 @@ func TestCheckSignature(t *testing.T) {
 			continue
 		}
 
-		if VerifyMessageSignature(prefixHash, pub.Point(), *sig) != result {
+		if VerifyMessageSignature(prefixHash, pub.PointVarTime(), *sig) != result {
 			t.Fatalf("expected %v, got %v", result, !result)
 		}
 	}

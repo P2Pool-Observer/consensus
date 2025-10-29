@@ -18,6 +18,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/cryptonote"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
@@ -1331,7 +1332,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 											} else if a.IsSubaddress() {
 												if h, err := types.HashFromString(client.Password); err == nil {
 													viewKey := curve25519.PrivateKeyBytes(h)
-													fa := address.GetSubaddressFakeAddress(a, viewKey.Scalar())
+													fa := cryptonote.GetSubaddressFakeAddress(a, viewKey.Scalar())
 													if fa == nil {
 														return errors.New("invalid address in user, invalid subaddress conversion")
 													}

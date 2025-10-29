@@ -5,6 +5,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/cryptonote"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
@@ -72,7 +73,7 @@ func NewViewWallet[T curve25519.PointOperations](primaryAddress *address.Address
 // Track Adds the subaddress index to track map
 func (w *ViewWallet[T]) Track(ix address.SubaddressIndex) error {
 	if ix != address.ZeroSubaddressIndex {
-		w.spendMap[address.GetSubaddressSpendPub(&w.accountSpendPub, w.viewKey, ix)] = ix
+		w.spendMap[cryptonote.GetSubaddressSpendPub(&w.accountSpendPub, w.viewKey, ix)] = ix
 	}
 	return nil
 }
@@ -178,11 +179,24 @@ func (w *ViewWallet[T]) HasSpend(spendPub curve25519.PublicKeyBytes) (address.Su
 	return ix, ok
 }
 
+func (w *ViewWallet[T]) Opening(index address.SubaddressIndex, spendKey *curve25519.Scalar) (keyG, keyT *curve25519.Scalar, spendPub *curve25519.PublicKey[T]) {
+	// m = Hn(k_v || j_major || j_minor) if subaddress else 0
+	subaddressExtension := cryptonote.SubaddressExtension(new(curve25519.Scalar), index, w.viewKey)
+
+	keyG = new(curve25519.Scalar).Add(spendKey, subaddressExtension)
+	keyT = new(curve25519.Scalar)
+
+	// x G + y T
+	spendPub = new(curve25519.PublicKey[T]).DoubleScalarBaseMultPrecomputed(keyT, crypto.GeneratorT, keyG)
+
+	return keyG, keyT, spendPub
+}
+
 func (w *ViewWallet[T]) Get(index address.SubaddressIndex) *address.Address {
 	if index.IsZero() {
 		return w.primaryAddress
 	}
-	return address.GetSubaddressNoAllocate(w.primaryAddress.BaseNetwork(), &w.accountSpendPub, &w.viewKeyScalar, w.viewKey, index)
+	return cryptonote.GetSubaddressNoAllocate(w.primaryAddress.BaseNetwork(), &w.accountSpendPub, &w.viewKeyScalar, w.viewKey, index)
 }
 
 func (w *ViewWallet[T]) ViewKey() *curve25519.Scalar {

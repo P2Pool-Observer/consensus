@@ -57,20 +57,22 @@ func MakeGenerateAddressSecret(hasher *blake2b.Digest, viewBalanceSecret types.H
 	return generateAddressSecret
 }
 
-// MakeSpendPub make_carrot_spend_pubkey
+// MakeSpendPub make_carrot_spend_pubkey / derive_carrot_account_spend_pubkey
 func MakeSpendPub[T curve25519.PointOperations](addressSpendPubOut *curve25519.PublicKey[T], generateImage, proveSpend *curve25519.Scalar) {
 	// K_s = k_gi G + k_ps T
 	addressSpendPubOut.DoubleScalarBaseMultPrecomputed(proveSpend, crypto.GeneratorT, generateImage)
 }
 
+// MakeSpendPubFromSpendPub Alternate version of MakeSpendPub without proveSpend key
 func MakeSpendPubFromSpendPub[T curve25519.PointOperations](addressSpendPubOut *curve25519.PublicKey[T], generateImage *curve25519.Scalar, proveSpendPub *curve25519.PublicKey[T]) {
 	// K_s = k_gi G + k_ps T
 	addressSpendPubOut.ScalarBaseMult(generateImage)
 	addressSpendPubOut.Add(addressSpendPubOut, proveSpendPub)
 }
 
-// MakeAccountViewPub make_carrot_account_view_pubkey
+// MakeAccountViewPub make_carrot_account_view_pubkey / derive_carrot_account_view_pubkey
 func MakeAccountViewPub[T curve25519.PointOperations](addressViewPubOut *curve25519.PublicKey[T], view *curve25519.Scalar, spendPub *curve25519.PublicKey[T]) {
+	// K^v = k_v K_s
 	addressViewPubOut.ScalarMult(view, spendPub)
 }
 
@@ -80,8 +82,8 @@ func MakePrimaryAddressViewPub[T curve25519.PointOperations](addressViewPubOut *
 	addressViewPubOut.ScalarBaseMult(view)
 }
 
-// makeIndexExtensionGenerator make_carrot_index_extension_generator
-func makeIndexExtensionGenerator(hasher *blake2b.Digest, generateAddressSecret types.Hash, i address.SubaddressIndex) (addressIndexGeneratorSecret types.Hash) {
+// MakeIndexExtensionGenerator make_carrot_index_extension_generator
+func MakeIndexExtensionGenerator(hasher *blake2b.Digest, generateAddressSecret types.Hash, i address.SubaddressIndex) (addressIndexGeneratorSecret types.Hash) {
 	// s^j_gen = H_32[s_ga](j_major, j_minor)
 	var buf [8]byte
 	binary.LittleEndian.PutUint32(buf[:], i.Account)
@@ -93,8 +95,8 @@ func makeIndexExtensionGenerator(hasher *blake2b.Digest, generateAddressSecret t
 	return addressIndexGeneratorSecret
 }
 
-// makeSubaddressScalar make_carrot_subaddress_scalar
-func makeSubaddressScalar(hasher *blake2b.Digest, addressIndexGeneratorSecretOut *curve25519.Scalar, accountSpendPub, accountViewPub curve25519.PublicKeyBytes, addressIndexGeneratorSecret types.Hash, i address.SubaddressIndex) {
+// MakeSubaddressScalar make_carrot_subaddress_scalar
+func MakeSubaddressScalar(hasher *blake2b.Digest, addressIndexGeneratorSecretOut *curve25519.Scalar, accountSpendPub, accountViewPub curve25519.PublicKeyBytes, addressIndexGeneratorSecret types.Hash, i address.SubaddressIndex) {
 	// k^j_subscal = H_n[s^j_gen](K_s, K_v, j_major, j_minor)
 	var buf [8]byte
 	binary.LittleEndian.PutUint32(buf[:], i.Account)

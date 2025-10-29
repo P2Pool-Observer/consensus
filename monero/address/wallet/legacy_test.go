@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"testing"
 
@@ -89,14 +90,17 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 }
 
 func TestViewWallet_Match(t *testing.T) {
-	vw, err := NewViewWallet[curve25519.ConstantTimeOperations](testGeneralFundAddr, testGeneralFundViewKey.Scalar(), 0, 80)
+	var spendKey curve25519.Scalar
+	curve25519.RandomScalar(&spendKey, rand.Reader)
+
+	vw, err := NewViewWalletFromSpendKey[curve25519.ConstantTimeOperations](&spendKey, monero.TestNetwork, 0, 80)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testScanCoinbase[curve25519.ConstantTimeOperations](t, vw, address.ZeroSubaddressIndex)
-	testScanCoinbase[curve25519.ConstantTimeOperations](t, vw, testGeneralFundSubaddressIndex)
+	testScanCoinbase[curve25519.ConstantTimeOperations](t, vw, address.ZeroSubaddressIndex, &spendKey)
+	testScanCoinbase[curve25519.ConstantTimeOperations](t, vw, testGeneralFundSubaddressIndex, &spendKey)
 
-	testScanPayment[curve25519.ConstantTimeOperations](t, vw, address.ZeroSubaddressIndex)
-	testScanPayment[curve25519.ConstantTimeOperations](t, vw, testGeneralFundSubaddressIndex)
+	testScanPayment[curve25519.ConstantTimeOperations](t, vw, address.ZeroSubaddressIndex, &spendKey)
+	testScanPayment[curve25519.ConstantTimeOperations](t, vw, testGeneralFundSubaddressIndex, &spendKey)
 }

@@ -8,13 +8,14 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/cryptonote"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
-func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex) {
+func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex, spendKey *curve25519.Scalar) {
 	addr := wallet.Get(ix)
 	if addr == nil {
 		t.Fatal("got nil address")
@@ -34,7 +35,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 				var addrI address.Interface
 				if addr.IsSubaddress() {
 					if vw, ok := wallet.(*ViewWallet[T]); ok {
-						addrI = address.GetSubaddressFakeAddress(addr, vw.ViewKey())
+						addrI = cryptonote.GetSubaddressFakeAddress(addr, vw.ViewKey())
 					} else {
 						t.Skip("not supported")
 					}
@@ -99,14 +100,22 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 			if scan.PaymentId != proposal.Destination.PaymentId {
 				t.Fatalf("got payment id %x, want %x", scan.PaymentId[:], proposal.Destination.PaymentId[:])
 			}
+			if scan.Amount != proposal.Amount {
+				t.Fatalf("got amount %d, want %d", scan.Amount, proposal.Amount)
+			}
 			if subaddressIndex != ix {
 				t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+			}
+
+			// check spendability
+			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), spendKey, &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
+				t.Fatalf("cannot spend output")
 			}
 		})
 	})
 }
 
-func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex) {
+func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex, spendKey *curve25519.Scalar) {
 	addr := wallet.Get(ix)
 	if addr == nil {
 		t.Fatal("got nil address")
@@ -201,6 +210,11 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 			}
 			if subaddressIndex != ix {
 				t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+			}
+
+			// check spendability
+			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), spendKey, &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
+				t.Fatalf("cannot spend output")
 			}
 		})
 	})

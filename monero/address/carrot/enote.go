@@ -134,6 +134,7 @@ func makeAmountCommitment[T curve25519.PointOperations](amount uint64, amountBli
 	return amountCommitment.Bytes()
 }
 
+// coinbaseAmountBlindingFactor precompute coinbase blinding factor scalar multiplication
 var coinbaseAmountBlindingFactor = new(curve25519.Point).ScalarBaseMult((&curve25519.PrivateKeyBytes{1}).Scalar())
 
 // makeAmountCommitmentCoinbase Specialized implementation with baked in blinding factor

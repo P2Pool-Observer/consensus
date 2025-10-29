@@ -111,7 +111,7 @@ func TestCheckTorsionVarTime(t *testing.T) {
 		key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 		result := e[1] == "true"
 
-		if p := curve25519.To[curve25519.VarTimeOperations](key.Point()); p == nil {
+		if p := key.PointVarTime(); p == nil {
 			if result {
 				t.Errorf("expected not nil")
 			}
