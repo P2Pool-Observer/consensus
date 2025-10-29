@@ -1,5 +1,10 @@
 package curve25519
 
+import (
+	"crypto/subtle"
+	"errors"
+)
+
 // ConstantTimeOperations Implements Constant time operations for Edwards25519 points
 //
 // Safe to use with private data or scalars
@@ -77,6 +82,19 @@ func (e ConstantTimeOperations) IsSmallOrder(v *Point) bool {
 
 func (e ConstantTimeOperations) IsTorsionFree(v *Point) bool {
 	return v.IsTorsionFree()
+}
+
+func (e ConstantTimeOperations) SetBytes(v *Point, x []byte) (*Point, error) {
+	_, err := v.SetBytes(x)
+	if err != nil {
+		return nil, err
+	}
+
+	// Ban points which are either unreduced or -0
+	if subtle.ConstantTimeCompare(v.Bytes(), x) == 0 {
+		return nil, errors.New("invalid point encoding")
+	}
+	return v, nil
 }
 
 var _ PointOperations = ConstantTimeOperations{}

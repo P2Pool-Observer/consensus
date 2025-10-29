@@ -1,7 +1,6 @@
 package curve25519
 
 import (
-	"bytes"
 	"encoding/binary"
 
 	"git.gammaspectra.live/P2Pool/edwards25519"
@@ -31,11 +30,14 @@ func DecodeMontgomeryPoint[T PointOperations](r *PublicKey[T], u *field.Element,
 	var yBytes [PublicKeySize]byte
 	copy(yBytes[:], y.Bytes())
 	yBytes[31] ^= byte(sign << 7)
-
-	return DecodeCompressedPoint(r, yBytes)
+	if _, err := r.SetBytes(yBytes[:]); err != nil {
+		return nil
+	}
+	return r
 }
 
 // DecodeCompressedPoint Decompress a canonically-encoded Ed25519 point.
+// Equivalent to Monero's check_key
 //
 // Ed25519 is of order `8 * basepointOrder`. This function ensures each of those `8 * basepointOrder` points have a
 // singular encoding by checking points aren't encoded with an unreduced field element,
@@ -51,13 +53,7 @@ func DecodeCompressedPoint[T PointOperations, S ~[PublicKeySize]byte](r *PublicK
 		return nil
 	}
 
-	_, err := r.p.SetBytes(buf[:])
-	if err != nil {
-		return nil
-	}
-
-	// Ban points which are either unreduced or -0
-	if bytes.Compare(r.p.Bytes(), buf[:]) != 0 {
+	if _, err := r.SetBytes(buf[:]); err != nil {
 		return nil
 	}
 	return r

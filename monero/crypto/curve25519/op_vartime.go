@@ -72,4 +72,17 @@ func (e VarTimeOperations) IsTorsionFree(v *Point) bool {
 	return v.IsTorsionFreeVarTime()
 }
 
+// SetBytes sets v = x, where x is a 32-byte encoding of v. If x does not
+// represent a valid point on the curve, SetBytes returns nil and an error and
+// the receiver is unchanged. Otherwise, SetBytes returns v.
+//
+// Note that SetBytes accepts all non-canonical encodings of valid points.
+// That is, it follows decoding rules that match most implementations in
+// the ecosystem rather than RFC 8032.
+//
+// Variable time
+func (e VarTimeOperations) SetBytes(v *Point, x []byte) (*Point, error) {
+	return v.SetCanonicalBytesVarTime(x)
+}
+
 var _ PointOperations = VarTimeOperations{}

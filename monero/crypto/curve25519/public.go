@@ -107,6 +107,16 @@ func (v *PublicKey[T]) IsTorsionFree() bool {
 	return isTorsionFree(v.op, &v.p)
 }
 
+// SetBytes Decompress a canonically-encoded Ed25519 point.
+// Equivalent to Monero's check_key or ge_frombytes_vartime (with constant or vartime implementations)
+func (v *PublicKey[T]) SetBytes(x []byte) (*PublicKey[T], error) {
+	_, err := setBytes(v.op, &v.p, x)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
 func (v *PublicKey[T]) Bytes() PublicKeyBytes {
 	return PublicKeyBytes(v.p.Bytes())
 }

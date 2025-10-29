@@ -60,7 +60,7 @@ func TestCheckRingSignature(t *testing.T) {
 
 		if err := func() error {
 			prefixHash := types.MustHashFromString(e[0])
-			keyImage := curve25519.DecodeCompressedPoint[curve25519.VarTimeOperations](new(curve25519.VarTimePublicKey), types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1]))
+			keyImage := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1]))
 
 			if keyImage == nil {
 				return errors.New("keyImage is nil")

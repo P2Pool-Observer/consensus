@@ -28,6 +28,8 @@ type PointOperations interface {
 
 	IsSmallOrder(v *Point) bool
 	IsTorsionFree(v *Point) bool
+
+	SetBytes(v *Point, x []byte) (*Point, error)
 }
 
 // TODO: Remove this noescape obscuring when Go 1.26+ fixes heap escape of generic calls
@@ -154,3 +156,11 @@ func _isTorsionFree(op PointOperations, v *Point) bool {
 //go:noescape
 //go:linkname isTorsionFree git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._isTorsionFree
 func isTorsionFree(op PointOperations, v *Point) bool
+
+func _setBytes(op PointOperations, v *Point, x []byte) (*Point, error) {
+	return op.SetBytes(v, x)
+}
+
+//go:noescape
+//go:linkname setBytes git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._setBytes
+func setBytes(op PointOperations, v *Point, x []byte) (*Point, error)

@@ -202,22 +202,43 @@ func TestGenerateKeys(t *testing.T) {
 }
 
 func TestCheckKey(t *testing.T) {
-	results := GetTestEntries("check_key", 2)
-	if results == nil {
-		t.Fatal()
-	}
-	for e := range results {
-		key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
-		result := e[1] == "true"
-
-		if key.Point() == nil {
-			if result {
-				t.Errorf("expected not nil")
-			}
-		} else if !result {
-			t.Errorf("expected nil, got %s\n", key.Point().String())
+	t.Run("Constant", func(t *testing.T) {
+		results := GetTestEntries("check_key", 2)
+		if results == nil {
+			t.Fatal()
 		}
-	}
+		for e := range results {
+			key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
+			result := e[1] == "true"
+
+			if k := curve25519.DecodeCompressedPoint(new(curve25519.ConstantTimePublicKey), key); k == nil {
+				if result {
+					t.Errorf("expected not nil")
+				}
+			} else if !result {
+				t.Errorf("expected nil, got %s\n", k.String())
+			}
+		}
+	})
+
+	t.Run("Variable", func(t *testing.T) {
+		results := GetTestEntries("check_key", 2)
+		if results == nil {
+			t.Fatal()
+		}
+		for e := range results {
+			key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
+			result := e[1] == "true"
+
+			if k := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), key); k == nil {
+				if result {
+					t.Errorf("expected not nil")
+				}
+			} else if !result {
+				t.Errorf("expected nil, got %s\n", k.String())
+			}
+		}
+	})
 }
 
 func TestHashToEC(t *testing.T) {
