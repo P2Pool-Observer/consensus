@@ -8,6 +8,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -29,7 +30,7 @@ func TestSpendProof(t *testing.T) {
 
 func testSpendProof[T curve25519.PointOperations](decoys, n, version int, randomReader io.Reader) error {
 	var keyPairs []*crypto.KeyPair[T]
-	var rings [][]curve25519.PublicKey[T]
+	var rings []ringct.Ring[T]
 
 	for i := range n {
 		keyPair := crypto.NewKeyPairFromPrivate[T](curve25519.RandomScalar(new(curve25519.Scalar), randomReader))

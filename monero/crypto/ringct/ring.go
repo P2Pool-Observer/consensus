@@ -9,10 +9,23 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
+type Ring[T curve25519.PointOperations] []curve25519.PublicKey[T]
+
+// Index Returns the index for the given pubkey it found
+// Variable time
+func (ring Ring[T]) Index(pub *curve25519.PublicKey[T]) int {
+	for i := range ring {
+		if ring[i].Equal(pub) == 1 {
+			return i
+		}
+	}
+	return -1
+}
+
 // RingSignature Implements Pre-RingCT Traceable Ring Signature
 // This is used in SpendProof
 type RingSignature[T curve25519.PointOperations] struct {
-	Ring       []curve25519.PublicKey[T]
+	Ring       Ring[T]
 	Signatures []crypto.Signature[T]
 }
 
@@ -32,14 +45,19 @@ func (comm RingSignatureComm[T]) Bytes() []byte {
 }
 
 // Sign Equivalent to Monero's generate_ring_signature
-func (s *RingSignature[T]) Sign(prefixHash types.Hash, keyPair *crypto.KeyPair[T], keyIndex int, randomReader io.Reader) {
-	keyImage := crypto.GetKeyImage(new(curve25519.PublicKey[T]), keyPair)
-	s.sign(prefixHash, keyImage, &keyPair.PrivateKey, keyIndex, randomReader)
+func (s *RingSignature[T]) Sign(prefixHash types.Hash, keyPair *crypto.KeyPair[T], randomReader io.Reader) bool {
+	if keyIndex := s.Ring.Index(&keyPair.PublicKey); keyIndex == -1 {
+		return false
+	} else {
+		keyImage := crypto.GetKeyImage(new(curve25519.PublicKey[T]), keyPair)
+		return s.sign(prefixHash, keyImage, &keyPair.PrivateKey, keyIndex, randomReader)
+	}
 }
 
-func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.PublicKey[T], key *curve25519.Scalar, keyIndex int, randomReader io.Reader) {
+func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.PublicKey[T], key *curve25519.Scalar, keyIndex int, randomReader io.Reader) bool {
 	if len(s.Ring) == 0 || keyIndex < 0 || keyIndex >= len(s.Ring) {
-		panic("no public keys defined")
+		// no public keys defined
+		return false
 	}
 	s.Signatures = make([]crypto.Signature[T], len(s.Ring))
 
@@ -83,6 +101,8 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.Publ
 	s.Signatures[keyIndex].C.Subtract(&result, &sum)
 
 	s.Signatures[keyIndex].R.Subtract(&k, new(curve25519.Scalar).Multiply(&s.Signatures[keyIndex].C, key))
+
+	return true
 }
 
 // Verify Equivalent to Monero's check_ring_signature

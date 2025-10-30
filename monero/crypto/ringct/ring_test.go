@@ -170,7 +170,11 @@ func TestGenerateRingSignature(t *testing.T) {
 
 			secretIndex, err := strconv.ParseInt(e[1], 10, 64)
 			if err != nil {
-				t.Fatal(err)
+				return err
+			}
+
+			if rs.Ring.Index(&keyPair.PublicKey) != int(secretIndex) {
+				return fmt.Errorf("expected key at index %d, got %d", secretIndex, rs.Ring.Index(&keyPair.PublicKey))
 			}
 
 			sigData, err := hex.DecodeString(e[2])
@@ -188,7 +192,9 @@ func TestGenerateRingSignature(t *testing.T) {
 				sigData = sigData[curve25519.PrivateKeySize*2:]
 			}
 
-			rs.Sign(prefixHash, keyPair, int(secretIndex), rng)
+			if !rs.Sign(prefixHash, keyPair, rng) {
+				return errors.New("error signing")
+			}
 			for i, sig := range rs.Signatures {
 				sig2 := expectedSignatures[i]
 				if sig.C.Equal(&sig2.C) == 0 {
@@ -234,7 +240,9 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 	}
 
 	keyImage := crypto.GetKeyImage(new(curve25519.ConstantTimePublicKey), keyPair)
-	rs.Sign(types.ZeroHash, keyPair, 0, rng)
+	if !rs.Sign(types.ZeroHash, keyPair, rng) {
+		t.Fatal("error signing")
+	}
 
 	// we have a passing ring signature for keyImage
 	if !rs.Verify(types.ZeroHash, keyImage) {

@@ -36,7 +36,7 @@ func (p SpendProof[T]) String() string {
 	return strings.Join(output, "")
 }
 
-func (p SpendProof[T]) Verify(prefixHash types.Hash, keyImages []curve25519.PublicKey[T], rings [][]curve25519.PublicKey[T]) bool {
+func (p SpendProof[T]) Verify(prefixHash types.Hash, keyImages []curve25519.PublicKey[T], rings []ringct.Ring[T]) bool {
 	if p.Version != 1 {
 		return false
 	}
@@ -132,7 +132,7 @@ func NewSpendProofFromSignatures[T curve25519.PointOperations](version uint8, si
 	return proof
 }
 
-func GetSpendProof[T curve25519.PointOperations](txId types.Hash, message string, version uint8, ephemeralKeyPairs []*crypto.KeyPair[T], rings [][]curve25519.PublicKey[T], randomReader io.Reader) (SpendProof[T], error) {
+func GetSpendProof[T curve25519.PointOperations](txId types.Hash, message string, version uint8, ephemeralKeyPairs []*crypto.KeyPair[T], rings []ringct.Ring[T], randomReader io.Reader) (SpendProof[T], error) {
 	prefixHash := TxPrefixHash(txId, message)
 
 	if len(ephemeralKeyPairs) != len(rings) || len(ephemeralKeyPairs) == 0 {
@@ -148,18 +148,14 @@ func GetSpendProof[T curve25519.PointOperations](txId types.Hash, message string
 		}
 		keyPair := ephemeralKeyPairs[i]
 
-		if keyIndex := slices.IndexFunc(ring, func(ephemeralPub curve25519.PublicKey[T]) bool {
-			return ephemeralPub.Equal(&keyPair.PublicKey) == 1
-		}); keyIndex != -1 {
-			crypto.GetKeyImage(&keyImage, keyPair)
-			var rs ringct.RingSignature[T]
-			rs.Ring = ring
-			rs.Sign(prefixHash, keyPair, keyIndex, randomReader)
-
-			signatures = append(signatures, rs.Signatures...)
-		} else {
-			return SpendProof[T]{}, errors.New("ring key index not found")
+		crypto.GetKeyImage(&keyImage, keyPair)
+		var rs ringct.RingSignature[T]
+		rs.Ring = ring
+		if !rs.Sign(prefixHash, keyPair, randomReader) {
+			return SpendProof[T]{}, errors.New("error signing")
 		}
+
+		signatures = append(signatures, rs.Signatures...)
 	}
 
 	return NewSpendProofFromSignatures(version, signatures), nil
