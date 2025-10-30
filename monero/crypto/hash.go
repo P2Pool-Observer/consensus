@@ -98,7 +98,7 @@ func HopefulHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[
 	return result
 }
 
-// BiasedHashToPoint Monero's `hash_to_ec` / `biased_hash_to_ec` function.
+// BiasedHashToPoint Monero's `hash_to_ec` / `hash_to_p3` / `biased_hash_to_ec` function.
 //
 // Similar to https://github.com/monero-oxide/monero-oxide/blob/71be6f9180f78675dee7cab48fbee38134688574/monero-oxide/generators/src/hash_to_point.rs
 //

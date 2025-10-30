@@ -47,7 +47,7 @@ func DecodeMontgomeryPoint[T PointOperations](r *PublicKey[T], u *field.Element,
 // subgroup. Torsioned points do have a canonical encoding, and only aren't canonical when
 // considered in relation to the prime-order subgroup.
 //
-// To verify torsion use PublicKeyPoint.IsTorsionFree
+// To verify torsion use PublicKey.IsTorsionFree
 func DecodeCompressedPoint[T PointOperations, S ~[PublicKeySize]byte](r *PublicKey[T], buf S) *PublicKey[T] {
 	if r == nil {
 		return nil
