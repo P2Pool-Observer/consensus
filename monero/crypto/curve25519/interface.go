@@ -141,6 +141,14 @@ func _doubleScalarMultPrecomputedB(op PointOperations, v *Point, a *Scalar, A *P
 //go:linkname doubleScalarMultPrecomputedB git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarMultPrecomputedB
 func doubleScalarMultPrecomputedB(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Generator) *Point
 
+func _multiScalarMult(op PointOperations, v *Point, scalars []*Scalar, points []*Point) *Point {
+	return op.MultiScalarMult(v, scalars, points)
+}
+
+//go:noescape
+//go:linkname multiScalarMult git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._multiScalarMult
+func multiScalarMult(op PointOperations, v *Point, scalars []*Scalar, points []*Point) *Point
+
 func _isSmallOrder(op PointOperations, v *Point) bool {
 	return op.IsSmallOrder(v)
 }

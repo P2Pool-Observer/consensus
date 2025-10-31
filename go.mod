@@ -4,7 +4,7 @@ go 1.25.1
 
 require (
 	git.gammaspectra.live/P2Pool/blake2b v0.42.1
-	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251029105107-475adf8ef46e
+	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251031164326-a942198b375f
 	git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3
 	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.2.1
 	git.gammaspectra.live/P2Pool/monero-base58 v1.0.0

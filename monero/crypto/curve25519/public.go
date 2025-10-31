@@ -3,8 +3,10 @@ package curve25519
 import (
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"unsafe"
 
+	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -17,8 +19,16 @@ type ConstantTimePublicKey = PublicKey[ConstantTimeOperations]
 
 // PublicKey An Edwards25519 point with canonical encoding
 type PublicKey[T PointOperations] struct {
-	p  Point
-	op T
+	p Point
+}
+
+func assertSize[T PointOperations]() {
+	// assert the size of PublicKey[T] is same as Point
+	var pub PublicKey[T]
+	var point Point
+	if unsafe.Sizeof(pub) != unsafe.Sizeof(point) {
+		panic(fmt.Sprintf("sizeof(pub)[%d] != sizeof(point)[%d]", unsafe.Sizeof(pub), unsafe.Sizeof(point)))
+	}
 }
 
 func To[T2 PointOperations, T1 PointOperations](u *PublicKey[T1]) *PublicKey[T2] {
@@ -34,84 +44,101 @@ func (v *PublicKey[T]) Equal(u *PublicKey[T]) int {
 	return v.P().Equal(u.P())
 }
 
+func (v *PublicKey[T]) op() T {
+	var ret T
+	return ret
+}
+
 func (v *PublicKey[T]) Add(p, q *PublicKey[T]) *PublicKey[T] {
-	add(v.op, &v.p, &p.p, &q.p)
+	add(v.op(), &v.p, &p.p, &q.p)
 	return v
 }
 
 func (v *PublicKey[T]) Subtract(p, q *PublicKey[T]) *PublicKey[T] {
-	subtract(v.op, &v.p, &p.p, &q.p)
+	subtract(v.op(), &v.p, &p.p, &q.p)
 	return v
 }
 
 func (v *PublicKey[T]) Double(x *PublicKey[T]) *PublicKey[T] {
-	double(v.op, &v.p, &x.p)
+	double(v.op(), &v.p, &x.p)
 	return v
 }
 
 func (v *PublicKey[T]) Negate(x *PublicKey[T]) *PublicKey[T] {
-	negate(v.op, &v.p, &x.p)
+	negate(v.op(), &v.p, &x.p)
 	return v
 }
 
 func (v *PublicKey[T]) ScalarBaseMult(x *Scalar) *PublicKey[T] {
-	scalarBaseMult(v.op, &v.p, x)
+	scalarBaseMult(v.op(), &v.p, x)
 	return v
 }
 
 func (v *PublicKey[T]) ScalarMult(x *Scalar, q *PublicKey[T]) *PublicKey[T] {
-	scalarMult(v.op, &v.p, x, &q.p)
+	scalarMult(v.op(), &v.p, x, &q.p)
 	return v
 }
 
 func (v *PublicKey[T]) ScalarMultPrecomputed(x *Scalar, q *Generator) *PublicKey[T] {
-	scalarMultPrecomputed(v.op, &v.p, x, q)
+	scalarMultPrecomputed(v.op(), &v.p, x, q)
 	return v
 }
 
 func (v *PublicKey[T]) MultByCofactor(q *PublicKey[T]) *PublicKey[T] {
-	multByCofactor(v.op, &v.p, &q.p)
+	multByCofactor(v.op(), &v.p, &q.p)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarBaseMult(a *Scalar, A *PublicKey[T], b *Scalar) *PublicKey[T] {
-	doubleScalarBaseMult(v.op, &v.p, a, &A.p, b)
+	doubleScalarBaseMult(v.op(), &v.p, a, &A.p, b)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarBaseMultPrecomputed(a *Scalar, A *Generator, b *Scalar) *PublicKey[T] {
-	doubleScalarBaseMultPrecomputed(v.op, &v.p, a, A, b)
+	doubleScalarBaseMultPrecomputed(v.op(), &v.p, a, A, b)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarMult(a *Scalar, A *PublicKey[T], b *Scalar, B *PublicKey[T]) *PublicKey[T] {
-	doubleScalarMult(v.op, &v.p, a, &A.p, b, &B.p)
+	doubleScalarMult(v.op(), &v.p, a, &A.p, b, &B.p)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarMultPrecomputed(a *Scalar, A *Generator, b *Scalar, B *Generator) *PublicKey[T] {
-	doubleScalarMultPrecomputed(v.op, &v.p, a, A, b, B)
+	doubleScalarMultPrecomputed(v.op(), &v.p, a, A, b, B)
 	return v
 }
 
 func (v *PublicKey[T]) DoubleScalarMultPrecomputedB(a *Scalar, A *PublicKey[T], b *Scalar, B *Generator) *PublicKey[T] {
-	doubleScalarMultPrecomputedB(v.op, &v.p, a, &A.p, b, B)
+	doubleScalarMultPrecomputedB(v.op(), &v.p, a, &A.p, b, B)
 	return v
 }
 
+func (v *PublicKey[T]) MultiScalarMult(scalars []*Scalar, points []*PublicKey[T]) *PublicKey[T] {
+	//multiScalarMult(v.op(), &v.p, scalars, unsafe.Slice((**Point)(unsafe.Pointer(unsafe.SliceData(points))), len(points)))
+	v.op().MultiScalarMult(&v.p, scalars, unsafe.Slice((**Point)(unsafe.Pointer(unsafe.SliceData(points))), len(points)))
+	return v
+}
+
+var identity = edwards25519.NewIdentityPoint()
+
+func (v *PublicKey[T]) IsIdentity() bool {
+	return v.P().Equal(identity) == 1
+}
+
 func (v *PublicKey[T]) IsSmallOrder() bool {
-	return isSmallOrder(v.op, &v.p)
+	return isSmallOrder(v.op(), &v.p)
 }
 
 func (v *PublicKey[T]) IsTorsionFree() bool {
-	return isTorsionFree(v.op, &v.p)
+	return isTorsionFree(v.op(), &v.p)
 }
 
 // SetBytes Decompress a canonically-encoded Ed25519 point.
 // Canonical encoded means that the Y coordinate is reduced, and that negative zero is not allowed
 // Equivalent to Monero's check_key or ge_frombytes_vartime (with constant or vartime implementations)
 func (v *PublicKey[T]) SetBytes(x []byte) (*PublicKey[T], error) {
-	_, err := setBytes(v.op, &v.p, x)
+	_, err := setBytes(v.op(), &v.p, x)
 	if err != nil {
 		return nil, err
 	}

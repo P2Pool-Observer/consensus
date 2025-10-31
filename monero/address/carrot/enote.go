@@ -140,16 +140,9 @@ var coinbaseAmountBlindingFactor = new(curve25519.Point).ScalarBaseMult((&curve2
 // makeAmountCommitmentCoinbase Specialized implementation with baked in blinding factor
 // this is faster than makeAmountCommitment, but is specific only for coinbase (as it uses a fixed amount blinding key)
 func makeAmountCommitmentCoinbase[T curve25519.PointOperations](amount uint64) curve25519.PublicKeyBytes {
-
-	var amountBytes curve25519.PrivateKeyBytes
-	binary.LittleEndian.PutUint64(amountBytes[:], amount)
-
-	// no reduction is necessary: amountBytes is always lesser than l
 	var amountK curve25519.Scalar
-	_, _ = amountK.SetCanonicalBytes(amountBytes[:])
-
 	var amountCommitment curve25519.PublicKey[T]
-	amountCommitment.ScalarMultPrecomputed(&amountK, crypto.GeneratorH)
+	amountCommitment.ScalarMultPrecomputed(ringct.AmountToScalar(&amountK, amount), crypto.GeneratorH)
 	amountCommitment.Add(&amountCommitment, curve25519.FromPoint[T](coinbaseAmountBlindingFactor))
 
 	return amountCommitment.Bytes()

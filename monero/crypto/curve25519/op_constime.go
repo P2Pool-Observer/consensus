@@ -98,3 +98,7 @@ func (e ConstantTimeOperations) SetBytes(v *Point, x []byte) (*Point, error) {
 }
 
 var _ PointOperations = ConstantTimeOperations{}
+
+func init() {
+	assertSize[ConstantTimeOperations]()
+}

@@ -6,18 +6,15 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
-// Commit generates C =aG + bH from b, a is mask
-func Commit[T curve25519.PointOperations](dst *curve25519.PublicKey[T], amount uint64, mask *curve25519.Scalar) {
+func AmountToScalar(out *curve25519.Scalar, amount uint64) *edwards25519.Scalar {
+	// no reduction is necessary: amountBytes is always lesser than l
 	var amountBytes curve25519.PrivateKeyBytes
 	binary.LittleEndian.PutUint64(amountBytes[:], amount)
-
-	// no reduction is necessary: amountBytes is always lesser than l
-	var amountK curve25519.Scalar
-	_, _ = amountK.SetCanonicalBytes(amountBytes[:])
-
-	dst.DoubleScalarBaseMultPrecomputed(&amountK, crypto.GeneratorH, mask)
+	_, _ = out.SetCanonicalBytes(amountBytes[:])
+	return out
 }
 
 type Amount struct {
