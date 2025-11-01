@@ -44,7 +44,7 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 }
 
 func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
-	prop := &PaymentProposalV1[curve25519.VarTimeOperations]{
+	prop := &PaymentProposalV1[curve25519.VarTimeCounterOperations]{
 		Destination: DestinationV1{
 			Address:   address.NewPackedAddressWithSubaddress(&testAddress, false),
 			PaymentId: [monero.PaymentIdSize]byte{},
@@ -54,6 +54,7 @@ func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 	}
 
 	b.Run("TorsionChecked", func(b *testing.B) {
+		curve25519.VarTimeCounterOperationsReset()
 		b.ReportAllocs()
 		b.ResetTimer()
 
@@ -72,9 +73,13 @@ func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 				}
 			}
 		})
+
+		b.StopTimer()
+		curve25519.VarTimeCounterOperationsReport(b.N, b.ReportMetric)
 	})
 
 	b.Run("TorsionUnchecked", func(b *testing.B) {
+		curve25519.VarTimeCounterOperationsReset()
 		b.ReportAllocs()
 		b.ResetTimer()
 
@@ -93,12 +98,15 @@ func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 				}
 			}
 		})
+
+		b.StopTimer()
+		curve25519.VarTimeCounterOperationsReport(b.N, b.ReportMetric)
 	})
 
 }
 
 func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
-	prop := &PaymentProposalV1[curve25519.VarTimeOperations]{
+	prop := &PaymentProposalV1[curve25519.VarTimeCounterOperations]{
 		Destination: DestinationV1{
 			Address:   address.NewPackedAddressWithSubaddress(&testAddress, false),
 			PaymentId: [monero.PaymentIdSize]byte{},
@@ -108,6 +116,7 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 	}
 
 	b.Run("TorsionChecked", func(b *testing.B) {
+		curve25519.VarTimeCounterOperationsReset()
 		b.ReportAllocs()
 		b.ResetTimer()
 
@@ -125,9 +134,13 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 				}
 			}
 		})
+
+		b.StopTimer()
+		curve25519.VarTimeCounterOperationsReport(b.N, b.ReportMetric)
 	})
 
 	b.Run("TorsionUnchecked", func(b *testing.B) {
+		curve25519.VarTimeCounterOperationsReset()
 		b.ReportAllocs()
 		b.ResetTimer()
 
@@ -145,12 +158,15 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 				}
 			}
 		})
+
+		b.StopTimer()
+		curve25519.VarTimeCounterOperationsReport(b.N, b.ReportMetric)
 	})
 }
 
 func BenchmarkPaymentProposalV1_Output(b *testing.B) {
 	firstKeyImage := types.MustBytes32FromString[curve25519.PublicKeyBytes]("a3d1d782671a3622bf393fe8116c8df95e9e12776e2970ab1934645f40748343")
-	prop := &PaymentProposalV1[curve25519.VarTimeOperations]{
+	prop := &PaymentProposalV1[curve25519.VarTimeCounterOperations]{
 		Destination: DestinationV1{
 			Address:   address.NewPackedAddressWithSubaddress(&testAddress, true),
 			PaymentId: [monero.PaymentIdSize]byte{},
@@ -160,6 +176,7 @@ func BenchmarkPaymentProposalV1_Output(b *testing.B) {
 	}
 
 	b.Run("TorsionChecked", func(b *testing.B) {
+		curve25519.VarTimeCounterOperationsReset()
 		b.ReportAllocs()
 		b.ResetTimer()
 
@@ -177,9 +194,13 @@ func BenchmarkPaymentProposalV1_Output(b *testing.B) {
 				}
 			}
 		})
+
+		b.StopTimer()
+		curve25519.VarTimeCounterOperationsReport(b.N, b.ReportMetric)
 	})
 
 	b.Run("TorsionUnchecked", func(b *testing.B) {
+		curve25519.VarTimeCounterOperationsReset()
 		b.ReportAllocs()
 		b.ResetTimer()
 
@@ -197,5 +218,8 @@ func BenchmarkPaymentProposalV1_Output(b *testing.B) {
 				}
 			}
 		})
+
+		b.StopTimer()
+		curve25519.VarTimeCounterOperationsReport(b.N, b.ReportMetric)
 	})
 }
