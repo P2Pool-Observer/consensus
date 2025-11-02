@@ -23,6 +23,9 @@ var invEight = new(curve25519.Scalar).Invert((&curve25519.PrivateKeyBytes{8}).Sc
 //
 // Said differences are covered via the above Mode
 func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring [][2]curve25519.PublicKey[T], I, pseudoOut, straightD *curve25519.PublicKey[T], s []curve25519.Scalar, aC1 T2) (_ sigData[T], c1 *curve25519.Scalar) {
+	const prefix = "CLSAG_"
+	const agg0 = "agg_0"
+	const round = "round"
 
 	DInvEight := new(curve25519.PublicKey[T]).ScalarMult(invEight, straightD)
 
@@ -74,7 +77,7 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 
 	var cP, cC curve25519.Scalar
 
-	var L, PH, R curve25519.PublicKey[T]
+	var L, PH, R, tmp curve25519.PublicKey[T]
 
 	for j := start; j < end; j++ {
 		i := j % len(ring)
@@ -83,13 +86,15 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 		cC.Multiply(muC, &c)
 
 		// (s_i * G) + (c_p * P_i) + (c_c * C_i)
-		aC1.Loop0(&L, &s[i], &cP, &cC, &P[i], &C[i])
+		L.ScalarBaseMult(&s[i])
+		L.Add(&L, tmp.DoubleScalarMult(&cP, &P[i], &cC, &C[i]))
 
 		crypto.BiasedHashToPoint(&PH, P[i].Slice())
 
 		// (c_p * I) + (c_c * D) + (s_i * PH)
-
-		aC1.Loop1(&R, &s[i], &cP, &cC, I, straightD, &PH)
+		R.ScalarMult(&s[i], &PH)
+		// todo: precompute I/D faster than fixed base (which is huge)
+		R.Add(&R, tmp.DoubleScalarMult(&cP, I, &cC, straightD))
 
 		data = data[:((2*len(ring))+3)*curve25519.PublicKeySize]
 		data = append(data, L.Slice()...)
@@ -113,10 +118,6 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 		cMuC:      *new(curve25519.Scalar).Multiply(&c, muC),
 	}, c1
 }
-
-const prefix = "CLSAG_"
-const agg0 = "agg_0"
-const round = "round"
 
 func signCore[T curve25519.PointOperations](prefixHash types.Hash, I *curve25519.PublicKey[T], input *Context[T], mask *curve25519.Scalar, A, AH *curve25519.PublicKey[T], randomReader io.Reader) (incomplete Signature[T], pseudoOut *curve25519.PublicKey[T], keyChallenge, challengedMask *curve25519.Scalar) {
 	signerIndex := input.Decoys.SignerIndex
