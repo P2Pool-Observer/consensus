@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -173,21 +174,16 @@ func (c *Client) GetPublicNodes(
 }
 
 func (c *Client) GetOuts(
-	ctx context.Context, outputs []uint, gettxid bool,
+	ctx context.Context, outputs []GetOutsInput, gettxid bool,
 ) (*GetOutsResult, error) {
 	resp := &GetOutsResult{}
 
-	type output struct {
-		Index uint `json:"index"`
-	}
-
 	params := struct {
-		Outputs []output `json:"outputs"`
-		GetTxID bool     `json:"get_txid,omitempty"`
-	}{GetTxID: gettxid}
-
-	for _, out := range outputs {
-		params.Outputs = append(params.Outputs, output{out})
+		Outputs []GetOutsInput `json:"outputs"`
+		GetTxID bool           `json:"get_txid,omitempty"`
+	}{
+		Outputs: outputs,
+		GetTxID: gettxid,
 	}
 
 	err := c.RawRequest(ctx, endpointGetOuts, params, resp)

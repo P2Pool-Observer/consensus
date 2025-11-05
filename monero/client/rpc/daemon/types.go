@@ -362,6 +362,11 @@ type GetConnectionsResult struct {
 	RPCResultFooter `json:",inline"`
 }
 
+type GetOutsInput struct {
+	Amount uint64 `json:"amount"`
+	Index  uint64 `json:"index"`
+}
+
 type GetOutsResult struct {
 	Outs []struct {
 		Height   uint64     `json:"height"`

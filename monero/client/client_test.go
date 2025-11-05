@@ -2,9 +2,11 @@ package client
 
 import (
 	"context"
-	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"os"
 	"testing"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client/rpc/daemon"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 func init() {
@@ -28,9 +30,14 @@ func TestInputs(t *testing.T) {
 	} else {
 		t.Log(result)
 
-		inputs := make([]uint64, 0, len(result)*16*128)
+		inputs := make([]daemon.GetOutsInput, 0, len(result)*16*128)
 		for _, i := range result[0].Inputs {
-			inputs = append(inputs, i.KeyOffsets...)
+			for _, o := range i.KeyOffsets {
+				inputs = append(inputs, daemon.GetOutsInput{
+					Amount: i.Amount,
+					Index:  o,
+				})
+			}
 		}
 
 		if result2, err := GetDefaultClient().GetOuts(inputs...); err != nil {
