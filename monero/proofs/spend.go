@@ -16,10 +16,6 @@ import (
 
 const SpendProofPrefix = "SpendProof"
 
-type SpendProofClaim[T curve25519.PointOperations] struct {
-	SharedSecret curve25519.PublicKey[T]
-	Signature    crypto.Signature[T]
-}
 type SpendProof[T curve25519.PointOperations] struct {
 	Version uint8
 
@@ -60,12 +56,9 @@ func (p SpendProof[T]) Verify(prefixHash types.Hash, keyImages []curve25519.Publ
 	}
 
 	for i, image := range keyImages {
-		rs := ringct.RingSignature[T]{
-			Ring:       rings[i],
-			Signatures: p.Signatures[i*ring0Len : (i+1)*ring0Len],
-		}
+		rs := ringct.RingSignature[T](p.Signatures[i*ring0Len : (i+1)*ring0Len])
 
-		if !rs.Verify(prefixHash, &image) {
+		if !rs.Verify(prefixHash, rings[i], &image) {
 			return false
 		}
 	}
@@ -150,12 +143,11 @@ func GetSpendProof[T curve25519.PointOperations](txId types.Hash, message string
 
 		crypto.GetKeyImage(&keyImage, keyPair)
 		var rs ringct.RingSignature[T]
-		rs.Ring = ring
-		if !rs.Sign(prefixHash, keyPair, randomReader) {
+		if !rs.Sign(prefixHash, ring, keyPair, randomReader) {
 			return SpendProof[T]{}, errors.New("error signing")
 		}
 
-		signatures = append(signatures, rs.Signatures...)
+		signatures = append(signatures, rs...)
 	}
 
 	return NewSpendProofFromSignatures(version, signatures), nil

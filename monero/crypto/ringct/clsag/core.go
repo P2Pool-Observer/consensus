@@ -22,7 +22,7 @@ var invEight = new(curve25519.Scalar).Invert((&curve25519.PrivateKeyBytes{8}).Sc
 // core Core of the CLSAG algorithm, applicable to both sign and verify with minimal differences
 //
 // Said differences are covered via the above Mode
-func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring [][2]curve25519.PublicKey[T], I, pseudoOut, straightD *curve25519.PublicKey[T], s []curve25519.Scalar, aC1 T2) (_ sigData[T], c1 *curve25519.Scalar) {
+func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring ringct.CommitmentRing[T], I, pseudoOut, straightD *curve25519.PublicKey[T], s []curve25519.Scalar, aC1 T2) (_ sigData[T], c1 *curve25519.Scalar) {
 	const prefix = "CLSAG_"
 	const agg0 = "agg_0"
 	const round = "round"

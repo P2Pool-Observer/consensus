@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"runtime"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -77,6 +76,7 @@ func TestCheckRingSignature(t *testing.T) {
 			}
 
 			var rs RingSignature[curve25519.VarTimeOperations]
+			var ring Ring[curve25519.VarTimeOperations]
 
 			for range count {
 				pub := curve25519.DecodeCompressedPoint[curve25519.VarTimeOperations](new(curve25519.VarTimePublicKey),
@@ -85,7 +85,7 @@ func TestCheckRingSignature(t *testing.T) {
 				if pub == nil {
 					return errors.New("pub is nil")
 				}
-				rs.Ring = append(rs.Ring, *pub)
+				ring = append(ring, *pub)
 				e = e[1:]
 			}
 
@@ -98,12 +98,12 @@ func TestCheckRingSignature(t *testing.T) {
 				if sig == nil {
 					return errors.New("sig is nil")
 				}
-				rs.Signatures = append(rs.Signatures, *sig)
+				rs = append(rs, *sig)
 				sigData = sigData[curve25519.PrivateKeySize*2:]
 			}
 
-			result := rs.Verify(prefixHash, keyImage)
-			if result != true {
+			result := rs.Verify(prefixHash, ring, keyImage)
+			if !result {
 				return errors.New("invalid signature")
 			}
 			return nil
@@ -146,6 +146,7 @@ func TestGenerateRingSignature(t *testing.T) {
 			}
 
 			var rs RingSignature[curve25519.ConstantTimeOperations]
+			var ring Ring[curve25519.ConstantTimeOperations]
 
 			for range count {
 				pub := curve25519.DecodeCompressedPoint[curve25519.ConstantTimeOperations](new(curve25519.ConstantTimePublicKey),
@@ -154,7 +155,7 @@ func TestGenerateRingSignature(t *testing.T) {
 				if pub == nil {
 					return errors.New("pub is nil")
 				}
-				rs.Ring = append(rs.Ring, *pub)
+				ring = append(ring, *pub)
 				e = e[1:]
 			}
 
@@ -173,8 +174,8 @@ func TestGenerateRingSignature(t *testing.T) {
 				return err
 			}
 
-			if rs.Ring.Index(&keyPair.PublicKey) != int(secretIndex) {
-				return fmt.Errorf("expected key at index %d, got %d", secretIndex, rs.Ring.Index(&keyPair.PublicKey))
+			if ring.Index(&keyPair.PublicKey) != int(secretIndex) {
+				return fmt.Errorf("expected key at index %d, got %d", secretIndex, ring.Index(&keyPair.PublicKey))
 			}
 
 			sigData, err := hex.DecodeString(e[2])
@@ -182,7 +183,7 @@ func TestGenerateRingSignature(t *testing.T) {
 				return err
 			}
 
-			expectedSignatures := make([]crypto.Signature[curve25519.ConstantTimeOperations], 0, len(rs.Signatures))
+			expectedSignatures := make([]crypto.Signature[curve25519.ConstantTimeOperations], 0, len(rs))
 			for range count {
 				sig := crypto.NewSignatureFromBytes[curve25519.ConstantTimeOperations](sigData[:curve25519.PrivateKeySize*2])
 				if sig == nil {
@@ -192,10 +193,10 @@ func TestGenerateRingSignature(t *testing.T) {
 				sigData = sigData[curve25519.PrivateKeySize*2:]
 			}
 
-			if !rs.Sign(prefixHash, keyPair, rng) {
+			if !rs.Sign(prefixHash, ring, keyPair, rng) {
 				return errors.New("error signing")
 			}
-			for i, sig := range rs.Signatures {
+			for i, sig := range rs {
 				sig2 := expectedSignatures[i]
 				if sig.C.Equal(&sig2.C) == 0 {
 					return errors.New("C != C'")
@@ -205,7 +206,7 @@ func TestGenerateRingSignature(t *testing.T) {
 				}
 			}
 
-			if !rs.Verify(prefixHash, keyImage) {
+			if !rs.Verify(prefixHash, ring, keyImage) {
 				return errors.New("invalid signature")
 			}
 
@@ -233,19 +234,20 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 	t.Logf("public    = %x", keyPair.PublicKey.Bytes())
 
 	var rs RingSignature[curve25519.ConstantTimeOperations]
+	var ring Ring[curve25519.ConstantTimeOperations]
 
-	rs.Ring = append(rs.Ring, keyPair.PublicKey)
+	ring = append(ring, keyPair.PublicKey)
 	for range 3 {
-		rs.Ring = append(rs.Ring, *new(curve25519.ConstantTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rng)))
+		ring = append(ring, *new(curve25519.ConstantTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rng)))
 	}
 
 	keyImage := crypto.GetKeyImage(new(curve25519.ConstantTimePublicKey), keyPair)
-	if !rs.Sign(types.ZeroHash, keyPair, rng) {
+	if !rs.Sign(types.ZeroHash, ring, keyPair, rng) {
 		t.Fatal("error signing")
 	}
 
 	// we have a passing ring signature for keyImage
-	if !rs.Verify(types.ZeroHash, keyImage) {
+	if !rs.Verify(types.ZeroHash, ring, keyImage) {
 		t.Fatal("signature verification failed")
 	}
 
@@ -263,22 +265,20 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 	torsionedKeyImage := new(curve25519.ConstantTimePublicKey).Add(keyImage, torsion)
 
 	// prepare twisted ring signature commiting to new key image, but same private key and ring
-	trs := RingSignature[curve25519.ConstantTimeOperations]{
-		Ring: slices.Clone(rs.Ring),
-	}
+	var trs RingSignature[curve25519.ConstantTimeOperations]
 
 	t.Logf("image     = %s", keyImage)
 
 	// it may take a few tries due to random trials
 	for i := range 1024 {
 		// keep signing until e*I = e*I', given o divides e
-		trs.sign(types.ZeroHash, torsionedKeyImage, &keyPair.PrivateKey, 0, rng)
+		trs.sign(types.ZeroHash, ring, torsionedKeyImage, &keyPair.PrivateKey, 0, rng)
 
 		// check if we are twisted all over
-		if !trs.verify(types.ZeroHash, torsionedKeyImage) {
+		if !trs.verify(types.ZeroHash, ring, torsionedKeyImage) {
 			continue
 		}
-		if trs.Verify(types.ZeroHash, torsionedKeyImage) {
+		if trs.Verify(types.ZeroHash, ring, torsionedKeyImage) {
 			t.Errorf("torsioned image I' = I + E[%d] returned true on RingSignature.verify, true on RingSignature.Verify (expected false)", torsionIndex)
 		} else {
 

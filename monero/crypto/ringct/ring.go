@@ -14,3 +14,24 @@ func (ring Ring[T]) Index(pub *curve25519.PublicKey[T]) int {
 	}
 	return -1
 }
+
+// CommitmentRing A ring of output key, commitment
+type CommitmentRing[T curve25519.PointOperations] [][2]curve25519.PublicKey[T]
+
+// IndexKey Returns the index for the given pubkey it found
+// Variable time
+func (ring CommitmentRing[T]) IndexKey(pub *curve25519.PublicKey[T]) int {
+	for i := range ring {
+		if ring[i][0].Equal(pub) == 1 {
+			return i
+		}
+	}
+	return -1
+}
+
+func (ring CommitmentRing[T]) Ring() (out Ring[T]) {
+	for i := range ring {
+		out = append(out, ring[i][0])
+	}
+	return out
+}

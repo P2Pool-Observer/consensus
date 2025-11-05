@@ -1,20 +1,19 @@
 package ringct
 
 import (
+	"errors"
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 // RingSignature Implements Pre-RingCT Traceable Ring Signature
 // This is used in SpendProof
-type RingSignature[T curve25519.PointOperations] struct {
-	Ring       Ring[T]
-	Signatures []crypto.Signature[T]
-}
+type RingSignature[T curve25519.PointOperations] []crypto.Signature[T]
 
 type RingSignatureComm[T curve25519.PointOperations] struct {
 	PrefixHash types.Hash
@@ -31,26 +30,57 @@ func (comm RingSignatureComm[T]) Bytes() []byte {
 	return buf
 }
 
+func (s *RingSignature[T]) BufferLength() (n int) {
+	return curve25519.PrivateKeySize * 2 * len(*s)
+}
+
+func (s *RingSignature[T]) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
+	buf := preAllocatedBuf
+
+	for _, sig := range *s {
+		buf = append(buf, sig.Bytes()...)
+	}
+
+	return buf, nil
+}
+
+func (s *RingSignature[T]) FromReader(reader utils.ReaderAndByteReader, count int) (err error) {
+	var buf [curve25519.PrivateKeySize * 2]byte
+	for range count {
+		if _, err = utils.ReadFullNoEscape(reader, buf[:]); err != nil {
+			return err
+		}
+
+		sig := crypto.NewSignatureFromBytes[T](buf[:])
+		if sig == nil {
+			return errors.New("invalid signature")
+		}
+
+		*s = append(*s, *sig)
+	}
+	return nil
+}
+
 // Sign Equivalent to Monero's generate_ring_signature
-func (s *RingSignature[T]) Sign(prefixHash types.Hash, keyPair *crypto.KeyPair[T], randomReader io.Reader) bool {
-	if keyIndex := s.Ring.Index(&keyPair.PublicKey); keyIndex == -1 {
+func (s *RingSignature[T]) Sign(prefixHash types.Hash, ring Ring[T], keyPair *crypto.KeyPair[T], randomReader io.Reader) bool {
+	if keyIndex := ring.Index(&keyPair.PublicKey); keyIndex == -1 {
 		return false
 	} else {
 		keyImage := crypto.GetKeyImage(new(curve25519.PublicKey[T]), keyPair)
-		return s.sign(prefixHash, keyImage, &keyPair.PrivateKey, keyIndex, randomReader)
+		return s.sign(prefixHash, ring, keyImage, &keyPair.PrivateKey, keyIndex, randomReader)
 	}
 }
 
-func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.PublicKey[T], key *curve25519.Scalar, keyIndex int, randomReader io.Reader) bool {
-	if len(s.Ring) == 0 || keyIndex < 0 || keyIndex >= len(s.Ring) {
+func (s *RingSignature[T]) sign(prefixHash types.Hash, ring Ring[T], keyImage *curve25519.PublicKey[T], key *curve25519.Scalar, keyIndex int, randomReader io.Reader) bool {
+	if len(ring) == 0 || keyIndex < 0 || keyIndex >= len(ring) {
 		// no public keys defined
 		return false
 	}
-	s.Signatures = make([]crypto.Signature[T], len(s.Ring))
+	*s = make([]crypto.Signature[T], len(ring))
 
 	buf := RingSignatureComm[T]{
 		PrefixHash: prefixHash,
-		AB:         make([][2]curve25519.PublicKey[T], len(s.Ring)),
+		AB:         make([][2]curve25519.PublicKey[T], len(ring)),
 	}
 
 	precomputedImage := curve25519.NewGenerator(keyImage.P())
@@ -60,7 +90,7 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.Publ
 	var tmpH2P curve25519.PublicKey[T]
 	var k curve25519.Scalar
 
-	for i, pub := range s.Ring {
+	for i, pub := range ring {
 		if i == keyIndex {
 			if curve25519.RandomScalar(&k, randomReader) == nil {
 				panic("unreachable")
@@ -69,7 +99,7 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.Publ
 			crypto.BiasedHashToPoint(&tmpH2P, pub.Slice())
 			buf.AB[i][1].ScalarMult(&k, &tmpH2P)
 		} else {
-			sig := &s.Signatures[i]
+			sig := &(*s)[i]
 			if curve25519.RandomScalar(&sig.C, randomReader) == nil {
 				panic("unreachable")
 			}
@@ -85,33 +115,33 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, keyImage *curve25519.Publ
 
 	var result curve25519.Scalar
 	crypto.ScalarDeriveLegacyNoAllocate(&result, buf.Bytes())
-	s.Signatures[keyIndex].C.Subtract(&result, &sum)
+	(*s)[keyIndex].C.Subtract(&result, &sum)
 
-	s.Signatures[keyIndex].R.Subtract(&k, new(curve25519.Scalar).Multiply(&s.Signatures[keyIndex].C, key))
+	(*s)[keyIndex].R.Subtract(&k, new(curve25519.Scalar).Multiply(&(*s)[keyIndex].C, key))
 
 	return true
 }
 
 // Verify Equivalent to Monero's check_ring_signature
-func (s *RingSignature[T]) Verify(prefixHash types.Hash, keyImage *curve25519.PublicKey[T]) bool {
+func (s *RingSignature[T]) Verify(prefixHash types.Hash, ring Ring[T], keyImage *curve25519.PublicKey[T]) bool {
 	if !keyImage.IsTorsionFree() {
 		return false
 	}
 
-	return s.verify(prefixHash, keyImage)
+	return s.verify(prefixHash, ring, keyImage)
 }
 
-func (s *RingSignature[T]) verify(prefixHash types.Hash, keyImage *curve25519.PublicKey[T]) bool {
-	if len(s.Signatures) == 0 {
+func (s *RingSignature[T]) verify(prefixHash types.Hash, ring Ring[T], keyImage *curve25519.PublicKey[T]) bool {
+	if len(*s) == 0 {
 		return false
 	}
-	if len(s.Signatures) != len(s.Ring) {
+	if len(*s) != len(ring) {
 		return false
 	}
 
 	buf := RingSignatureComm[T]{
 		PrefixHash: prefixHash,
-		AB:         make([][2]curve25519.PublicKey[T], len(s.Ring)),
+		AB:         make([][2]curve25519.PublicKey[T], len(ring)),
 	}
 
 	precomputedImage := curve25519.NewGenerator(keyImage.P())
@@ -119,7 +149,7 @@ func (s *RingSignature[T]) verify(prefixHash types.Hash, keyImage *curve25519.Pu
 	var sum, result edwards25519.Scalar
 
 	var tmpH2P curve25519.PublicKey[T]
-	for i, pub := range s.Ring {
+	for i, pub := range ring {
 		/*
 		   The traditional Schnorr signature is:
 		     r = sample()
@@ -138,7 +168,7 @@ func (s *RingSignature[T]) verify(prefixHash types.Hash, keyImage *curve25519.Pu
 		   modified to cause the intended sum, if and only if a corresponding `s` value is known.
 		*/
 
-		sig := &s.Signatures[i]
+		sig := &(*s)[i]
 		buf.AB[i][0].DoubleScalarBaseMult(&sig.C, &pub, &sig.R)
 		crypto.BiasedHashToPoint(&tmpH2P, pub.Slice())
 		buf.AB[i][1].DoubleScalarMultPrecomputedB(&sig.R, &tmpH2P, &sig.C, precomputedImage)

@@ -39,3 +39,9 @@ func ReadFullProgressive[T ~[]byte](r io.Reader, dst *T, size int) (n int, err e
 	*dst = buf
 	return offset, nil
 }
+
+type Serializable interface {
+	AppendBinary(preAllocatedBuf []byte) (data []byte, err error)
+	FromReader(reader ReaderAndByteReader) (err error)
+	BufferLength() (n int)
+}

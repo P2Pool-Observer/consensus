@@ -7,6 +7,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -132,7 +133,7 @@ func Sign[T curve25519.PointOperations](prefixHash types.Hash, inputs []Input[T]
 	return result, nil
 }
 
-func (s *Signature[T]) Verify(prefixHash types.Hash, ring [][2]curve25519.PublicKey[T], I, pseudoOut *curve25519.PublicKey[T]) error {
+func (s *Signature[T]) Verify(prefixHash types.Hash, ring ringct.CommitmentRing[T], I, pseudoOut *curve25519.PublicKey[T]) error {
 	if len(ring) == 0 {
 		return ErrInvalidRing
 	}

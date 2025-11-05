@@ -5,6 +5,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"github.com/tmthrgd/go-hex"
 )
 
 // Signature Schnorr signature
@@ -34,6 +35,10 @@ func NewSignatureFromBytes[T curve25519.PointOperations](buf []byte) *Signature[
 	}
 
 	return &signature
+}
+
+func (s Signature[T]) String() string {
+	return hex.EncodeToString(s.Bytes())
 }
 
 func (s Signature[T]) Bytes() []byte {
