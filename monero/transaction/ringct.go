@@ -1,0 +1,313 @@
+package transaction
+
+import (
+	"encoding/binary"
+	"errors"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/borromean"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/mlsag"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+)
+
+type Base struct {
+	ProofType        ProofType
+	Fee              uint64
+	PseudoOuts       []curve25519.PublicKeyBytes
+	EncryptedAmounts []EncryptedAmount
+	Commitments      []curve25519.PublicKeyBytes
+}
+
+type EncryptedAmount struct {
+	// Mask used with a mask derived from the shared secret to encrypt the amount.
+	Mask curve25519.PublicKeyBytes
+
+	// Amount The amount, as a scalar, encrypted.
+	Amount [curve25519.PrivateKeySize]byte
+}
+
+func (b *Base) Hash() types.Hash {
+	data := make([]byte, 0, b.BufferLength())
+	var err error
+	data, err = b.AppendBinary(data)
+	if err != nil {
+		return types.ZeroHash
+	}
+	return crypto.Keccak256(data)
+}
+
+func (b *Base) BufferLength() int {
+	n := 1 + utils.UVarInt64Size(b.Fee)
+	if b.ProofType == MLSAGBorromean {
+		n += curve25519.PublicKeySize * len(b.PseudoOuts)
+	}
+	if b.ProofType.CompactAmount() {
+		n += monero.EncryptedAmountSize * len(b.EncryptedAmounts)
+	} else {
+		n += (curve25519.PublicKeySize + curve25519.PrivateKeySize) * len(b.EncryptedAmounts)
+	}
+	n += curve25519.PublicKeySize * len(b.Commitments)
+	return n
+}
+
+func (b *Base) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
+	buf := append(preAllocatedBuf, uint8(b.ProofType))
+	buf = binary.AppendUvarint(buf, b.Fee)
+	if b.ProofType == MLSAGBorromean {
+		for _, ps := range b.PseudoOuts {
+			buf = append(buf, ps[:]...)
+		}
+	}
+	if b.ProofType.CompactAmount() {
+		for _, ea := range b.EncryptedAmounts {
+			buf = append(buf, ea.Amount[:monero.EncryptedAmountSize]...)
+		}
+	} else {
+		for _, ea := range b.EncryptedAmounts {
+			buf = append(buf, ea.Mask[:]...)
+			buf = append(buf, ea.Amount[:]...)
+		}
+	}
+	for _, c := range b.Commitments {
+		buf = append(buf, c[:]...)
+	}
+	return buf, nil
+}
+
+func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+	var proofType uint8
+	if proofType, err = reader.ReadByte(); err != nil {
+		return err
+	}
+	b.ProofType = ProofType(proofType)
+
+	if b.Fee, err = utils.ReadCanonicalUvarint(reader); err != nil {
+		return err
+	}
+	if b.ProofType == MLSAGBorromean {
+		var ps curve25519.PublicKeyBytes
+		for range len(inputs) {
+			if _, err = utils.ReadFullNoEscape(reader, ps[:]); err != nil {
+				return err
+			}
+			b.PseudoOuts = append(b.PseudoOuts, ps)
+		}
+	}
+	if b.ProofType.CompactAmount() {
+		var amount [curve25519.PrivateKeySize]byte
+		for range len(outputs) {
+			if _, err = utils.ReadFullNoEscape(reader, amount[:monero.EncryptedAmountSize]); err != nil {
+				return err
+			}
+			b.EncryptedAmounts = append(b.EncryptedAmounts, EncryptedAmount{Amount: amount})
+		}
+	} else {
+		var mask curve25519.PublicKeyBytes
+		var amount [curve25519.PrivateKeySize]byte
+		for range len(outputs) {
+			if _, err = utils.ReadFullNoEscape(reader, mask[:]); err != nil {
+				return err
+			}
+			if _, err = utils.ReadFullNoEscape(reader, amount[:]); err != nil {
+				return err
+			}
+			b.EncryptedAmounts = append(b.EncryptedAmounts, EncryptedAmount{mask, amount})
+		}
+	}
+	var c curve25519.PublicKeyBytes
+	for range len(outputs) {
+		if _, err = utils.ReadFullNoEscape(reader, c[:]); err != nil {
+			return err
+		}
+		b.Commitments = append(b.Commitments, c)
+	}
+	return nil
+}
+
+type Prunable interface {
+	Hash(pruned bool) types.Hash
+	Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error
+	BufferLength(pruned bool) int
+	AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error)
+	// FromReader TODO: support pruned arg
+	FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error)
+}
+
+type PrunableAggregateMLSAGBorromean struct {
+	MLSAG     mlsag.Signature[curve25519.VarTimeOperations]
+	Borromean []borromean.Range[curve25519.VarTimeOperations]
+}
+
+func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error {
+	panic("not implemented")
+}
+
+func (p *PrunableAggregateMLSAGBorromean) Hash(pruned bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(pruned))
+	var err error
+	buf, err = p.AppendBinary(buf, pruned)
+
+	if err != nil {
+		return types.ZeroHash
+	}
+	return crypto.Keccak256(buf)
+}
+
+func (p *PrunableAggregateMLSAGBorromean) BufferLength(pruned bool) (n int) {
+	if !pruned {
+		n += p.MLSAG.BufferLength()
+	}
+	for i := range p.Borromean {
+		n += p.Borromean[i].BufferLength()
+	}
+	return n
+}
+
+func (p *PrunableAggregateMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+	data = preAllocatedBuf
+	for _, br := range p.Borromean {
+		if data, err = br.AppendBinary(data); err != nil {
+			return nil, err
+		}
+	}
+	if !pruned {
+		if data, err = p.MLSAG.AppendBinary(data); err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
+}
+
+func (p *PrunableAggregateMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+	for range len(outputs) {
+		var br borromean.Range[curve25519.VarTimeOperations]
+		if err = br.FromReader(reader); err != nil {
+			return err
+		}
+		p.Borromean = append(p.Borromean, br)
+	}
+
+	if len(inputs) == 0 {
+		return errors.New("empty inputs")
+	}
+
+	if err = p.MLSAG.FromReader(reader, len(inputs[0].Offsets), len(inputs)+1); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type PrunableMLSAGBorromean struct {
+	MLSAG     []mlsag.Signature[curve25519.VarTimeOperations]
+	Borromean []borromean.Range[curve25519.VarTimeOperations]
+}
+
+var ErrInvalidBorromeanProof = errors.New("invalid Borromean proof")
+
+func (p *PrunableMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+	var pseudoOut, commitment curve25519.VarTimePublicKey
+	for i, member := range p.MLSAG {
+		if _, err = pseudoOut.SetBytes(base.PseudoOuts[i][:]); err != nil {
+			return err
+		}
+		m, err := mlsag.NewRingMatrixFromSingle(rings[i], &pseudoOut)
+		if err != nil {
+			return err
+		}
+		if err = member.Verify(prefixHash, m, images[i:i+1]); err != nil {
+			return err
+		}
+	}
+
+	for i, b := range p.Borromean {
+		if _, err = commitment.SetBytes(base.Commitments[i][:]); err != nil {
+			return err
+		}
+		if !b.Verify(&commitment) {
+			return ErrInvalidBorromeanProof
+		}
+	}
+	return nil
+}
+
+func (p *PrunableMLSAGBorromean) Hash(pruned bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(pruned))
+	var err error
+	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+		return types.ZeroHash
+	}
+	return crypto.Keccak256(buf)
+}
+
+func (p *PrunableMLSAGBorromean) BufferLength(pruned bool) (n int) {
+	if !pruned {
+		for i := range p.MLSAG {
+			n += p.MLSAG[i].BufferLength()
+		}
+	}
+	for i := range p.Borromean {
+		n += p.Borromean[i].BufferLength()
+	}
+	return n
+}
+
+func (p *PrunableMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+	data = preAllocatedBuf
+	for _, br := range p.Borromean {
+		if data, err = br.AppendBinary(data); err != nil {
+			return nil, err
+		}
+	}
+	if !pruned {
+		for _, e := range p.MLSAG {
+			if data, err = e.AppendBinary(data); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return data, nil
+}
+
+func (p *PrunableMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+	for range len(outputs) {
+		var br borromean.Range[curve25519.VarTimeOperations]
+		if err = br.FromReader(reader); err != nil {
+			return err
+		}
+		p.Borromean = append(p.Borromean, br)
+	}
+
+	for _, i := range inputs {
+		var e mlsag.Signature[curve25519.VarTimeOperations]
+
+		if err = e.FromReader(reader, len(i.Offsets), 2); err != nil {
+			return err
+		}
+		p.MLSAG = append(p.MLSAG, e)
+	}
+
+	return nil
+}
+
+var prunableTypes = []func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error){
+	nil,
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+		var pt PrunableAggregateMLSAGBorromean
+		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+			return nil, err
+		}
+		return &pt, nil
+	},
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+		var pt PrunableMLSAGBorromean
+		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+			return nil, err
+		}
+		return &pt, nil
+	},
+}
