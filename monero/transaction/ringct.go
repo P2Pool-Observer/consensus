@@ -12,6 +12,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/mlsag"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type Base struct {
@@ -142,8 +143,31 @@ type PrunableAggregateMLSAGBorromean struct {
 	Borromean []borromean.Range[curve25519.VarTimeOperations]
 }
 
-func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error {
-	panic("not implemented")
+func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+	var commitment curve25519.VarTimePublicKey
+
+	var commitments []curve25519.VarTimePublicKey
+
+	// check range proof
+	for i, b := range p.Borromean {
+		if _, err = commitment.SetBytes(base.Commitments[i][:]); err != nil {
+			return err
+		}
+		if !b.Verify(&commitment) {
+			return ErrInvalidBorromeanProof
+		}
+		commitments = append(commitments, commitment)
+	}
+
+	m, err := mlsag.NewRingMatrixFromAggregateRings(base.Fee, commitments, rings...)
+	if err != nil {
+		return err
+	}
+	if err = p.MLSAG.Verify(prefixHash, m, images); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (p *PrunableAggregateMLSAGBorromean) Hash(pruned bool) types.Hash {
@@ -208,13 +232,18 @@ type PrunableMLSAGBorromean struct {
 }
 
 var ErrInvalidBorromeanProof = errors.New("invalid Borromean proof")
+var ErrUnbalancedAmounts = errors.New("unbalanced amounts")
 
 func (p *PrunableMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
-	var pseudoOut, commitment curve25519.VarTimePublicKey
+	var pseudoOut, sumInputs, sumOutputs, commitment curve25519.VarTimePublicKey
+	// init
+	sumInputs.P().Set(edwards25519.NewIdentityPoint())
+	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
 	for i, member := range p.MLSAG {
 		if _, err = pseudoOut.SetBytes(base.PseudoOuts[i][:]); err != nil {
 			return err
 		}
+		sumInputs.Add(&sumInputs, &pseudoOut)
 		m, err := mlsag.NewRingMatrixFromSingle(rings[i], &pseudoOut)
 		if err != nil {
 			return err
@@ -224,13 +253,21 @@ func (p *PrunableMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings 
 		}
 	}
 
+	// check range proof
 	for i, b := range p.Borromean {
 		if _, err = commitment.SetBytes(base.Commitments[i][:]); err != nil {
 			return err
 		}
+		sumOutputs.Add(&sumOutputs, &commitment)
 		if !b.Verify(&commitment) {
 			return ErrInvalidBorromeanProof
 		}
+	}
+	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+
+	// check balances
+	if sumInputs.Equal(&sumOutputs) == 0 {
+		return ErrUnbalancedAmounts
 	}
 	return nil
 }
