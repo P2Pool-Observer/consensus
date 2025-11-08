@@ -1,6 +1,7 @@
 package original
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 	"slices"
@@ -9,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 type AggregateRangeProof[T curve25519.PointOperations] struct {
@@ -18,11 +20,11 @@ type AggregateRangeProof[T curve25519.PointOperations] struct {
 	T2   curve25519.PublicKey[T]
 	TauX curve25519.Scalar
 	Mu   curve25519.Scalar
-	THat curve25519.Scalar
 	IP   InnerProductProof[T]
+	THat curve25519.Scalar
 }
 
-func (arp AggregateRangeProof[T]) Verify(commitments []curve25519.PublicKey[T], randomReader io.Reader) bool {
+func (arp *AggregateRangeProof[T]) Verify(commitments []curve25519.PublicKey[T], randomReader io.Reader) bool {
 	var verifier BatchVerifier[T]
 	statement := AggregateRangeStatement[T]{
 		Commitments: commitments,
@@ -31,6 +33,120 @@ func (arp AggregateRangeProof[T]) Verify(commitments []curve25519.PublicKey[T], 
 		return false
 	}
 	return verifier.Verify()
+}
+
+func (arp *AggregateRangeProof[T]) BufferLength(signature bool) int {
+	return curve25519.PublicKeySize*4 + curve25519.PrivateKeySize*3 + arp.IP.BufferLength(signature)
+}
+
+func (arp *AggregateRangeProof[T]) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
+	buf := preAllocatedBuf
+	buf, _ = arp.A.AppendBinary(buf)
+	buf, _ = arp.S.AppendBinary(buf)
+	buf, _ = arp.T1.AppendBinary(buf)
+	buf, _ = arp.T2.AppendBinary(buf)
+	buf = append(buf, arp.TauX.Bytes()...)
+	buf = append(buf, arp.Mu.Bytes()...)
+	if !signature {
+		buf = binary.AppendUvarint(buf, uint64(len(arp.IP.L)))
+	}
+	for _, e := range arp.IP.L {
+		buf, _ = e.AppendBinary(buf)
+	}
+	if !signature {
+		buf = binary.AppendUvarint(buf, uint64(len(arp.IP.R)))
+	}
+	for _, e := range arp.IP.R {
+		buf, _ = e.AppendBinary(buf)
+	}
+	buf = append(buf, arp.IP.A.Bytes()...)
+	buf = append(buf, arp.IP.B.Bytes()...)
+
+	buf = append(buf, arp.THat.Bytes()...)
+
+	return buf, nil
+}
+
+func (arp *AggregateRangeProof[T]) FromReader(reader utils.ReaderAndByteReader) (err error) {
+
+	if err = arp.A.FromReader(reader); err != nil {
+		return err
+	}
+	if err = arp.S.FromReader(reader); err != nil {
+		return err
+	}
+	if err = arp.T1.FromReader(reader); err != nil {
+		return err
+	}
+	if err = arp.T2.FromReader(reader); err != nil {
+		return err
+	}
+
+	var sec curve25519.PrivateKeyBytes
+	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
+		return err
+	}
+	if _, err = arp.TauX.SetCanonicalBytes(sec[:]); err != nil {
+		return err
+	}
+
+	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
+		return err
+	}
+	if _, err = arp.Mu.SetCanonicalBytes(sec[:]); err != nil {
+		return err
+	}
+
+	var n uint64
+	{
+		if n, err = utils.ReadCanonicalUvarint(reader); err != nil {
+			return err
+		}
+
+		var p curve25519.PublicKey[T]
+		for range n {
+			if err = p.FromReader(reader); err != nil {
+				return err
+			}
+			arp.IP.L = append(arp.IP.L, p)
+		}
+	}
+	{
+		if n, err = utils.ReadCanonicalUvarint(reader); err != nil {
+			return err
+		}
+
+		var p curve25519.PublicKey[T]
+		for range n {
+			if err = p.FromReader(reader); err != nil {
+				return err
+			}
+			arp.IP.R = append(arp.IP.R, p)
+		}
+	}
+
+	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
+		return err
+	}
+	if _, err = arp.IP.A.SetCanonicalBytes(sec[:]); err != nil {
+		return err
+	}
+
+	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
+		return err
+	}
+	if _, err = arp.IP.B.SetCanonicalBytes(sec[:]); err != nil {
+		return err
+	}
+
+	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
+		return err
+	}
+	if _, err = arp.THat.SetCanonicalBytes(sec[:]); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type AggregateRangeStatement[T curve25519.PointOperations] struct {
@@ -196,7 +312,7 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 		return AggregateRangeProof[T]{}, err
 	}
 
-	result := AggregateRangeProof[T]{
+	proof = AggregateRangeProof[T]{
 		A:    A,
 		S:    S,
 		T1:   T1,
@@ -209,7 +325,7 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 	{
 		// debug checks
 		var verifier BatchVerifier[T]
-		if !ags.Verify(&verifier, proof, randomReader) {
+		if !ags.Verify(&verifier, &proof, randomReader) {
 			return AggregateRangeProof[T]{}, errors.New("failed to verify")
 		}
 		if !verifier.Verify() {
@@ -217,10 +333,10 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 		}
 	}
 
-	return result, nil
+	return proof, nil
 }
 
-func (ags AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof AggregateRangeProof[T], randomReader io.Reader) bool {
+func (ags AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *AggregateRangeProof[T], randomReader io.Reader) bool {
 	// Find out the padded amount of commitments
 	paddedPowOf2 := 1
 	for paddedPowOf2 < len(ags.Commitments) {

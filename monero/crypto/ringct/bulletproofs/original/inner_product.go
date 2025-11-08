@@ -7,6 +7,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 // InnerProductStatement The Bulletproofs Inner-Product statement.
@@ -235,4 +236,11 @@ type InnerProductProof[T curve25519.PointOperations] struct {
 	R []curve25519.PublicKey[T]
 	A curve25519.Scalar
 	B curve25519.Scalar
+}
+
+func (ipp InnerProductProof[T]) BufferLength(signature bool) (n int) {
+	if !signature {
+		n += utils.UVarInt64Size(len(ipp.L)) + utils.UVarInt64Size(len(ipp.R))
+	}
+	return n + curve25519.PublicKeySize*len(ipp.L) + curve25519.PublicKeySize*len(ipp.R) + curve25519.PrivateKeySize*2
 }

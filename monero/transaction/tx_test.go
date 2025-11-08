@@ -29,7 +29,7 @@ var testTransactions = []types.Hash{
 	types.MustHashFromString("cbddbd1eadc3fc2c3094627788c57a99a187f9e91e2409f66f82500ba757197b"),
 
 	// cuprate v2 transactions
-	//types.MustHashFromString("e2d39395dd1625b2d707b98af789e7eab9d24c2bd2978ec38ef910961a8cdcee"),
+	types.MustHashFromString("e2d39395dd1625b2d707b98af789e7eab9d24c2bd2978ec38ef910961a8cdcee"),
 }
 
 func TestTransactions(t *testing.T) {
@@ -43,23 +43,19 @@ func TestTransactions(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			tx, err := NewTransactionFromReader(bytes.NewReader(data[0]))
+			r := bytes.NewReader(data[0])
+
+			tx, err := NewTransactionFromReader(r)
 			if err != nil {
 				t.Fatal(err)
 			}
 
+			if r.Len() > 0 {
+				t.Fatal("leftover bytes")
+			}
+
 			prefixHash := tx.PrefixHash()
 			calculatedId := tx.Hash()
-
-			t.Logf("version = %d", tx.Version())
-			t.Logf("ringct  = %d", tx.Proofs().ProofType())
-			t.Logf("id      = %s", calculatedId)
-			t.Logf("prefix  = %s", prefixHash)
-			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
-
-			if calculatedId != txId {
-				t.Fatalf("expected %s, got %s", txId, calculatedId)
-			}
 
 			bufLength := tx.BufferLength()
 
@@ -72,6 +68,16 @@ func TestTransactions(t *testing.T) {
 			}
 			if bytes.Compare(data[0], buf) != 0 {
 				t.Fatal("tx buffer data mismatch")
+			}
+
+			t.Logf("version = %d", tx.Version())
+			t.Logf("ringct  = %d", tx.Proofs().ProofType())
+			t.Logf("id      = %s", calculatedId)
+			t.Logf("prefix  = %s", prefixHash)
+			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
+
+			if calculatedId != txId {
+				t.Fatalf("expected %s, got %s", txId, calculatedId)
 			}
 
 			rings, images, err := GetTransactionInputsData(tx, rpc.GetOuts)

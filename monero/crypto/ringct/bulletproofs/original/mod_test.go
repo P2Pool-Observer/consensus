@@ -30,7 +30,7 @@ func TestAggregateRangeProof(t *testing.T) {
 		commitments[i].MultByCofactor(&commitments[i])
 	}
 
-	if !(AggregateRangeProof[curve25519.VarTimeOperations]{
+	if !(&AggregateRangeProof[curve25519.VarTimeOperations]{
 		A:    p("ef32c0b9551b804decdcb107eb22aa715b7ce259bf3c5cac20e24dfa6b28ac71"),
 		S:    p("e1285960861783574ee2b689ae53622834eb0b035d6943103f960cd23e063fa0"),
 		T1:   p("4ea07735f184ba159d0e0eb662bac8cde3eb7d39f31e567b0fbda3aa23fe5620"),
@@ -60,7 +60,7 @@ func TestAggregateRangeProof(t *testing.T) {
 			B: s("fe80cf5756473482581e1d38644007793ddc66fdeb9404ec1689a907e4863302"),
 		},
 		THat: s("40dfb08e09249040df997851db311bd6827c26e87d6f0f332c55be8eef10e603"),
-	}.Verify(commitments, rng)) {
+	}).Verify(commitments, rng) {
 		t.Fail()
 	}
 }

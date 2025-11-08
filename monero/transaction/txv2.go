@@ -62,7 +62,7 @@ func (tx *TransactionV2) PrefixHash() types.Hash {
 }
 
 func (tx *TransactionV2) SignatureHash() (out types.Hash) {
-	crypto.TransactionIdHash(&out, tx.PrefixHash(), tx.Base.Hash(), tx.Prunable.Hash(true))
+	crypto.TransactionIdHash(&out, tx.PrefixHash(), tx.Base.Hash(), tx.Prunable.SignatureHash())
 	return out
 }
 

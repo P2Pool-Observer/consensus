@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"unsafe"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
 )
@@ -146,6 +147,22 @@ func (v *PublicKey[T]) SetBytes(x []byte) (*PublicKey[T], error) {
 		return nil, err
 	}
 	return v, nil
+}
+
+func (v *PublicKey[T]) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
+	return append(preAllocatedBuf, v.p.Bytes()...), nil
+}
+
+func (v *PublicKey[T]) FromReader(reader utils.ReaderAndByteReader) (err error) {
+	var pub PublicKeyBytes
+
+	if _, err = utils.ReadFullNoEscape(reader, pub[:]); err != nil {
+		return err
+	}
+	if _, err = v.SetBytes(pub[:]); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Bytes Compresses an Ed25519 to its canonical compressed Y
