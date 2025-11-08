@@ -31,7 +31,7 @@ func init() {
 func randomAddress() (addr *Address, spendKey, viewKey *curve25519.Scalar) {
 	// legacy derivation
 	spendKey = curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)
-	viewKey = crypto.ScalarDeriveLegacy(spendKey.Bytes())
+	viewKey = crypto.ScalarDeriveLegacy(new(curve25519.Scalar), spendKey.Bytes())
 
 	return FromRawAddress(monero.TestNetwork, new(curve25519.VarTimePublicKey).ScalarBaseMult(spendKey).Bytes(), new(curve25519.VarTimePublicKey).ScalarBaseMult(viewKey).Bytes()), spendKey, viewKey
 }

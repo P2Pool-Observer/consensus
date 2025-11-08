@@ -121,7 +121,7 @@ func (s *Signature[T]) Verify(prefixHash types.Hash, ringMatrix RingMatrix[T], k
 			}
 		}
 
-		crypto.ScalarDeriveLegacyNoAllocate(&ci, buf)
+		crypto.ScalarDeriveLegacy(&ci, buf)
 		// keep the prefixHash in the buffer.
 		buf = buf[:types.HashSize]
 	}

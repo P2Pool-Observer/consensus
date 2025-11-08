@@ -246,7 +246,7 @@ func VerifyTxProof[T curve25519.PointOperations](prefixHash types.Hash, R, A, B,
 
 	var C curve25519.Scalar
 
-	crypto.ScalarDeriveLegacyNoAllocate(&C, comm.Bytes(version))
+	crypto.ScalarDeriveLegacy(&C, comm.Bytes(version))
 
 	// is zero, c2 == sig.c
 	result := new(curve25519.Scalar).Subtract(&C, &sig.C)

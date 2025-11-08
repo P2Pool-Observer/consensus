@@ -63,11 +63,8 @@ func TestHashToScalar(t *testing.T) {
 		}
 		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes](e[1])
 
-		scalar := ScalarDeriveLegacy(data)
-		if scalar == nil {
-			t.Errorf("scalar is nil")
-			continue
-		}
+		var scalar curve25519.Scalar
+		ScalarDeriveLegacy(&scalar, data)
 
 		image := curve25519.PrivateKeyBytes(scalar.Bytes())
 

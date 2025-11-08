@@ -164,31 +164,26 @@ func (ags AggregateRangeStatement[T]) InitialTranscript() (S curve25519.Scalar, 
 		V[i].ScalarMult(invEight, &V[i])
 		buf = append(buf, V[i].Slice()...)
 	}
-	crypto.ScalarDeriveLegacyNoAllocate(&S, buf)
+	crypto.ScalarDeriveLegacy(&S, buf)
 	return S, V
 }
 
 func (ags AggregateRangeStatement[T]) TranscriptAS(transcript curve25519.Scalar, A, S *curve25519.PublicKey[T]) (y, z curve25519.Scalar) {
-	crypto.ScalarDeriveLegacyNoAllocate(&y, transcript.Bytes(), A.Slice(), S.Slice())
-	crypto.ScalarDeriveLegacyNoAllocate(&z, y.Bytes())
+	crypto.ScalarDeriveLegacy(&y, transcript.Bytes(), A.Slice(), S.Slice())
+	crypto.ScalarDeriveLegacy(&z, y.Bytes())
 	return y, z
 }
 
 func (ags AggregateRangeStatement[T]) TranscriptT12(transcript curve25519.Scalar, T1, T2 *curve25519.PublicKey[T]) (t12 curve25519.Scalar) {
 	tBytes := transcript.Bytes()
-	crypto.ScalarDeriveLegacyNoAllocate(&t12, tBytes, tBytes, T1.Slice(), T2.Slice())
+	crypto.ScalarDeriveLegacy(&t12, tBytes, tBytes, T1.Slice(), T2.Slice())
 	return t12
 }
 
 func (ags AggregateRangeStatement[T]) TranscriptTauXMuTHat(transcript curve25519.Scalar, TauX, Mu, THat *curve25519.Scalar) (t curve25519.Scalar) {
 	tBytes := transcript.Bytes()
-	crypto.ScalarDeriveLegacyNoAllocate(&t, tBytes, tBytes, TauX.Bytes(), Mu.Bytes(), THat.Bytes())
+	crypto.ScalarDeriveLegacy(&t, tBytes, tBytes, TauX.Bytes(), Mu.Bytes(), THat.Bytes())
 	return t
-}
-
-var amountScalarBit = [2]curve25519.Scalar{
-	*(&curve25519.PrivateKeyBytes{0}).Scalar(),
-	*(&curve25519.PrivateKeyBytes{1}).Scalar(),
 }
 
 var scalarOne = (&curve25519.PrivateKeyBytes{1}).Scalar()
@@ -219,11 +214,7 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 
 	var aL bulletproofs.ScalarVector[T]
 	for _, commitment := range witness.Commitments {
-		amount := commitment.Amount
-		for range bulletproofs.CommitmentBits {
-			aL = append(aL, amountScalarBit[amount&1])
-			amount >>= 1
-		}
+		aL = append(aL, bulletproofs.Decompose[T](commitment.Amount)...)
 	}
 	aR := slices.Clone(aL).Subtract(scalarOne)
 

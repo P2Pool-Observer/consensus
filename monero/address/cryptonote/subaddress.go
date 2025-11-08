@@ -20,7 +20,7 @@ func SubaddressExtension(out *curve25519.Scalar, index address.SubaddressIndex, 
 	var major, minor [4]byte
 	binary.LittleEndian.PutUint32(major[:], index.Account)
 	binary.LittleEndian.PutUint32(minor[:], index.Offset)
-	return crypto.ScalarDeriveLegacyNoAllocate(
+	return crypto.ScalarDeriveLegacy(
 		out,
 		hashKeySubaddress,
 		viewKey[:],

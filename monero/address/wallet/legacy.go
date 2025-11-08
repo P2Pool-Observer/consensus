@@ -22,10 +22,11 @@ type ViewWallet[T curve25519.PointOperations] struct {
 }
 
 func NewViewWalletFromSpendKey[T curve25519.PointOperations](spendKey *curve25519.Scalar, addressNetwork uint8, accountDepth, indexDepth int) (*ViewWallet[T], error) {
-	viewKey := crypto.ScalarDeriveLegacy(spendKey.Bytes())
+	var viewKey curve25519.Scalar
+	crypto.ScalarDeriveLegacy(&viewKey, spendKey.Bytes())
 	var spendPub, viewPub curve25519.PublicKey[T]
 	spendPub.ScalarBaseMult(spendKey)
-	viewPub.ScalarBaseMult(viewKey)
+	viewPub.ScalarBaseMult(&viewKey)
 	return NewViewWallet[T](address.FromRawAddress(addressNetwork, spendPub.Bytes(), viewPub.Bytes()), viewKey, accountDepth, indexDepth)
 }
 

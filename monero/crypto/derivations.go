@@ -11,7 +11,7 @@ import (
 
 func GetDerivationSharedDataForOutputIndex(k *curve25519.Scalar, derivation curve25519.PublicKeyBytes, outputIndex uint64) *curve25519.Scalar {
 	var varIntBuf [binary.MaxVarintLen64]byte
-	return ScalarDeriveLegacyNoAllocate(k, derivation[:], varIntBuf[:binary.PutUvarint(varIntBuf[:], outputIndex)])
+	return ScalarDeriveLegacy(k, derivation[:], varIntBuf[:binary.PutUvarint(varIntBuf[:], outputIndex)])
 }
 
 var viewTagDomain = []byte("view_tag")
@@ -25,7 +25,7 @@ func GetDerivationSharedDataAndViewTagForOutputIndex(k *curve25519.Scalar, deriv
 	var varIntBuf [binary.MaxVarintLen64]byte
 
 	n := binary.PutUvarint(varIntBuf[:], outputIndex)
-	pK := ScalarDeriveLegacyNoAllocate(k, derivation[:], varIntBuf[:n])
+	pK := ScalarDeriveLegacy(k, derivation[:], varIntBuf[:n])
 	return pK, Keccak256Var(viewTagDomain, derivation[:], varIntBuf[:n])[0]
 }
 
@@ -62,7 +62,7 @@ func SecretDerive(key []byte, data ...[]byte) types.Hash {
 }
 
 // ScalarDerive As defined in Carrot = BytesToInt512(H_64(x)) mod ℓ
-func ScalarDerive(key []byte, data ...[]byte) *curve25519.Scalar {
+func ScalarDerive(c *curve25519.Scalar, key []byte, data ...[]byte) *curve25519.Scalar {
 	hasher, _ := blake2b.New512(key)
 	for _, b := range data {
 		_, _ = utils.WriteNoEscape(hasher, b)
@@ -70,7 +70,6 @@ func ScalarDerive(key []byte, data ...[]byte) *curve25519.Scalar {
 	var h [blake2b.Size]byte
 	utils.SumNoEscape(hasher, h[:0])
 
-	c := new(curve25519.Scalar)
 	curve25519.BytesToScalar64(c, h)
 
 	return c
@@ -78,16 +77,7 @@ func ScalarDerive(key []byte, data ...[]byte) *curve25519.Scalar {
 
 // ScalarDeriveLegacy As defined in Carrot = BytesToInt256(Keccak256(x)) mod ℓ
 // Equivalent to hash_to_scalar
-func ScalarDeriveLegacy(data ...[]byte) *curve25519.Scalar {
-	h := Keccak256Var(data...)
-
-	c := new(curve25519.Scalar)
-	curve25519.BytesToScalar32(c, h)
-
-	return c
-}
-
-func ScalarDeriveLegacyNoAllocate(c *curve25519.Scalar, data ...[]byte) *curve25519.Scalar {
+func ScalarDeriveLegacy(c *curve25519.Scalar, data ...[]byte) *curve25519.Scalar {
 	h := Keccak256Var(data...)
 
 	curve25519.BytesToScalar32(c, h)

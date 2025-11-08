@@ -56,7 +56,7 @@ func (s Signature[T]) Verify(handler SignatureVerificationHandler[T], publicKey 
 		return false
 	}
 
-	return s.C.Equal(ScalarDeriveLegacyNoAllocate(new(curve25519.Scalar), handler(sp))) == 1
+	return s.C.Equal(ScalarDeriveLegacy(new(curve25519.Scalar), handler(sp))) == 1
 }
 
 // CreateSignature produces a Schnorr Signature using H = keccak
@@ -64,7 +64,7 @@ func CreateSignature[T curve25519.PointOperations](handler SignatureSigningHandl
 	var k, C curve25519.Scalar
 	curve25519.RandomScalar(&k, randomReader)
 
-	ScalarDeriveLegacyNoAllocate(&C, handler(&k))
+	ScalarDeriveLegacy(&C, handler(&k))
 
 	signature := Signature[T]{
 		// e

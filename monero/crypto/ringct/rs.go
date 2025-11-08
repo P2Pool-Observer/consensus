@@ -27,7 +27,7 @@ func (comm RingSignatureComm[T]) Scalar(out *curve25519.Scalar) *curve25519.Scal
 		buf = append(buf, ab[0].Slice()...)
 		buf = append(buf, ab[1].Slice()...)
 	}
-	return crypto.ScalarDeriveLegacyNoAllocate(out, buf)
+	return crypto.ScalarDeriveLegacy(out, buf)
 }
 
 func (s *RingSignature[T]) BufferLength() (n int) {

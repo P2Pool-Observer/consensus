@@ -53,11 +53,11 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 	data = append(data, pseudoOut.Slice()...)
 
 	// mu_P with agg_0
-	muP := crypto.ScalarDeriveLegacyNoAllocate(new(curve25519.Scalar), data)
+	muP := crypto.ScalarDeriveLegacy(new(curve25519.Scalar), data)
 
 	// mu_C with agg_1
 	data[len(prefix)+len(agg0)-1] = '1'
-	muC := crypto.ScalarDeriveLegacyNoAllocate(new(curve25519.Scalar), data)
+	muC := crypto.ScalarDeriveLegacy(new(curve25519.Scalar), data)
 
 	// Truncate it for the round transcript, altering the DST as needed
 	data = data[:((2*len(ring))+1)*curve25519.PublicKeySize]
@@ -99,7 +99,7 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 		data = data[:((2*len(ring))+3)*curve25519.PublicKeySize]
 		data = append(data, L.Slice()...)
 		data = append(data, R.Slice()...)
-		crypto.ScalarDeriveLegacyNoAllocate(&c, data)
+		crypto.ScalarDeriveLegacy(&c, data)
 
 		// This will only execute once and shouldn't need to be constant time. Making it constant time
 		// removes the risk of branch prediction creating timing differences depending on ring index however

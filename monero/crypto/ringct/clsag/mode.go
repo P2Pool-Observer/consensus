@@ -39,7 +39,7 @@ func (m modeSign[T]) LoopConfiguration(data []byte, n int) (out []byte, start, e
 	data = append(data, m.A.Slice()...)
 	data = append(data, m.AH.Slice()...)
 
-	return data, m.SignerIndex + 1, m.SignerIndex + n, *crypto.ScalarDeriveLegacyNoAllocate(new(curve25519.Scalar), data)
+	return data, m.SignerIndex + 1, m.SignerIndex + n, *crypto.ScalarDeriveLegacy(new(curve25519.Scalar), data)
 }
 
 var _ mode[curve25519.ConstantTimeOperations] = modeVerify[curve25519.ConstantTimeOperations]{}
