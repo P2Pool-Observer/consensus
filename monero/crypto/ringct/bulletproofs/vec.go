@@ -1,0 +1,149 @@
+package bulletproofs
+
+import (
+	"slices"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+)
+
+func NewScalarVectorPowers[T curve25519.PointOperations](x *curve25519.Scalar, size int) (out ScalarVector[T]) {
+	if size == 0 {
+		return nil
+	}
+	out = make(ScalarVector[T], max(size, 2))
+	out[0] = *(&curve25519.PrivateKeyBytes{1}).Scalar()
+	out[1] = *x
+	for i := 2; i < size; i++ {
+		out[i].Multiply(&out[i-1], x)
+	}
+	return out[:size]
+}
+
+type ScalarVector[T curve25519.PointOperations] []curve25519.Scalar
+
+func (v ScalarVector[T]) Split() (a, b ScalarVector[T]) {
+	if len(v) <= 1 || len(v)%2 != 0 {
+		panic("unreachable")
+	}
+
+	return v[:len(v)/2], v[len(v)/2:]
+}
+
+func (v ScalarVector[T]) Sum() (out curve25519.Scalar) {
+	for i := range v {
+		out.Add(&out, &v[i])
+	}
+	return out
+}
+
+func (v ScalarVector[T]) InnerProduct(o ScalarVector[T]) (out curve25519.Scalar) {
+	return slices.Clone(v).MultiplyVec(o).Sum()
+}
+
+func (v ScalarVector[T]) WeightedInnerProduct(o, y ScalarVector[T]) (out curve25519.Scalar) {
+	return slices.Clone(v).MultiplyVec(o).MultiplyVec(y).Sum()
+}
+
+func (v ScalarVector[T]) Add(s *curve25519.Scalar) ScalarVector[T] {
+	for i := range v {
+		v[i].Add(&v[i], s)
+	}
+	return v
+}
+
+func (v ScalarVector[T]) Subtract(s *curve25519.Scalar) ScalarVector[T] {
+	for i := range v {
+		v[i].Subtract(&v[i], s)
+	}
+	return v
+}
+
+func (v ScalarVector[T]) Multiply(s *curve25519.Scalar) ScalarVector[T] {
+	for i := range v {
+		v[i].Multiply(&v[i], s)
+	}
+	return v
+}
+
+func (v ScalarVector[T]) AddVec(o ScalarVector[T]) ScalarVector[T] {
+	if len(o) != len(v) {
+		panic("len mismatch")
+	}
+	for i := range v {
+		v[i].Add(&v[i], &o[i])
+	}
+	return v
+}
+
+func (v ScalarVector[T]) SubtractVec(o ScalarVector[T]) ScalarVector[T] {
+	if len(o) != len(v) {
+		panic("len mismatch")
+	}
+	for i := range v {
+		v[i].Subtract(&v[i], &o[i])
+	}
+	return v
+}
+
+func (v ScalarVector[T]) MultiplyVec(o ScalarVector[T]) ScalarVector[T] {
+	if len(o) != len(v) {
+		panic("len mismatch")
+	}
+	for i := range v {
+		v[i].Multiply(&v[i], &o[i])
+	}
+	return v
+}
+
+func (v ScalarVector[T]) MultiplyPublicKeys(dst *curve25519.PublicKey[T], points []*curve25519.PublicKey[T]) *curve25519.PublicKey[T] {
+	if len(points) != len(v) {
+		panic("len mismatch")
+	}
+	scalars := make([]*curve25519.Scalar, len(v))
+	for i := range v {
+		scalars[i] = &v[i]
+	}
+	return dst.MultiScalarMult(scalars, points)
+}
+
+func (v ScalarVector[T]) MultiplyPoints(dst *curve25519.PublicKey[T], points []*curve25519.Point) *curve25519.PublicKey[T] {
+	if len(points) != len(v) {
+		panic("len mismatch")
+	}
+	scalars := make([]*curve25519.Scalar, len(v))
+	for i := range v {
+		scalars[i] = &v[i]
+	}
+	return dst.MultiScalarMultPoints(scalars, points)
+}
+
+type PointVector[T curve25519.PointOperations] []curve25519.PublicKey[T]
+
+func (v PointVector[T]) Split() (a, b PointVector[T]) {
+	if len(v) <= 1 || len(v)%2 != 0 {
+		panic("unreachable")
+	}
+
+	return v[:len(v)/2], v[len(v)/2:]
+}
+
+func (v PointVector[T]) MultiplyVec(o ScalarVector[T]) PointVector[T] {
+	if len(o) != len(v) {
+		panic("len mismatch")
+	}
+	for i := range v {
+		v[i].ScalarMult(&o[i], &v[i])
+	}
+	return v
+}
+
+func (v PointVector[T]) MultiplyScalars(dst *curve25519.PublicKey[T], scalars ScalarVector[T]) *curve25519.PublicKey[T] {
+	if len(scalars) != len(v) {
+		panic("len mismatch")
+	}
+	points := make([]*curve25519.PublicKey[T], len(v))
+	for i := range v {
+		points[i] = &v[i]
+	}
+	return scalars.MultiplyPublicKeys(dst, points)
+}
