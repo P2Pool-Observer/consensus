@@ -141,7 +141,7 @@ func (rs *RingSignatures) Verify(prefixHash types.Hash, rings []ringct.Commitmen
 		if len(sig) != len(rings[i]) {
 			return fmt.Errorf("ring member length mismatch")
 		}
-		if !sig.Verify(prefixHash, rings[i].Ring(), &images[i]) {
+		if !sig.Verify(prefixHash, rings[i].Ring(make(ringct.Ring[curve25519.VarTimeOperations], 0, len(rings[i]))), &images[i]) {
 			return ErrInvalidRingSignature
 		}
 	}

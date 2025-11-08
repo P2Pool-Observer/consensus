@@ -29,7 +29,8 @@ func (ring CommitmentRing[T]) IndexKey(pub *curve25519.PublicKey[T]) int {
 	return -1
 }
 
-func (ring CommitmentRing[T]) Ring() (out Ring[T]) {
+func (ring CommitmentRing[T]) Ring(preAllocated Ring[T]) (out Ring[T]) {
+	out = preAllocated
 	for i := range ring {
 		out = append(out, ring[i][0])
 	}

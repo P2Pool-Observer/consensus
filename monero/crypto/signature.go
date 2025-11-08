@@ -49,14 +49,14 @@ func (s Signature[T]) Bytes() []byte {
 }
 
 // Verify checks a Schnorr Signature using H = keccak
-func (s Signature[T]) Verify(handler SignatureVerificationHandler[T], publicKey *curve25519.PublicKey[T]) (ok bool, r *curve25519.PublicKey[T]) {
+func (s Signature[T]) Verify(handler SignatureVerificationHandler[T], publicKey *curve25519.PublicKey[T]) (ok bool) {
 	//s = C * k, R * G
 	sp := new(curve25519.PublicKey[T]).DoubleScalarBaseMult(&s.C, publicKey, &s.R)
 	if sp.P().Equal(infinityPoint) == 1 {
-		return false, nil
+		return false
 	}
 
-	return s.C.Equal(ScalarDeriveLegacy(handler(sp))) == 1, sp
+	return s.C.Equal(ScalarDeriveLegacyNoAllocate(new(curve25519.Scalar), handler(sp))) == 1
 }
 
 // CreateSignature produces a Schnorr Signature using H = keccak
@@ -99,9 +99,8 @@ func VerifyMessageSignatureSplit[T curve25519.PointOperations](prefixHash types.
 	buf.Hash = prefixHash
 	buf.Key.P().Set(commPublicKey.P())
 
-	ok, _ := signature.Verify(func(r *curve25519.PublicKey[T]) []byte {
+	return signature.Verify(func(r *curve25519.PublicKey[T]) []byte {
 		buf.Comm.P().Set(r.P())
 		return buf.Bytes()
 	}, signPublicKey)
-	return ok
 }

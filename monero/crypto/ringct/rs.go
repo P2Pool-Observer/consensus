@@ -20,14 +20,14 @@ type RingSignatureComm[T curve25519.PointOperations] struct {
 	AB         [][2]curve25519.PublicKey[T]
 }
 
-func (comm RingSignatureComm[T]) Bytes() []byte {
+func (comm RingSignatureComm[T]) Scalar(out *curve25519.Scalar) *curve25519.Scalar {
 	buf := make([]byte, 0, types.HashSize+len(comm.AB)*curve25519.PublicKeySize*2)
 	buf = append(buf, comm.PrefixHash[:]...)
 	for _, ab := range comm.AB {
 		buf = append(buf, ab[0].Slice()...)
 		buf = append(buf, ab[1].Slice()...)
 	}
-	return buf
+	return crypto.ScalarDeriveLegacyNoAllocate(out, buf)
 }
 
 func (s *RingSignature[T]) BufferLength() (n int) {
@@ -83,7 +83,7 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, ring Ring[T], keyImage *c
 		AB:         make([][2]curve25519.PublicKey[T], len(ring)),
 	}
 
-	precomputedImage := curve25519.NewGenerator(keyImage.P())
+	//precomputedImage := curve25519.NewGenerator(keyImage.P())
 
 	var sum edwards25519.Scalar
 
@@ -108,13 +108,14 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, ring Ring[T], keyImage *c
 			}
 			buf.AB[i][0].DoubleScalarBaseMult(&sig.C, &pub, &sig.R)
 			crypto.BiasedHashToPoint(&tmpH2P, pub.Slice())
-			buf.AB[i][1].DoubleScalarMultPrecomputedB(&sig.R, &tmpH2P, &sig.C, precomputedImage)
+			//buf.AB[i][1].DoubleScalarMultPrecomputedB(&sig.R, &tmpH2P, &sig.C, precomputedImage)
+			buf.AB[i][1].DoubleScalarMult(&sig.R, &tmpH2P, &sig.C, keyImage)
 			sum.Add(&sum, &sig.C)
 		}
 	}
 
 	var result curve25519.Scalar
-	crypto.ScalarDeriveLegacyNoAllocate(&result, buf.Bytes())
+	buf.Scalar(&result)
 	(*s)[keyIndex].C.Subtract(&result, &sum)
 
 	(*s)[keyIndex].R.Subtract(&k, new(curve25519.Scalar).Multiply(&(*s)[keyIndex].C, key))
@@ -144,7 +145,7 @@ func (s *RingSignature[T]) verify(prefixHash types.Hash, ring Ring[T], keyImage 
 		AB:         make([][2]curve25519.PublicKey[T], len(ring)),
 	}
 
-	precomputedImage := curve25519.NewGenerator(keyImage.P())
+	//precomputedImage := curve25519.NewGenerator(keyImage.P())
 
 	var sum, result edwards25519.Scalar
 
@@ -171,10 +172,11 @@ func (s *RingSignature[T]) verify(prefixHash types.Hash, ring Ring[T], keyImage 
 		sig := &(*s)[i]
 		buf.AB[i][0].DoubleScalarBaseMult(&sig.C, &pub, &sig.R)
 		crypto.BiasedHashToPoint(&tmpH2P, pub.Slice())
-		buf.AB[i][1].DoubleScalarMultPrecomputedB(&sig.R, &tmpH2P, &sig.C, precomputedImage)
+		//buf.AB[i][1].DoubleScalarMultPrecomputedB(&sig.R, &tmpH2P, &sig.C, precomputedImage)
+		buf.AB[i][1].DoubleScalarMult(&sig.R, &tmpH2P, &sig.C, keyImage)
 		sum.Add(&sum, &sig.C)
 	}
 
-	crypto.ScalarDeriveLegacyNoAllocate(&result, buf.Bytes())
+	buf.Scalar(&result)
 	return sum.Equal(&result) == 1
 }
