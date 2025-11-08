@@ -19,6 +19,7 @@ var testTransactions = []types.Hash{
 	// cuprate v1 transactions
 	types.MustHashFromString("2180a87f724702d37af087e22476297e818a73579ef7b7da947da963245202a3"),
 	types.MustHashFromString("d7febd16293799d9c6a8e0fe9199b8a0a3e0da5a8a165098937b60f0bbd582df"),
+	types.MustHashFromString("9e3f73e66d7c7293af59c59c1ff5d6aae047289f49e5884c66caaf4aea49fb34"),
 
 	// some v2 txs
 	// mlsag aggregate borromean
@@ -29,7 +30,16 @@ var testTransactions = []types.Hash{
 	types.MustHashFromString("cbddbd1eadc3fc2c3094627788c57a99a187f9e91e2409f66f82500ba757197b"),
 
 	// cuprate v2 transactions
+	// mlsag bulletproofs
 	types.MustHashFromString("e2d39395dd1625b2d707b98af789e7eab9d24c2bd2978ec38ef910961a8cdcee"),
+	types.MustHashFromString("e57440ec66d2f3b2a5fa2081af40128868973e7c021bb3877290db3066317474"),
+	types.MustHashFromString("b6b4394d4ec5f08ad63267c07962550064caa8d225dd9ad6d739ebf60291c169"),
+	types.MustHashFromString("84d48dc11ec91950f8b70a85af9db91fe0c8abef71ef5db08304f7344b99ea66"),
+
+	// mlsag bulletproofs compact amount
+	types.MustHashFromString("a8fcc15255f278748d08ade8618688b1634fa800752c958b0c3f57168816372a"),
+	// clsag bulletproofs
+	types.MustHashFromString("951222d863d97bd21296cfd7a8631cf1c1018bf609edbb957f2671bf7e842329"),
 }
 
 func TestTransactions(t *testing.T) {

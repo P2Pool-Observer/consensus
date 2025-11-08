@@ -9,6 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 var ErrInvalidKey = errors.New("invalid CLSAG key")
@@ -28,6 +29,44 @@ type Signature[T curve25519.PointOperations] struct {
 
 	// C1 The first challenge in the ring
 	C1 curve25519.Scalar
+}
+
+func (s *Signature[T]) BufferLength() int {
+	return len(s.S)*curve25519.PrivateKeySize + curve25519.PrivateKeySize + curve25519.PublicKeySize
+}
+
+func (s *Signature[T]) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
+	data = preAllocatedBuf
+	for i := range s.S {
+		data = append(data, s.S[i].Bytes()...)
+	}
+	data = append(data, s.C1.Bytes()...)
+	data = append(data, s.D.Slice()...)
+	return data, nil
+}
+
+func (s *Signature[T]) FromReader(reader utils.ReaderAndByteReader, decoys int) (err error) {
+	var sec curve25519.PrivateKeyBytes
+	var scalar curve25519.Scalar
+	for range decoys {
+		if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
+			return err
+		}
+		if _, err = scalar.SetCanonicalBytes(sec[:]); err != nil {
+			return err
+		}
+		s.S = append(s.S, scalar)
+	}
+	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
+		return err
+	}
+	if _, err = s.C1.SetCanonicalBytes(sec[:]); err != nil {
+		return err
+	}
+	if _, err = utils.ReadFullNoEscape(reader, s.D[:]); err != nil {
+		return err
+	}
+	return nil
 }
 
 type Input[T curve25519.PointOperations] struct {
