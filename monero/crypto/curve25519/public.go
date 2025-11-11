@@ -249,7 +249,7 @@ func (k *PublicKeyBytes) UnmarshalJSON(b []byte) error {
 	}
 }
 
-func (k *PublicKeyBytes) MarshalJSON() ([]byte, error) {
+func (k PublicKeyBytes) MarshalJSON() ([]byte, error) {
 	var buf [PublicKeySize*2 + 2]byte
 	buf[0] = '"'
 	buf[PublicKeySize*2+1] = '"'

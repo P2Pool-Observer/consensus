@@ -4,9 +4,11 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"errors"
+	"math"
 	"runtime"
 	"unsafe"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -178,6 +180,36 @@ func (b *Bytes) UnmarshalJSON(buf []byte) error {
 	} else {
 		return nil
 	}
+}
+
+type SliceBytes []byte
+
+func (b SliceBytes) MarshalJSON() ([]byte, error) {
+	a := make([]uint16, len(b))
+	for i := range a {
+		a[i] = uint16(b[i])
+	}
+	return utils.MarshalJSON(a)
+}
+
+func (b SliceBytes) String() string {
+	return fasthex.EncodeToString(b)
+}
+
+func (b *SliceBytes) UnmarshalJSON(buf []byte) error {
+	var a []uint16
+	if err := utils.UnmarshalJSON(buf, &a); err != nil {
+		return err
+	}
+	*b = (*b)[:0]
+	for _, v := range a {
+		if v > math.MaxUint8 {
+			return errors.New("invalid bytes")
+		}
+		*b = append(*b, byte(v))
+	}
+
+	return nil
 }
 
 // FixedBytes Implements a fixed size array for encoding/decoding helper

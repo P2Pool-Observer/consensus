@@ -1,6 +1,7 @@
 package ringct
 
 import (
+	"encoding/hex"
 	"errors"
 	"io"
 
@@ -28,6 +29,42 @@ func (comm RingSignatureComm[T]) Scalar(out *curve25519.Scalar) *curve25519.Scal
 		buf = append(buf, ab[1].Slice()...)
 	}
 	return crypto.ScalarDeriveLegacy(out, buf)
+}
+
+func (s *RingSignature[T]) MarshalJSON() ([]byte, error) {
+	out := make([]byte, 1, 2+curve25519.PrivateKeySize*2*len(*s))
+	out[0] = '"'
+	for _, sig := range *s {
+		out = hex.AppendEncode(out, sig.Bytes())
+	}
+	out = append(out, '"')
+	return out, nil
+}
+
+func (s *RingSignature[T]) UnmarshalJSON(b []byte) error {
+	if len(b) < 2 {
+		return io.ErrUnexpectedEOF
+	}
+
+	buf := make([]byte, hex.DecodedLen(len(b)-2))
+
+	_, err := hex.Decode(buf, b[1:len(buf)-1])
+	if err != nil {
+		return err
+	}
+	if len(buf)%(curve25519.PrivateKeySize*2) != 0 {
+		return errors.New("invalid signatures length")
+	}
+
+	for i := 0; i < len(buf); i += curve25519.PrivateKeySize * 2 {
+		if sig := crypto.NewSignatureFromBytes[T](buf[i : i+curve25519.PrivateKeySize*2]); sig != nil {
+			*s = append(*s, *sig)
+		} else {
+			return errors.New("invalid signature")
+		}
+	}
+
+	return nil
 }
 
 func (s *RingSignature[T]) BufferLength() (n int) {

@@ -2,8 +2,10 @@ package curve25519
 
 import (
 	"encoding/binary"
+	"errors"
 
 	"git.gammaspectra.live/P2Pool/edwards25519"
+	fasthex "github.com/tmthrgd/go-hex"
 )
 
 type Scalar = edwards25519.Scalar
@@ -249,7 +251,7 @@ var zeroScalar = ZeroPrivateKeyBytes.Scalar()
 // comes, yet a couple have non-standard reductions performed.
 //
 // This struct delays scalar conversions and offers the non-standard reduction.
-type UnreducedScalar [PrivateKeySize]byte
+type UnreducedScalar PrivateKeyBytes
 
 // NAF5 Computes the non-adjacent form of this scalar with width 5.
 //
@@ -258,7 +260,7 @@ type UnreducedScalar [PrivateKeySize]byte
 //
 // This function does not execute in constant time and must only be used with public data.
 // Variable time
-func (s UnreducedScalar) NAF5() (naf [256]int8) {
+func (s *UnreducedScalar) NAF5() (naf [256]int8) {
 	for pos := 0; pos < PrivateKeySize*8; pos++ {
 		b := s[pos/8] >> uint(pos&7)
 
@@ -307,12 +309,12 @@ func (s UnreducedScalar) NAF5() (naf [256]int8) {
 	return naf
 }
 
-func (s UnreducedScalar) ScalarVarTime(out *Scalar) *Scalar {
+func (s *UnreducedScalar) ScalarVarTime(out *Scalar) *Scalar {
 	if s[31]&128 == 0 {
 		// Computing the w-NAF of a number can only give an output with 1 more bit than
 		// the number, so even if the number isn't reduced, the `slide` function will be
 		// correct when the last bit isn't set.
-		BytesToScalar32(out, s)
+		BytesToScalar32(out, *s)
 		return out
 	}
 
@@ -326,6 +328,38 @@ func (s UnreducedScalar) ScalarVarTime(out *Scalar) *Scalar {
 		}
 	}
 	return out
+}
+
+func (s *UnreducedScalar) Slice() []byte {
+	return (*s)[:]
+}
+
+func (s *UnreducedScalar) String() string {
+	return fasthex.EncodeToString(s.Slice())
+}
+
+func (s *UnreducedScalar) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 || len(b) == 2 {
+		return nil
+	}
+
+	if len(b) != PrivateKeySize*2+2 {
+		return errors.New("wrong key size")
+	}
+
+	if _, err := fasthex.Decode(s[:], b[1:len(b)-1]); err != nil {
+		return err
+	} else {
+		return nil
+	}
+}
+
+func (s UnreducedScalar) MarshalJSON() ([]byte, error) {
+	var buf [PrivateKeySize*2 + 2]byte
+	buf[0] = '"'
+	buf[PrivateKeySize*2+1] = '"'
+	fasthex.Encode(buf[1:], s[:])
+	return buf[:], nil
 }
 
 var precomputedScalars [8]*Scalar

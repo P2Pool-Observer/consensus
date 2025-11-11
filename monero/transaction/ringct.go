@@ -19,19 +19,19 @@ import (
 )
 
 type Base struct {
-	ProofType        ProofType
-	Fee              uint64
-	PseudoOuts       []curve25519.PublicKeyBytes
-	EncryptedAmounts []EncryptedAmount
-	Commitments      []curve25519.PublicKeyBytes
+	ProofType        ProofType                   `json:"type"`
+	Fee              uint64                      `json:"txnFee"`
+	PseudoOuts       []curve25519.PublicKeyBytes `json:"pseudoOuts,omitempty"`
+	EncryptedAmounts []EncryptedAmount           `json:"ecdhInfo"`
+	Commitments      []curve25519.PublicKeyBytes `json:"outPk"`
 }
 
 type EncryptedAmount struct {
 	// Mask used with a mask derived from the shared secret to encrypt the amount.
-	Mask curve25519.PublicKeyBytes
+	Mask curve25519.PublicKeyBytes `json:"mask"`
 
 	// Amount The amount, as a scalar, encrypted.
-	Amount [curve25519.PrivateKeySize]byte
+	Amount types.FixedBytes[[curve25519.PrivateKeySize]byte] `json:"amount"`
 }
 
 func (b *Base) Hash() types.Hash {
@@ -68,12 +68,12 @@ func (b *Base) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
 	}
 	if b.ProofType.CompactAmount() {
 		for _, ea := range b.EncryptedAmounts {
-			buf = append(buf, ea.Amount[:monero.EncryptedAmountSize]...)
+			buf = append(buf, ea.Amount.Slice()[:monero.EncryptedAmountSize]...)
 		}
 	} else {
 		for _, ea := range b.EncryptedAmounts {
 			buf = append(buf, ea.Mask[:]...)
-			buf = append(buf, ea.Amount[:]...)
+			buf = append(buf, ea.Amount.Slice()[:]...)
 		}
 	}
 	for _, c := range b.Commitments {
@@ -107,7 +107,7 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 			if _, err = utils.ReadFullNoEscape(reader, amount[:monero.EncryptedAmountSize]); err != nil {
 				return err
 			}
-			b.EncryptedAmounts = append(b.EncryptedAmounts, EncryptedAmount{Amount: amount})
+			b.EncryptedAmounts = append(b.EncryptedAmounts, EncryptedAmount{Amount: types.MakeFixed(amount)})
 		}
 	} else {
 		var mask curve25519.PublicKeyBytes
@@ -119,7 +119,7 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 			if _, err = utils.ReadFullNoEscape(reader, amount[:]); err != nil {
 				return err
 			}
-			b.EncryptedAmounts = append(b.EncryptedAmounts, EncryptedAmount{mask, amount})
+			b.EncryptedAmounts = append(b.EncryptedAmounts, EncryptedAmount{mask, types.MakeFixed(amount)})
 		}
 	}
 	var c curve25519.PublicKeyBytes
@@ -143,8 +143,8 @@ type Prunable interface {
 }
 
 type PrunableAggregateMLSAGBorromean struct {
-	MLSAG     mlsag.Signature[curve25519.VarTimeOperations]
-	Borromean []borromean.Range[curve25519.VarTimeOperations]
+	MLSAG     [1]mlsag.Signature[curve25519.VarTimeOperations] `json:"MGs"`
+	Borromean []borromean.Range[curve25519.VarTimeOperations]  `json:"rangeSigs"`
 }
 
 func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
@@ -167,7 +167,7 @@ func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base Bas
 	if err != nil {
 		return err
 	}
-	if err = p.MLSAG.Verify(prefixHash, m, images); err != nil {
+	if err = p.MLSAG[0].Verify(prefixHash, m, images); err != nil {
 		return err
 	}
 
@@ -191,7 +191,7 @@ func (p *PrunableAggregateMLSAGBorromean) Hash(pruned bool) types.Hash {
 
 func (p *PrunableAggregateMLSAGBorromean) BufferLength(pruned bool) (n int) {
 	if !pruned {
-		n += p.MLSAG.BufferLength()
+		n += p.MLSAG[0].BufferLength()
 	}
 	for i := range p.Borromean {
 		n += p.Borromean[i].BufferLength()
@@ -207,7 +207,7 @@ func (p *PrunableAggregateMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, p
 		}
 	}
 	if !pruned {
-		if data, err = p.MLSAG.AppendBinary(data); err != nil {
+		if data, err = p.MLSAG[0].AppendBinary(data); err != nil {
 			return nil, err
 		}
 	}
@@ -227,7 +227,7 @@ func (p *PrunableAggregateMLSAGBorromean) FromReader(reader utils.ReaderAndByteR
 		return errors.New("empty inputs")
 	}
 
-	if err = p.MLSAG.FromReader(reader, len(inputs[0].Offsets), len(inputs)+1); err != nil {
+	if err = p.MLSAG[0].FromReader(reader, len(inputs[0].Offsets), len(inputs)+1); err != nil {
 		return err
 	}
 
@@ -235,8 +235,8 @@ func (p *PrunableAggregateMLSAGBorromean) FromReader(reader utils.ReaderAndByteR
 }
 
 type PrunableMLSAGBorromean struct {
-	MLSAG     []mlsag.Signature[curve25519.VarTimeOperations]
-	Borromean []borromean.Range[curve25519.VarTimeOperations]
+	MLSAG     []mlsag.Signature[curve25519.VarTimeOperations] `json:"MGs"`
+	Borromean []borromean.Range[curve25519.VarTimeOperations] `json:"rangeSigs"`
 }
 
 var ErrInvalidBorromeanProof = errors.New("invalid Borromean proof")

@@ -67,7 +67,7 @@ func (k *PrivateKeyBytes) UnmarshalJSON(b []byte) error {
 	}
 }
 
-func (k *PrivateKeyBytes) MarshalJSON() ([]byte, error) {
+func (k PrivateKeyBytes) MarshalJSON() ([]byte, error) {
 	var buf [PrivateKeySize*2 + 2]byte
 	buf[0] = '"'
 	buf[PrivateKeySize*2+1] = '"'

@@ -7,9 +7,9 @@ import (
 
 // Range A range proof premised on Borromean ring signatures.
 type Range[T curve25519.PointOperations] struct {
-	Signatures Signatures[T]
+	Signatures Signatures[T] `json:"asig"`
 	// Commitments Bit commitments
-	Commitments [Elements]curve25519.PublicKey[T]
+	Commitments [Elements]curve25519.PublicKey[T] `json:"Ci"`
 }
 
 func (s *Range[T]) Verify(commitment *curve25519.PublicKey[T]) bool {

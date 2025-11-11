@@ -105,6 +105,13 @@ func TestTransactions(t *testing.T) {
 			if err = tx.Proofs().Verify(tx.SignatureHash(), rings, images); err != nil {
 				t.Fatalf("tx proof failed: %v", err)
 			}
+
+			jsonBuf, err := utils.MarshalJSONIndent(tx, " ")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			t.Logf("JSON: %s", string(jsonBuf))
 		})
 	}
 }

@@ -11,10 +11,10 @@ import (
 )
 
 type Prefix struct {
-	UnlockTime uint64      `json:"unlock_time"`
-	Inputs     Inputs      `json:"vin"`
-	Outputs    Outputs     `json:"vout"`
-	Extra      types.Bytes `json:"extra"`
+	UnlockTime uint64           `json:"unlock_time"`
+	Inputs     Inputs           `json:"vin"`
+	Outputs    Outputs          `json:"vout"`
+	Extra      types.SliceBytes `json:"extra"`
 }
 
 type InputToKey struct {
@@ -23,8 +23,34 @@ type InputToKey struct {
 	KeyImage curve25519.PublicKeyBytes `json:"k_image"`
 }
 
+type itk struct {
+	Key InputToKey `json:"key"`
+}
+
 func (i *InputToKey) BufferLength() int {
 	return 1 + utils.UVarInt64Size(i.Amount) + utils.UVarInt64Size(len(i.Offsets)) + utils.UVarInt64SliceSize(i.Offsets) + curve25519.PublicKeySize
+}
+
+func (i *InputToKey) MarshalJSON() ([]byte, error) {
+	ik := itk{
+		Key: *i,
+	}
+	return utils.MarshalJSON(ik)
+}
+
+func (i *InputToKey) UnmarshalJSON(b []byte) error {
+	var ik itk
+	if err := utils.UnmarshalJSON(b, &ik); err != nil {
+		return err
+	}
+
+	*i = ik.Key
+
+	if i.KeyImage == curve25519.ZeroPublicKeyBytes || len(i.Offsets) == 0 {
+		return errors.New("invalid input")
+	}
+
+	return nil
 }
 
 type Inputs []InputToKey

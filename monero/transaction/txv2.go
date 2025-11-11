@@ -11,9 +11,9 @@ import (
 )
 
 type TransactionV2 struct {
-	Prefix
-	Base
-	Prunable
+	Prefix   `json:",inline"`
+	Base     `json:"rct_signatures"`
+	Prunable `json:"rctsig_prunable"`
 }
 
 func (tx *TransactionV2) Inputs() Inputs {
