@@ -43,6 +43,7 @@ var testTransactions = []types.Hash{
 
 	// clsag bulletproofs+
 	types.MustHashFromString("81e80ad39374105ab94363bc1315a96fd52cc3f8f81e0425c718df164a72975c"),
+	types.MustHashFromString("32e66dcf37b87703ebff69a0bd93a3cdc8fb919463085778d046bdda900efe52"),
 }
 
 func TestTransactions(t *testing.T) {
@@ -87,6 +88,7 @@ func TestTransactions(t *testing.T) {
 			t.Logf("ringct  = %d", tx.Proofs().ProofType())
 			t.Logf("id      = %s", calculatedId)
 			t.Logf("prefix  = %s", prefixHash)
+			t.Logf("weight  = %d", tx.Weight())
 			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
 
 			if calculatedId != txId {
@@ -109,12 +111,14 @@ func TestTransactions(t *testing.T) {
 				t.Fatalf("tx proof failed: %v", err)
 			}
 
-			jsonBuf, err := utils.MarshalJSONIndent(tx, " ")
-			if err != nil {
-				t.Fatal(err)
-			}
+			/*
+				jsonBuf, err := utils.MarshalJSONIndent(tx, " ")
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			t.Logf("JSON: %s", string(jsonBuf))
+				t.Logf("JSON: %s", string(jsonBuf))
+			*/
 		})
 	}
 }

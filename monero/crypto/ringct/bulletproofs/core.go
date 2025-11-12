@@ -82,3 +82,35 @@ func PaddedPowerOfTwo[T int | uint64](i T) T {
 	}
 	return powerOfTwo
 }
+
+var LogCommitmentBits = bits.Len(CommitmentBits)
+
+// CalculateClawback Calculate the weight penalty for the Bulletproof(+).
+//
+// Bulletproofs(+) are logarithmically sized yet linearly timed. Evaluating by their size alone
+// accordingly doesn't properly represent the burden of the proof. Monero 'claws back' some of
+// the weight lost by using a proof smaller than it is fast to compensate for this.
+//
+// If the amount of outputs specified exceeds the maximum amount of outputs, the result for the
+// maximum amount of outputs will be returned.
+// https://github.com/monero-project/monero/blob/94e67bf96bbc010241f29ada6abc89f49a81759c/src/cryptonote_basic/cryptonote_format_utils.cpp#L106-L124
+func CalculateClawback(plus bool, outputs int) (clawback, LRLen int) {
+	nPaddedOutputs := 1
+	for nPaddedOutputs < min(outputs, MaxCommitments) {
+		LRLen++
+		nPaddedOutputs <<= 1
+	}
+	LRLen += LogCommitmentBits
+
+	if nPaddedOutputs > 2 {
+		fields := 9
+		if plus {
+			fields = 6
+		}
+
+		base := ((fields + (2 * (LogCommitmentBits + 1))) * 32) / 2
+		size := (fields + (2 * LRLen)) * 32
+		clawback = ((base * nPaddedOutputs) - size) * 4 / 5
+	}
+	return clawback, LRLen
+}

@@ -6,6 +6,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -46,6 +47,16 @@ func (tx *TransactionV2) Proofs() Proofs {
 
 func (tx *TransactionV2) Fee() uint64 {
 	return tx.Base.Fee
+}
+
+func (tx *TransactionV2) Weight() int {
+	weight := tx.BufferLength()
+	if tx.Base.ProofType.Bulletproof() || tx.Base.ProofType.BulletproofPlus() {
+		clawback, _ := bulletproofs.CalculateClawback(tx.Base.ProofType.BulletproofPlus(), len(tx.Outputs()))
+		weight += clawback
+	}
+
+	return weight
 }
 
 func (tx *TransactionV2) Version() uint8 {

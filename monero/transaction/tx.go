@@ -205,6 +205,7 @@ type Transaction interface {
 	SignatureHash() types.Hash
 	BufferLength() int
 	Fee() uint64
+	Weight() int
 	Inputs() Inputs
 	Outputs() Outputs
 	Proofs() Proofs

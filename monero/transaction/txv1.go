@@ -33,6 +33,10 @@ func (tx *TransactionV1) Fee() uint64 {
 	return tx.fee
 }
 
+func (tx *TransactionV1) Weight() int {
+	return tx.BufferLength()
+}
+
 func (tx *TransactionV1) Version() uint8 {
 	return 1
 }
