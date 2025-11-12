@@ -74,3 +74,11 @@ func Decompose[T curve25519.PointOperations](amount uint64) (out ScalarVector[T]
 	}
 	return out
 }
+
+func PaddedPowerOfTwo[T int | uint64](i T) T {
+	powerOfTwo := T(1)
+	for powerOfTwo < i {
+		powerOfTwo <<= 1
+	}
+	return powerOfTwo
+}

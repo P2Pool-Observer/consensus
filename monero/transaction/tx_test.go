@@ -40,6 +40,9 @@ var testTransactions = []types.Hash{
 	types.MustHashFromString("a8fcc15255f278748d08ade8618688b1634fa800752c958b0c3f57168816372a"),
 	// clsag bulletproofs
 	types.MustHashFromString("951222d863d97bd21296cfd7a8631cf1c1018bf609edbb957f2671bf7e842329"),
+
+	// clsag bulletproofs+
+	types.MustHashFromString("81e80ad39374105ab94363bc1315a96fd52cc3f8f81e0425c718df164a72975c"),
 }
 
 func TestTransactions(t *testing.T) {

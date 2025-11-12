@@ -207,10 +207,7 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 	transcript, _ := ags.InitialTranscript()
 
 	// Find out the padded amount of commitments
-	paddedPowOf2 := 1
-	for paddedPowOf2 < len(witness.Commitments) {
-		paddedPowOf2 <<= 1
-	}
+	paddedPowOf2 := bulletproofs.PaddedPowerOfTwo(len(witness.Commitments))
 
 	var aL bulletproofs.ScalarVector[T]
 	for _, commitment := range witness.Commitments {
@@ -329,10 +326,7 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 
 func (ags AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *AggregateRangeProof[T], randomReader io.Reader) bool {
 	// Find out the padded amount of commitments
-	paddedPowOf2 := 1
-	for paddedPowOf2 < len(ags.Commitments) {
-		paddedPowOf2 <<= 1
-	}
+	paddedPowOf2 := bulletproofs.PaddedPowerOfTwo(len(ags.Commitments))
 
 	ipRows := paddedPowOf2 * bulletproofs.CommitmentBits
 

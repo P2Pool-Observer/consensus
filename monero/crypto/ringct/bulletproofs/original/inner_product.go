@@ -217,10 +217,7 @@ func NewInnerProductWitness[T curve25519.PointOperations](a, b bulletproofs.Scal
 		panic("invalid arguments")
 	}
 
-	powerOfTwo := 1
-	for powerOfTwo < len(a) {
-		powerOfTwo <<= 1
-	}
+	powerOfTwo := bulletproofs.PaddedPowerOfTwo(len(a))
 
 	if powerOfTwo != len(a) {
 		panic("invalid arguments")

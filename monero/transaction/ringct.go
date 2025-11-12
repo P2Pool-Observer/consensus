@@ -11,6 +11,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/borromean"
 	bp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs/original"
+	bpp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs/plus"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/clsag"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/mlsag"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -746,6 +747,140 @@ func (p *PrunableCLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader,
 	return nil
 }
 
+type PrunableCLSAGBulletproofsPlus struct {
+	CLSAG []clsag.Signature[curve25519.VarTimeOperations]
+	// PseudoOuts The re-blinded commitments for the outputs being spent.
+	PseudoOuts  []curve25519.VarTimePublicKey
+	Bulletproof bpp.AggregateRangeProof[curve25519.VarTimeOperations]
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+	var sumInputs, sumOutputs curve25519.VarTimePublicKey
+	// init
+	sumInputs.P().Set(edwards25519.NewIdentityPoint())
+	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
+
+	for i, member := range p.CLSAG {
+		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
+
+		if err = member.Verify(prefixHash, rings[i], &images[i], &p.PseudoOuts[i]); err != nil {
+			return err
+		}
+	}
+
+	commitments := make([]curve25519.VarTimePublicKey, len(base.Commitments))
+	for i, c := range base.Commitments {
+		if _, err = commitments[i].SetBytes(c[:]); err != nil {
+			return err
+		}
+		sumOutputs.Add(&sumOutputs, &commitments[i])
+	}
+
+	// check Bulletproof+
+	/*
+		TODO
+		if !p.Bulletproof.Verify(commitments, rand.Reader) {
+			return ErrInvalidBulletproofsProof
+		}
+	*/
+
+	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+
+	// check balances
+	if sumInputs.Equal(&sumOutputs) == 0 {
+		return ErrUnbalancedAmounts
+	}
+	return nil
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) SignatureHash() types.Hash {
+	buf := make([]byte, 0, p.Bulletproof.BufferLength(true))
+	var err error
+	if buf, err = p.Bulletproof.AppendBinary(buf, true); err != nil {
+		return types.ZeroHash
+	}
+	return crypto.Keccak256(buf)
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) Hash(pruned bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(pruned))
+	var err error
+	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+		return types.ZeroHash
+	}
+	return crypto.Keccak256(buf)
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) BufferLength(pruned bool) (n int) {
+	if !pruned {
+		n += 1
+		for i := range p.CLSAG {
+			n += p.CLSAG[i].BufferLength()
+		}
+		n += len(p.PseudoOuts) * curve25519.PublicKeySize
+	}
+	n += p.Bulletproof.BufferLength(false)
+	return n
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+	data = preAllocatedBuf
+	if !pruned {
+		data = append(data, 1)
+	}
+	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
+		return nil, err
+	}
+	if !pruned {
+		for _, e := range p.CLSAG {
+			if data, err = e.AppendBinary(data); err != nil {
+				return nil, err
+			}
+		}
+		for _, e := range p.PseudoOuts {
+			if data, err = e.AppendBinary(data); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return data, nil
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+
+	var n uint8
+	if n, err = reader.ReadByte(); err != nil {
+		return err
+	}
+
+	if n != 1 {
+		return errors.New("unexpected n")
+	}
+
+	if err = p.Bulletproof.FromReader(reader); err != nil {
+		return err
+	}
+
+	for _, i := range inputs {
+		var e clsag.Signature[curve25519.VarTimeOperations]
+
+		if err = e.FromReader(reader, len(i.Offsets)); err != nil {
+			return err
+		}
+		p.CLSAG = append(p.CLSAG, e)
+	}
+
+	var pk curve25519.VarTimePublicKey
+	for range inputs {
+		if err = pk.FromReader(reader); err != nil {
+			return err
+		}
+		p.PseudoOuts = append(p.PseudoOuts, pk)
+	}
+
+	return nil
+}
+
 var prunableTypes = []func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error){
 	nil,
 	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
@@ -778,6 +913,13 @@ var prunableTypes = []func(reader utils.ReaderAndByteReader, inputs Inputs, outp
 	},
 	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
 		var pt PrunableCLSAGBulletproofs
+		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+			return nil, err
+		}
+		return &pt, nil
+	},
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+		var pt PrunableCLSAGBulletproofsPlus
 		if err = pt.FromReader(reader, inputs, outputs); err != nil {
 			return nil, err
 		}
