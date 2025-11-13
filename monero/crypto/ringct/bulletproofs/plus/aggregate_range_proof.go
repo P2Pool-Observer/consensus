@@ -2,6 +2,7 @@ package plus
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"slices"
 
@@ -14,19 +15,17 @@ import (
 )
 
 var eight = (&curve25519.PrivateKeyBytes{8}).Scalar()
+var one = (&curve25519.PrivateKeyBytes{1}).Scalar()
 var two = (&curve25519.PrivateKeyBytes{2}).Scalar()
 var invEight = new(curve25519.Scalar).Invert(eight)
 
 type AggregateRangeStatement[T curve25519.PointOperations] struct {
-	GBold []curve25519.PublicKey[T]
-	HBold []curve25519.PublicKey[T]
-
 	V []curve25519.PublicKey[T]
 }
 
 func (ars AggregateRangeStatement[T]) TranscriptA(transcript *curve25519.Scalar, A *curve25519.PublicKey[T]) (y, z curve25519.Scalar) {
 	crypto.ScalarDeriveLegacy(&y, transcript.Bytes(), A.Slice())
-	crypto.ScalarDerive(&z, y.Bytes())
+	crypto.ScalarDeriveLegacy(&z, y.Bytes())
 	*transcript = z
 	return y, z
 }
@@ -60,9 +59,9 @@ func (ars AggregateRangeStatement[T]) ComputeAHat(V []curve25519.PublicKey[T], t
 	// z**2
 	zPow = append(zPow, *new(curve25519.Scalar).Multiply(&z, &z))
 
-	d := make(bulletproofs.ScalarVector[T], 0, mn)
+	d := make(bulletproofs.ScalarVector[T], mn)
 
-	for j := 1; j < len(V); j++ {
+	for j := 1; j <= len(V); j++ {
 		zPow = append(zPow, *new(curve25519.Scalar).Multiply(&zPow[len(zPow)-1], &zPow[0]))
 		d.AddVec(ars.DJ(j, len(V)).Multiply(&zPow[j-1]))
 	}
@@ -126,7 +125,112 @@ func (ars AggregateRangeStatement[T]) ComputeAHat(V []curve25519.PublicKey[T], t
 	}
 }
 
-func (ars AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof AggregateRangeProof[T], randomReader io.Reader) bool {
+func (ars AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness, randomReader io.Reader) (proof AggregateRangeProof[T], err error) {
+	if len(ars.V) != len(witness) {
+		return AggregateRangeProof[T]{}, errors.New("mismatched length")
+	}
+
+	for i, commitment := range ars.V {
+		if ringct.CalculateCommitment(new(curve25519.PublicKey[T]), witness[i]).Equal(&commitment) == 0 {
+			return AggregateRangeProof[T]{}, errors.New("mismatched commitment")
+		}
+	}
+
+	// Monero expects all of these points to be torsion-free
+	// Generally, for Bulletproofs, it sends points * INV_EIGHT and then performs a torsion clear
+	// by multiplying by 8
+	// This also restores the original value due to the preprocessing
+	// Commitments aren't transmitted INV_EIGHT though, so this multiplies by INV_EIGHT to enable
+	// clearing its cofactor without mutating the value
+	// For some reason, these values are transcripted * INV_EIGHT, not as transmitted
+	V := slices.Clone(ars.V)
+	for i := range V {
+		V[i].ScalarMult(invEight, &V[i])
+	}
+	var transcript curve25519.Scalar
+	InitialTranscript(&transcript, V)
+	for i := range V {
+		V[i].MultByCofactor(&V[i])
+	}
+
+	// Pad V
+	for len(V) < bulletproofs.PaddedPowerOfTwo(len(V)) {
+		V = append(V, *curve25519.FromPoint[T](edwards25519.NewIdentityPoint()))
+	}
+
+	dJS := make([]bulletproofs.ScalarVector[T], 0, len(V))
+	aL := make(bulletproofs.ScalarVector[T], 0, len(V)*bulletproofs.CommitmentBits)
+
+	for j := 1; j <= len(V); j++ {
+		dJS = append(dJS, ars.DJ(j, len(V)))
+		if len(witness) > j-1 {
+			aL = append(aL, bulletproofs.Decompose[T](witness[j-1].Amount)...)
+		} else {
+			aL = append(aL, bulletproofs.Decompose[T](0)...)
+		}
+	}
+
+	aR := slices.Clone(aL).Subtract(one)
+
+	var alpha curve25519.Scalar
+	curve25519.RandomScalar(&alpha, randomReader)
+
+	scalars := make([]*curve25519.Scalar, 0, len(V)*bulletproofs.CommitmentBits+1)
+	points := make([]*curve25519.PublicKey[T], 0, len(V)*bulletproofs.CommitmentBits+1)
+
+	for i := range aL {
+		scalars = append(scalars, &aL[i])
+		points = append(points, curve25519.FromPoint[T](bulletproofs.GeneratorPlus.G[i]))
+	}
+	for i := range aR {
+		scalars = append(scalars, &aR[i])
+		points = append(points, curve25519.FromPoint[T](bulletproofs.GeneratorPlus.H[i]))
+	}
+
+	scalars = append(scalars, &alpha)
+	points = append(points, curve25519.FromPoint[T](crypto.GeneratorG.Point))
+
+	A := new(curve25519.PublicKey[T]).MultiScalarMult(scalars, points)
+
+	// Multiply by INV_EIGHT per earlier commentary
+	A.ScalarMult(invEight, A)
+
+	ahc := ars.ComputeAHat(V, &transcript, A)
+
+	aL.Subtract(&ahc.Z)
+	aR.AddVec(ahc.DDescendingYPlusZ)
+
+	for j := 1; j <= len(witness); j++ {
+		alpha.Add(&alpha, new(curve25519.Scalar).Multiply(new(curve25519.Scalar).Multiply(&ahc.ZPow[j-1], &witness[j-1].Mask), &ahc.YMnPlusOne))
+	}
+
+	wip, err := NewWeightedInnerProductStatement(&ahc.AHat, &ahc.Y, len(V)*bulletproofs.CommitmentBits).Prove(&transcript, WeightedInnerProductWitness[T]{
+		A:     aL,
+		B:     aR,
+		Alpha: alpha,
+	}, randomReader)
+	if err != nil {
+		return AggregateRangeProof[T]{}, err
+	}
+
+	return AggregateRangeProof[T]{
+		A:   *A,
+		WIP: wip,
+	}, nil
+}
+
+func (arp *AggregateRangeProof[T]) Verify(commitments []curve25519.PublicKey[T], randomReader io.Reader) bool {
+	var verifier BatchVerifier[T]
+	statement := AggregateRangeStatement[T]{
+		V: commitments,
+	}
+	if !statement.Verify(&verifier, arp, randomReader) {
+		return false
+	}
+	return verifier.Verify()
+}
+
+func (ars AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *AggregateRangeProof[T], randomReader io.Reader) bool {
 
 	V := slices.Clone(ars.V)
 	for i := range V {

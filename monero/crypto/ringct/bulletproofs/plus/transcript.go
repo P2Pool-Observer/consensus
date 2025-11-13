@@ -1,6 +1,8 @@
 package plus
 
 import (
+	"fmt"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 )
@@ -14,11 +16,13 @@ var initialTranscriptHash = crypto.Keccak256(DomainKeyTranscript)
 var initialTranscriptConstant = crypto.BiasedHashToPoint(new(curve25519.VarTimePublicKey), initialTranscriptHash[:]).Bytes()
 
 func InitialTranscript[T curve25519.PointOperations](out *curve25519.Scalar, commitments []curve25519.PublicKey[T]) *curve25519.Scalar {
-	data := make([]byte, len(commitments)*curve25519.PublicKeySize)
+	data := make([]byte, 0, len(commitments)*curve25519.PublicKeySize)
 	for _, c := range commitments {
 		data = append(data, c.Slice()...)
 	}
 	crypto.ScalarDeriveLegacy(out, data)
+	fmt.Printf("TRANSCRIPT %x\n", initialTranscriptConstant.Slice())
+	fmt.Printf("CH %x\n", out.Bytes())
 	// this does scalar derive twice!
 	crypto.ScalarDeriveLegacy(out, initialTranscriptConstant[:], out.Bytes())
 	return out

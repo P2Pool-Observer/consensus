@@ -777,12 +777,9 @@ func (p *PrunableCLSAGBulletproofsPlus) Verify(prefixHash types.Hash, base Base,
 	}
 
 	// check Bulletproof+
-	/*
-		TODO
-		if !p.Bulletproof.Verify(commitments, rand.Reader) {
-			return ErrInvalidBulletproofsProof
-		}
-	*/
+	if !p.Bulletproof.Verify(commitments, rand.Reader) {
+		return ErrInvalidBulletproofsProof
+	}
 
 	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
 
