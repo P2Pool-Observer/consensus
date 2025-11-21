@@ -49,7 +49,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 	amountCommitment := makeAmountCommitmentCoinbase[curve25519.VarTimeOperations](enote.Amount)
 
 	var oneTimeAddress curve25519.VarTimePublicKey
-	if curve25519.DecodeCompressedPoint(&oneTimeAddress, enote.OneTimeAddress) == nil {
+	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 		return ErrInvalidOneTimeAddress
 	}
 
@@ -85,7 +85,7 @@ func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, sen
 	senderReceiverSecret := makeSenderReceiverSecret(&hasher, senderReceiverUnctx, enote.EphemeralPubKey, inputContext)
 
 	var oneTimeAddress curve25519.VarTimePublicKey
-	if curve25519.DecodeCompressedPoint(&oneTimeAddress, enote.OneTimeAddress) == nil {
+	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 		return ErrInvalidOneTimeAddress
 	}
 
@@ -179,7 +179,9 @@ func verifyNormalJanusProtection[T curve25519.PointOperations](hasher *blake2b.D
 	// recompute D_e' for d_e' and address type
 	if isSubaddress {
 		var spendPub curve25519.PublicKey[T]
-		curve25519.DecodeCompressedPoint(&spendPub, nominalSpendPub)
+		if _, err := spendPub.SetBytes(nominalSpendPub[:]); err != nil {
+			return false
+		}
 
 		// D_e' ?= D_e
 		return ephemeralPub == makeEnoteEphemeralPublicKeySubaddress(&ephemeralPrivateKey, &spendPub)

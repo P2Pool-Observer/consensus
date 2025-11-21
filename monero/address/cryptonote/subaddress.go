@@ -83,7 +83,9 @@ func GetSubaddress(a *address.Address, viewKey *curve25519.Scalar, index address
 		return a
 	}
 	var spendPub curve25519.VarTimePublicKey
-	curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
+	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+		return nil
+	}
 
 	return GetSubaddressNoAllocate(a.BaseNetwork(), &spendPub, viewKey, curve25519.PrivateKeyBytes(viewKey.Bytes()), index)
 }
@@ -94,7 +96,9 @@ func GetSubaddressFakeAddress(sa address.InterfaceSubaddress, viewKey *curve2551
 	}
 
 	var spendPub, viewPub curve25519.VarTimePublicKey
-	curve25519.DecodeCompressedPoint(&spendPub, *sa.SpendPublicKey())
+	if _, err := spendPub.SetBytes(sa.SpendPublicKey()[:]); err != nil {
+		return nil
+	}
 
 	// mismatched view key
 	if new(curve25519.VarTimePublicKey).ScalarMult(viewKey, &spendPub).AsBytes() != *sa.ViewPublicKey() {

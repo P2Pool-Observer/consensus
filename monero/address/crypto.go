@@ -59,19 +59,26 @@ func GetEphemeralPublicKeyAndViewTagWithViewKey[T curve25519.PointOperations](ou
 func CalculateTransactionOutput[T curve25519.PointOperations](a Interface, txKey *curve25519.Scalar, outputIndex, amount uint64) (out transaction.Output, additionalTxPub *curve25519.PublicKey[T], encryptedAmount uint64) {
 	var pK curve25519.Scalar
 
-	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.SpendPublicKey())
-	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
-		additionalTxPub = new(curve25519.PublicKey[T]).ScalarMult(txKey, spendPub)
+	var spendPub, viewPub curve25519.PublicKey[T]
+	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+		panic(err)
+	}
+	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil {
+		panic(err)
 	}
 
-	derivation := GetDerivation(new(curve25519.PublicKey[T]), curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.ViewPublicKey()), txKey)
+	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
+		additionalTxPub = new(curve25519.PublicKey[T]).ScalarMult(txKey, &spendPub)
+	}
+
+	derivation := GetDerivation(new(curve25519.PublicKey[T]), &viewPub, txKey)
 
 	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation.AsBytes(), outputIndex)
 
 	out.Type = transaction.TxOutToTaggedKey
 	out.Index = outputIndex
 	out.ViewTag.Slice()[0] = viewTag
-	out.EphemeralPublicKey = GetPublicKeyForSharedData(new(curve25519.PublicKey[T]), spendPub, &pK).AsBytes()
+	out.EphemeralPublicKey = GetPublicKeyForSharedData(new(curve25519.PublicKey[T]), &spendPub, &pK).AsBytes()
 
 	return out, additionalTxPub, ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(pK.Bytes()), amount)
 }
@@ -133,8 +140,12 @@ func VerifyMessage(a Interface, message []byte, signature string) SignatureVerif
 	}
 
 	var spendPub, viewPub curve25519.VarTimePublicKey
-	curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
-	curve25519.DecodeCompressedPoint(&viewPub, *a.ViewPublicKey())
+	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+		return ResultFail
+	}
+	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil {
+		return ResultFail
+	}
 
 	if crypto.VerifyMessageSignature(hash, &spendPub, *sig) {
 		return ResultSuccessSpend
@@ -176,8 +187,12 @@ func VerifyMessageFallbackToZero(a Interface, message []byte, signature string) 
 	}
 
 	var spendPub, viewPub curve25519.VarTimePublicKey
-	curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
-	curve25519.DecodeCompressedPoint(&viewPub, *a.ViewPublicKey())
+	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+		return ResultFail
+	}
+	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil {
+		return ResultFail
+	}
 
 	if crypto.VerifyMessageSignature(hash, &spendPub, *sig) {
 		return ResultSuccessSpend

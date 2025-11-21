@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"errors"
+	"fmt"
 
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -88,8 +89,8 @@ func NewCarrotViewWallet[T curve25519.PointOperations](primaryAddress *address.A
 	}
 
 	var accountSpendPub, accountViewPub curve25519.PublicKey[T]
-	if curve25519.DecodeCompressedPoint(&accountSpendPub, *primaryAddress.SpendPublicKey()) == nil {
-		return nil, errors.New("account spend pub key must be valid")
+	if _, err := accountSpendPub.SetBytes(primaryAddress.SpendPublicKey()[:]); err != nil {
+		return nil, fmt.Errorf("account spend pub key must be valid: %w", err)
 	}
 	carrot.MakeAccountViewPub(&accountViewPub, viewIncomingKey, &accountSpendPub)
 

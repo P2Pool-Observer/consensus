@@ -187,7 +187,10 @@ func (s *Signature[T]) Verify(prefixHash types.Hash, ring ringct.CommitmentRing[
 
 	// straightD D without torsion
 	var straightD curve25519.PublicKey[T]
-	straightD.MultByCofactor(curve25519.DecodeCompressedPoint[T](new(curve25519.PublicKey[T]), s.D))
+	if _, err := straightD.SetBytes(s.D[:]); err != nil {
+		return ErrInvalidD
+	}
+	straightD.MultByCofactor(&straightD)
 	if straightD.IsIdentity() == 1 {
 		return ErrInvalidD
 	}

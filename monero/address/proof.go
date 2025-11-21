@@ -14,8 +14,12 @@ func GetOutProof[T curve25519.PointOperations](a Interface, txId types.Hash, txK
 	signature := make([]crypto.Signature[T], 1, 1+len(additionalTxKeys))
 
 	var spendPub, viewPub curve25519.PublicKey[T]
-	curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
-	curve25519.DecodeCompressedPoint(&viewPub, *a.ViewPublicKey())
+	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+		panic(err)
+	}
+	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil {
+		panic(err)
+	}
 
 	sharedSecret[0].ScalarMult(txKey, &viewPub)
 	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
@@ -47,8 +51,12 @@ func GetInProof[T curve25519.PointOperations](a Interface, txId types.Hash, view
 	signature := make([]crypto.Signature[T], 1, 1+len(additionalTxPubKeys))
 
 	var spendPub, viewPub curve25519.PublicKey[T]
-	curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
-	curve25519.DecodeCompressedPoint(&viewPub, *a.ViewPublicKey())
+	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+		panic(err)
+	}
+	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil {
+		panic(err)
+	}
 
 	sharedSecret[0].ScalarMult(viewKey, txPubKey)
 	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
@@ -78,11 +86,16 @@ func VerifyTxProof[T curve25519.PointOperations](proof proofs.TxProof[T], a Inte
 	pubs = append(pubs, additionalTxPubKeys...)
 
 	var viewPub curve25519.PublicKey[T]
-	curve25519.DecodeCompressedPoint(&viewPub, *a.ViewPublicKey())
+	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil {
+		return -1, false
+	}
 
 	if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
 		var spendPub curve25519.PublicKey[T]
-		curve25519.DecodeCompressedPoint(&spendPub, *a.SpendPublicKey())
+		if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+			return -1, false
+		}
+
 		return proof.Verify(prefixHash, &viewPub, &spendPub, pubs...)
 	} else {
 		return proof.Verify(prefixHash, &viewPub, nil, pubs...)

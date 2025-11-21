@@ -211,7 +211,7 @@ func TestCheckKey(t *testing.T) {
 			key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 			result := e[1] == "true"
 
-			if k := curve25519.DecodeCompressedPoint(new(curve25519.ConstantTimePublicKey), key); k == nil {
+			if k, err := new(curve25519.ConstantTimePublicKey).SetBytes(key[:]); err != nil {
 				if result {
 					t.Errorf("expected not nil")
 				}
@@ -230,7 +230,7 @@ func TestCheckKey(t *testing.T) {
 			key := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
 			result := e[1] == "true"
 
-			if k := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), key); k == nil {
+			if k, err := new(curve25519.VarTimePublicKey).SetBytes(key[:]); err != nil {
 				if result {
 					t.Errorf("expected not nil")
 				}

@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"errors"
+	"fmt"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
@@ -45,8 +46,8 @@ func NewViewWallet[T curve25519.PointOperations](primaryAddress *address.Address
 	}
 
 	var accountSpendPub curve25519.PublicKey[T]
-	if curve25519.DecodeCompressedPoint(&accountSpendPub, *primaryAddress.SpendPublicKey()) == nil {
-		return nil, errors.New("account spend pub key must be valid")
+	if _, err := accountSpendPub.SetBytes(primaryAddress.SpendPublicKey()[:]); err != nil {
+		return nil, fmt.Errorf("account spend pub key must be valid: %w", err)
 	}
 
 	w := &ViewWallet[T]{
@@ -87,7 +88,7 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.
 	var derivation curve25519.PublicKey[T]
 	var publicKey curve25519.PublicKey[T]
 	for _, pub := range txPubs {
-		if curve25519.DecodeCompressedPoint(&publicKey, pub) == nil {
+		if _, err := publicKey.SetBytes(pub[:]); err != nil {
 			continue
 		}
 		address.GetDerivation(&derivation, &publicKey, &w.viewKeyScalar)

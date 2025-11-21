@@ -37,8 +37,8 @@ func randomAddress() (addr *Address, spendKey, viewKey *curve25519.Scalar) {
 }
 
 func TestAddress(t *testing.T) {
-	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress.SpendPublicKey())
-	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *testAddress.ViewPublicKey())
+	spendPub, _ := new(curve25519.VarTimePublicKey).SetBytes(testAddress.SpendPublicKey()[:])
+	viewPub, _ := new(curve25519.VarTimePublicKey).SetBytes(testAddress.ViewPublicKey()[:])
 
 	derivation := GetDerivation(new(curve25519.VarTimePublicKey), viewPub, privateKey)
 
@@ -61,8 +61,8 @@ func BenchmarkGetEphemeralPublicKey(b *testing.B) {
 	txKey := privateKey
 	var i atomic.Uint64
 
-	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[curve25519.VarTimeCounterOperations]), *testAddress3.SpendPublicKey())
-	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[curve25519.VarTimeCounterOperations]), *testAddress3.ViewPublicKey())
+	spendPub, _ := new(curve25519.PublicKey[curve25519.VarTimeCounterOperations]).SetBytes(testAddress3.SpendPublicKey()[:])
+	viewPub, _ := new(curve25519.PublicKey[curve25519.VarTimeCounterOperations]).SetBytes(testAddress3.ViewPublicKey()[:])
 
 	curve25519.VarTimeCounterOperationsReset()
 	b.ResetTimer()
@@ -83,8 +83,8 @@ func BenchmarkGetEphemeralPublicKeyAndViewTag(b *testing.B) {
 	txKey := privateKey
 	var i atomic.Uint64
 
-	spendPub := curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[curve25519.VarTimeCounterOperations]), *testAddress3.SpendPublicKey())
-	viewPub := curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[curve25519.VarTimeCounterOperations]), *testAddress3.ViewPublicKey())
+	spendPub, _ := new(curve25519.PublicKey[curve25519.VarTimeCounterOperations]).SetBytes(testAddress3.SpendPublicKey()[:])
+	viewPub, _ := new(curve25519.PublicKey[curve25519.VarTimeCounterOperations]).SetBytes(testAddress3.ViewPublicKey()[:])
 
 	curve25519.VarTimeCounterOperationsReset()
 	b.ResetTimer()

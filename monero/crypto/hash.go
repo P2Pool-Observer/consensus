@@ -87,7 +87,8 @@ func TransactionIdHash(dst *types.Hash, coinbaseBlobMinusBaseRTC, baseRTC, pruna
 // HopefulHashToPoint
 // Defined as H_p^1 in Carrot
 func HopefulHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], data []byte) *curve25519.PublicKey[T] {
-	result := curve25519.DecodeCompressedPoint(dst, Keccak256(data))
+	h := Keccak256(data)
+	result, _ := dst.SetBytes(h[:])
 	if result == nil {
 		return nil
 	}

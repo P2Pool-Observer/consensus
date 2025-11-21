@@ -3,6 +3,7 @@ package proofs
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"strings"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
@@ -142,8 +143,8 @@ func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T],
 			return TxProof[T]{}, errors.New("invalid tx proof: invalid shared secret encoding")
 		}
 		var sharedSecret curve25519.PublicKey[T]
-		if curve25519.DecodeCompressedPoint(&sharedSecret, curve25519.PublicKeyBytes(sharedSecretBuf)) == nil {
-			return TxProof[T]{}, errors.New("invalid tx proof: invalid shared secret")
+		if _, err := sharedSecret.SetBytes(sharedSecretBuf); err != nil {
+			return TxProof[T]{}, fmt.Errorf("invalid tx proof: invalid shared secret: %w", err)
 		}
 
 		signatureBuf := base58.DecodeMoneroBase58([]byte(str[i+encodedB58SecretSize : i+encodedB58SecretSize+encodedB58SignatureSize]))

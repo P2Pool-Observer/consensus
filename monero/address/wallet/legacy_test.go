@@ -78,7 +78,7 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 	}
 
 	var txPubPoint curve25519.VarTimePublicKey
-	curve25519.DecodeCompressedPoint(&txPubPoint, txPub)
+	_, _ = txPubPoint.SetBytes(txPub[:])
 
 	inProof := address.GetInProof(sa, txId, vw.ViewKey(), &txPubPoint, "", 2)
 	t.Logf("tx proof: %s", inProof)

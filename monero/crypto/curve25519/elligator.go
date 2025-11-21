@@ -62,5 +62,9 @@ func Elligator2WithUniformBytes[T PointOperations, S ~[PublicKeySize]byte](dst *
 	// Map from Curve25519 to Ed25519
 	// Elligator 2's specification in section 5.2 says to choose the negative square root as the `v` coordinate if `Υ` was chosen (as signaled by `Ε = 1`).
 	// The following chooses the odd `y` coordinate if `Υ` was chosen, which is functionally equivalent.
-	return DecodeMontgomeryPoint(dst, u, epsilon)
+	_, err := DecodeMontgomeryPoint(dst, u, epsilon)
+	if err != nil {
+		panic(err)
+	}
+	return dst
 }

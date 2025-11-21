@@ -21,7 +21,7 @@ func TestDestinationV1_ConvergeMakeSubaddress(t *testing.T) {
 	viewKey := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("60eff3ec120a12bb44d4258816e015952fc5651040da8c8af58c17676485f200")
 	var accountViewPub curve25519.VarTimePublicKey
 
-	spendPubPoint := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), spendPub)
+	spendPubPoint, _ := new(curve25519.VarTimePublicKey).SetBytes(spendPub[:])
 	MakeAccountViewPub(&accountViewPub, viewKey.Scalar(), spendPubPoint)
 
 	subaddress, err := MakeDestinationSubaddress(

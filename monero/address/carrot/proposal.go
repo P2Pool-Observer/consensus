@@ -30,11 +30,11 @@ func (p *PaymentProposalV1[T]) UnsafeForceTorsionChecked() {
 func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []byte, isCoinbase bool) (ephemeralPubkey, senderReceiverUnctx curve25519.MontgomeryPoint) {
 	var spendPub, viewPub curve25519.PublicKey[T]
 
-	if curve25519.DecodeCompressedPoint[T](&spendPub, *p.Destination.Address.SpendPublicKey()) == nil {
+	if _, err := spendPub.SetBytes(p.Destination.Address.SpendPublicKey()[:]); err != nil {
 		// failed decoding or torsion checks
 		return curve25519.ZeroMontgomeryPoint, curve25519.ZeroMontgomeryPoint
 	}
-	if curve25519.DecodeCompressedPoint[T](&viewPub, *p.Destination.Address.ViewPublicKey()) == nil {
+	if _, err := viewPub.SetBytes(p.Destination.Address.ViewPublicKey()[:]); err != nil {
 		// failed decoding or torsion checks
 		return curve25519.ZeroMontgomeryPoint, curve25519.ZeroMontgomeryPoint
 	}
@@ -120,7 +120,9 @@ func (p *PaymentProposalV1[T]) CoinbaseOutputFromPartial(hasher *blake2b.Digest,
 	enote.EphemeralPubKey = ephemeralPubkey
 
 	var spendPub curve25519.PublicKey[T]
-	curve25519.DecodeCompressedPoint[T](&spendPub, *p.Destination.Address.SpendPublicKey())
+	if _, err := spendPub.SetBytes(p.Destination.Address.SpendPublicKey()[:]); err != nil {
+		panic(err)
+	}
 
 	// 4. build the output enote address pieces
 	{
@@ -179,7 +181,9 @@ func (p *PaymentProposalV1[T]) Output(out *RCTEnoteProposal, firstKeyImage curve
 	}
 
 	var spendPub curve25519.PublicKey[T]
-	curve25519.DecodeCompressedPoint[T](&spendPub, *p.Destination.Address.SpendPublicKey())
+	if _, err = spendPub.SetBytes(p.Destination.Address.SpendPublicKey()[:]); err != nil {
+		return err
+	}
 
 	out.Enote.FirstKeyImage = firstKeyImage
 	out.Enote.EphemeralPubKey = ephemeralPubkey

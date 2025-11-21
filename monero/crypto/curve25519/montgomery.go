@@ -36,7 +36,7 @@ func (v *MontgomeryPoint) Equal(u *MontgomeryPoint) int {
 
 // Edwards Attempt conversion of v to an Edwards25519 point
 // Note that not every MontgomeryPoint has a valid point
-func (v *MontgomeryPoint) Edwards(sign int) *ConstantTimePublicKey {
+func (v *MontgomeryPoint) Edwards(sign int) (*ConstantTimePublicKey, error) {
 	var u field.Element
 	_, _ = u.SetBytes(v.Slice())
 
@@ -94,6 +94,33 @@ func (v *MontgomeryPoint) MarshalJSON() ([]byte, error) {
 var ZeroMontgomeryPoint MontgomeryPoint
 
 var MontgomeryBasepoint = MontgomeryPoint{9}
+
+// DecodeMontgomeryPoint Decode a Montgomery coordinate and sign to Ed25519
+// Constant time
+//
+// To decompress the Montgomery u coordinate to an `EdwardsPoint`,
+// we apply the birational map to obtain the Edwards y coordinate, then do Edwards decompression.
+func DecodeMontgomeryPoint[T PointOperations](r *PublicKey[T], u *field.Element, sign int) (*PublicKey[T], error) {
+	if u == nil || u.Equal(_NEGATIVE_ONE) == 1 {
+		return nil, errors.New("invalid coordinate")
+	}
+
+	var tmp1, tmp2 field.Element
+
+	// The birational map is y = (u-1)/(u+1).
+	y := u.Multiply(
+		tmp1.Subtract(u, _ONE),
+		tmp2.Invert(tmp2.Add(u, _ONE)),
+	)
+
+	var yBytes [PublicKeySize]byte
+	copy(yBytes[:], y.Bytes())
+	yBytes[31] ^= byte(sign << 7)
+	if _, err := r.SetBytes(yBytes[:]); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
 
 // MontgomeryScalarBaseMult Multiply a Scalar by the Basepoint, and place result in dst
 // This is done by doing it in Edwards25519 then converting to Montgomery

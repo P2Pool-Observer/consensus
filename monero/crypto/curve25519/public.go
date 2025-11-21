@@ -12,6 +12,8 @@ import (
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
+type Point = edwards25519.Point
+
 const PublicKeySize = 32
 
 var ZeroPublicKeyBytes = PublicKeyBytes{}
@@ -152,6 +154,16 @@ func (v *PublicKey[T]) IsTorsionFree() bool {
 // SetBytes Decompress a canonically-encoded Ed25519 point.
 // Canonical encoded means that the Y coordinate is reduced, and that negative zero is not allowed
 // Equivalent to Monero's check_key or ge_frombytes_vartime (with constant or vartime implementations)
+//
+// Ed25519 is of order `8 * basepointOrder`. This function ensures each of those `8 * basepointOrder` points have a
+// singular encoding by checking points aren't encoded with an unreduced field element,
+// and aren't negative when the negative is equivalent (0 == -0).
+//
+// Since this decodes an Ed25519 point, it does not check the point is in the prime-order
+// subgroup. Torsioned points do have a canonical encoding, and only aren't canonical when
+// considered in relation to the prime-order subgroup.
+//
+// To verify torsion use PublicKey.IsTorsionFree
 func (v *PublicKey[T]) SetBytes(x []byte) (*PublicKey[T], error) {
 	_, err := setBytes(v.op(), &v.p, x)
 	if err != nil {
@@ -209,11 +221,13 @@ func (k *PublicKeyBytes) Slice() []byte {
 }
 
 func (k *PublicKeyBytes) Point() *ConstantTimePublicKey {
-	return DecodeCompressedPoint(new(ConstantTimePublicKey), *k)
+	p, _ := new(ConstantTimePublicKey).SetBytes(k[:])
+	return p
 }
 
 func (k *PublicKeyBytes) PointVarTime() *VarTimePublicKey {
-	return DecodeCompressedPoint(new(VarTimePublicKey), *k)
+	p, _ := new(VarTimePublicKey).SetBytes(k[:])
+	return p
 }
 
 func (k *PublicKeyBytes) String() string {

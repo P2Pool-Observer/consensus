@@ -17,8 +17,8 @@ func (d *NilDerivationCache) Clear() {
 }
 
 func (d *NilDerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, _ curve25519.PrivateKeyBytes, txKeyScalar *curve25519.Scalar, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
-	spendPub := curve25519.DecodeCompressedPoint[curve25519.VarTimeOperations](new(curve25519.VarTimePublicKey), *a.SpendPublicKey())
-	viewPub := curve25519.DecodeCompressedPoint[curve25519.VarTimeOperations](new(curve25519.VarTimePublicKey), *a.ViewPublicKey())
+	spendPub, _ := new(curve25519.VarTimePublicKey).SetBytes(a.SpendPublicKey()[:])
+	viewPub, _ := new(curve25519.VarTimePublicKey).SetBytes(a.ViewPublicKey()[:])
 	ephemeralPubKey, viewTag := address.GetEphemeralPublicKeyAndViewTag(new(curve25519.VarTimePublicKey), spendPub, viewPub, txKeyScalar, outputIndex)
 
 	return ephemeralPubKey.AsBytes(), viewTag

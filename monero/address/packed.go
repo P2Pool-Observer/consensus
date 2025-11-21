@@ -85,10 +85,10 @@ func (p PackedAddress) ToBase58(typeNetwork uint8, err ...error) []byte {
 // Valid check that points can be decoded and that they are not torsioned
 func (p PackedAddress) Valid() bool {
 	var spendPub, viewPub curve25519.PublicKey[curve25519.VarTimeOperations]
-	if curve25519.DecodeCompressedPoint(&spendPub, *p.SpendPublicKey()) == nil || !spendPub.IsTorsionFree() {
+	if _, err := spendPub.SetBytes(p.SpendPublicKey()[:]); err != nil || !spendPub.IsTorsionFree() {
 		return false
 	}
-	if curve25519.DecodeCompressedPoint(&viewPub, *p.ViewPublicKey()) == nil || !viewPub.IsTorsionFree() {
+	if _, err := viewPub.SetBytes(p.ViewPublicKey()[:]); err != nil || !viewPub.IsTorsionFree() {
 		return false
 	}
 	return true
@@ -136,10 +136,10 @@ func (p *PackedAddressWithSubaddress) PackedAddress() *PackedAddress {
 // Valid check that points can be decoded and that they are not torsioned
 func (p *PackedAddressWithSubaddress) Valid() bool {
 	var spendPub, viewPub curve25519.PublicKey[curve25519.VarTimeOperations]
-	if curve25519.DecodeCompressedPoint(&spendPub, *p.SpendPublicKey()) == nil || !spendPub.IsTorsionFree() {
+	if _, err := spendPub.SetBytes(p.SpendPublicKey()[:]); err != nil || !spendPub.IsTorsionFree() {
 		return false
 	}
-	if curve25519.DecodeCompressedPoint(&viewPub, *p.ViewPublicKey()) == nil || !viewPub.IsTorsionFree() {
+	if _, err := viewPub.SetBytes(p.ViewPublicKey()[:]); err != nil || !viewPub.IsTorsionFree() {
 		return false
 	}
 	return true

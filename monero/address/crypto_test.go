@@ -61,7 +61,7 @@ func TestDerivePublicKey(t *testing.T) {
 			expectedDerivedKey = types.MustHashFromString(e[4])
 		}
 
-		point2 := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), base)
+		point2, _ := new(curve25519.VarTimePublicKey).SetBytes(base[:])
 
 		if result == false && point2 == nil {
 			//expected failure

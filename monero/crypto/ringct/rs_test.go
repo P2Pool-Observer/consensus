@@ -59,7 +59,7 @@ func TestCheckRingSignature(t *testing.T) {
 
 		if err := func() error {
 			prefixHash := types.MustHashFromString(e[0])
-			keyImage := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1]))
+			keyImage, _ := new(curve25519.VarTimePublicKey).SetBytes(hex.MustDecodeString(e[1]))
 
 			if keyImage == nil {
 				return errors.New("keyImage is nil")
@@ -79,9 +79,7 @@ func TestCheckRingSignature(t *testing.T) {
 			var ring Ring[curve25519.VarTimeOperations]
 
 			for range count {
-				pub := curve25519.DecodeCompressedPoint[curve25519.VarTimeOperations](new(curve25519.VarTimePublicKey),
-					types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0]),
-				)
+				pub, _ := new(curve25519.VarTimePublicKey).SetBytes(hex.MustDecodeString(e[0]))
 				if pub == nil {
 					return errors.New("pub is nil")
 				}
@@ -129,7 +127,7 @@ func TestGenerateRingSignature(t *testing.T) {
 	for e := range results {
 		if err := func() error {
 			prefixHash := types.MustHashFromString(e[0])
-			keyImage := curve25519.DecodeCompressedPoint[curve25519.ConstantTimeOperations](new(curve25519.ConstantTimePublicKey), types.MustBytes32FromString[curve25519.PublicKeyBytes](e[1]))
+			keyImage, _ := new(curve25519.ConstantTimePublicKey).SetBytes(hex.MustDecodeString(e[1]))
 
 			if keyImage == nil {
 				return errors.New("keyImage is nil")
@@ -149,9 +147,7 @@ func TestGenerateRingSignature(t *testing.T) {
 			var ring Ring[curve25519.ConstantTimeOperations]
 
 			for range count {
-				pub := curve25519.DecodeCompressedPoint[curve25519.ConstantTimeOperations](new(curve25519.ConstantTimePublicKey),
-					types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0]),
-				)
+				pub, _ := new(curve25519.ConstantTimePublicKey).SetBytes(hex.MustDecodeString(e[0]))
 				if pub == nil {
 					return errors.New("pub is nil")
 				}

@@ -86,8 +86,8 @@ func (d *DerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, txKey 
 	if ephemeralPubKey, ok := d.ephemeralPublicKeyCache.Get(key); ok {
 		return ephemeralPubKey.PublicKey, ephemeralPubKey.ViewTag
 	} else {
-		spendPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *a.SpendPublicKey())
-		viewPub := curve25519.DecodeCompressedPoint(new(curve25519.VarTimePublicKey), *a.ViewPublicKey())
+		spendPub, _ := new(curve25519.VarTimePublicKey).SetBytes(a.SpendPublicKey()[:])
+		viewPub, _ := new(curve25519.VarTimePublicKey).SetBytes(a.ViewPublicKey()[:])
 		derivation := d.getDerivation(*a.ViewPublicKey(), txKey, viewPub, txKeyScalar)
 
 		var pK curve25519.Scalar
