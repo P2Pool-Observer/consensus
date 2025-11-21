@@ -37,26 +37,25 @@ func GetKeyImage[T curve25519.PointOperations](out *curve25519.PublicKey[T], pai
 
 // SecretDeriveN As defined in Carrot = SecretDerive(x) = H_n(x)
 func SecretDeriveN[S ~[]byte](dst S, key []byte, data []byte, args ...[]byte) {
-	hasher, _ := blake2b.NewDigest(len(dst), key, nil, nil)
-	if hasher == nil {
-		panic("unreachable")
-	}
-	_, _ = hasher.Write(data)
+	var hasher blake2b.Digest
+	_ = hasher.Init(len(dst), key, nil, nil)
+	_, _ = utils.WriteNoEscape(&hasher, data)
 	for _, b := range args {
-		_, _ = hasher.Write(b)
+		_, _ = utils.WriteNoEscape(&hasher, b)
 	}
 
-	hasher.Sum(dst[:0])
+	utils.SumNoEscape(&hasher, dst[:0])
 }
 
 // SecretDerive As defined in Carrot = SecretDerive(x) = H_32(x)
 func SecretDerive(key []byte, data ...[]byte) types.Hash {
-	hasher, _ := blake2b.New256(key)
+	var hasher blake2b.Digest
+	_ = hasher.Init(blake2b.Size256, key, nil, nil)
 	for _, b := range data {
-		_, _ = utils.WriteNoEscape(hasher, b)
+		_, _ = utils.WriteNoEscape(&hasher, b)
 	}
 	var h types.Hash
-	utils.SumNoEscape(hasher, h[:0])
+	utils.SumNoEscape(&hasher, h[:0])
 
 	return h
 }

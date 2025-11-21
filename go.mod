@@ -11,10 +11,9 @@ require (
 	git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0
 	git.gammaspectra.live/P2Pool/zmq4 v0.99.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/holiman/uint256 v1.3.2
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc
 	github.com/ulikunitz/xz v0.5.15
-	golang.org/x/crypto v0.44.0
+	golang.org/x/crypto v0.45.0
 	golang.org/x/net v0.47.0
 	golang.org/x/sync v0.18.0
 	golang.org/x/sys v0.38.0
