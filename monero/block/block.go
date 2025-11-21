@@ -8,6 +8,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	fcmp_pp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/fcmp-plus-plus"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -16,10 +17,6 @@ import (
 
 // MaxTransactionCount TODO: this differs from P2Pool's num_transactions >= MAX_BLOCK_SIZE / HASH_SIZE)
 const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize
-
-// FCMPPlusPlusMaxLayers Restricting n layers keeps the proof_len table size very small and portable
-// 12 layers means the tree can support over 100 quadrillion outputs
-const FCMPPlusPlusMaxLayers = 12
 
 type Block struct {
 	MajorVersion uint8 `json:"major_version"`
@@ -282,8 +279,8 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		if b.FCMPTreeLayers, err = utils.ReadByteNoEscape(reader); err != nil {
 			return err
 		}
-		if b.FCMPTreeLayers > FCMPPlusPlusMaxLayers {
-			return utils.ErrorfNoEscape("layer count for FCMP++ too large: %d > %d", b.FCMPTreeLayers, FCMPPlusPlusMaxLayers)
+		if b.FCMPTreeLayers > fcmp_pp.MaxLayers {
+			return utils.ErrorfNoEscape("layer count for FCMP++ too large: %d > %d", b.FCMPTreeLayers, fcmp_pp.MaxLayers)
 		}
 		if _, err = utils.ReadFullNoEscape(reader, b.FCMPTreeRoot[:]); err != nil {
 			return err
