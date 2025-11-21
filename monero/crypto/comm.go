@@ -16,7 +16,7 @@ func (s *SignatureComm[T]) Bytes() []byte {
 	var buf [types.HashSize + curve25519.PublicKeySize*2]byte
 
 	copy(buf[:], s.Hash[:])
-	copy(buf[types.HashSize:], s.Key.Slice())
-	copy(buf[types.HashSize+curve25519.PublicKeySize:], s.Comm.Slice())
+	copy(buf[types.HashSize:], s.Key.Bytes())
+	copy(buf[types.HashSize+curve25519.PublicKeySize:], s.Comm.Bytes())
 	return buf[:]
 }

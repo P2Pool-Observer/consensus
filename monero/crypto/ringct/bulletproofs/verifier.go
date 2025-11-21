@@ -43,5 +43,5 @@ func (ibv InternalBatchVerifier[T]) Verify(G, H *curve25519.PublicKey[T], gen Ge
 		points = append(points, &p.P)
 	}
 
-	return new(curve25519.PublicKey[T]).MultiScalarMult(scalars, points).IsIdentity()
+	return new(curve25519.PublicKey[T]).MultiScalarMult(scalars, points).IsIdentity() == 1
 }

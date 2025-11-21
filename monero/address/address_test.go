@@ -33,7 +33,7 @@ func randomAddress() (addr *Address, spendKey, viewKey *curve25519.Scalar) {
 	spendKey = curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)
 	viewKey = crypto.ScalarDeriveLegacy(new(curve25519.Scalar), spendKey.Bytes())
 
-	return FromRawAddress(monero.TestNetwork, new(curve25519.VarTimePublicKey).ScalarBaseMult(spendKey).Bytes(), new(curve25519.VarTimePublicKey).ScalarBaseMult(viewKey).Bytes()), spendKey, viewKey
+	return FromRawAddress(monero.TestNetwork, new(curve25519.VarTimePublicKey).ScalarBaseMult(spendKey).AsBytes(), new(curve25519.VarTimePublicKey).ScalarBaseMult(viewKey).AsBytes()), spendKey, viewKey
 }
 
 func TestAddress(t *testing.T) {
@@ -42,10 +42,10 @@ func TestAddress(t *testing.T) {
 
 	derivation := GetDerivation(new(curve25519.VarTimePublicKey), viewPub, privateKey)
 
-	sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), 37)
+	sharedData := crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.AsBytes(), 37)
 	ephemeralPublicKey := GetPublicKeyForSharedData(new(curve25519.VarTimePublicKey), spendPub, sharedData)
 
-	if bytes.Compare(ephemeralPublicKey.Slice(), ephemeralPubKey) != 0 {
+	if bytes.Compare(ephemeralPublicKey.Bytes(), ephemeralPubKey) != 0 {
 		t.Fatalf("ephemeral key mismatch, expected %s, got %s", fasthex.EncodeToString(ephemeralPubKey), ephemeralPublicKey.String())
 	}
 }

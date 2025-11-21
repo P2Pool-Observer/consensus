@@ -6,11 +6,18 @@ import (
 	"strconv"
 )
 
-func PreviousPowerOfTwo(x uint64) int {
+func PreviousPowerOfTwo[T ~uint | ~uint64](x T) int {
 	if x == 0 {
 		return 0
 	}
-	return 1 << (bits.Len64(x) - 1)
+	return 1 << (bits.Len64(uint64(x)) - 1)
+}
+
+func NextPowerOfTwo[T ~uint | ~uint64](x T) int {
+	if x == 0 {
+		return 1
+	}
+	return 1 << bits.Len64(uint64(x)-1)
 }
 
 // ParseUint64 parses uint64 from s.

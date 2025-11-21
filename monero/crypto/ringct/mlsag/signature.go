@@ -102,22 +102,22 @@ func (s *Signature[T]) Verify(prefixHash types.Hash, ringMatrix RingMatrix[T], k
 
 			L.DoubleScalarBaseMult(&ci, &entry, &s)
 
-			memberBytes := entry.Bytes()
+			memberBytes := entry.AsBytes()
 
 			buf = append(buf, memberBytes[:]...)
-			buf = append(buf, L.Slice()...)
+			buf = append(buf, L.Bytes()...)
 
 			// Not all dimensions need to be linkable, e.g. commitments, and only linkable layers need
 			// to have key images.
 			if j < len(keyImages) {
 				ki := keyImages[j]
 
-				if ki.IsIdentity() || !ki.IsTorsionFree() {
+				if ki.IsIdentity() == 1 || !ki.IsTorsionFree() {
 					return ErrInvalidKeyImage
 				}
 
 				R.DoubleScalarMult(&s, crypto.BiasedHashToPoint(new(curve25519.PublicKey[T]), memberBytes[:]), &ci, &ki)
-				buf = append(buf, R.Slice()...)
+				buf = append(buf, R.Bytes()...)
 			}
 		}
 

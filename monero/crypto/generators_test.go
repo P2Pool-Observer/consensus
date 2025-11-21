@@ -32,7 +32,7 @@ func TestReproduceGenerators(t *testing.T) {
 
 			expected := curve25519.PublicKeyBytes(h)
 
-			p := curve25519.FromPoint[curve25519.VarTimeOperations](e.Generator.Point).Bytes()
+			p := curve25519.FromPoint[curve25519.VarTimeOperations](e.Generator.Point).AsBytes()
 			if p != expected {
 				t.Fatalf("got %s, expected %s", p.String(), expected.String())
 			} else {

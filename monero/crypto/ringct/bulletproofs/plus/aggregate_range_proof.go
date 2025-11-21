@@ -24,7 +24,7 @@ type AggregateRangeStatement[T curve25519.PointOperations] struct {
 }
 
 func (ars AggregateRangeStatement[T]) TranscriptA(transcript *curve25519.Scalar, A *curve25519.PublicKey[T]) (y, z curve25519.Scalar) {
-	crypto.ScalarDeriveLegacy(&y, transcript.Bytes(), A.Slice())
+	crypto.ScalarDeriveLegacy(&y, transcript.Bytes(), A.Bytes())
 	crypto.ScalarDeriveLegacy(&z, y.Bytes())
 	*transcript = z
 	return y, z

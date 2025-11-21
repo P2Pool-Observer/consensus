@@ -46,11 +46,11 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 				out, _, _ := address.CalculateTransactionOutput[T](addrI, txKey, 0, amount)
 				out.Reward = 0
 
-				i, pub, _, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.Bytes())
+				i, pub, _, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes())
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
-				if pub != txPub.Bytes() {
+				if pub != txPub.AsBytes() {
 					t.Fatalf("got pub %s, want %s", pub.String(), txPub.String())
 				}
 				if subaddressIndex != ix {
@@ -139,11 +139,11 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 					additionalPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 				}
 
-				i, pub, sharedData, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.Bytes(), additionalPub.Bytes())
+				i, pub, sharedData, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes(), additionalPub.AsBytes())
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
-				if pub != additionalPub.Bytes() {
+				if pub != additionalPub.AsBytes() {
 					t.Fatalf("got pub %s, want %s", pub.String(), additionalPub.String())
 				}
 				if subaddressIndex != ix {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"unsafe"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519"
 	fasthex "github.com/tmthrgd/go-hex"
@@ -126,8 +127,18 @@ func (v *PublicKey[T]) MultiScalarMultPoints(scalars []*Scalar, points []*Point)
 
 var identity = edwards25519.NewIdentityPoint()
 
-func (v *PublicKey[T]) IsIdentity() bool {
-	return v.P().Equal(identity) == 1
+func (v *PublicKey[T]) Set(x *PublicKey[T]) *PublicKey[T] {
+	v.P().Set(x.P())
+	return v
+}
+
+func (v *PublicKey[T]) Identity() *PublicKey[T] {
+	v.P().Set(identity)
+	return v
+}
+
+func (v *PublicKey[T]) IsIdentity() int {
+	return v.P().Equal(identity)
 }
 
 func (v *PublicKey[T]) IsSmallOrder() bool {
@@ -166,16 +177,17 @@ func (v *PublicKey[T]) FromReader(reader utils.ReaderAndByteReader) (err error) 
 }
 
 // Bytes Compresses an Ed25519 to its canonical compressed Y
-func (v *PublicKey[T]) Bytes() PublicKeyBytes {
-	return PublicKeyBytes(v.p.Bytes())
-}
-
-func (v *PublicKey[T]) Slice() []byte {
+func (v *PublicKey[T]) Bytes() []byte {
 	return v.p.Bytes()
 }
 
+// AsBytes Equivalent to Bytes but with PublicKeyBytes return type
+func (v *PublicKey[T]) AsBytes() PublicKeyBytes {
+	return PublicKeyBytes(v.p.Bytes())
+}
+
 func (v *PublicKey[T]) String() string {
-	return fasthex.EncodeToString(v.Slice())
+	return fasthex.EncodeToString(v.Bytes())
 }
 
 func (v *PublicKey[T]) P() *Point {
@@ -256,3 +268,10 @@ func (k PublicKeyBytes) MarshalJSON() ([]byte, error) {
 	fasthex.Encode(buf[1:], k[:])
 	return buf[:], nil
 }
+
+func assertPoint[P any, S any, T curve.ExtraCurvePoint[P, S]](p *P, s *S) T {
+	return T(p)
+}
+
+var _ = assertPoint(new(VarTimePublicKey), new(Scalar))
+var _ = assertPoint(new(ConstantTimePublicKey), new(Scalar))

@@ -29,7 +29,7 @@ type ViewWalletLegacyInterface[T curve25519.PointOperations] interface {
 }
 
 func TrySearchForOpeningForSubaddress[T curve25519.PointOperations, ViewWallet ViewWalletInterface[T]](vw ViewWallet, spendPub *curve25519.PublicKey[T], spendKey *curve25519.Scalar) (keyG, keyT *curve25519.Scalar, ok bool) {
-	index, ok := vw.HasSpend(spendPub.Bytes())
+	index, ok := vw.HasSpend(spendPub.AsBytes())
 	if !ok {
 		return nil, nil, false
 	}

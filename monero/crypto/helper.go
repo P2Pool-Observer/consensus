@@ -24,6 +24,11 @@ type EvilPoint[T curve25519.PointOperations] struct {
 	Kind EvilKind
 }
 
+func (*EvilPoint[T]) IsIdentity() int {
+	//TODO implement me
+	panic("implement me")
+}
+
 func EvilPointGenerator[T curve25519.PointOperations](sourceScalar *curve25519.Scalar, kindsMask ...EvilKind) (pubs []EvilPoint[T]) {
 
 	// random point to do tests with

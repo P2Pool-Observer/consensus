@@ -42,7 +42,7 @@ func GetSubaddressSpendPub[T curve25519.PointOperations](spendPub *curve25519.Pu
 	// D = B + M
 	D.Add(spendPub, &M)
 
-	return D.Bytes()
+	return D.AsBytes()
 }
 
 func GetSubaddressNoAllocate[T curve25519.PointOperations](baseNetwork uint8, spendPub *curve25519.PublicKey[T], viewKeyScalar *curve25519.Scalar, viewKeyBytes curve25519.PrivateKeyBytes, index address.SubaddressIndex) *address.Address {
@@ -68,11 +68,11 @@ func GetSubaddressNoAllocate[T curve25519.PointOperations](baseNetwork uint8, sp
 
 	switch baseNetwork {
 	case monero.MainNetwork:
-		return address.FromRawAddress(monero.SubAddressMainNetwork, D.Bytes(), C.Bytes())
+		return address.FromRawAddress(monero.SubAddressMainNetwork, D.AsBytes(), C.AsBytes())
 	case monero.TestNetwork:
-		return address.FromRawAddress(monero.SubAddressTestNetwork, D.Bytes(), C.Bytes())
+		return address.FromRawAddress(monero.SubAddressTestNetwork, D.AsBytes(), C.AsBytes())
 	case monero.StageNetwork:
-		return address.FromRawAddress(monero.SubAddressStageNetwork, D.Bytes(), C.Bytes())
+		return address.FromRawAddress(monero.SubAddressStageNetwork, D.AsBytes(), C.AsBytes())
 	default:
 		return nil
 	}
@@ -97,7 +97,7 @@ func GetSubaddressFakeAddress(sa address.InterfaceSubaddress, viewKey *curve2551
 	curve25519.DecodeCompressedPoint(&spendPub, *sa.SpendPublicKey())
 
 	// mismatched view key
-	if new(curve25519.VarTimePublicKey).ScalarMult(viewKey, &spendPub).Bytes() != *sa.ViewPublicKey() {
+	if new(curve25519.VarTimePublicKey).ScalarMult(viewKey, &spendPub).AsBytes() != *sa.ViewPublicKey() {
 		return nil
 	}
 
@@ -107,15 +107,15 @@ func GetSubaddressFakeAddress(sa address.InterfaceSubaddress, viewKey *curve2551
 	case *address.Address:
 		switch t.TypeNetwork {
 		case monero.SubAddressMainNetwork:
-			return address.FromRawAddress(monero.MainNetwork, *sa.SpendPublicKey(), viewPub.Bytes())
+			return address.FromRawAddress(monero.MainNetwork, *sa.SpendPublicKey(), viewPub.AsBytes())
 		case monero.SubAddressTestNetwork:
-			return address.FromRawAddress(monero.TestNetwork, *sa.SpendPublicKey(), viewPub.Bytes())
+			return address.FromRawAddress(monero.TestNetwork, *sa.SpendPublicKey(), viewPub.AsBytes())
 		case monero.SubAddressStageNetwork:
-			return address.FromRawAddress(monero.StageNetwork, *sa.SpendPublicKey(), viewPub.Bytes())
+			return address.FromRawAddress(monero.StageNetwork, *sa.SpendPublicKey(), viewPub.AsBytes())
 		default:
 			return nil
 		}
 	default:
-		return &address.PackedAddress{*sa.SpendPublicKey(), viewPub.Bytes()}
+		return &address.PackedAddress{*sa.SpendPublicKey(), viewPub.AsBytes()}
 	}
 }

@@ -21,7 +21,7 @@ type InnerProductStatement[T curve25519.PointOperations] struct {
 }
 
 func (ips InnerProductStatement[T]) TranscriptLR(transcript curve25519.Scalar, L, R *curve25519.PublicKey[T]) (out curve25519.Scalar) {
-	crypto.ScalarDeriveLegacy(&out, transcript.Bytes(), L.Slice(), R.Slice())
+	crypto.ScalarDeriveLegacy(&out, transcript.Bytes(), L.Bytes(), R.Bytes())
 	return out
 }
 

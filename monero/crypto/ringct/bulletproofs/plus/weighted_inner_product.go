@@ -58,11 +58,11 @@ func NewWeightedInnerProductStatement[T curve25519.PointOperations](P *curve2551
 }
 
 func (wips WeightedInnerProductStatement[T]) TranscriptLR(transcript *curve25519.Scalar, L, R *curve25519.PublicKey[T]) *curve25519.Scalar {
-	return crypto.ScalarDeriveLegacy(transcript, transcript.Bytes(), L.Slice(), R.Slice())
+	return crypto.ScalarDeriveLegacy(transcript, transcript.Bytes(), L.Bytes(), R.Bytes())
 }
 
 func (wips WeightedInnerProductStatement[T]) TranscriptAB(transcript *curve25519.Scalar, A, B *curve25519.PublicKey[T]) *curve25519.Scalar {
-	return crypto.ScalarDeriveLegacy(transcript, transcript.Bytes(), A.Slice(), B.Slice())
+	return crypto.ScalarDeriveLegacy(transcript, transcript.Bytes(), A.Bytes(), B.Bytes())
 }
 
 // NextGH Prover's variant of the shared code block to calculate G/H/P when n > 1

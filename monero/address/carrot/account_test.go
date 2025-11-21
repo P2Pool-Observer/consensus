@@ -83,7 +83,7 @@ func TestConvergeAccount(t *testing.T) {
 			generateImage.Scalar(),
 			proveSpend.Scalar(),
 		)
-		if result.Bytes() != expected {
+		if result.AsBytes() != expected {
 			t.Fatalf("expected: %s, got: %s", expected.String(), result.String())
 		}
 	})
@@ -102,7 +102,7 @@ func TestConvergeAccount(t *testing.T) {
 			generateImage.Scalar(),
 			&proveSpendPub,
 		)
-		if result.Bytes() != expected {
+		if result.AsBytes() != expected {
 			t.Fatalf("expected: %s, got: %s", expected.String(), result.String())
 		}
 	})

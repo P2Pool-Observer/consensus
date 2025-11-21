@@ -92,7 +92,7 @@ func (d *DerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, txKey 
 
 		var pK curve25519.Scalar
 		_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation, outputIndex)
-		ephPub := address.GetPublicKeyForSharedData(new(curve25519.VarTimePublicKey), spendPub, &pK).Bytes()
+		ephPub := address.GetPublicKeyForSharedData(new(curve25519.VarTimePublicKey), spendPub, &pK).AsBytes()
 
 		d.ephemeralPublicKeyCache.Set(key, ephemeralPublicKeyWithViewTag{PublicKey: ephPub, ViewTag: viewTag})
 		return ephPub, viewTag
@@ -121,7 +121,7 @@ func (d *DerivationCache) getDerivation(viewPublicKeyBytes curve25519.PublicKeyB
 	if derivation, ok := d.derivationCache.Get(key); ok {
 		return derivation
 	} else {
-		derivation = address.GetDerivation(new(curve25519.VarTimePublicKey), viewPub, txKeyScalar).Bytes()
+		derivation = address.GetDerivation(new(curve25519.VarTimePublicKey), viewPub, txKeyScalar).AsBytes()
 		d.derivationCache.Set(key, derivation)
 		return derivation
 	}

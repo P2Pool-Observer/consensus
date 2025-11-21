@@ -208,7 +208,7 @@ func (c *SideChain) isPoolBlockTransactionKeyIsDeterministic(block *PoolBlock) b
 	if len(pubs) != 1 {
 		return false
 	}
-	return bytes.Compare(pubs[0].Slice(), kP.PublicKey.Slice()) == 0 && block.Side.CoinbasePrivateKey == curve25519.PrivateKeyBytes(kP.PrivateKey.Bytes())
+	return bytes.Compare(pubs[0].Slice(), kP.PublicKey.Bytes()) == 0 && block.Side.CoinbasePrivateKey == curve25519.PrivateKeyBytes(kP.PrivateKey.Bytes())
 }
 
 func (c *SideChain) getSeedByHeightFunc() mainblock.GetSeedByHeightFunc {

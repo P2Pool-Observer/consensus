@@ -237,7 +237,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 	kP := s.sidechain.DerivationCache().GetDeterministicTransactionKey(s.newTemplateData.TransactionPrivateKeySeed, s.minerData.PrevId)
 	s.newTemplateData.TransactionPrivateKey = curve25519.PrivateKeyBytes(kP.PrivateKey.Bytes())
-	s.newTemplateData.TransactionPublicKey = kP.PublicKey.Bytes()
+	s.newTemplateData.TransactionPublicKey = kP.PublicKey.AsBytes()
 
 	minorVersion := min(monero.HardForkSupportedVersion, s.minerData.MinorVersion)
 	if minorVersion == 0 {

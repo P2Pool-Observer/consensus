@@ -162,21 +162,21 @@ func (ags AggregateRangeStatement[T]) InitialTranscript() (S curve25519.Scalar, 
 	buf := make([]byte, 0, len(V)*curve25519.PublicKeySize)
 	for i := range V {
 		V[i].ScalarMult(invEight, &V[i])
-		buf = append(buf, V[i].Slice()...)
+		buf = append(buf, V[i].Bytes()...)
 	}
 	crypto.ScalarDeriveLegacy(&S, buf)
 	return S, V
 }
 
 func (ags AggregateRangeStatement[T]) TranscriptAS(transcript curve25519.Scalar, A, S *curve25519.PublicKey[T]) (y, z curve25519.Scalar) {
-	crypto.ScalarDeriveLegacy(&y, transcript.Bytes(), A.Slice(), S.Slice())
+	crypto.ScalarDeriveLegacy(&y, transcript.Bytes(), A.Bytes(), S.Bytes())
 	crypto.ScalarDeriveLegacy(&z, y.Bytes())
 	return y, z
 }
 
 func (ags AggregateRangeStatement[T]) TranscriptT12(transcript curve25519.Scalar, T1, T2 *curve25519.PublicKey[T]) (t12 curve25519.Scalar) {
 	tBytes := transcript.Bytes()
-	crypto.ScalarDeriveLegacy(&t12, tBytes, tBytes, T1.Slice(), T2.Slice())
+	crypto.ScalarDeriveLegacy(&t12, tBytes, tBytes, T1.Bytes(), T2.Bytes())
 	return t12
 }
 

@@ -31,13 +31,13 @@ type modeSign[T curve25519.PointOperations] struct {
 }
 
 func (m modeSign[T]) HashExtendD(DInvEight *curve25519.PublicKey[T], data []byte) []byte {
-	data = append(data, DInvEight.Slice()...)
+	data = append(data, DInvEight.Bytes()...)
 	return data
 }
 
 func (m modeSign[T]) LoopConfiguration(data []byte, n int) (out []byte, start, end int, c1 curve25519.Scalar) {
-	data = append(data, m.A.Slice()...)
-	data = append(data, m.AH.Slice()...)
+	data = append(data, m.A.Bytes()...)
+	data = append(data, m.AH.Bytes()...)
 
 	return data, m.SignerIndex + 1, m.SignerIndex + n, *crypto.ScalarDeriveLegacy(new(curve25519.Scalar), data)
 }

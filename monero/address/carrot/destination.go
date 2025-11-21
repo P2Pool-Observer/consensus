@@ -34,7 +34,7 @@ func MakeDestinationSubaddress[T curve25519.PointOperations](hasher *blake2b.Dig
 
 	// k^j_subscal = H_n[s^j_gen](K_s, K_v, j_major, j_minor)
 	var addressIndexGeneratorSecret curve25519.Scalar
-	MakeSubaddressScalar(hasher, &addressIndexGeneratorSecret, accountSpendPub.Bytes(), accountViewPub.Bytes(), addressIndexGenerator, i)
+	MakeSubaddressScalar(hasher, &addressIndexGeneratorSecret, accountSpendPub.AsBytes(), accountViewPub.AsBytes(), addressIndexGenerator, i)
 
 	var addressSpendPub, addressViewPub curve25519.PublicKey[T]
 	// K^j_s = k^j_subscal * K_s
@@ -44,7 +44,7 @@ func MakeDestinationSubaddress[T curve25519.PointOperations](hasher *blake2b.Dig
 	addressViewPub.ScalarMult(&addressIndexGeneratorSecret, accountViewPub)
 
 	return DestinationV1{
-		Address: address.NewPackedAddressWithSubaddressFromBytes(addressSpendPub.Bytes(), addressViewPub.Bytes(), true),
+		Address: address.NewPackedAddressWithSubaddressFromBytes(addressSpendPub.AsBytes(), addressViewPub.AsBytes(), true),
 	}, nil
 }
 
@@ -56,11 +56,11 @@ func MakeDestinationSubaddressSpendPub[T curve25519.PointOperations](hasher *bla
 
 	// k^j_subscal = H_n[s^j_gen](K_s, K_v, j_major, j_minor)
 	var addressIndexGeneratorSecret curve25519.Scalar
-	MakeSubaddressScalar(hasher, &addressIndexGeneratorSecret, accountSpendPub.Bytes(), accountViewPub.Bytes(), addressIndexGenerator, i)
+	MakeSubaddressScalar(hasher, &addressIndexGeneratorSecret, accountSpendPub.AsBytes(), accountViewPub.AsBytes(), addressIndexGenerator, i)
 
 	var addressSpendPub curve25519.PublicKey[T]
 	// K^j_s = k^j_subscal * K_s
 	addressSpendPub.ScalarMult(&addressIndexGeneratorSecret, accountSpendPub)
 
-	return addressSpendPub.Bytes()
+	return addressSpendPub.AsBytes()
 }

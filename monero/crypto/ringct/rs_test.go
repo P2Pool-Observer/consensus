@@ -231,7 +231,7 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 	keyPair := crypto.NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](curve25519.RandomScalar(new(curve25519.Scalar), rng))
 
 	t.Logf("secret    = %x", keyPair.PrivateKey.Bytes())
-	t.Logf("public    = %x", keyPair.PublicKey.Bytes())
+	t.Logf("public    = %x", keyPair.PublicKey.AsBytes())
 
 	var rs RingSignature[curve25519.ConstantTimeOperations]
 	var ring Ring[curve25519.ConstantTimeOperations]

@@ -131,7 +131,7 @@ func makeAmountBlindingFactor(hasher *blake2b.Digest, amountBlindingKeyOut *curv
 func makeAmountCommitment[T curve25519.PointOperations](amount uint64, amountBlindingFactor *curve25519.Scalar) curve25519.PublicKeyBytes {
 	var amountCommitment curve25519.PublicKey[T]
 	ringct.Commit(&amountCommitment, amount, amountBlindingFactor)
-	return amountCommitment.Bytes()
+	return amountCommitment.AsBytes()
 }
 
 // coinbaseAmountBlindingFactor precompute coinbase blinding factor scalar multiplication
@@ -145,7 +145,7 @@ func makeAmountCommitmentCoinbase[T curve25519.PointOperations](amount uint64) c
 	amountCommitment.ScalarMultPrecomputed(ringct.AmountToScalar(&amountK, amount), crypto.GeneratorH)
 	amountCommitment.Add(&amountCommitment, curve25519.FromPoint[T](coinbaseAmountBlindingFactor))
 
-	return amountCommitment.Bytes()
+	return amountCommitment.AsBytes()
 }
 
 // makeOnetimeAddress make_carrot_onetime_address
@@ -165,7 +165,7 @@ func makeOnetimeAddress[T curve25519.PointOperations](hasher *blake2b.Digest, sp
 	// Ko = K^j_s + K^o_ext
 	var Ko curve25519.PublicKey[T]
 	Ko.Add(spendPub, &senderExtensionPubkey)
-	return Ko.Bytes()
+	return Ko.AsBytes()
 }
 
 // makeViewTag make_carrot_view_tag

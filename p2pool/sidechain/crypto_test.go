@@ -19,7 +19,7 @@ func TestDeterministicTransactionPrivateKey(t *testing.T) {
 	publicSpendKeyBytes := types.MustBytes32FromString[curve25519.PublicKeyBytes]("f2be6705a034f8f485ee9bc3c21b6309cd0d9dd2111441cc32753ba2bac41b6d")
 	spendPublicKey := publicSpendKeyBytes.PointVarTime()
 
-	calculatedPrivateKey := GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), types.Hash(spendPublicKey.Bytes()), previousId)
+	calculatedPrivateKey := GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), types.Hash(spendPublicKey.AsBytes()), previousId)
 	if hex.EncodeToString(calculatedPrivateKey.Bytes()) != expectedPrivateKey {
 		t.Fatalf("got %x, expected %s", calculatedPrivateKey.Bytes(), expectedPrivateKey)
 	}

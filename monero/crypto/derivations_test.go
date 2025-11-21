@@ -32,14 +32,14 @@ func TestGenerateKeyImage(t *testing.T) {
 
 		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(secret.Scalar())
 
-		if pub.Bytes() != expectedPub {
+		if pub.AsBytes() != expectedPub {
 			t.Errorf("public key expected %s, got %s", expected.String(), pub.String())
 			continue
 		}
 
 		keyImage := GetKeyImage(new(curve25519.ConstantTimePublicKey), NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](secret.Scalar()))
 
-		if keyImage.Bytes() != expected {
+		if keyImage.AsBytes() != expected {
 			t.Errorf("expected %s, got %s", expected.String(), keyImage.String())
 		}
 	}

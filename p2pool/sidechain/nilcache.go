@@ -21,7 +21,7 @@ func (d *NilDerivationCache) GetEphemeralPublicKey(a *address.PackedAddress, _ c
 	viewPub := curve25519.DecodeCompressedPoint[curve25519.VarTimeOperations](new(curve25519.VarTimePublicKey), *a.ViewPublicKey())
 	ephemeralPubKey, viewTag := address.GetEphemeralPublicKeyAndViewTag(new(curve25519.VarTimePublicKey), spendPub, viewPub, txKeyScalar, outputIndex)
 
-	return ephemeralPubKey.Bytes(), viewTag
+	return ephemeralPubKey.AsBytes(), viewTag
 }
 
 func (d *NilDerivationCache) GetDeterministicTransactionKey(seed types.Hash, prevId types.Hash) *crypto.KeyPair[curve25519.VarTimeOperations] {

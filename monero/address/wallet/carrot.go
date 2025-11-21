@@ -43,7 +43,7 @@ func NewCarrotViewWalletFromViewBalanceSecret[T curve25519.PointOperations](prov
 	carrot.MakePrimaryAddressViewPub(&viewPub, &viewIncoming)
 
 	return NewCarrotViewWallet[T](
-		address.FromRawAddress(addressNetwork, spendPub.Bytes(), viewPub.Bytes()),
+		address.FromRawAddress(addressNetwork, spendPub.AsBytes(), viewPub.AsBytes()),
 		&generateImage,
 		&viewIncoming,
 		generateAddressSecret,
@@ -83,7 +83,7 @@ func NewCarrotViewWallet[T curve25519.PointOperations](primaryAddress *address.A
 		return nil, errors.New("generate address secret must be non-zero")
 	}
 
-	if new(curve25519.PublicKey[T]).ScalarBaseMult(viewIncomingKey).Bytes() != *primaryAddress.ViewPublicKey() {
+	if new(curve25519.PublicKey[T]).ScalarBaseMult(viewIncomingKey).AsBytes() != *primaryAddress.ViewPublicKey() {
 		return nil, errors.New("view incoming key public must be equal to primary address pub key")
 	}
 
@@ -104,7 +104,7 @@ func NewCarrotViewWallet[T curve25519.PointOperations](primaryAddress *address.A
 		spendMap:               make(map[curve25519.PublicKeyBytes]address.SubaddressIndex),
 	}
 
-	w.spendMap[accountSpendPub.Bytes()] = address.ZeroSubaddressIndex
+	w.spendMap[accountSpendPub.AsBytes()] = address.ZeroSubaddressIndex
 
 	var hasher blake2b.Digest
 
@@ -214,7 +214,7 @@ func (w *CarrotViewWallet[T]) Opening(index address.SubaddressIndex, proveSpend 
 		addressIndexGenerator := carrot.MakeIndexExtensionGenerator(&hasher, w.generateAddressSecret, index)
 
 		// k^j_subscal = H_n[s^j_gen](K_s, K_v, j_major, j_minor)
-		carrot.MakeSubaddressScalar(&hasher, &subaddressScalar, w.accountSpendPub.Bytes(), w.accountViewPub.Bytes(), addressIndexGenerator, index)
+		carrot.MakeSubaddressScalar(&hasher, &subaddressScalar, w.accountSpendPub.AsBytes(), w.accountViewPub.AsBytes(), addressIndexGenerator, index)
 	} else {
 		// k^j_subscal = 1
 		subaddressScalar.Set((&curve25519.PrivateKeyBytes{1}).Scalar())

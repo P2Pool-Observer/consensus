@@ -167,7 +167,7 @@ func TestSecretKeyToPublicKey(t *testing.T) {
 			continue
 		}
 
-		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(key.Scalar()).Bytes()
+		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(key.Scalar()).AsBytes()
 		if pub != expected {
 			t.Errorf("expected %s, got %s", expected.String(), pub.String())
 		}
@@ -193,7 +193,7 @@ func TestGenerateKeys(t *testing.T) {
 
 		if curve25519.PrivateKeyBytes(key.Bytes()) != expectedPriv {
 			t.Errorf("expected %s, got %x", expectedPriv.String(), key.Bytes())
-		} else if pub.Bytes() != expectedPub {
+		} else if pub.AsBytes() != expectedPub {
 			t.Errorf("expected %s, got %s", expectedPub.String(), pub.String())
 		}
 	}
@@ -253,7 +253,7 @@ func TestHashToEC(t *testing.T) {
 
 		point := BiasedHashToPoint(new(curve25519.ConstantTimePublicKey), key.Slice())
 
-		image := point.Bytes()
+		image := point.AsBytes()
 
 		if image != expected {
 			t.Errorf("expected %s, got %s", expected.String(), image.String())
@@ -277,7 +277,7 @@ func TestHashToPoint(t *testing.T) {
 			continue
 		}
 
-		image := point.Bytes()
+		image := point.AsBytes()
 
 		if image != expected {
 			t.Errorf("%s: expected %s, got %s", key.String(), expected.String(), image.String())

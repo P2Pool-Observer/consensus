@@ -124,16 +124,16 @@ func scanDestInfo[T curve25519.PointOperations](hasher *blake2b.Digest,
 	}
 
 	// K^j_s = Ko - K^o_ext = Ko - (k^o_g G + k^o_t T)
-	scan.SpendPub = new(curve25519.PublicKey[T]).Subtract(oneTimeAddress, &senderExtensionPubkey).Bytes()
+	scan.SpendPub = new(curve25519.PublicKey[T]).Subtract(oneTimeAddress, &senderExtensionPubkey).AsBytes()
 
 	if encryptedPaymentId != nil {
 		// 5. pid_enc = pid XOR m_pid
-		pidMask := makePaymentIdEncryptionMask(hasher, senderReceiverSecret, oneTimeAddress.Bytes())
+		pidMask := makePaymentIdEncryptionMask(hasher, senderReceiverSecret, oneTimeAddress.AsBytes())
 		subtle.XORBytes(scan.PaymentId[:], encryptedPaymentId[:], pidMask[:])
 	}
 
 	// anchor = anchor_enc XOR m_anchor
-	mask := makeAnchorEncryptionMask(hasher, senderReceiverSecret, oneTimeAddress.Bytes())
+	mask := makeAnchorEncryptionMask(hasher, senderReceiverSecret, oneTimeAddress.AsBytes())
 	subtle.XORBytes(scan.Randomness[:], encryptedJanusAnchor[:], mask[:])
 }
 

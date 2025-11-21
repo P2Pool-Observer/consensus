@@ -25,8 +25,8 @@ func (comm RingSignatureComm[T]) Scalar(out *curve25519.Scalar) *curve25519.Scal
 	buf := make([]byte, 0, types.HashSize+len(comm.AB)*curve25519.PublicKeySize*2)
 	buf = append(buf, comm.PrefixHash[:]...)
 	for _, ab := range comm.AB {
-		buf = append(buf, ab[0].Slice()...)
-		buf = append(buf, ab[1].Slice()...)
+		buf = append(buf, ab[0].Bytes()...)
+		buf = append(buf, ab[1].Bytes()...)
 	}
 	return crypto.ScalarDeriveLegacy(out, buf)
 }
@@ -133,7 +133,7 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, ring Ring[T], keyImage *c
 				panic("unreachable")
 			}
 			buf.AB[i][0].ScalarBaseMult(&k)
-			crypto.BiasedHashToPoint(&tmpH2P, pub.Slice())
+			crypto.BiasedHashToPoint(&tmpH2P, pub.Bytes())
 			buf.AB[i][1].ScalarMult(&k, &tmpH2P)
 		} else {
 			sig := &(*s)[i]
@@ -144,7 +144,7 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, ring Ring[T], keyImage *c
 				panic("unreachable")
 			}
 			buf.AB[i][0].DoubleScalarBaseMult(&sig.C, &pub, &sig.R)
-			crypto.BiasedHashToPoint(&tmpH2P, pub.Slice())
+			crypto.BiasedHashToPoint(&tmpH2P, pub.Bytes())
 			//buf.AB[i][1].DoubleScalarMultPrecomputedB(&sig.R, &tmpH2P, &sig.C, precomputedImage)
 			buf.AB[i][1].DoubleScalarMult(&sig.R, &tmpH2P, &sig.C, keyImage)
 			sum.Add(&sum, &sig.C)
@@ -208,7 +208,7 @@ func (s *RingSignature[T]) verify(prefixHash types.Hash, ring Ring[T], keyImage 
 
 		sig := &(*s)[i]
 		buf.AB[i][0].DoubleScalarBaseMult(&sig.C, &pub, &sig.R)
-		crypto.BiasedHashToPoint(&tmpH2P, pub.Slice())
+		crypto.BiasedHashToPoint(&tmpH2P, pub.Bytes())
 		//buf.AB[i][1].DoubleScalarMultPrecomputedB(&sig.R, &tmpH2P, &sig.C, precomputedImage)
 		buf.AB[i][1].DoubleScalarMult(&sig.R, &tmpH2P, &sig.C, keyImage)
 		sum.Add(&sum, &sig.C)

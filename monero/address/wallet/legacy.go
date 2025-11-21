@@ -27,7 +27,7 @@ func NewViewWalletFromSpendKey[T curve25519.PointOperations](spendKey *curve2551
 	var spendPub, viewPub curve25519.PublicKey[T]
 	spendPub.ScalarBaseMult(spendKey)
 	viewPub.ScalarBaseMult(&viewKey)
-	return NewViewWallet[T](address.FromRawAddress(addressNetwork, spendPub.Bytes(), viewPub.Bytes()), viewKey, accountDepth, indexDepth)
+	return NewViewWallet[T](address.FromRawAddress(addressNetwork, spendPub.AsBytes(), viewPub.AsBytes()), &viewKey, accountDepth, indexDepth)
 }
 
 // NewViewWallet Creates a new ViewWallet with the specified account and index depth. The main address is always tracked
@@ -40,7 +40,7 @@ func NewViewWallet[T curve25519.PointOperations](primaryAddress *address.Address
 		return nil, errors.New("view key must be valid")
 	}
 
-	if new(curve25519.PublicKey[T]).ScalarBaseMult(viewKey).Bytes() != *primaryAddress.ViewPublicKey() {
+	if new(curve25519.PublicKey[T]).ScalarBaseMult(viewKey).AsBytes() != *primaryAddress.ViewPublicKey() {
 		return nil, errors.New("view key public must be equal to primary address pub key")
 	}
 
@@ -93,7 +93,7 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.
 		address.GetDerivation(&derivation, &publicKey, &w.viewKeyScalar)
 		//TODO: optimize order?
 		for _, out := range outputs {
-			_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&sharedDataScalar, derivation.Bytes(), out.Index)
+			_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&sharedDataScalar, derivation.AsBytes(), out.Index)
 			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag.Slice()[0] {
 				continue
 			}
@@ -106,7 +106,7 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.
 			}
 
 			D := ephemeralPub.Subtract(&ephemeralPub, &sharedDataPub)
-			if ix, ok := w.HasSpend(D.Bytes()); ok {
+			if ix, ok := w.HasSpend(D.AsBytes()); ok {
 				return int(out.Index), pub, &sharedDataScalar, ix
 			}
 		}

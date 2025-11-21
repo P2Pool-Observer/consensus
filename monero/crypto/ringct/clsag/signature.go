@@ -111,7 +111,7 @@ func Sign[T curve25519.PointOperations](prefixHash types.Hash, inputs []Input[T]
 		}
 
 		// can't use crypto.GetKeyImage as we need to store the generator
-		crypto.BiasedHashToPoint(&keyImageGenerators[i], key.Slice())
+		crypto.BiasedHashToPoint(&keyImageGenerators[i], key.Bytes())
 		keyImages[i].ScalarMult(&input.KeyPair.PrivateKey, &keyImageGenerators[i])
 	}
 
@@ -181,14 +181,14 @@ func (s *Signature[T]) Verify(prefixHash types.Hash, ring ringct.CommitmentRing[
 		return ErrInvalidS
 	}
 
-	if I == nil || I.IsIdentity() || !I.IsTorsionFree() {
+	if I == nil || I.IsIdentity() == 1 || !I.IsTorsionFree() {
 		return ErrInvalidImage
 	}
 
 	// straightD D without torsion
 	var straightD curve25519.PublicKey[T]
 	straightD.MultByCofactor(curve25519.DecodeCompressedPoint[T](new(curve25519.PublicKey[T]), s.D))
-	if straightD.IsIdentity() {
+	if straightD.IsIdentity() == 1 {
 		return ErrInvalidD
 	}
 

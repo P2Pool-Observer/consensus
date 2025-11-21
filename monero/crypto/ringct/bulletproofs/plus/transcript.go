@@ -13,12 +13,12 @@ var initialTranscriptHash = crypto.Keccak256(DomainKeyTranscript)
 
 // initialTranscriptConstant Monero starts BP+ transcripts with the following constant.
 // Why this uses a hash to point is completely unknown.
-var initialTranscriptConstant = crypto.BiasedHashToPoint(new(curve25519.VarTimePublicKey), initialTranscriptHash[:]).Bytes()
+var initialTranscriptConstant = crypto.BiasedHashToPoint(new(curve25519.VarTimePublicKey), initialTranscriptHash[:]).AsBytes()
 
 func InitialTranscript[T curve25519.PointOperations](out *curve25519.Scalar, commitments []curve25519.PublicKey[T]) *curve25519.Scalar {
 	data := make([]byte, 0, len(commitments)*curve25519.PublicKeySize)
 	for _, c := range commitments {
-		data = append(data, c.Slice()...)
+		data = append(data, c.Bytes()...)
 	}
 	crypto.ScalarDeriveLegacy(out, data)
 	fmt.Printf("TRANSCRIPT %x\n", initialTranscriptConstant.Slice())

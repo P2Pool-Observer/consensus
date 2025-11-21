@@ -24,7 +24,7 @@ func NewPackedAddressFromBytes(spend, view curve25519.PublicKeyBytes) (result Pa
 }
 
 func NewPackedAddress[T curve25519.PointOperations](spend, view curve25519.PublicKey[T]) (result PackedAddress) {
-	return NewPackedAddressFromBytes(spend.Bytes(), view.Bytes())
+	return NewPackedAddressFromBytes(spend.AsBytes(), view.AsBytes())
 }
 
 func (p *PackedAddress) SpendPublicKey() *curve25519.PublicKeyBytes {

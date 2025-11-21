@@ -28,8 +28,8 @@ func TestGenerateSignature(t *testing.T) {
 
 		pub := new(curve25519.ConstantTimePublicKey).ScalarBaseMult(sec.Scalar())
 
-		if pub.Bytes() != expectedPub {
-			t.Errorf("public key does not match: %s != %s", pub.Bytes(), expectedPub)
+		if pub.AsBytes() != expectedPub {
+			t.Errorf("public key does not match: %s != %s", pub.AsBytes(), expectedPub)
 			continue
 		}
 

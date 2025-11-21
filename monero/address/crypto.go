@@ -17,8 +17,8 @@ var zeroKeyPub = new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.Zero
 // ZeroKeyAddress Special address with private keys set to both zero.
 // Useful to detect unsupported signatures from hardware wallets on Monero GUI
 var ZeroKeyAddress = PackedAddress{
-	zeroKeyPub.Bytes(),
-	zeroKeyPub.Bytes(),
+	zeroKeyPub.AsBytes(),
+	zeroKeyPub.AsBytes(),
 }
 
 func GetPrivateKeyForSharedData(spendKey, sharedData *curve25519.Scalar) *curve25519.Scalar {
@@ -36,7 +36,7 @@ func GetEphemeralPublicKey[T curve25519.PointOperations](out, spendPub, viewPub 
 
 	return GetPublicKeyForSharedData(out,
 		spendPub,
-		crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), outputIndex),
+		crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.AsBytes(), outputIndex),
 	)
 }
 
@@ -45,14 +45,14 @@ func GetEphemeralPublicKeyWithViewKey[T curve25519.PointOperations](out, spendPu
 
 	return GetPublicKeyForSharedData(out,
 		spendPub,
-		crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), outputIndex),
+		crypto.GetDerivationSharedDataForOutputIndex(new(curve25519.Scalar), derivation.AsBytes(), outputIndex),
 	)
 }
 
 func GetEphemeralPublicKeyAndViewTagWithViewKey[T curve25519.PointOperations](out, spendPub, txPubKey *curve25519.PublicKey[T], viewKey *curve25519.Scalar, outputIndex uint64) (*curve25519.PublicKey[T], uint8) {
 	derivation := GetDerivation(new(curve25519.PublicKey[T]), txPubKey, viewKey)
 
-	pK, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(new(curve25519.Scalar), derivation.Bytes(), outputIndex)
+	pK, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(new(curve25519.Scalar), derivation.AsBytes(), outputIndex)
 	return GetPublicKeyForSharedData(out, spendPub, pK), viewTag
 }
 
@@ -66,12 +66,12 @@ func CalculateTransactionOutput[T curve25519.PointOperations](a Interface, txKey
 
 	derivation := GetDerivation(new(curve25519.PublicKey[T]), curve25519.DecodeCompressedPoint(new(curve25519.PublicKey[T]), *a.ViewPublicKey()), txKey)
 
-	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation.Bytes(), outputIndex)
+	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation.AsBytes(), outputIndex)
 
 	out.Type = transaction.TxOutToTaggedKey
 	out.Index = outputIndex
 	out.ViewTag.Slice()[0] = viewTag
-	out.EphemeralPublicKey = GetPublicKeyForSharedData(new(curve25519.PublicKey[T]), spendPub, &pK).Bytes()
+	out.EphemeralPublicKey = GetPublicKeyForSharedData(new(curve25519.PublicKey[T]), spendPub, &pK).AsBytes()
 
 	return out, additionalTxPub, ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(pK.Bytes()), amount)
 }
@@ -80,7 +80,7 @@ func GetEphemeralPublicKeyAndViewTag[T curve25519.PointOperations](out, spendPub
 	derivation := GetDerivation(new(curve25519.PublicKey[T]), viewPub, txKey)
 
 	var pK curve25519.Scalar
-	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation.Bytes(), outputIndex)
+	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation.AsBytes(), outputIndex)
 
 	return GetPublicKeyForSharedData(out, spendPub, &pK), viewTag
 }

@@ -39,18 +39,18 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 
 	for i, member := range ring {
 		P[i] = member[0]
-		data = append(data, member[0].Slice()...)
+		data = append(data, member[0].Bytes()...)
 	}
 	for i, member := range ring {
 		C[i].Subtract(&member[1], pseudoOut)
-		data = append(data, member[1].Slice()...)
+		data = append(data, member[1].Bytes()...)
 	}
 
-	data = append(data, I.Slice()...)
+	data = append(data, I.Bytes()...)
 
 	// todo: noescape?
 	data = aC1.HashExtendD(DInvEight, data)
-	data = append(data, pseudoOut.Slice()...)
+	data = append(data, pseudoOut.Bytes()...)
 
 	// mu_P with agg_0
 	muP := crypto.ScalarDeriveLegacy(new(curve25519.Scalar), data)
@@ -65,7 +65,7 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 
 	// Unfortunately, it's I D pseudo_out instead of pseudo_out I D, meaning this needs to be
 	// truncated just to add it back
-	data = append(data, pseudoOut.Slice()...)
+	data = append(data, pseudoOut.Bytes()...)
 	data = append(data, prefixHash[:]...)
 
 	var start, end int
@@ -89,7 +89,7 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 		L.ScalarBaseMult(&s[i])
 		L.Add(&L, tmp.DoubleScalarMult(&cP, &P[i], &cC, &C[i]))
 
-		crypto.BiasedHashToPoint(&PH, P[i].Slice())
+		crypto.BiasedHashToPoint(&PH, P[i].Bytes())
 
 		// (c_p * I) + (c_c * D) + (s_i * PH)
 		R.ScalarMult(&s[i], &PH)
@@ -97,8 +97,8 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 		R.Add(&R, tmp.DoubleScalarMult(&cP, I, &cC, straightD))
 
 		data = data[:((2*len(ring))+3)*curve25519.PublicKeySize]
-		data = append(data, L.Slice()...)
-		data = append(data, R.Slice()...)
+		data = append(data, L.Bytes()...)
+		data = append(data, R.Bytes()...)
 		crypto.ScalarDeriveLegacy(&c, data)
 
 		// This will only execute once and shouldn't need to be constant time. Making it constant time
@@ -129,7 +129,7 @@ func signCore[T curve25519.PointOperations](prefixHash types.Hash, I *curve25519
 
 	maskDelta := new(curve25519.Scalar).Subtract(&input.Commitment.Mask, mask)
 
-	H := crypto.BiasedHashToPoint(new(curve25519.PublicKey[T]), input.Decoys.Ring[signerIndex][0].Slice())
+	H := crypto.BiasedHashToPoint(new(curve25519.PublicKey[T]), input.Decoys.Ring[signerIndex][0].Bytes())
 	D := new(curve25519.PublicKey[T]).ScalarMult(maskDelta, H)
 
 	s := make([]curve25519.Scalar, len(input.Decoys.Ring))
@@ -143,7 +143,7 @@ func signCore[T curve25519.PointOperations](prefixHash types.Hash, I *curve25519
 	})
 
 	return Signature[T]{
-		D:  data.DInvEight.Bytes(),
+		D:  data.DInvEight.AsBytes(),
 		S:  s,
 		C1: *c1,
 	}, pseudoOut, &data.cMuP, new(curve25519.Scalar).Multiply(&data.cMuC, maskDelta)

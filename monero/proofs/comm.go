@@ -31,20 +31,20 @@ type SignatureComm_2[T curve25519.PointOperations] struct {
 func (s *SignatureComm_2[T]) Bytes(version uint8) []byte {
 	buf := make([]byte, 0, types.HashSize*2+curve25519.PublicKeySize*6)
 	buf = append(buf, s.Message[:]...)
-	buf = append(buf, s.D.Slice()...)
-	buf = append(buf, s.X.Slice()...)
-	buf = append(buf, s.Y.Slice()...)
+	buf = append(buf, s.D.Bytes()...)
+	buf = append(buf, s.X.Bytes()...)
+	buf = append(buf, s.Y.Bytes()...)
 	if version == 1 {
 		return buf
 	}
 
 	buf = append(buf, s.Separator[:]...)
-	buf = append(buf, s.R.Slice()...)
-	buf = append(buf, s.A.Slice()...)
+	buf = append(buf, s.R.Bytes()...)
+	buf = append(buf, s.A.Bytes()...)
 	if s.B == nil {
 		buf = append(buf, types.ZeroHash[:]...)
 	} else {
-		buf = append(buf, s.B.Slice()...)
+		buf = append(buf, s.B.Bytes()...)
 	}
 	return buf
 }

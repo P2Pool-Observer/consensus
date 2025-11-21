@@ -22,10 +22,10 @@ func (s *Signatures[T]) Verify(A, B *[Elements]curve25519.PublicKey[T]) bool {
 
 	for i := range Elements {
 		LL.DoubleScalarBaseMult(&s.EE, &A[i], s.S0[i].ScalarVarTime(&tmpScalar))
-		crypto.ScalarDeriveLegacy(&LLScalar, LL.Slice())
+		crypto.ScalarDeriveLegacy(&LLScalar, LL.Bytes())
 		LV.DoubleScalarBaseMult(&LLScalar, &B[i], s.S1[i].ScalarVarTime(&tmpScalar))
 
-		copy(transcript[i*curve25519.PublicKeySize:], LV.Slice())
+		copy(transcript[i*curve25519.PublicKeySize:], LV.Bytes())
 	}
 	return crypto.ScalarDeriveLegacy(&tmpScalar, transcript[:]).Equal(&s.EE) == 1
 }

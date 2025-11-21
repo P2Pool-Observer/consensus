@@ -13,7 +13,7 @@ func TestPreviousPowerOfTwo(t *testing.T) {
 		cnt >>= 1
 		return int(cnt)
 	}
-	for i := uint64(1); i < 65536; i++ {
+	for i := uint64(0); i <= 65536; i++ {
 		if PreviousPowerOfTwo(i) != loopPath(i) {
 			t.Fatalf("expected %d, got %d for iteration %d", loopPath(i), PreviousPowerOfTwo(i), i)
 		}

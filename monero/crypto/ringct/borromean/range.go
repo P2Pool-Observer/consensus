@@ -48,7 +48,7 @@ func (s *Range[T]) AppendBinary(preAllocatedBuf []byte) (data []byte, err error)
 	buf = append(buf, s.Signatures.EE.Bytes()...)
 
 	for _, p := range s.Commitments {
-		buf = append(buf, p.Slice()...)
+		buf = append(buf, p.Bytes()...)
 	}
 
 	return buf, nil
