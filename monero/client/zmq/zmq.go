@@ -33,7 +33,7 @@ func NewClient(endpoint string) *Client {
 }
 
 // Listen listens for a list of topics for this client (via NewClient).
-func (c *Client) Listen(ctx context.Context, listeners Listeners) error {
+func (c *Client) Listen(ctx context.Context, listeners Listeners, success func()) error {
 	topics := listeners.Topics()
 	if err := c.listen(ctx, topics...); err != nil {
 		return fmt.Errorf("listen on '%s': %w", strings.Join(func() (r []string) {
@@ -42,6 +42,10 @@ func (c *Client) Listen(ctx context.Context, listeners Listeners) error {
 			}
 			return r
 		}(), ", "), err)
+	}
+
+	if success != nil {
+		success()
 	}
 
 	if err := c.loop(listeners); err != nil {

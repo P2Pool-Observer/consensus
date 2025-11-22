@@ -101,7 +101,7 @@ func TestClient(t *testing.T) {
 		zmq.TopicMinimalTxPoolAdd: zmq.DecoderMinimalTxPoolAdd(func(txs mempool.Mempool) {
 			t.Log(txs)
 		}),
-	})
+	}, nil)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal(err)
 	}

@@ -67,7 +67,7 @@ func NewMainChain(s *sidechain.SideChain, p2pool P2PoolInterface, minorVersion u
 	return m
 }
 
-func (c *MainChain) Listen() error {
+func (c *MainChain) Listen(success func()) error {
 	ctx := c.p2pool.Context()
 	err := c.p2pool.ClientZMQ().Listen(ctx,
 		zmq.Listeners{
@@ -183,6 +183,7 @@ func (c *MainChain) Listen() error {
 				c.p2pool.UpdateMempoolData(txs)
 			}),
 		},
+		success,
 	)
 	if err != nil {
 		return err
