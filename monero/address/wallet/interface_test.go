@@ -83,8 +83,8 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 				Type:                 transaction.TxOutToCarrotV1,
 				Reward:               amount,
 				EphemeralPublicKey:   enote.OneTimeAddress,
-				EncryptedJanusAnchor: types.MakeFixed(enote.EncryptedAnchor),
-				ViewTag:              types.MakeFixed(enote.ViewTag),
+				EncryptedJanusAnchor: enote.EncryptedAnchor,
+				ViewTag:              enote.ViewTag,
 			}
 
 			i, scan, subaddressIndex := wallet.MatchCarrotCoinbase(blockIndex, transaction.Outputs{out}, curve25519.PublicKeyBytes(enote.EphemeralPubKey))

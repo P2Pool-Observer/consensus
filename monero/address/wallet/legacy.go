@@ -126,8 +126,8 @@ func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transacti
 			enote := carrot.CoinbaseEnoteV1{
 				OneTimeAddress:  out.EphemeralPublicKey,
 				Amount:          out.Reward,
-				EncryptedAnchor: out.EncryptedJanusAnchor.Value(),
-				ViewTag:         out.ViewTag.Value(),
+				EncryptedAnchor: out.EncryptedJanusAnchor,
+				ViewTag:         out.ViewTag,
 				EphemeralPubKey: curve25519.MontgomeryPoint(pub),
 				BlockIndex:      blockIndex,
 			}

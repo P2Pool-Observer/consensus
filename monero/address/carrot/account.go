@@ -30,10 +30,10 @@ func MakeViewBalanceSecret(hasher *blake2b.Digest, masterSecret types.Hash) (vie
 }
 
 // MakeGenerateImageKey make_carrot_generateimage_key
-func MakeGenerateImageKey(hasher *blake2b.Digest, viewIncomingKeyOut *curve25519.Scalar, viewBalanceSecret types.Hash) {
+func MakeGenerateImageKey(hasher *blake2b.Digest, generateImageKeyOut *curve25519.Scalar, viewBalanceSecret types.Hash) {
 	// k_gi = H_n(s_vb)
 	ScalarTranscript(
-		viewIncomingKeyOut, hasher, viewBalanceSecret[:],
+		generateImageKeyOut, hasher, viewBalanceSecret[:],
 		[]byte(DomainSeparatorGenerateImageKey),
 	)
 }

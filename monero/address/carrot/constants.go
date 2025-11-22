@@ -31,3 +31,6 @@ const (
 	DomainSeparatorAddressIndexGenerator = "Carrot address index generator"
 	DomainSeparatorSubaddressScalar      = "Carrot subaddress scalar"
 )
+
+// PersonalString Carrot Blake2b personal string
+const PersonalString = "Monero"

@@ -10,12 +10,24 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
-var testProveSpend = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f10bf01839ea216e5d70b7c9ceaa8b8e9a432b5e98e6e48a8043ffb3fa229f0b")
-var testGenerateImage = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("336e3af233b3aa5bc95d5589aba67aab727727419899823acc6a6c4479e4ea04")
-var testViewIncoming = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("60eff3ec120a12bb44d4258816e015952fc5651040da8c8af58c17676485f200")
-var testGenerateAddressSecret = types.MustHashFromString("593ece76c5d24cbfe3c7ac9e2d455cdd4b372c89584700bf1c2e7bef2b70a4d1")
-var testViewBalanceSecret = types.MustHashFromString("154c5e01902b20acc8436c9aa06b40355d78dfda0fc6af3d53a2220f1363a0f5")
+var testProveSpend = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("c9651fc906015afeefdb8d3bf7be621c36e035de2a85cb22dd4b869a22086f0e")
+var testGenerateImage = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("2ec40d3dd3a06b2f9a580c41e852be26950b7398d27f248efad5a81cdeead70b")
+var testViewIncoming = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("12624c702b4c1a22fd710a836894ed0705955502e6498e5c6e3ad6f5920bb00f")
+var testGenerateAddressSecret = types.MustHashFromString("039f0744fb138954072ee6bcbda4b5c085fd05e09b476a7b34ad20bf9ad440bc")
+var testViewBalanceSecret = types.MustHashFromString("59b2ee8646923309384704613418f5982b0167eb3cd87c6c067ee10700c3af91")
 var testMasterSecret = types.MustHashFromString("6e02e67b303dc713276bb1a4d70b0083b78e4f50e34e209da9f0377cdc3d376e")
+
+var testCarrotSpendPubkey = types.MustBytes32FromString[curve25519.PublicKeyBytes]("674a9892b538aaaafa2412dabf13a2e3f843c7e323810630d05c10cc64077077")
+var testCarrotViewPubkey = types.MustBytes32FromString[curve25519.PublicKeyBytes]("55960ccffdfb5e596b867658ac881f4d378e45bb76395964f2402037ec4685ff")
+var testCarrotIndexExtensionGenerator = types.MustHashFromString("fa26210179cdf94ae6ca2a7c93620909cb77e4923478a204ebe93794ab30bc7a")
+
+// testSubaddress generated from index 5, 16 from above values
+// see TestDestinationV1_ConvergeMakeSubaddress
+var testSubaddress = address.NewPackedAddressWithSubaddressFromBytes(
+	types.MustBytes32FromString[curve25519.PublicKeyBytes]("837744f1da3cbefcf64214b88e1a4c6dbbac5d18965d8052648486a74a2b08bb"),
+	types.MustBytes32FromString[curve25519.PublicKeyBytes]("d8b83883dd375b3a7536d9a9ceffa6c6505fbffbee883d825d32c25b99a9a450"),
+	true,
+)
 
 func TestConvergeAccount(t *testing.T) {
 
@@ -76,21 +88,30 @@ func TestConvergeAccount(t *testing.T) {
 	})
 
 	t.Run("make_carrot_spend_pubkey", func(t *testing.T) {
-		expected := types.MustBytes32FromString[curve25519.PublicKeyBytes]("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f")
 		var result curve25519.VarTimePublicKey
 		MakeSpendPub(
 			&result,
 			testGenerateImage.Scalar(),
 			testProveSpend.Scalar(),
 		)
-		if result.AsBytes() != expected {
-			t.Fatalf("expected: %s, got: %s", expected.String(), result.String())
+		if result.AsBytes() != testCarrotSpendPubkey {
+			t.Fatalf("expected: %s, got: %s", testCarrotSpendPubkey.String(), result.String())
+		}
+	})
+
+	t.Run("make_carrot_view_pubkey", func(t *testing.T) {
+		var result curve25519.VarTimePublicKey
+		MakeAccountViewPub(
+			&result,
+			testViewIncoming.Scalar(),
+			testCarrotSpendPubkey.PointVarTime(),
+		)
+		if result.AsBytes() != testCarrotViewPubkey {
+			t.Fatalf("expected: %s, got: %s", testCarrotViewPubkey.String(), result.String())
 		}
 	})
 
 	t.Run("make_carrot_spend_pubkey_from_spendpub", func(t *testing.T) {
-		expected := types.MustBytes32FromString[curve25519.PublicKeyBytes]("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f")
-
 		var proveSpendPub curve25519.VarTimePublicKey
 		proveSpendPub.ScalarMultPrecomputed(testProveSpend.Scalar(), crypto.GeneratorT)
 
@@ -100,32 +121,31 @@ func TestConvergeAccount(t *testing.T) {
 			testGenerateImage.Scalar(),
 			&proveSpendPub,
 		)
-		if result.AsBytes() != expected {
-			t.Fatalf("expected: %s, got: %s", expected.String(), result.String())
+		if result.AsBytes() != testCarrotSpendPubkey {
+			t.Fatalf("expected: %s, got: %s", testCarrotSpendPubkey.String(), result.String())
 		}
 	})
 
 	t.Run("make_carrot_index_extension_generator", func(t *testing.T) {
-		expected := types.MustHashFromString("79ad2383f44b4d26413adb7ae79c5658b2a8c20b6f5046bfa9f229bfcf1744a7")
 		result := MakeIndexExtensionGenerator(
 			&blake2b.Digest{},
 			testGenerateAddressSecret,
 			address.SubaddressIndex{Account: 5, Offset: 16},
 		)
-		if result != expected {
-			t.Fatalf("expected: %s, got: %s", expected.String(), result.String())
+		if result != testCarrotIndexExtensionGenerator {
+			t.Fatalf("expected: %s, got: %s", testCarrotIndexExtensionGenerator.String(), result.String())
 		}
 	})
 
 	t.Run("make_carrot_subaddress_scalar", func(t *testing.T) {
-		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("824e9710a9ee164dcf225be9ced906ceb53a0e93326b199a79340f6c0c7e050d")
+		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("70b70912ffa1c01e073ef1e0a7cd46c810f839fe57ca3d0af1f3451194d56408")
 		var result curve25519.Scalar
 		MakeSubaddressScalar(
 			&blake2b.Digest{},
 			&result,
-			types.MustBytes32FromString[curve25519.PublicKeyBytes]("c984806ae9be958800cfe04b5ed85279f48d78c3792b5abb2f5ce2b67adc491f"),
-			types.MustBytes32FromString[curve25519.PublicKeyBytes]("a30c1b720a66557c03a9784c6dd0902c95ee56670e04907d18eaa20608a72e7e"),
-			types.MustHashFromString("79ad2383f44b4d26413adb7ae79c5658b2a8c20b6f5046bfa9f229bfcf1744a7"),
+			testCarrotSpendPubkey,
+			testCarrotViewPubkey,
+			testCarrotIndexExtensionGenerator,
 			address.SubaddressIndex{Account: 5, Offset: 16},
 		)
 		if curve25519.PrivateKeyBytes(result.Bytes()) != expected {

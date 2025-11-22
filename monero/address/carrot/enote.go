@@ -17,8 +17,8 @@ type CoinbaseEnoteV1 struct {
 	Amount         uint64                    `json:"amount"`
 
 	// EncryptedAnchor carrot janus anchor XORd with a user-defined secret
-	EncryptedAnchor [monero.JanusAnchorSize]byte   `json:"encrypted_anchor"`
-	ViewTag         [monero.CarrotViewTagSize]byte `json:"view_tag"`
+	EncryptedAnchor types.FixedBytes[[monero.JanusAnchorSize]byte]   `json:"encrypted_anchor"`
+	ViewTag         types.FixedBytes[[monero.CarrotViewTagSize]byte] `json:"view_tag"`
 
 	// EphemeralPubKey D_e
 	EphemeralPubKey curve25519.MontgomeryPoint `json:"ephemeral_pub_key"`

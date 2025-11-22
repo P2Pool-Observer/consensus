@@ -935,9 +935,9 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 
 					if enote.OneTimeAddress != out.EphemeralPublicKey {
 						return nil, utils.ErrorfNoEscape("has incorrect eph_public_key at index %d, got %s, expected %s", i, out.EphemeralPublicKey.String(), enote.OneTimeAddress.String())
-					} else if enote.ViewTag != out.ViewTag.Value() {
+					} else if enote.ViewTag != out.ViewTag {
 						return nil, utils.ErrorfNoEscape("has incorrect view tag at index %d, got %x, expected %s", i, out.ViewTag, enote.ViewTag)
-					} else if enote.EncryptedAnchor != out.EncryptedJanusAnchor.Value() {
+					} else if enote.EncryptedAnchor != out.EncryptedJanusAnchor {
 						return nil, utils.ErrorfNoEscape("has incorrect janus anchor at index %d, got %x, expected %s", i, out.EncryptedJanusAnchor, enote.EncryptedAnchor)
 					}
 

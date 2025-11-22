@@ -15,21 +15,21 @@ import (
 
 func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 	expectedEnote := CoinbaseEnoteV1{
-		OneTimeAddress:  types.MustBytes32FromString[curve25519.PublicKeyBytes]("a3d1d782671a3622bf393fe8116c8df95e9e12776e2970ab1934645f40748343"),
+		OneTimeAddress:  types.MustBytes32FromString[curve25519.PublicKeyBytes]("661d4466f94d96d598ac983ed51f4f082aeb51045752c1bf8275f903bd090d79"),
 		Amount:          monero.TailEmissionReward,
-		EncryptedAnchor: [monero.JanusAnchorSize]byte(hex.MustDecodeString("fa1d74f7a4891086a900e72776c521ed")),
-		ViewTag:         [monero.CarrotViewTagSize]byte(hex.MustDecodeString("74b582")),
-		EphemeralPubKey: types.MustBytes32FromString[curve25519.MontgomeryPoint]("1b10ce3755cc36e2fda4031a56b589f29e2e727ab0e222be05f30f84c5c1b747"),
+		EncryptedAnchor: types.MakeFixed([monero.JanusAnchorSize]byte(hex.MustDecodeString("e1654ef76f418d7357e45ba601c086a1"))),
+		ViewTag:         types.MakeFixed([monero.CarrotViewTagSize]byte(hex.MustDecodeString("6bdfa1"))),
+		EphemeralPubKey: types.MustBytes32FromString[curve25519.MontgomeryPoint]("ca85a5dba8a672974ac0b80a9d0b5eebf3a9ec8e2f2d4366152a6edb5facc232"),
 		BlockIndex:      123456,
 	}
 
 	proposal := &PaymentProposalV1[curve25519.VarTimeOperations]{
 		Destination: DestinationV1{
-			Address:   address.NewPackedAddressWithSubaddress(&testAddress, false),
+			Address:   address.NewPackedAddressWithSubaddress(testSubaddress.PackedAddress(), false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
-		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
+		Randomness: testRandomness,
 	}
 
 	var enote CoinbaseEnoteV1
@@ -46,11 +46,11 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 	prop := &PaymentProposalV1[curve25519.VarTimeCounterOperations]{
 		Destination: DestinationV1{
-			Address:   address.NewPackedAddressWithSubaddress(&testAddress, false),
+			Address:   address.NewPackedAddressWithSubaddress(testSubaddress.PackedAddress(), false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
-		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
+		Randomness: testRandomness,
 	}
 
 	b.Run("TorsionChecked", func(b *testing.B) {
@@ -108,7 +108,7 @@ func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 	prop := &PaymentProposalV1[curve25519.VarTimeCounterOperations]{
 		Destination: DestinationV1{
-			Address:   address.NewPackedAddressWithSubaddress(&testAddress, false),
+			Address:   address.NewPackedAddressWithSubaddress(testSubaddress.PackedAddress(), false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
@@ -168,11 +168,11 @@ func BenchmarkPaymentProposalV1_Output(b *testing.B) {
 	firstKeyImage := types.MustBytes32FromString[curve25519.PublicKeyBytes]("a3d1d782671a3622bf393fe8116c8df95e9e12776e2970ab1934645f40748343")
 	prop := &PaymentProposalV1[curve25519.VarTimeCounterOperations]{
 		Destination: DestinationV1{
-			Address:   address.NewPackedAddressWithSubaddress(&testAddress, true),
+			Address:   address.NewPackedAddressWithSubaddress(testSubaddress.PackedAddress(), true),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
 		Amount:     monero.TailEmissionReward,
-		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
+		Randomness: testRandomness,
 	}
 
 	b.Run("TorsionChecked", func(b *testing.B) {

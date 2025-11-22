@@ -7,7 +7,7 @@ import (
 
 // HashedTranscript Equivalent to H_b(key, Transcript(...))
 func HashedTranscript[S ~[]byte](dst S, hasher *blake2b.Digest, key []byte, domainSeparator []byte, args ...[]byte) {
-	_ = hasher.Init(len(dst), key, nil, nil)
+	_ = hasher.Init(len(dst), key, nil, []byte(PersonalString))
 
 	_, _ = hasher.Write([]byte{uint8(len(domainSeparator))})
 	_, _ = hasher.Write(domainSeparator)

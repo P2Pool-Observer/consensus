@@ -38,7 +38,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 
 	// if vt' != vt, then FAIL
 	nominalViewTag := makeViewTag(&hasher, senderReceiverUnctx, inputContext[:], enote.OneTimeAddress)
-	if nominalViewTag != enote.ViewTag {
+	if nominalViewTag != enote.ViewTag.Value() {
 		// no match
 		return ErrMismatchedViewTag
 	}
@@ -53,7 +53,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 		return ErrInvalidOneTimeAddress
 	}
 
-	scanDestInfo(&hasher, scan, &oneTimeAddress, amountCommitment, enote.EncryptedAnchor, nil, senderReceiverSecret)
+	scanDestInfo(&hasher, scan, &oneTimeAddress, amountCommitment, enote.EncryptedAnchor.Value(), nil, senderReceiverSecret)
 
 	if mainAddressSpendPub != scan.SpendPub {
 		return ErrMismatchedMainAddress

@@ -65,8 +65,8 @@ func CalculateOutputCarrot(enote *carrot.CoinbaseEnoteV1, txType uint8, outputIn
 		Type:                 txType,
 		Reward:               enote.Amount,
 		EphemeralPublicKey:   enote.OneTimeAddress,
-		ViewTag:              types.MakeFixed(enote.ViewTag),
-		EncryptedJanusAnchor: types.MakeFixed(enote.EncryptedAnchor),
+		ViewTag:              enote.ViewTag,
+		EncryptedJanusAnchor: enote.EncryptedAnchor,
 	}
 }
 
