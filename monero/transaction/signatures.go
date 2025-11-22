@@ -21,7 +21,7 @@ type ProofType uint8
 
 func (p ProofType) CompactAmount() bool {
 	switch p {
-	case MLSAGBulletproofCompactAmount, CLSAGBulletproof, CLSAGBulletproofPlus:
+	case MLSAGBulletproofCompactAmount, CLSAGBulletproof, CLSAGBulletproofPlus, FCMPPlusPlus:
 		return true
 	default:
 		return false
@@ -39,7 +39,16 @@ func (p ProofType) Bulletproof() bool {
 
 func (p ProofType) BulletproofPlus() bool {
 	switch p {
-	case CLSAGBulletproofPlus:
+	case CLSAGBulletproofPlus, FCMPPlusPlus:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p ProofType) FCMPPlusPlus() bool {
+	switch p {
+	case FCMPPlusPlus:
 		return true
 	default:
 		return false
@@ -78,6 +87,11 @@ const (
 	//
 	// This aligns with RCTTypeBulletproofPlus.
 	CLSAGBulletproofPlus
+
+	// FCMPPlusPlus One FCMP for each input and a Bulletproof+.
+	//
+	// This aligns with RCTTypeFcmpPlusPlus.
+	FCMPPlusPlus
 )
 
 func GetTransactionInputsData(tx Transaction, f func(in ...daemon.GetOutsInput) ([]client.Output, error)) (rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey, err error) {

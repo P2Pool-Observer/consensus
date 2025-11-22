@@ -13,6 +13,7 @@ import (
 	bp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs/original"
 	bpp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs/plus"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/clsag"
+	fcmp_pp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/fcmp-plus-plus"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/mlsag"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -878,6 +879,155 @@ func (p *PrunableCLSAGBulletproofsPlus) FromReader(reader utils.ReaderAndByteRea
 	return nil
 }
 
+type PrunableFCMPPlusPlus struct {
+	// ReferenceBlock used to get the tree root as of when this reference block index enters the chain
+	ReferenceBlock uint64
+	// NTreeLayers number of layers in the tree as of the block when the reference block index enters the chain
+	NTreeLayers uint8
+	// FCMP_PP FCMP++ SAL and membership proof
+	FCMP_PP []byte
+	// PseudoOuts The re-blinded commitments for the outputs being spent.
+	PseudoOuts  []curve25519.VarTimePublicKey
+	Bulletproof bpp.AggregateRangeProof[curve25519.VarTimeOperations]
+}
+
+func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+	var sumInputs, sumOutputs curve25519.VarTimePublicKey
+	// init
+	sumInputs.P().Set(edwards25519.NewIdentityPoint())
+	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
+
+	// TODO: verify FCMP++
+	{
+
+	}
+
+	for i := range p.PseudoOuts {
+		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
+	}
+
+	commitments := make([]curve25519.VarTimePublicKey, len(base.Commitments))
+	for i, c := range base.Commitments {
+		if _, err = commitments[i].SetBytes(c[:]); err != nil {
+			return err
+		}
+		sumOutputs.Add(&sumOutputs, &commitments[i])
+	}
+
+	// check Bulletproof+
+	if !p.Bulletproof.Verify(commitments, rand.Reader) {
+		return ErrInvalidBulletproofsProof
+	}
+
+	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+
+	// check balances
+	if sumInputs.Equal(&sumOutputs) == 0 {
+		return ErrUnbalancedAmounts
+	}
+	return nil
+}
+
+func (p *PrunableFCMPPlusPlus) SignatureHash() types.Hash {
+	buf := make([]byte, 0, p.Bulletproof.BufferLength(true))
+	var err error
+	if buf, err = p.Bulletproof.AppendBinary(buf, true); err != nil {
+		return types.ZeroHash
+	}
+	return crypto.Keccak256(buf)
+}
+
+func (p *PrunableFCMPPlusPlus) Hash(pruned bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(pruned))
+	var err error
+	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+		return types.ZeroHash
+	}
+	return crypto.Keccak256(buf)
+}
+
+func (p *PrunableFCMPPlusPlus) BufferLength(pruned bool) (n int) {
+	if !pruned {
+		n += 1
+		n += utils.UVarInt64Size(p.ReferenceBlock) + 1 + len(p.FCMP_PP)
+		n += len(p.PseudoOuts) * curve25519.PublicKeySize
+	}
+	n += p.Bulletproof.BufferLength(false)
+	return n
+}
+
+func (p *PrunableFCMPPlusPlus) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+	data = preAllocatedBuf
+	if !pruned {
+		data = append(data, 1)
+	}
+	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
+		return nil, err
+	}
+	if !pruned {
+		data = binary.AppendUvarint(data, p.ReferenceBlock)
+		data = append(data, p.NTreeLayers)
+		data = append(data, p.FCMP_PP...)
+
+		for _, e := range p.PseudoOuts {
+			if data, err = e.AppendBinary(data); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return data, nil
+}
+
+func (p *PrunableFCMPPlusPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+
+	var n uint8
+	if n, err = reader.ReadByte(); err != nil {
+		return err
+	}
+
+	if n != 1 {
+		return errors.New("unexpected n")
+	}
+
+	if err = p.Bulletproof.FromReader(reader); err != nil {
+		return err
+	}
+
+	if p.ReferenceBlock, err = utils.ReadCanonicalUvarint(reader); err != nil {
+		return err
+	}
+
+	// n_tree_layers can be inferred from the reference_block, however, if we didn't save n_tree_layers on the
+	// tx, we would need a db read (for n_tree_layers as of the block) in order to de-serialize the FCMP++ proof
+	if p.NTreeLayers, err = reader.ReadByte(); err != nil {
+		return err
+	}
+
+	if len(inputs) == 0 || len(inputs) > fcmp_pp.MaxInputs {
+		return errors.New("unsupported number of inputs")
+	}
+
+	if p.NTreeLayers == 0 || p.NTreeLayers > fcmp_pp.MaxLayers {
+		return errors.New("unsupported number of layers")
+	}
+
+	proofSize := fcmp_pp.ProofSize(len(inputs), int(p.NTreeLayers))
+	p.FCMP_PP = make([]byte, proofSize)
+	if _, err = utils.ReadFullNoEscape(reader, p.FCMP_PP); err != nil {
+		return err
+	}
+
+	var pk curve25519.VarTimePublicKey
+	for range inputs {
+		if err = pk.FromReader(reader); err != nil {
+			return err
+		}
+		p.PseudoOuts = append(p.PseudoOuts, pk)
+	}
+
+	return nil
+}
+
 var prunableTypes = []func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error){
 	nil,
 	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
@@ -917,6 +1067,13 @@ var prunableTypes = []func(reader utils.ReaderAndByteReader, inputs Inputs, outp
 	},
 	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
 		var pt PrunableCLSAGBulletproofsPlus
+		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+			return nil, err
+		}
+		return &pt, nil
+	},
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+		var pt PrunableFCMPPlusPlus
 		if err = pt.FromReader(reader, inputs, outputs); err != nil {
 			return nil, err
 		}

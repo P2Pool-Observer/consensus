@@ -1,8 +1,6 @@
 package plus
 
 import (
-	"fmt"
-
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 )
@@ -21,8 +19,6 @@ func InitialTranscript[T curve25519.PointOperations](out *curve25519.Scalar, com
 		data = append(data, c.Bytes()...)
 	}
 	crypto.ScalarDeriveLegacy(out, data)
-	fmt.Printf("TRANSCRIPT %x\n", initialTranscriptConstant.Slice())
-	fmt.Printf("CH %x\n", out.Bytes())
 	// this does scalar derive twice!
 	crypto.ScalarDeriveLegacy(out, initialTranscriptConstant[:], out.Bytes())
 	return out
