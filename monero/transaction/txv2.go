@@ -7,6 +7,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
+	fcmp_pp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/fcmp-plus-plus"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -50,6 +51,9 @@ func (tx *TransactionV2) Fee() uint64 {
 }
 
 func (tx *TransactionV2) Weight() int {
+	if tx.Base.ProofType == FCMPPlusPlus {
+		return fcmp_pp.TransactionWeightV1(len(tx.Inputs()), len(tx.Outputs()), len(tx.Extra))
+	}
 	weight := tx.BufferLength()
 	if tx.Base.ProofType.Bulletproof() || tx.Base.ProofType.BulletproofPlus() {
 		clawback, _ := bulletproofs.CalculateClawback(tx.Base.ProofType.BulletproofPlus(), len(tx.Outputs()))
@@ -73,6 +77,11 @@ func (tx *TransactionV2) PrefixHash() types.Hash {
 }
 
 func (tx *TransactionV2) SignatureHash() (out types.Hash) {
+	if tx.Base.ProofType == FCMPPlusPlus {
+		// Don't hash range proof data to enable cleaner separation of SAL signature <> membership proof <> range proof
+		crypto.SignableFCMPTransactionHash(&out, tx.PrefixHash(), tx.Base.Hash())
+		return out
+	}
 	crypto.TransactionIdHash(&out, tx.PrefixHash(), tx.Base.Hash(), tx.Prunable.SignatureHash())
 	return out
 }

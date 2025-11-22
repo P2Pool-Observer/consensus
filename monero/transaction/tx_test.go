@@ -98,6 +98,7 @@ func TestTransactions(t *testing.T) {
 			t.Logf("ringct  = %d", tx.Proofs().ProofType())
 			t.Logf("id      = %s", calculatedId)
 			t.Logf("prefix  = %s", prefixHash)
+			t.Logf("size    = %d", tx.BufferLength())
 			t.Logf("weight  = %d", tx.Weight())
 			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
 

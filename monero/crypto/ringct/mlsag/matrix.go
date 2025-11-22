@@ -3,7 +3,6 @@ package mlsag
 import (
 	"errors"
 
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/edwards25519"
@@ -55,7 +54,7 @@ func NewRingMatrixFromAggregateRings[T curve25519.PointOperations](fee uint64, c
 	for _, commitment := range commitments {
 		sumOut.Add(&sumOut, &commitment)
 	}
-	sumOut.Add(&sumOut, new(curve25519.PublicKey[T]).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), fee), crypto.GeneratorH))
+	sumOut.Add(&sumOut, ringct.CalculateFeeCommitment(new(curve25519.PublicKey[T]), fee))
 
 	sumOut.Negate(&sumOut)
 

@@ -84,6 +84,13 @@ func TransactionIdHash(dst *types.Hash, coinbaseBlobMinusBaseRTC, baseRTC, pruna
 	_, _ = utils.ReadNoEscape(h, dst[:])
 }
 
+func SignableFCMPTransactionHash(dst *types.Hash, coinbaseBlobMinusBaseRTC, baseRTC types.Hash) {
+	h := newKeccak256()
+	_, _ = utils.WriteNoEscape(h, coinbaseBlobMinusBaseRTC[:])
+	_, _ = utils.WriteNoEscape(h, baseRTC[:])
+	_, _ = utils.ReadNoEscape(h, dst[:])
+}
+
 // HopefulHashToPoint
 // Defined as H_p^1 in Carrot
 func HopefulHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], data []byte) *curve25519.PublicKey[T] {

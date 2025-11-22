@@ -46,7 +46,7 @@ func (p ProofType) BulletproofPlus() bool {
 	}
 }
 
-func (p ProofType) FCMPPlusPlus() bool {
+func (p ProofType) FCMP() bool {
 	switch p {
 	case FCMPPlusPlus:
 		return true

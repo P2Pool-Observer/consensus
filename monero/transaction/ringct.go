@@ -273,7 +273,8 @@ func (p *PrunableMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings 
 			return ErrInvalidBorromeanProof
 		}
 	}
-	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+
+	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
 
 	// check balances
 	if sumInputs.Equal(&sumOutputs) == 0 {
@@ -385,7 +386,7 @@ func (p *PrunableMLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rin
 		return ErrInvalidBulletproofsProof
 	}
 
-	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
 
 	// check balances
 	if sumInputs.Equal(&sumOutputs) == 0 {
@@ -520,7 +521,7 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) Verify(prefixHash types.Hash, b
 		return ErrInvalidBulletproofsProof
 	}
 
-	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
 
 	// check balances
 	if sumInputs.Equal(&sumOutputs) == 0 {
@@ -651,7 +652,7 @@ func (p *PrunableCLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rin
 		return ErrInvalidBulletproofsProof
 	}
 
-	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
 
 	// check balances
 	if sumInputs.Equal(&sumOutputs) == 0 {
@@ -782,7 +783,7 @@ func (p *PrunableCLSAGBulletproofsPlus) Verify(prefixHash types.Hash, base Base,
 		return ErrInvalidBulletproofsProof
 	}
 
-	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
 
 	// check balances
 	if sumInputs.Equal(&sumOutputs) == 0 {
@@ -919,7 +920,7 @@ func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base Base, rings []
 		return ErrInvalidBulletproofsProof
 	}
 
-	sumOutputs.Add(&sumOutputs, new(curve25519.VarTimePublicKey).ScalarMultPrecomputed(ringct.AmountToScalar(new(curve25519.Scalar), base.Fee), crypto.GeneratorH))
+	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
 
 	// check balances
 	if sumInputs.Equal(&sumOutputs) == 0 {

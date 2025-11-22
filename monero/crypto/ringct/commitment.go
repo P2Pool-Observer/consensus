@@ -16,6 +16,10 @@ var ZeroCommitment = Commitment{
 	Amount: 0,
 }
 
+func CalculateFeeCommitment[T curve25519.PointOperations](out *curve25519.PublicKey[T], fee uint64) *curve25519.PublicKey[T] {
+	return out.ScalarMultPrecomputed(AmountToScalar(new(curve25519.Scalar), fee), crypto.GeneratorH)
+}
+
 func CalculateCommitment[T curve25519.PointOperations](out *curve25519.PublicKey[T], c Commitment) *curve25519.PublicKey[T] {
 	Commit(out, c.Amount, &c.Mask)
 	return out
