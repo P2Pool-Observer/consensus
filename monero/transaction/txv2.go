@@ -32,6 +32,9 @@ type proofV2 struct {
 }
 
 func (p proofV2) Verify(prefixHash types.Hash, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error {
+	if p.Prunable == nil {
+		return errors.New("nil prunable")
+	}
 	return p.Prunable.Verify(prefixHash, p.Base, rings, images)
 }
 
@@ -54,6 +57,9 @@ func (tx *TransactionV2) Weight() int {
 	if tx.Base.ProofType == FCMPPlusPlus {
 		return fcmp_pp.TransactionWeightV1(len(tx.Inputs()), len(tx.Outputs()), len(tx.Extra))
 	}
+	if tx.Prunable == nil {
+		return 0
+	}
 	weight := tx.BufferLength()
 	if tx.Base.ProofType.Bulletproof() || tx.Base.ProofType.BulletproofPlus() {
 		clawback, _ := bulletproofs.CalculateClawback(tx.Base.ProofType.BulletproofPlus(), len(tx.Outputs()))
@@ -68,6 +74,9 @@ func (tx *TransactionV2) Version() uint8 {
 }
 
 func (tx *TransactionV2) Hash() (out types.Hash) {
+	if tx.Prunable == nil {
+		return types.ZeroHash
+	}
 	crypto.TransactionIdHash(&out, tx.PrefixHash(), tx.Base.Hash(), tx.Prunable.Hash(false))
 	return out
 }
@@ -82,6 +91,9 @@ func (tx *TransactionV2) SignatureHash() (out types.Hash) {
 		crypto.SignableFCMPTransactionHash(&out, tx.PrefixHash(), tx.Base.Hash())
 		return out
 	}
+	if tx.Prunable == nil {
+		return types.ZeroHash
+	}
 	crypto.TransactionIdHash(&out, tx.PrefixHash(), tx.Base.Hash(), tx.Prunable.SignatureHash())
 	return out
 }
@@ -91,6 +103,9 @@ func (tx *TransactionV2) ExtraTags() ExtraTags {
 }
 
 func (tx *TransactionV2) BufferLength() int {
+	if tx.Prunable == nil {
+		return 0
+	}
 	n := 1 + tx.Prefix.BufferLength() + tx.Base.BufferLength() + tx.Prunable.BufferLength(false)
 	return n
 }
@@ -104,6 +119,10 @@ func (tx *TransactionV2) AppendBinary(preAllocatedBuf []byte) (data []byte, err 
 	buf, err := tx.AppendPrunedBinary(preAllocatedBuf)
 	if err != nil {
 		return nil, err
+	}
+
+	if tx.Prunable == nil {
+		return nil, errors.New("pruned transaction")
 	}
 
 	if buf, err = tx.Prunable.AppendBinary(buf, false); err != nil {
