@@ -100,7 +100,61 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 		return data, jsonTx, nil
 	}
 	<-c.throttler
-	if result, err := c.d.GetTransactions(context.Background(), txIds); err != nil {
+	if result, err := c.d.GetTransactions(context.Background(), txIds, false); err != nil {
+		return nil, nil, err
+	} else {
+		if len(result.Txs) != len(txIds) {
+			return nil, nil, errors.New("invalid transaction count")
+		}
+
+		if jsonTxs, err := result.GetTransactions(); err != nil {
+			return nil, nil, err
+		} else {
+			jsonTx = jsonTxs
+		}
+
+		for _, tx := range result.Txs {
+			if len(tx.AsHex) > 0 {
+				data = append(data, tx.AsHex)
+			} else if len(tx.PrunableAsHex) > 0 {
+				data = append(data, tx.PrunableAsHex)
+			} else {
+				data = append(data, tx.PrunedAsHex)
+			}
+		}
+	}
+
+	return data, jsonTx, nil
+}
+
+func (c *Client) GetPrunedTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*daemon.TransactionJSON, err error) {
+	const restrictedTxCount = 100
+	if len(txIds) > restrictedTxCount {
+		i := txIds
+		for {
+			if len(i) > restrictedTxCount {
+				d, j, err := c.GetPrunedTransactions(i[:restrictedTxCount]...)
+				if err != nil {
+					return nil, nil, err
+				}
+				data = append(data, d...)
+				jsonTx = append(jsonTx, j...)
+				i = i[restrictedTxCount:]
+			} else {
+				d, j, err := c.GetPrunedTransactions(i...)
+				if err != nil {
+					return nil, nil, err
+				}
+				data = append(data, d...)
+				jsonTx = append(jsonTx, j...)
+				i = i[:0]
+				break
+			}
+		}
+		return data, jsonTx, nil
+	}
+	<-c.throttler
+	if result, err := c.d.GetTransactions(context.Background(), txIds, true); err != nil {
 		return nil, nil, err
 	} else {
 		if len(result.Txs) != len(txIds) {
@@ -143,7 +197,7 @@ type TransactionInput struct {
 func (c *Client) GetTransactionInputs(ctx context.Context, hashes ...types.Hash) ([]TransactionInputResult, error) {
 	<-c.throttler
 
-	if result, err := c.d.GetTransactions(ctx, hashes); err != nil {
+	if result, err := c.d.GetTransactions(ctx, hashes, false); err != nil {
 		return nil, err
 	} else {
 		if len(result.Txs) != len(hashes) {

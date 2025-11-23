@@ -61,6 +61,10 @@ func (tx *TransactionV1) ExtraTags() ExtraTags {
 	return tx.Prefix.ExtraTags()
 }
 
+func (tx *TransactionV1) PrunedBufferLength() int {
+	return 1 + tx.Prefix.BufferLength()
+}
+
 func (tx *TransactionV1) BufferLength() int {
 	n := 1 + tx.Prefix.BufferLength()
 	for _, sig := range tx.Signatures {
@@ -69,11 +73,20 @@ func (tx *TransactionV1) BufferLength() int {
 	return n
 }
 
-func (tx *TransactionV1) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
+func (tx *TransactionV1) AppendPrunedBinary(preAllocatedBuf []byte) (data []byte, err error) {
 	buf := preAllocatedBuf
 
 	buf = append(buf, 1)
 	if buf, err = tx.Prefix.AppendBinary(buf); err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}
+
+func (tx *TransactionV1) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
+	buf, err := tx.AppendPrunedBinary(preAllocatedBuf)
+	if err != nil {
 		return nil, err
 	}
 	for _, rs := range tx.Signatures {
@@ -87,7 +100,7 @@ func (tx *TransactionV1) AppendBinary(preAllocatedBuf []byte) (data []byte, err 
 
 var ErrAmountOverflow = errors.New("amount overflow")
 
-func (tx *TransactionV1) FromReader(reader utils.ReaderAndByteReader) (err error) {
+func (tx *TransactionV1) FromPrunedReader(reader utils.ReaderAndByteReader) (err error) {
 	if err = tx.Prefix.FromReader(reader); err != nil {
 		return err
 	}
@@ -109,6 +122,14 @@ func (tx *TransactionV1) FromReader(reader utils.ReaderAndByteReader) (err error
 
 	tx.fee = total
 
+	return nil
+}
+
+func (tx *TransactionV1) FromReader(reader utils.ReaderAndByteReader) (err error) {
+	if err = tx.FromPrunedReader(reader); err != nil {
+		return err
+	}
+
 	for _, input := range tx.Prefix.Inputs {
 		var rs ringct.RingSignature[curve25519.VarTimeOperations]
 		if err = rs.FromReader(reader, len(input.Offsets)); err != nil {
@@ -116,5 +137,6 @@ func (tx *TransactionV1) FromReader(reader utils.ReaderAndByteReader) (err error
 		}
 		tx.Signatures = append(tx.Signatures, rs)
 	}
+
 	return nil
 }

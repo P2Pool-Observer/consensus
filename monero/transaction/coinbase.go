@@ -69,8 +69,8 @@ func (c *CoinbaseV2) Proofs() Proofs {
 }
 
 func (c *CoinbaseV2) PrefixHash() types.Hash {
-	txBytes, _ := c.AppendBinaryFlags(make([]byte, 0, c.BufferLength()), false, false)
-	return crypto.Keccak256(txBytes[:len(txBytes)-1])
+	prefixBytes, _ := c.AppendBinary(make([]byte, 0, c.BufferLength()))
+	return crypto.Keccak256(prefixBytes[:len(prefixBytes)-1])
 }
 
 func (c *CoinbaseV2) SignatureHash() types.Hash {
@@ -207,6 +207,10 @@ func (c *CoinbaseV2) MarshalBinary() ([]byte, error) {
 	return c.MarshalBinaryFlags(false, false)
 }
 
+func (c *CoinbaseV2) PrunedBufferLength() int {
+	return c.BufferLength()
+}
+
 func (c *CoinbaseV2) BufferLength() int {
 	return 1 +
 		utils.UVarInt64Size(c.UnlockTime) +
@@ -218,6 +222,10 @@ func (c *CoinbaseV2) BufferLength() int {
 
 func (c *CoinbaseV2) MarshalBinaryFlags(pruned, containsAuxiliaryTemplateId bool) ([]byte, error) {
 	return c.AppendBinaryFlags(make([]byte, 0, c.BufferLength()), pruned, containsAuxiliaryTemplateId)
+}
+
+func (c *CoinbaseV2) AppendPrunedBinary(preAllocatedBuf []byte) (data []byte, err error) {
+	return c.AppendBinary(preAllocatedBuf)
 }
 
 func (c *CoinbaseV2) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {

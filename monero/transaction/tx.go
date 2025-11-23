@@ -200,26 +200,31 @@ func (p *Prefix) BufferLength() int {
 }
 
 type Transaction interface {
-	Version() uint8
+	PrunableTransaction
+}
+
+type PrunableTransaction interface {
+	PrunedTransaction
+	Weight() int
 	Hash() types.Hash
-	PrefixHash() types.Hash
 	SignatureHash() types.Hash
 	BufferLength() int
+	AppendBinary(preAllocatedBuf []byte) (data []byte, err error)
+}
+
+type PrunedTransaction interface {
+	Version() uint8
+	PrefixHash() types.Hash
 	Fee() uint64
-	Weight() int
 	Inputs() Inputs
 	Outputs() Outputs
 	Proofs() Proofs
 	ExtraTags() ExtraTags
-	AppendBinary(preAllocatedBuf []byte) (data []byte, err error)
+	PrunedBufferLength() int
+	AppendPrunedBinary(preAllocatedBuf []byte) (data []byte, err error)
 }
 
-type PrunableTransaction interface {
-	Transaction
-	SignatureHash() types.Hash
-}
-
-func NewTransactionFromBytes(buf []byte) (tx PrunableTransaction, err error) {
+func NewTransactionFromBytes(buf []byte) (tx Transaction, err error) {
 	r := bytes.NewReader(buf)
 	tx, err = NewTransactionFromReader(r)
 	if err != nil {
@@ -236,7 +241,7 @@ func NewTransactionFromBytes(buf []byte) (tx PrunableTransaction, err error) {
 	return tx, nil
 }
 
-func NewTransactionFromReader(reader utils.ReaderAndByteReader) (tx PrunableTransaction, err error) {
+func NewTransactionFromReader(reader utils.ReaderAndByteReader) (tx Transaction, err error) {
 	var version uint8
 
 	if version, err = reader.ReadByte(); err != nil {
@@ -253,6 +258,62 @@ func NewTransactionFromReader(reader utils.ReaderAndByteReader) (tx PrunableTran
 	case 2:
 		var txV2 TransactionV2
 		if err = txV2.FromReader(reader); err != nil {
+			return nil, err
+		}
+		return &txV2, nil
+	default:
+		return nil, errors.New("unsupported version")
+	}
+
+}
+
+func NewPrunedTransactionFromBytes(buf []byte) (tx PrunedTransaction, err error) {
+	r := bytes.NewReader(buf)
+	tx, err = NewPrunedTransactionFromReader(r)
+	if err != nil {
+		// try coinbase v2 tx, or return original error
+		var coinbaseV2 CoinbaseV2
+		if coinbaseV2.UnmarshalBinary(buf, false, false) != nil {
+			return nil, err
+		}
+		return &coinbaseV2, nil
+
+		/*
+			var coinbaseV2 CoinbaseV2
+			// add pruned RCT
+			rr := bufio.NewReader(io.MultiReader(bytes.NewReader(buf), bytes.NewReader([]byte{0})))
+			if coinbaseV2.FromReader(rr, false, false) != nil {
+				return nil, err
+			}
+			if _, err := rr.ReadByte(); err == nil {
+				return nil, errors.New("leftover bytes in reader")
+			}
+				return &coinbaseV2, nil
+		*/
+	}
+	if r.Len() > 0 {
+		return nil, errors.New("leftover bytes in reader")
+	}
+	return tx, nil
+}
+
+func NewPrunedTransactionFromReader(reader utils.ReaderAndByteReader) (tx PrunedTransaction, err error) {
+	var version uint8
+
+	if version, err = reader.ReadByte(); err != nil {
+		return nil, err
+	}
+
+	switch version {
+	case 1:
+		var txV1 TransactionV1
+		if err = txV1.FromPrunedReader(reader); err != nil {
+			return nil, err
+		}
+		return &txV1, nil
+	case 2:
+		var txV2 TransactionV2
+		if err = txV2.FromPrunedReader(reader); err != nil {
 			return nil, err
 		}
 		return &txV2, nil

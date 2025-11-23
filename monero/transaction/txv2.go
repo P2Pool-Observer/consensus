@@ -95,7 +95,25 @@ func (tx *TransactionV2) BufferLength() int {
 	return n
 }
 
+func (tx *TransactionV2) PrunedBufferLength() int {
+	n := 1 + tx.Prefix.BufferLength() + tx.Base.BufferLength()
+	return n
+}
+
 func (tx *TransactionV2) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
+	buf, err := tx.AppendPrunedBinary(preAllocatedBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	if buf, err = tx.Prunable.AppendBinary(buf, false); err != nil {
+		return nil, err
+	}
+
+	return buf, nil
+}
+
+func (tx *TransactionV2) AppendPrunedBinary(preAllocatedBuf []byte) (data []byte, err error) {
 	buf := preAllocatedBuf
 
 	buf = append(buf, 2)
@@ -105,14 +123,11 @@ func (tx *TransactionV2) AppendBinary(preAllocatedBuf []byte) (data []byte, err 
 	if buf, err = tx.Base.AppendBinary(buf); err != nil {
 		return nil, err
 	}
-	if buf, err = tx.Prunable.AppendBinary(buf, false); err != nil {
-		return nil, err
-	}
 
 	return buf, nil
 }
 
-func (tx *TransactionV2) FromReader(reader utils.ReaderAndByteReader) (err error) {
+func (tx *TransactionV2) FromPrunedReader(reader utils.ReaderAndByteReader) (err error) {
 	if err = tx.Prefix.FromReader(reader); err != nil {
 		return err
 	}
@@ -124,7 +139,15 @@ func (tx *TransactionV2) FromReader(reader utils.ReaderAndByteReader) (err error
 		return errors.New("invalid proof type")
 	}
 
-	if tx.Prunable, err = prunableTypes[tx.Base.ProofType](reader, tx.Inputs(), tx.Outputs()); err != nil {
+	return nil
+}
+
+func (tx *TransactionV2) FromReader(reader utils.ReaderAndByteReader) (err error) {
+	if err = tx.FromPrunedReader(reader); err != nil {
+		return err
+	}
+
+	if tx.Prunable, err = prunableTypes[tx.Base.ProofType](reader, tx.Inputs(), tx.Outputs(), false); err != nil {
 		return err
 	}
 

@@ -94,7 +94,7 @@ const (
 	FCMPPlusPlus
 )
 
-func GetTransactionInputsData(tx Transaction, f func(in ...daemon.GetOutsInput) ([]client.Output, error)) (rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey, err error) {
+func GetTransactionInputsData(tx PrunedTransaction, f func(in ...daemon.GetOutsInput) ([]client.Output, error)) (rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey, err error) {
 	var request []daemon.GetOutsInput
 	for _, i := range tx.Inputs() {
 		var prefix uint64

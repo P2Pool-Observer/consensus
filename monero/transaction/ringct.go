@@ -136,12 +136,12 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 
 type Prunable interface {
 	SignatureHash() types.Hash
-	Hash(pruned bool) types.Hash
+	Hash(signature bool) types.Hash
 	Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error
-	BufferLength(pruned bool) int
-	AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error)
-	// FromReader TODO: support pruned arg
-	FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error)
+	BufferLength(signature bool) int
+	AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error)
+	// FromReader TODO: support signature arg
+	FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error)
 }
 
 type PrunableAggregateMLSAGBorromean struct {
@@ -180,10 +180,10 @@ func (p *PrunableAggregateMLSAGBorromean) SignatureHash() types.Hash {
 	return p.Hash(true)
 }
 
-func (p *PrunableAggregateMLSAGBorromean) Hash(pruned bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(pruned))
+func (p *PrunableAggregateMLSAGBorromean) Hash(signature bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(signature))
 	var err error
-	buf, err = p.AppendBinary(buf, pruned)
+	buf, err = p.AppendBinary(buf, signature)
 
 	if err != nil {
 		return types.ZeroHash
@@ -191,8 +191,8 @@ func (p *PrunableAggregateMLSAGBorromean) Hash(pruned bool) types.Hash {
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableAggregateMLSAGBorromean) BufferLength(pruned bool) (n int) {
-	if !pruned {
+func (p *PrunableAggregateMLSAGBorromean) BufferLength(signature bool) (n int) {
+	if !signature {
 		n += p.MLSAG[0].BufferLength()
 	}
 	for i := range p.Borromean {
@@ -201,14 +201,14 @@ func (p *PrunableAggregateMLSAGBorromean) BufferLength(pruned bool) (n int) {
 	return n
 }
 
-func (p *PrunableAggregateMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+func (p *PrunableAggregateMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
 	data = preAllocatedBuf
 	for _, br := range p.Borromean {
 		if data, err = br.AppendBinary(data); err != nil {
 			return nil, err
 		}
 	}
-	if !pruned {
+	if !signature {
 		if data, err = p.MLSAG[0].AppendBinary(data); err != nil {
 			return nil, err
 		}
@@ -216,7 +216,7 @@ func (p *PrunableAggregateMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, p
 	return data, nil
 }
 
-func (p *PrunableAggregateMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+func (p *PrunableAggregateMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
 	for range len(outputs) {
 		var br borromean.Range[curve25519.VarTimeOperations]
 		if err = br.FromReader(reader); err != nil {
@@ -229,8 +229,10 @@ func (p *PrunableAggregateMLSAGBorromean) FromReader(reader utils.ReaderAndByteR
 		return errors.New("empty inputs")
 	}
 
-	if err = p.MLSAG[0].FromReader(reader, len(inputs[0].Offsets), len(inputs)+1); err != nil {
-		return err
+	if !signature {
+		if err = p.MLSAG[0].FromReader(reader, len(inputs[0].Offsets), len(inputs)+1); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -287,17 +289,17 @@ func (p *PrunableMLSAGBorromean) SignatureHash() types.Hash {
 	return p.Hash(true)
 }
 
-func (p *PrunableMLSAGBorromean) Hash(pruned bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(pruned))
+func (p *PrunableMLSAGBorromean) Hash(signature bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(signature))
 	var err error
-	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+	if buf, err = p.AppendBinary(buf, signature); err != nil {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableMLSAGBorromean) BufferLength(pruned bool) (n int) {
-	if !pruned {
+func (p *PrunableMLSAGBorromean) BufferLength(signature bool) (n int) {
+	if !signature {
 		for i := range p.MLSAG {
 			n += p.MLSAG[i].BufferLength()
 		}
@@ -308,14 +310,14 @@ func (p *PrunableMLSAGBorromean) BufferLength(pruned bool) (n int) {
 	return n
 }
 
-func (p *PrunableMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+func (p *PrunableMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
 	data = preAllocatedBuf
 	for _, br := range p.Borromean {
 		if data, err = br.AppendBinary(data); err != nil {
 			return nil, err
 		}
 	}
-	if !pruned {
+	if !signature {
 		for _, e := range p.MLSAG {
 			if data, err = e.AppendBinary(data); err != nil {
 				return nil, err
@@ -325,7 +327,7 @@ func (p *PrunableMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, pruned boo
 	return data, nil
 }
 
-func (p *PrunableMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+func (p *PrunableMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
 	for range len(outputs) {
 		var br borromean.Range[curve25519.VarTimeOperations]
 		if err = br.FromReader(reader); err != nil {
@@ -334,13 +336,15 @@ func (p *PrunableMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, in
 		p.Borromean = append(p.Borromean, br)
 	}
 
-	for _, i := range inputs {
-		var e mlsag.Signature[curve25519.VarTimeOperations]
+	if !signature {
+		for _, i := range inputs {
+			var e mlsag.Signature[curve25519.VarTimeOperations]
 
-		if err = e.FromReader(reader, len(i.Offsets), 2); err != nil {
-			return err
+			if err = e.FromReader(reader, len(i.Offsets), 2); err != nil {
+				return err
+			}
+			p.MLSAG = append(p.MLSAG, e)
 		}
-		p.MLSAG = append(p.MLSAG, e)
 	}
 
 	return nil
@@ -404,17 +408,17 @@ func (p *PrunableMLSAGBulletproofs) SignatureHash() types.Hash {
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableMLSAGBulletproofs) Hash(pruned bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(pruned))
+func (p *PrunableMLSAGBulletproofs) Hash(signature bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(signature))
 	var err error
-	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+	if buf, err = p.AppendBinary(buf, signature); err != nil {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableMLSAGBulletproofs) BufferLength(pruned bool) (n int) {
-	if !pruned {
+func (p *PrunableMLSAGBulletproofs) BufferLength(signature bool) (n int) {
+	if !signature {
 		n += 4
 		for i := range p.MLSAG {
 			n += p.MLSAG[i].BufferLength()
@@ -425,15 +429,15 @@ func (p *PrunableMLSAGBulletproofs) BufferLength(pruned bool) (n int) {
 	return n
 }
 
-func (p *PrunableMLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+func (p *PrunableMLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
 	data = preAllocatedBuf
-	if !pruned {
+	if !signature {
 		data = binary.LittleEndian.AppendUint32(data, 1)
 	}
 	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
 		return nil, err
 	}
-	if !pruned {
+	if !signature {
 		for _, e := range p.MLSAG {
 			if data, err = e.AppendBinary(data); err != nil {
 				return nil, err
@@ -448,36 +452,41 @@ func (p *PrunableMLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, pruned 
 	return data, nil
 }
 
-func (p *PrunableMLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+func (p *PrunableMLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
 
 	var n uint32
-	if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &n); err != nil {
-		return err
-	}
 
-	if n != 1 {
-		return errors.New("unexpected n")
+	if !signature {
+		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &n); err != nil {
+			return err
+		}
+
+		if n != 1 {
+			return errors.New("unexpected n")
+		}
 	}
 
 	if err = p.Bulletproof.FromReader(reader); err != nil {
 		return err
 	}
 
-	for _, i := range inputs {
-		var e mlsag.Signature[curve25519.VarTimeOperations]
+	if !signature {
+		for _, i := range inputs {
+			var e mlsag.Signature[curve25519.VarTimeOperations]
 
-		if err = e.FromReader(reader, len(i.Offsets), 2); err != nil {
-			return err
+			if err = e.FromReader(reader, len(i.Offsets), 2); err != nil {
+				return err
+			}
+			p.MLSAG = append(p.MLSAG, e)
 		}
-		p.MLSAG = append(p.MLSAG, e)
-	}
 
-	var pk curve25519.VarTimePublicKey
-	for range inputs {
-		if err = pk.FromReader(reader); err != nil {
-			return err
+		var pk curve25519.VarTimePublicKey
+		for range inputs {
+			if err = pk.FromReader(reader); err != nil {
+				return err
+			}
+			p.PseudoOuts = append(p.PseudoOuts, pk)
 		}
-		p.PseudoOuts = append(p.PseudoOuts, pk)
 	}
 
 	return nil
@@ -539,17 +548,17 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) SignatureHash() types.Hash {
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) Hash(pruned bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(pruned))
+func (p *PrunableMLSAGBulletproofsCompactAmount) Hash(signature bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(signature))
 	var err error
-	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+	if buf, err = p.AppendBinary(buf, signature); err != nil {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) BufferLength(pruned bool) (n int) {
-	if !pruned {
+func (p *PrunableMLSAGBulletproofsCompactAmount) BufferLength(signature bool) (n int) {
+	if !signature {
 		n += utils.UVarInt64Size(1)
 		for i := range p.MLSAG {
 			n += p.MLSAG[i].BufferLength()
@@ -560,15 +569,15 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) BufferLength(pruned bool) (n in
 	return n
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+func (p *PrunableMLSAGBulletproofsCompactAmount) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
 	data = preAllocatedBuf
-	if !pruned {
+	if !signature {
 		data = binary.AppendUvarint(data, 1)
 	}
 	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
 		return nil, err
 	}
-	if !pruned {
+	if !signature {
 		for _, e := range p.MLSAG {
 			if data, err = e.AppendBinary(data); err != nil {
 				return nil, err
@@ -583,36 +592,41 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) AppendBinary(preAllocatedBuf []
 	return data, nil
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+func (p *PrunableMLSAGBulletproofsCompactAmount) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
 
 	var n uint64
-	if n, err = utils.ReadCanonicalUvarint(reader); err != nil {
-		return err
-	}
+	if !signature {
 
-	if n != 1 {
-		return errors.New("unexpected n")
+		if n, err = utils.ReadCanonicalUvarint(reader); err != nil {
+			return err
+		}
+
+		if n != 1 {
+			return errors.New("unexpected n")
+		}
 	}
 
 	if err = p.Bulletproof.FromReader(reader); err != nil {
 		return err
 	}
 
-	for _, i := range inputs {
-		var e mlsag.Signature[curve25519.VarTimeOperations]
+	if !signature {
+		for _, i := range inputs {
+			var e mlsag.Signature[curve25519.VarTimeOperations]
 
-		if err = e.FromReader(reader, len(i.Offsets), 2); err != nil {
-			return err
+			if err = e.FromReader(reader, len(i.Offsets), 2); err != nil {
+				return err
+			}
+			p.MLSAG = append(p.MLSAG, e)
 		}
-		p.MLSAG = append(p.MLSAG, e)
-	}
 
-	var pk curve25519.VarTimePublicKey
-	for range inputs {
-		if err = pk.FromReader(reader); err != nil {
-			return err
+		var pk curve25519.VarTimePublicKey
+		for range inputs {
+			if err = pk.FromReader(reader); err != nil {
+				return err
+			}
+			p.PseudoOuts = append(p.PseudoOuts, pk)
 		}
-		p.PseudoOuts = append(p.PseudoOuts, pk)
 	}
 
 	return nil
@@ -670,17 +684,17 @@ func (p *PrunableCLSAGBulletproofs) SignatureHash() types.Hash {
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableCLSAGBulletproofs) Hash(pruned bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(pruned))
+func (p *PrunableCLSAGBulletproofs) Hash(signature bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(signature))
 	var err error
-	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+	if buf, err = p.AppendBinary(buf, signature); err != nil {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableCLSAGBulletproofs) BufferLength(pruned bool) (n int) {
-	if !pruned {
+func (p *PrunableCLSAGBulletproofs) BufferLength(signature bool) (n int) {
+	if !signature {
 		n += 1
 		for i := range p.CLSAG {
 			n += p.CLSAG[i].BufferLength()
@@ -691,15 +705,15 @@ func (p *PrunableCLSAGBulletproofs) BufferLength(pruned bool) (n int) {
 	return n
 }
 
-func (p *PrunableCLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+func (p *PrunableCLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
 	data = preAllocatedBuf
-	if !pruned {
+	if !signature {
 		data = append(data, 1)
 	}
 	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
 		return nil, err
 	}
-	if !pruned {
+	if !signature {
 		for _, e := range p.CLSAG {
 			if data, err = e.AppendBinary(data); err != nil {
 				return nil, err
@@ -714,36 +728,41 @@ func (p *PrunableCLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, pruned 
 	return data, nil
 }
 
-func (p *PrunableCLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+func (p *PrunableCLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
 
 	var n uint8
-	if n, err = reader.ReadByte(); err != nil {
-		return err
-	}
 
-	if n != 1 {
-		return errors.New("unexpected n")
+	if !signature {
+		if n, err = reader.ReadByte(); err != nil {
+			return err
+		}
+
+		if n != 1 {
+			return errors.New("unexpected n")
+		}
 	}
 
 	if err = p.Bulletproof.FromReader(reader); err != nil {
 		return err
 	}
 
-	for _, i := range inputs {
-		var e clsag.Signature[curve25519.VarTimeOperations]
+	if !signature {
+		for _, i := range inputs {
+			var e clsag.Signature[curve25519.VarTimeOperations]
 
-		if err = e.FromReader(reader, len(i.Offsets)); err != nil {
-			return err
+			if err = e.FromReader(reader, len(i.Offsets)); err != nil {
+				return err
+			}
+			p.CLSAG = append(p.CLSAG, e)
 		}
-		p.CLSAG = append(p.CLSAG, e)
-	}
 
-	var pk curve25519.VarTimePublicKey
-	for range inputs {
-		if err = pk.FromReader(reader); err != nil {
-			return err
+		var pk curve25519.VarTimePublicKey
+		for range inputs {
+			if err = pk.FromReader(reader); err != nil {
+				return err
+			}
+			p.PseudoOuts = append(p.PseudoOuts, pk)
 		}
-		p.PseudoOuts = append(p.PseudoOuts, pk)
 	}
 
 	return nil
@@ -801,17 +820,17 @@ func (p *PrunableCLSAGBulletproofsPlus) SignatureHash() types.Hash {
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableCLSAGBulletproofsPlus) Hash(pruned bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(pruned))
+func (p *PrunableCLSAGBulletproofsPlus) Hash(signature bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(signature))
 	var err error
-	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+	if buf, err = p.AppendBinary(buf, signature); err != nil {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableCLSAGBulletproofsPlus) BufferLength(pruned bool) (n int) {
-	if !pruned {
+func (p *PrunableCLSAGBulletproofsPlus) BufferLength(signature bool) (n int) {
+	if !signature {
 		n += 1
 		for i := range p.CLSAG {
 			n += p.CLSAG[i].BufferLength()
@@ -822,15 +841,15 @@ func (p *PrunableCLSAGBulletproofsPlus) BufferLength(pruned bool) (n int) {
 	return n
 }
 
-func (p *PrunableCLSAGBulletproofsPlus) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+func (p *PrunableCLSAGBulletproofsPlus) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
 	data = preAllocatedBuf
-	if !pruned {
+	if !signature {
 		data = append(data, 1)
 	}
 	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
 		return nil, err
 	}
-	if !pruned {
+	if !signature {
 		for _, e := range p.CLSAG {
 			if data, err = e.AppendBinary(data); err != nil {
 				return nil, err
@@ -845,36 +864,40 @@ func (p *PrunableCLSAGBulletproofsPlus) AppendBinary(preAllocatedBuf []byte, pru
 	return data, nil
 }
 
-func (p *PrunableCLSAGBulletproofsPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+func (p *PrunableCLSAGBulletproofsPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
 
 	var n uint8
-	if n, err = reader.ReadByte(); err != nil {
-		return err
-	}
+	if !signature {
+		if n, err = reader.ReadByte(); err != nil {
+			return err
+		}
 
-	if n != 1 {
-		return errors.New("unexpected n")
+		if n != 1 {
+			return errors.New("unexpected n")
+		}
 	}
 
 	if err = p.Bulletproof.FromReader(reader); err != nil {
 		return err
 	}
 
-	for _, i := range inputs {
-		var e clsag.Signature[curve25519.VarTimeOperations]
+	if !signature {
+		for _, i := range inputs {
+			var e clsag.Signature[curve25519.VarTimeOperations]
 
-		if err = e.FromReader(reader, len(i.Offsets)); err != nil {
-			return err
+			if err = e.FromReader(reader, len(i.Offsets)); err != nil {
+				return err
+			}
+			p.CLSAG = append(p.CLSAG, e)
 		}
-		p.CLSAG = append(p.CLSAG, e)
-	}
 
-	var pk curve25519.VarTimePublicKey
-	for range inputs {
-		if err = pk.FromReader(reader); err != nil {
-			return err
+		var pk curve25519.VarTimePublicKey
+		for range inputs {
+			if err = pk.FromReader(reader); err != nil {
+				return err
+			}
+			p.PseudoOuts = append(p.PseudoOuts, pk)
 		}
-		p.PseudoOuts = append(p.PseudoOuts, pk)
 	}
 
 	return nil
@@ -938,17 +961,17 @@ func (p *PrunableFCMPPlusPlus) SignatureHash() types.Hash {
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableFCMPPlusPlus) Hash(pruned bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(pruned))
+func (p *PrunableFCMPPlusPlus) Hash(signature bool) types.Hash {
+	buf := make([]byte, 0, p.BufferLength(signature))
 	var err error
-	if buf, err = p.AppendBinary(buf, pruned); err != nil {
+	if buf, err = p.AppendBinary(buf, signature); err != nil {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableFCMPPlusPlus) BufferLength(pruned bool) (n int) {
-	if !pruned {
+func (p *PrunableFCMPPlusPlus) BufferLength(signature bool) (n int) {
+	if !signature {
 		n += 1
 		n += utils.UVarInt64Size(p.ReferenceBlock) + 1 + len(p.FCMP_PP)
 		n += len(p.PseudoOuts) * curve25519.PublicKeySize
@@ -957,15 +980,15 @@ func (p *PrunableFCMPPlusPlus) BufferLength(pruned bool) (n int) {
 	return n
 }
 
-func (p *PrunableFCMPPlusPlus) AppendBinary(preAllocatedBuf []byte, pruned bool) (data []byte, err error) {
+func (p *PrunableFCMPPlusPlus) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
 	data = preAllocatedBuf
-	if !pruned {
+	if !signature {
 		data = append(data, 1)
 	}
 	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
 		return nil, err
 	}
-	if !pruned {
+	if !signature {
 		data = binary.AppendUvarint(data, p.ReferenceBlock)
 		data = append(data, p.NTreeLayers)
 		data = append(data, p.FCMP_PP...)
@@ -979,103 +1002,108 @@ func (p *PrunableFCMPPlusPlus) AppendBinary(preAllocatedBuf []byte, pruned bool)
 	return data, nil
 }
 
-func (p *PrunableFCMPPlusPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+func (p *PrunableFCMPPlusPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
 
 	var n uint8
-	if n, err = reader.ReadByte(); err != nil {
-		return err
-	}
+	if !signature {
+		if n, err = reader.ReadByte(); err != nil {
+			return err
+		}
 
-	if n != 1 {
-		return errors.New("unexpected n")
+		if n != 1 {
+			return errors.New("unexpected n")
+		}
+
 	}
 
 	if err = p.Bulletproof.FromReader(reader); err != nil {
 		return err
 	}
 
-	if p.ReferenceBlock, err = utils.ReadCanonicalUvarint(reader); err != nil {
-		return err
-	}
-
-	// n_tree_layers can be inferred from the reference_block, however, if we didn't save n_tree_layers on the
-	// tx, we would need a db read (for n_tree_layers as of the block) in order to de-serialize the FCMP++ proof
-	if p.NTreeLayers, err = reader.ReadByte(); err != nil {
-		return err
-	}
-
-	if len(inputs) == 0 || len(inputs) > fcmp_pp.MaxInputs {
-		return errors.New("unsupported number of inputs")
-	}
-
-	if p.NTreeLayers == 0 || p.NTreeLayers > fcmp_pp.MaxLayers {
-		return errors.New("unsupported number of layers")
-	}
-
-	proofSize := fcmp_pp.ProofSize(len(inputs), int(p.NTreeLayers))
-	p.FCMP_PP = make([]byte, proofSize)
-	if _, err = utils.ReadFullNoEscape(reader, p.FCMP_PP); err != nil {
-		return err
-	}
-
-	var pk curve25519.VarTimePublicKey
-	for range inputs {
-		if err = pk.FromReader(reader); err != nil {
+	if !signature {
+		if p.ReferenceBlock, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		}
-		p.PseudoOuts = append(p.PseudoOuts, pk)
+
+		// n_tree_layers can be inferred from the reference_block, however, if we didn't save n_tree_layers on the
+		// tx, we would need a db read (for n_tree_layers as of the block) in order to de-serialize the FCMP++ proof
+		if p.NTreeLayers, err = reader.ReadByte(); err != nil {
+			return err
+		}
+
+		if len(inputs) == 0 || len(inputs) > fcmp_pp.MaxInputs {
+			return errors.New("unsupported number of inputs")
+		}
+
+		if p.NTreeLayers == 0 || p.NTreeLayers > fcmp_pp.MaxLayers {
+			return errors.New("unsupported number of layers")
+		}
+
+		proofSize := fcmp_pp.ProofSize(len(inputs), int(p.NTreeLayers))
+		p.FCMP_PP = make([]byte, proofSize)
+		if _, err = utils.ReadFullNoEscape(reader, p.FCMP_PP); err != nil {
+			return err
+		}
+
+		var pk curve25519.VarTimePublicKey
+		for range inputs {
+			if err = pk.FromReader(reader); err != nil {
+				return err
+			}
+			p.PseudoOuts = append(p.PseudoOuts, pk)
+		}
 	}
 
 	return nil
 }
 
-var prunableTypes = []func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error){
+var prunableTypes = []func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (p Prunable, err error){
 	nil,
-	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (p Prunable, err error) {
 		var pt PrunableAggregateMLSAGBorromean
-		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+		if err = pt.FromReader(reader, inputs, outputs, signature); err != nil {
 			return nil, err
 		}
 		return &pt, nil
 	},
-	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (p Prunable, err error) {
 		var pt PrunableMLSAGBorromean
-		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+		if err = pt.FromReader(reader, inputs, outputs, signature); err != nil {
 			return nil, err
 		}
 		return &pt, nil
 	},
-	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (p Prunable, err error) {
 		var pt PrunableMLSAGBulletproofs
-		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+		if err = pt.FromReader(reader, inputs, outputs, signature); err != nil {
 			return nil, err
 		}
 		return &pt, nil
 	},
-	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (p Prunable, err error) {
 		var pt PrunableMLSAGBulletproofsCompactAmount
-		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+		if err = pt.FromReader(reader, inputs, outputs, signature); err != nil {
 			return nil, err
 		}
 		return &pt, nil
 	},
-	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (p Prunable, err error) {
 		var pt PrunableCLSAGBulletproofs
-		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+		if err = pt.FromReader(reader, inputs, outputs, signature); err != nil {
 			return nil, err
 		}
 		return &pt, nil
 	},
-	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (p Prunable, err error) {
 		var pt PrunableCLSAGBulletproofsPlus
-		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+		if err = pt.FromReader(reader, inputs, outputs, signature); err != nil {
 			return nil, err
 		}
 		return &pt, nil
 	},
-	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (p Prunable, err error) {
+	func(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (p Prunable, err error) {
 		var pt PrunableFCMPPlusPlus
-		if err = pt.FromReader(reader, inputs, outputs); err != nil {
+		if err = pt.FromReader(reader, inputs, outputs, signature); err != nil {
 			return nil, err
 		}
 		return &pt, nil

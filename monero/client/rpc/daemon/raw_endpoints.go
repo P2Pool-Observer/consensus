@@ -239,12 +239,13 @@ func (r *GetTransactionsResult) GetTransactions() ([]*TransactionJSON, error) {
 }
 
 func (c *Client) GetTransactions(
-	ctx context.Context, txns []types.Hash,
+	ctx context.Context, txns []types.Hash, prune bool,
 ) (*GetTransactionsResult, error) {
 	resp := &GetTransactionsResult{}
 	params := map[string]interface{}{
 		"txs_hashes":     txns,
 		"decode_as_json": true,
+		"prune":          prune,
 	}
 
 	err := c.RawRequest(ctx, endpointGetTransactions, params, resp)
