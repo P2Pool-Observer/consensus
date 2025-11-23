@@ -10,8 +10,8 @@ import (
 func GetOutProof[T curve25519.PointOperations](a Interface, txId types.Hash, txKey *curve25519.Scalar, message string, version uint8, additionalTxKeys ...curve25519.Scalar) proofs.TxProof[T] {
 	prefixHash := proofs.TxPrefixHash(txId, message)
 
-	sharedSecret := make([]curve25519.PublicKey[T], 1, 1+len(additionalTxKeys))
-	signature := make([]crypto.Signature[T], 1, 1+len(additionalTxKeys))
+	sharedSecret := make([]curve25519.PublicKey[T], 1+len(additionalTxKeys))
+	signature := make([]crypto.Signature[T], 1+len(additionalTxKeys))
 
 	var spendPub, viewPub curve25519.PublicKey[T]
 	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
@@ -47,8 +47,8 @@ func GetOutProof[T curve25519.PointOperations](a Interface, txId types.Hash, txK
 func GetInProof[T curve25519.PointOperations](a Interface, txId types.Hash, viewKey *curve25519.Scalar, txPubKey *curve25519.PublicKey[T], message string, version uint8, additionalTxPubKeys ...curve25519.PublicKey[T]) proofs.TxProof[T] {
 	prefixHash := proofs.TxPrefixHash(txId, message)
 
-	sharedSecret := make([]curve25519.PublicKey[T], 1, 1+len(additionalTxPubKeys))
-	signature := make([]crypto.Signature[T], 1, 1+len(additionalTxPubKeys))
+	sharedSecret := make([]curve25519.PublicKey[T], 1+len(additionalTxPubKeys))
+	signature := make([]crypto.Signature[T], 1+len(additionalTxPubKeys))
 
 	var spendPub, viewPub curve25519.PublicKey[T]
 	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
