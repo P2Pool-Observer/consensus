@@ -93,7 +93,7 @@ func (c *MainChain) Listen(success func()) error {
 						if o.ToKey != nil {
 							outputs = append(outputs, transaction.Output{
 								Index:              uint64(i),
-								Reward:             o.Amount,
+								Amount:             o.Amount,
 								Type:               transaction.TxOutToKey,
 								EphemeralPublicKey: o.ToKey.Key,
 								ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0}),
@@ -101,7 +101,7 @@ func (c *MainChain) Listen(success func()) error {
 						} else if o.ToTaggedKey != nil {
 							outputs = append(outputs, transaction.Output{
 								Index:              uint64(i),
-								Reward:             o.Amount,
+								Amount:             o.Amount,
 								Type:               transaction.TxOutToTaggedKey,
 								EphemeralPublicKey: o.ToTaggedKey.Key,
 								ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{o.ToTaggedKey.ViewTag[0]}),
@@ -109,7 +109,7 @@ func (c *MainChain) Listen(success func()) error {
 						} else if o.ToCarrotV1 != nil {
 							outputs = append(outputs, transaction.Output{
 								Index:                uint64(i),
-								Reward:               o.Amount,
+								Amount:               o.Amount,
 								Type:                 transaction.TxOutToCarrotV1,
 								EphemeralPublicKey:   o.ToCarrotV1.Key,
 								ViewTag:              types.MakeFixed([monero.CarrotViewTagSize]uint8(o.ToCarrotV1.ViewTag)),
@@ -134,19 +134,22 @@ func (c *MainChain) Listen(success func()) error {
 						continue
 					}
 
+					if fullChainMain.MinerTx.Version != 2 {
+						continue
+					}
+
 					blockData := &mainblock.Block{
 						MajorVersion: uint8(fullChainMain.MajorVersion),
 						MinorVersion: uint8(fullChainMain.MinorVersion),
 						Timestamp:    uint64(fullChainMain.Timestamp),
 						PreviousId:   fullChainMain.PrevID,
 						Nonce:        uint32(fullChainMain.Nonce),
-						Coinbase: transaction.CoinbaseTransaction{
-							Version:      uint8(fullChainMain.MinerTx.Version),
+						Coinbase: transaction.CoinbaseV2{
 							UnlockTime:   uint64(fullChainMain.MinerTx.UnlockTime),
 							InputCount:   uint8(len(fullChainMain.MinerTx.Inputs)),
 							InputType:    transaction.TxInGen,
 							GenHeight:    fullChainMain.MinerTx.Inputs[0].Gen.Height,
-							Outputs:      outputs,
+							MinerOutputs: outputs,
 							Extra:        extraTags,
 							ExtraBaseRCT: 0,
 							AuxiliaryData: transaction.CoinbaseTransactionAuxiliaryData{

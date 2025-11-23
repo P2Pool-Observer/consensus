@@ -28,7 +28,7 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		for index := 0; index < int(outputCount); index++ {
 			o.Index = uint64(index)
 
-			if o.Reward, err = utils.ReadCanonicalUvarint(reader); err != nil {
+			if o.Amount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 				return err
 			}
 
@@ -87,7 +87,7 @@ func (s *Outputs) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) 
 	data = binary.AppendUvarint(data, uint64(len(*s)))
 
 	for _, o := range *s {
-		data = binary.AppendUvarint(data, o.Reward)
+		data = binary.AppendUvarint(data, o.Amount)
 		data = append(data, o.Type)
 
 		switch o.Type {
@@ -110,10 +110,10 @@ func (s *Outputs) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) 
 
 type Output struct {
 	Index uint64 `json:"index"`
-	// Reward amount of Monero rewarded on this output.
+	// Amount index of Monero rewarded on this output, 0 for RingCT
 	// Consensus: p2pool limits this field to 56 bits max
 	// https://github.com/SChernykh/p2pool/blob/10d583adb67d0566af6c36a6c97fed69545421a2/src/pool_block.h#L104-L106
-	Reward uint64 `json:"reward"`
+	Amount uint64 `json:"amount"`
 	// Type would be here
 	EphemeralPublicKey   curve25519.PublicKeyBytes                       `json:"ephemeral_public_key"`
 	EncryptedJanusAnchor types.FixedBytes[[monero.JanusAnchorSize]uint8] `json:"encrypted_janus_anchor,omitempty"`
@@ -125,7 +125,7 @@ type Output struct {
 }
 
 func (o Output) BufferLength() (n int) {
-	n += utils.UVarInt64Size(o.Reward) +
+	n += utils.UVarInt64Size(o.Amount) +
 		1 +
 		curve25519.PublicKeySize
 	if o.Type == TxOutToTaggedKey {

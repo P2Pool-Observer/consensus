@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 
@@ -216,6 +217,23 @@ type Transaction interface {
 type PrunableTransaction interface {
 	Transaction
 	SignatureHash() types.Hash
+}
+
+func NewTransactionFromBytes(buf []byte) (tx PrunableTransaction, err error) {
+	r := bytes.NewReader(buf)
+	tx, err = NewTransactionFromReader(r)
+	if err != nil {
+		// try coinbase v2 tx, or return original error
+		var coinbaseV2 CoinbaseV2
+		if coinbaseV2.UnmarshalBinary(buf, false, false) != nil {
+			return nil, err
+		}
+		return &coinbaseV2, nil
+	}
+	if r.Len() > 0 {
+		return nil, errors.New("leftover bytes in reader")
+	}
+	return tx, nil
 }
 
 func NewTransactionFromReader(reader utils.ReaderAndByteReader) (tx PrunableTransaction, err error) {

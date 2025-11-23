@@ -79,11 +79,11 @@ func TestTemplate(t *testing.T) {
 
 	var coinbaseId types.Hash
 
-	if tpl.CoinbaseId(crypto.NewKeccak256(), b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.CalculateId() {
+	if tpl.CoinbaseId(crypto.NewKeccak256(), b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.Hash() {
 		t.Fatal("different coinbase ids")
 	}
 
-	if tpl.CoinbaseBlobId(preAllocatedBuffer, b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.CalculateId() {
+	if tpl.CoinbaseBlobId(preAllocatedBuffer, b.ExtraNonce(), blockTemplateId, &coinbaseId); coinbaseId != b.Main.Coinbase.Hash() {
 		t.Fatal("different coinbase blob ids")
 	}
 

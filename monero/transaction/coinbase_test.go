@@ -8,7 +8,7 @@ import (
 
 func FuzzCoinbaseTransactionRoundTrip(f *testing.F) {
 	f.Fuzz(func(t *testing.T, buf []byte) {
-		tx := &CoinbaseTransaction{}
+		tx := &CoinbaseV2{}
 		if err := tx.UnmarshalBinary(buf, false, false); err != nil {
 			t.Skipf("leftover error: %s", err)
 			return

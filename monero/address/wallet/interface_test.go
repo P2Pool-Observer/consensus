@@ -44,7 +44,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 				}
 
 				out, _, _ := address.CalculateTransactionOutput[T](addrI, txKey, 0, amount)
-				out.Reward = 0
+				out.Amount = 0
 
 				i, pub, _, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes())
 				if i != 0 {
@@ -81,7 +81,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 
 			out := transaction.Output{
 				Type:                 transaction.TxOutToCarrotV1,
-				Reward:               amount,
+				Amount:               amount,
 				EphemeralPublicKey:   enote.OneTimeAddress,
 				EncryptedJanusAnchor: enote.EncryptedAnchor,
 				ViewTag:              enote.ViewTag,
@@ -133,7 +133,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 				txPub := new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 
 				out, additionalPub, encryptedAmount := address.CalculateTransactionOutput[T](addr, txKey, 0, amount)
-				out.Reward = 0
+				out.Amount = 0
 
 				if additionalPub == nil {
 					additionalPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
@@ -177,7 +177,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 
 			out := transaction.Output{
 				Type:                 transaction.TxOutToCarrotV1,
-				Reward:               amount,
+				Amount:               amount,
 				EphemeralPublicKey:   enote.Enote.OneTimeAddress,
 				EncryptedJanusAnchor: types.MakeFixed(enote.Enote.EncryptedAnchor),
 				ViewTag:              types.MakeFixed(enote.Enote.ViewTag),

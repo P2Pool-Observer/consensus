@@ -46,14 +46,14 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 	outputs := transaction.Outputs{
 		{
 			Index:              0,
-			Reward:             0,
+			Amount:             0,
 			EphemeralPublicKey: types.MustBytes32FromString[curve25519.PublicKeyBytes]("892251b8fa9b95f90397f17f20178e05be9122338c1be821cb208237ce3397ca"),
 			Type:               transaction.TxOutToTaggedKey,
 			ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0xc0}),
 		},
 		{
 			Index:              1,
-			Reward:             0,
+			Amount:             0,
 			EphemeralPublicKey: types.MustBytes32FromString[curve25519.PublicKeyBytes]("8219a994a9055ce3f99298fae343afea6b2d658098b33099b65b78e160cbd72e"),
 			Type:               transaction.TxOutToTaggedKey,
 			ViewTag:            types.MakeFixed([monero.CarrotViewTagSize]byte{0x82}),

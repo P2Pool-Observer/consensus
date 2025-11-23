@@ -28,10 +28,10 @@ type Block struct {
 	PreviousId types.Hash `json:"previous_id"`
 	//Nonce would be here
 
-	Coinbase transaction.CoinbaseTransaction `json:"coinbase"`
+	Coinbase transaction.CoinbaseV2 `json:"coinbase"`
 
 	Transactions []types.Hash `json:"transactions,omitempty"`
-	// TransactionParentIndices amount of reward existing Outputs. Used by p2pool serialized compact broadcasted blocks in protocol >= 1.1, filled only in compact blocks or by pre-processing.
+	// TransactionParentIndices amount of reward existing MinerOutputs. Used by p2pool serialized compact broadcasted blocks in protocol >= 1.1, filled only in compact blocks or by pre-processing.
 	TransactionParentIndices []uint64 `json:"transaction_parent_indices,omitempty"`
 
 	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
@@ -89,8 +89,8 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, conta
 	if b.MajorVersion >= monero.HardForkRejectManyMinerOutputs {
 		// TODO: check this on pruned?
 
-		if len(b.Coinbase.Outputs) > monero.MaxMinerOutputs {
-			return nil, utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.Outputs), monero.MaxMinerOutputs)
+		if len(b.Coinbase.MinerOutputs) > monero.MaxMinerOutputs {
+			return nil, utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.MinerOutputs), monero.MaxMinerOutputs)
 		}
 	}
 
@@ -98,7 +98,7 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, conta
 		// TODO: check this on pruned?
 
 		// Scale extra limit by number of outputs since Carrot requires 1 32-byte ephemeral pubkey per output (for Janus).
-		maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.Outputs)*monero.MinerTxExtraSizePerOutput
+		maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.MinerOutputs)*monero.MinerTxExtraSizePerOutput
 		if b.Coinbase.Extra.BufferLength() >= maxExtraSize {
 			return nil, utils.ErrorfNoEscape("too large tx extra: %d >= %d", b.Coinbase.Extra.BufferLength(), maxExtraSize)
 		}
@@ -214,8 +214,8 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		if b.MajorVersion >= monero.HardForkRejectManyMinerOutputs {
 			// TODO: check this on pruned?
 
-			if len(b.Coinbase.Outputs) > monero.MaxMinerOutputs {
-				return utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.Outputs), monero.MaxMinerOutputs)
+			if len(b.Coinbase.MinerOutputs) > monero.MaxMinerOutputs {
+				return utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.MinerOutputs), monero.MaxMinerOutputs)
 			}
 		}
 
@@ -223,7 +223,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 			// TODO: check this on pruned?
 
 			// Scale extra limit by number of outputs since Carrot requires 1 32-byte ephemeral pubkey per output (for Janus).
-			maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.Outputs)*monero.MinerTxExtraSizePerOutput
+			maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.MinerOutputs)*monero.MinerTxExtraSizePerOutput
 			if b.Coinbase.Extra.BufferLength() >= maxExtraSize {
 				return utils.ErrorfNoEscape("too large tx extra: %d >= %d", b.Coinbase.Extra.BufferLength(), maxExtraSize)
 			}
@@ -364,7 +364,7 @@ func (b *Block) HashingBlob(preAllocatedBuf []byte) []byte {
 
 	merkleTree := make(crypto.MerkleTree, len(b.Transactions)+reserve)
 
-	merkleTree[reserveOffset] = b.Coinbase.CalculateId()
+	merkleTree[reserveOffset] = b.Coinbase.Hash()
 	reserveOffset++
 
 	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {

@@ -23,6 +23,10 @@ var testTransactions = []types.Hash{
 	types.MustHashFromString("9e3f73e66d7c7293af59c59c1ff5d6aae047289f49e5884c66caaf4aea49fb34"),
 
 	// some v2 txs
+
+	// v2 coinbase p2pool
+	types.MustHashFromString("8a72317bee39b1b6d8bd941607485986c7e4a50ebc440b9c144334feffd6fbfd"),
+
 	// mlsag aggregate borromean
 	types.MustHashFromString("618ae0d58ab6432e7438bf2dce33784bb540a0f3d9ebddf1f3ad7fb303380ca3"),
 	// mlsag borromean (with clear inputs)
@@ -67,15 +71,9 @@ func TestTransactions(t *testing.T) {
 				data = result[0]
 			}
 
-			r := bytes.NewReader(data)
-
-			tx, err := NewTransactionFromReader(r)
+			tx, err := NewTransactionFromBytes(data)
 			if err != nil {
 				t.Fatal(err)
-			}
-
-			if r.Len() > 0 {
-				t.Fatal("leftover bytes")
 			}
 
 			prefixHash := tx.PrefixHash()
@@ -95,7 +93,11 @@ func TestTransactions(t *testing.T) {
 			}
 
 			t.Logf("version = %d", tx.Version())
-			t.Logf("ringct  = %d", tx.Proofs().ProofType())
+			if tx.Proofs() != nil {
+				t.Logf("ringct  = %d", tx.Proofs().ProofType())
+			} else {
+				t.Logf("ringct  = <nil>")
+			}
 			t.Logf("id      = %s", calculatedId)
 			t.Logf("prefix  = %s", prefixHash)
 			t.Logf("size    = %d", tx.BufferLength())
@@ -118,8 +120,10 @@ func TestTransactions(t *testing.T) {
 				}
 			}
 
-			if err = tx.Proofs().Verify(tx.SignatureHash(), rings, images); err != nil {
-				t.Fatalf("tx proof failed: %v", err)
+			if tx.Proofs() != nil {
+				if err = tx.Proofs().Verify(tx.SignatureHash(), rings, images); err != nil {
+					t.Fatalf("tx proof failed: %v", err)
+				}
 			}
 
 			/*
@@ -145,9 +149,13 @@ func BenchmarkTransactionsVerify(b *testing.B) {
 				b.Fatal(err)
 			}
 
-			tx, err := NewTransactionFromReader(bytes.NewReader(data[0]))
+			tx, err := NewTransactionFromBytes(data[0])
 			if err != nil {
 				b.Fatal(err)
+			}
+
+			if tx.Proofs() == nil {
+				b.Skip("no proofs")
 			}
 
 			rings, images, err := GetTransactionInputsData(tx, rpc.GetOuts)

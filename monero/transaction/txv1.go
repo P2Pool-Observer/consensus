@@ -101,10 +101,10 @@ func (tx *TransactionV1) FromReader(reader utils.ReaderAndByteReader) (err error
 		}
 	}
 	for _, out := range tx.Outputs() {
-		if out.Reward > total {
+		if out.Amount > total {
 			return ErrAmountOverflow
 		}
-		total -= out.Reward
+		total -= out.Amount
 	}
 
 	tx.fee = total

@@ -427,7 +427,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
 		fcmpOffset = 1 + types.HashSize
 		// remove the additional pub keys
-		fcmpMerkleRootOffset = 1 + utils.UVarInt64Size(len(b.Main.Coinbase.Outputs)) + curve25519.PublicKeySize*len(b.Main.Coinbase.Outputs)
+		fcmpMerkleRootOffset = 1 + utils.UVarInt64Size(len(b.Main.Coinbase.MinerOutputs)) + curve25519.PublicKeySize*len(b.Main.Coinbase.MinerOutputs)
 	}
 
 	tpl.NonceOffset = mainBufferLength - (4 + coinbaseLength + utils.UVarInt64Size(len(b.Main.Transactions)) + types.HashSize*len(b.Main.Transactions) + fcmpOffset)

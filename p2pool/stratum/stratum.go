@@ -251,7 +251,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			Timestamp:    s.newTemplateData.Timestamp,
 			PreviousId:   s.minerData.PrevId,
 			Nonce:        0,
-			Coinbase: transaction.CoinbaseTransaction{
+			Coinbase: transaction.CoinbaseV2{
 				GenHeight: s.minerData.Height,
 			},
 			Transactions:   nil,
@@ -766,8 +766,7 @@ func (s *Server) coinbaseTransactionWeight(shareVersion sidechain.ShareVersion, 
 
 	txOutputsSize := txOutputSize*len(rewards) + int(rewardAmountsWeight)
 
-	tx := transaction.CoinbaseTransaction{
-		Version:      2,
+	tx := transaction.CoinbaseV2{
 		UnlockTime:   s.minerData.Height + monero.MinerRewardUnlockTime,
 		InputCount:   1,
 		InputType:    transaction.TxInGen,
@@ -785,7 +784,7 @@ func (s *Server) coinbaseTransactionWeight(shareVersion sidechain.ShareVersion, 
 	return uint64(txSize), nil
 }
 
-func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, mergeMiningTreeData uint64, txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (tx transaction.CoinbaseTransaction, err error) {
+func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, mergeMiningTreeData uint64, txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (tx transaction.CoinbaseV2, err error) {
 
 	var mergeMineTag transaction.ExtraTag
 	if shareVersion <= sidechain.ShareVersion_V2 {
@@ -807,11 +806,10 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			Data:      data,
 		}
 	} else {
-		return transaction.CoinbaseTransaction{}, errors.New("unsupported share version")
+		return transaction.CoinbaseV2{}, errors.New("unsupported share version")
 	}
 
-	tx = transaction.CoinbaseTransaction{
-		Version:    2,
+	tx = transaction.CoinbaseV2{
 		UnlockTime: s.minerData.Height + monero.MinerRewardUnlockTime,
 		InputCount: 1,
 		InputType:  transaction.TxInGen,
@@ -853,7 +851,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 
 	}
 
-	tx.Outputs = make(transaction.Outputs, len(shares))
+	tx.MinerOutputs = make(transaction.Outputs, len(shares))
 
 	if final {
 		txPrivateKey := s.newTemplateData.TransactionPrivateKey
@@ -864,7 +862,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			for i := range len(shares) {
 				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i])
 				if carrotEnotes[i] == nil {
-					return transaction.CoinbaseTransaction{}, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
+					return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
 				}
 			}
 
@@ -874,42 +872,42 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			})
 			pubs := tx.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys)
 			if pubs == nil {
-				return transaction.CoinbaseTransaction{}, errors.New("nil additional public keys")
+				return transaction.CoinbaseV2{}, errors.New("nil additional public keys")
 			}
 			for i, enote := range carrotEnotes {
 				//TODO: cache
 				outputIndex := uint64(i)
-				tx.Outputs[outputIndex] = sidechain.CalculateOutputCarrot(enote, txType, outputIndex)
+				tx.MinerOutputs[outputIndex] = sidechain.CalculateOutputCarrot(enote, txType, outputIndex)
 
 				//ephemeral pubkeys: D_e
 				copy(pubs.Data[curve25519.PublicKeySize*outputIndex:], enote.EphemeralPubKey[:])
 			}
 		} else {
 			var k ephemeralPubKeyCacheKey
-			for i := range tx.Outputs {
+			for i := range tx.MinerOutputs {
 				outputIndex := uint64(i)
 				addr := &shares[outputIndex].Address
 				if addr.IsSubaddress() {
-					return transaction.CoinbaseTransaction{}, errors.New("unsupported subaddress")
+					return transaction.CoinbaseV2{}, errors.New("unsupported subaddress")
 				}
-				tx.Outputs[outputIndex].Index = outputIndex
-				tx.Outputs[outputIndex].Type = txType
-				tx.Outputs[outputIndex].Reward = rewards[outputIndex]
+				tx.MinerOutputs[outputIndex].Index = outputIndex
+				tx.MinerOutputs[outputIndex].Type = txType
+				tx.MinerOutputs[outputIndex].Amount = rewards[outputIndex]
 				copy(k[:], shares[outputIndex].Address.PackedAddress().Bytes())
 				binary.LittleEndian.PutUint64(k[curve25519.PublicKeySize*2:], outputIndex)
 				if e, ok := s.newTemplateData.Window.EphemeralPubKeyCache[k]; ok {
-					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag.Slice()[0] = e.PublicKey, e.ViewTag
+					tx.MinerOutputs[outputIndex].EphemeralPublicKey, tx.MinerOutputs[outputIndex].ViewTag.Slice()[0] = e.PublicKey, e.ViewTag
 				} else {
-					tx.Outputs[outputIndex].EphemeralPublicKey, tx.Outputs[outputIndex].ViewTag.Slice()[0] = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, outputIndex)
+					tx.MinerOutputs[outputIndex].EphemeralPublicKey, tx.MinerOutputs[outputIndex].ViewTag.Slice()[0] = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, outputIndex)
 				}
 			}
 		}
 	} else {
-		for i := range tx.Outputs {
+		for i := range tx.MinerOutputs {
 			outputIndex := uint64(i)
-			tx.Outputs[outputIndex].Index = outputIndex
-			tx.Outputs[outputIndex].Type = txType
-			tx.Outputs[outputIndex].Reward = rewards[outputIndex]
+			tx.MinerOutputs[outputIndex].Index = outputIndex
+			tx.MinerOutputs[outputIndex].Type = txType
+			tx.MinerOutputs[outputIndex].Amount = rewards[outputIndex]
 		}
 	}
 
@@ -917,10 +915,10 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 
 	if !final {
 		if rewardAmountsWeight != maxRewardsAmountsWeight {
-			return transaction.CoinbaseTransaction{}, utils.ErrorfNoEscape("incorrect miner rewards during the dry run, %d != %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+			return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("incorrect miner rewards during the dry run, %d != %d", rewardAmountsWeight, maxRewardsAmountsWeight)
 		}
 	} else if rewardAmountsWeight > maxRewardsAmountsWeight {
-		return transaction.CoinbaseTransaction{}, utils.ErrorfNoEscape("incorrect miner rewards during the real run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+		return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("incorrect miner rewards during the real run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
 	}
 
 	correctedExtraNonceSize := sidechain.SideExtraNonceSize + maxRewardsAmountsWeight - rewardAmountsWeight
@@ -928,7 +926,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 	if correctedExtraNonceSize > sidechain.SideExtraNonceSize {
 		if correctedExtraNonceSize > sidechain.SideExtraNonceMaxSize {
 			//TODO: handle this case!!!!
-			return transaction.CoinbaseTransaction{}, utils.ErrorfNoEscape("corrected extra_nonce size is too large, %d > %d", correctedExtraNonceSize, sidechain.SideExtraNonceMaxSize)
+			return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("corrected extra_nonce size is too large, %d > %d", correctedExtraNonceSize, sidechain.SideExtraNonceMaxSize)
 		}
 		//Increase size to maintain transaction weight
 		tx.Extra.GetTag(transaction.TxExtraTagNonce).Data = make(types.Bytes, correctedExtraNonceSize)

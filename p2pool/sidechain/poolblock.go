@@ -491,7 +491,7 @@ func (b *PoolBlock) CoinbaseId() types.Hash {
 	if h := b.cache.coinbaseId.Load(); h != nil {
 		return *h
 	} else {
-		hash := b.Main.Coinbase.CalculateId()
+		hash := b.Main.Coinbase.Hash()
 		if hash == types.ZeroHash {
 			return types.ZeroHash
 		}
@@ -629,7 +629,7 @@ func (b *PoolBlock) consensusMergeMiningTag() (err error) {
 func (b *PoolBlock) consensusCheckTagOrder() (err error) {
 	// verify number and order of tags
 	if b.Main.MajorVersion >= monero.HardForkCarrotVersion {
-		if len(b.Main.Coinbase.Outputs) == 0 {
+		if len(b.Main.Coinbase.MinerOutputs) == 0 {
 			// pruned block, special filled later
 			if extra := b.Main.Coinbase.Extra; len(extra) != 2 {
 				return errors.New("wrong coinbase extra tag count")
@@ -664,7 +664,7 @@ func (b *PoolBlock) consensusCheckTagOrder() (err error) {
 }
 
 func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
-	if len(b.Main.Coinbase.Outputs) == 0 && b.Main.Coinbase.AuxiliaryData.OutputsBlobSize == 0 {
+	if len(b.Main.Coinbase.MinerOutputs) == 0 && b.Main.Coinbase.AuxiliaryData.OutputsBlobSize == 0 {
 		return errors.New("no specified outputs")
 	}
 	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
@@ -777,11 +777,11 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 		b.FillTransactionParentIndices(consensus, parent)
 	}
 
-	if len(b.Main.Coinbase.Outputs) == 0 {
+	if len(b.Main.Coinbase.MinerOutputs) == 0 {
 		if outputs, pubs, _, err := calculateOutputs(); err != nil {
 			return nil, fmt.Errorf("error filling outputs for block: %w", err)
 		} else {
-			b.Main.Coinbase.Outputs = outputs
+			b.Main.Coinbase.MinerOutputs = outputs
 			if len(pubs) > 0 {
 				if err = b.fillCoinbasePublicKeys(pubs); err != nil {
 					return nil, fmt.Errorf("error filling outputs for block: %w", err)
@@ -792,7 +792,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 			}
 		}
 
-		if outputBlob, err := b.Main.Coinbase.Outputs.AppendBinary(make([]byte, 0, b.Main.Coinbase.Outputs.BufferLength())); err != nil {
+		if outputBlob, err := b.Main.Coinbase.MinerOutputs.AppendBinary(make([]byte, 0, b.Main.Coinbase.MinerOutputs.BufferLength())); err != nil {
 			return nil, fmt.Errorf("error filling outputs for block: %s", err)
 		} else if uint64(len(outputBlob)) != b.Main.Coinbase.AuxiliaryData.OutputsBlobSize {
 			return nil, utils.ErrorfNoEscape("error filling outputs for block: invalid output blob size, got %d, expected %d", b.Main.Coinbase.AuxiliaryData.OutputsBlobSize, len(outputBlob))
@@ -809,7 +809,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 }
 
 func (b *PoolBlock) NeedsPreProcess() bool {
-	return b.NeedsCompactTransactionFilling() || len(b.Main.Coinbase.Outputs) == 0
+	return b.NeedsCompactTransactionFilling() || len(b.Main.Coinbase.MinerOutputs) == 0
 }
 
 func (b *PoolBlock) NeedsPostProcess() bool {

@@ -177,10 +177,10 @@ func (c *SideChain) PreCalcFinished() bool {
 
 func (c *SideChain) PreprocessBlock(block *PoolBlock) (missingBlocks []types.Hash, err error) {
 	var preAllocatedShares Shares
-	if len(block.Main.Coinbase.Outputs) == 0 {
+	if len(block.Main.Coinbase.MinerOutputs) == 0 {
 		//cannot use SideTemplateId() as it might not be proper to calculate yet. fetch appropriate identifier from coinbase only here
 		if b := c.GetPoolBlockByTemplateId(block.FastSideTemplateId(c.Consensus())); b != nil {
-			block.Main.Coinbase.Outputs = b.Main.Coinbase.Outputs
+			block.Main.Coinbase.MinerOutputs = b.Main.Coinbase.MinerOutputs
 		} else {
 			preAllocatedShares = c.preAllocatedSharesPool.Get()
 			defer c.preAllocatedSharesPool.Put(preAllocatedShares)
@@ -349,12 +349,12 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	if missingBlocks, err = c.PreprocessBlock(block); err != nil {
 		return missingBlocks, err, true
 	}
-	for _, o := range block.Main.Coinbase.Outputs {
+	for _, o := range block.Main.Coinbase.MinerOutputs {
 		if o.Type != expectedTxType {
 			return nil, errors.New("unexpected transaction type"), true
 		}
 
-		if o.Reward > MaxTxOutputReward {
+		if o.Amount > MaxTxOutputReward {
 			return nil, errors.New("reward too high"), true
 		}
 	}
@@ -889,24 +889,24 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 
 		if shares, _, err := c.getShares(block, c.preAllocatedShares); len(shares) == 0 {
 			return nil, utils.ErrorfNoEscape("could not get outputs: %w", err)
-		} else if len(shares) != len(block.Main.Coinbase.Outputs) {
-			return nil, utils.ErrorfNoEscape("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(shares))
+		} else if len(shares) != len(block.Main.Coinbase.MinerOutputs) {
+			return nil, utils.ErrorfNoEscape("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.MinerOutputs), len(shares))
 		} else if totalReward := func() (result uint64) {
-			for _, o := range block.Main.Coinbase.Outputs {
-				result += o.Reward
+			for _, o := range block.Main.Coinbase.MinerOutputs {
+				result += o.Amount
 			}
 			return
 		}(); totalReward != block.Main.Coinbase.AuxiliaryData.TotalReward {
 			return nil, utils.ErrorfNoEscape("invalid total reward, got %d, expected %d", block.Main.Coinbase.AuxiliaryData.TotalReward, totalReward)
-		} else if rewards := SplitReward(c.preAllocatedRewards, totalReward, shares); len(rewards) != len(block.Main.Coinbase.Outputs) {
-			return nil, utils.ErrorfNoEscape("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.Outputs), len(rewards))
+		} else if rewards := SplitReward(c.preAllocatedRewards, totalReward, shares); len(rewards) != len(block.Main.Coinbase.MinerOutputs) {
+			return nil, utils.ErrorfNoEscape("invalid number of outputs, got %d, expected %d", len(block.Main.Coinbase.MinerOutputs), len(rewards))
 		} else {
 
 			pubs := block.CoinbasePublicKeys()
 
 			if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
-				if len(pubs) != len(block.Main.Coinbase.Outputs) {
-					return nil, utils.ErrorfNoEscape("invalid number of public keys, got %d, expected %d", len(pubs), len(block.Main.Coinbase.Outputs))
+				if len(pubs) != len(block.Main.Coinbase.MinerOutputs) {
+					return nil, utils.ErrorfNoEscape("invalid number of public keys, got %d, expected %d", len(pubs), len(block.Main.Coinbase.MinerOutputs))
 				}
 				// todo: cache buf
 				carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(rewards))
@@ -927,10 +927,10 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				})
 
 				for i, enote := range carrotEnotes {
-					out := block.Main.Coinbase.Outputs[i]
+					out := block.Main.Coinbase.MinerOutputs[i]
 
-					if enote.Amount != out.Reward {
-						return nil, utils.ErrorfNoEscape("has invalid reward at index %d, got %d, expected %d", i, out.Reward, enote.Amount)
+					if enote.Amount != out.Amount {
+						return nil, utils.ErrorfNoEscape("has invalid reward at index %d, got %d, expected %d", i, out.Amount, enote.Amount)
 					}
 
 					if enote.OneTimeAddress != out.EphemeralPublicKey {
@@ -954,16 +954,16 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 					return nil, utils.ErrorfNoEscape("invalid number of public keys, got %d, expected %d", len(pubs), 1)
 				}
 				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
-					out := block.Main.Coinbase.Outputs[workIndex]
+					out := block.Main.Coinbase.MinerOutputs[workIndex]
 
-					if rewards[workIndex] != out.Reward {
-						return utils.ErrorfNoEscape("has invalid reward at index %d, got %d, expected %d", workIndex, out.Reward, rewards[workIndex])
+					if rewards[workIndex] != out.Amount {
+						return utils.ErrorfNoEscape("has invalid reward at index %d, got %d, expected %d", workIndex, out.Amount, rewards[workIndex])
 					}
 					addr := &shares[workIndex].Address
 					if addr.IsSubaddress() {
 						return utils.ErrorfNoEscape("is not main address at index %d", workIndex)
 					}
-					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, workIndex, out.Reward)
+					calculated := CalculateOutputCryptonote(c.derivationCache, out.Type, addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, workIndex, out.Amount)
 					if calculated.EphemeralPublicKey != out.EphemeralPublicKey {
 						return utils.ErrorfNoEscape("has incorrect eph_public_key at index %d, got %s, expected %s", workIndex, out.EphemeralPublicKey.String(), calculated.EphemeralPublicKey.String())
 					} else if out.Type == transaction.TxOutToTaggedKey && calculated.ViewTag != out.ViewTag {
@@ -1217,7 +1217,7 @@ func (c *SideChain) pruneOldBlocks() {
 					b.Main.TransactionParentIndices = nil
 
 					// delete coinbase outputs and mark as pruned
-					b.Main.Coinbase.Outputs = nil
+					b.Main.Coinbase.MinerOutputs = nil
 				}
 			}
 		}
