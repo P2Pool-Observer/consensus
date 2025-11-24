@@ -614,7 +614,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 		}
 
 		if verification, invalid := c.verifyBlock(block); invalid != nil {
-			utils.Logf("SideChain", "block at height = %d, id = %x, mainchain height = %d, mined by %s is invalid: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), invalid.Error())
+			utils.Errorf("SideChain", "block at height = %d, id = %x, mainchain height = %d, mined by %s is invalid: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), invalid.Error())
 			block.Invalid.Store(true)
 			block.Verified.Store(verification == nil)
 			if block == blockToVerify {
