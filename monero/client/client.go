@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,13 +30,14 @@ func SetDefaultClientSettings(addr string) {
 	client.Store(nil)
 }
 
+// GetDefaultClient Gets a global client, for usage in testing
 func GetDefaultClient() *Client {
 	if c := client.Load(); c == nil {
 		lock.Lock()
 		defer lock.Unlock()
 		if c = client.Load(); c == nil {
 			//fallback for lock racing
-			if c, err := NewClient(address); err != nil {
+			if c, err := NewClient(address, nil); err != nil {
 				utils.Panic(err)
 			} else {
 				client.Store(c)
@@ -56,8 +58,11 @@ type Client struct {
 	throttler <-chan time.Time
 }
 
-func NewClient(address string) (*Client, error) {
-	c, err := rpc.NewClient(address)
+func NewClient(address string, httpClient *http.Client) (*Client, error) {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	c, err := rpc.NewClient(address, rpc.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +70,7 @@ func NewClient(address string) (*Client, error) {
 	return &Client{
 		c:         c,
 		d:         daemon.NewClient(c),
-		throttler: time.Tick(time.Second / 8),
+		throttler: time.Tick(time.Second / 10),
 	}, nil
 }
 
