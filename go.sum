@@ -4,8 +4,8 @@ git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251031164326-a942198b375f h1:
 git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251031164326-a942198b375f/go.mod h1:FZsrMWGucMP3SZamzrd7m562geIs5zp1O/9MGoiAKH0=
 git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3 h1:WWvaMmjJ4ThS2d0Lg+nNspkmDb3pS39VPv0PGum9NRo=
 git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3/go.mod h1:X9PvT0fmWrU1I+BiDUjMypUWdsWFm24QCW1sWxbzT8w=
-git.gammaspectra.live/P2Pool/go-randomx/v4 v4.3.0 h1:Cwmd5gofkitQvwbA0hyXe16lO7IiQBO924H+5oIf3+s=
-git.gammaspectra.live/P2Pool/go-randomx/v4 v4.3.0/go.mod h1:+v16vJj1vJnzdPFetKHTHajIEvdIMktb/vIqqO2jRyo=
+git.gammaspectra.live/P2Pool/go-randomx/v4 v4.4.0 h1:1pQUbpJO8NJs17ZriLwySzQYmzn0GpyJAv4A3QijvXA=
+git.gammaspectra.live/P2Pool/go-randomx/v4 v4.4.0/go.mod h1:+v16vJj1vJnzdPFetKHTHajIEvdIMktb/vIqqO2jRyo=
 git.gammaspectra.live/P2Pool/helioselene v0.0.0-20251121171618-90ad8cf03c15 h1:CXvZxZmFn7fw7kCAXRL4Te/Zah0j5oX7ycan3rlf5P8=
 git.gammaspectra.live/P2Pool/helioselene v0.0.0-20251121171618-90ad8cf03c15/go.mod h1:aHEMH8czZOH/8grRPPN3cO1fnnRseWobWdJm/mpkocQ=
 git.gammaspectra.live/P2Pool/monero-base58 v1.0.0 h1:s8LZxVNc93YEs2NCCNWZ7CKr8RbEb031y6Wkvhn+TS4=

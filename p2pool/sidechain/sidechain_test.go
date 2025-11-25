@@ -335,6 +335,116 @@ func TestSideChainFullSync(t *testing.T) {
 	}
 }
 
+func TestSideChainLightSync(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("Skipping full mode with -short")
+	}
+
+	oldLogLevel := utils.GlobalLogLevel
+	defer func() {
+		utils.GlobalLogLevel = oldLogLevel
+	}()
+	utils.GlobalLogLevel = utils.LogLevelInfo | utils.LogLevelNotice | utils.LogLevelError
+
+	sideChain := DefaultTestSideChainData
+
+	if os.Getenv("CI") == "" {
+		// set full hasher
+		consensusBuf, err := json.Marshal(sideChain.Consensus)
+		if err != nil {
+			t.Fatal(err)
+		}
+		consensus, err := NewConsensusFromJSON(consensusBuf)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// do this to create a new full hasher
+		sideChain.Consensus = consensus
+		err = sideChain.Consensus.InitHasher(2, randomx.FlagSecure)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	server, blocks, err := sideChain.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := server.SideChain()
+
+	var tip *PoolBlock
+
+	for _, b := range blocks {
+		if tip == nil {
+			tip = b
+			continue
+		}
+
+		if tip.Side.Height < b.Side.Height {
+			tip = b
+		} else if tip.Side.Height == b.Side.Height {
+			//determinism
+			if tip.SideTemplateId(s.Consensus()).Compare(b.SideTemplateId(s.Consensus())) < 0 {
+				tip = b
+			}
+		}
+	}
+
+	if tip == nil {
+		t.Fatal("no tip")
+	}
+
+	err = server.DownloadMinimalBlockHeaders(tip.Main.Coinbase.GenHeight)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var blocksToAdd UniquePoolBlockSlice
+	blocksToAdd = append(blocksToAdd, tip)
+
+	for len(blocksToAdd) > 0 {
+		block := blocksToAdd[0]
+		blocksToAdd = blocksToAdd[1:]
+		missingBlocks, err, _ := s.AddPoolBlockExternal(block)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		block = nil
+		for _, id := range missingBlocks {
+			if b := blocks.Get(s.Consensus(), id); b != nil {
+				if blocksToAdd.Get(s.Consensus(), id) == nil {
+					blocksToAdd = append(blocksToAdd, b)
+				}
+			}
+		}
+	}
+
+	tip = s.GetChainTip()
+
+	if tip == nil {
+		t.Fatalf("GetChainTip() returned nil")
+	}
+
+	if !tip.Verified.Load() {
+		t.Fatalf("tip is not verified")
+	}
+
+	if tip.Invalid.Load() {
+		t.Fatalf("tip is invalid")
+	}
+
+	if tip.Main.Coinbase.GenHeight != sideChain.TipMainHeight {
+		t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.GenHeight, sideChain.TipMainHeight)
+	}
+	if tip.Side.Height != sideChain.TipSideHeight {
+		t.Fatalf("tip side height mismatch %d != %d", tip.Side.Height, sideChain.TipSideHeight)
+	}
+}
+
 func FuzzSideChain_Mini_Shuffle_V4(f *testing.F) {
 	// Fuzz shuffle insertion, does need to sync
 
