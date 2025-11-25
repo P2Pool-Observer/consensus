@@ -32,8 +32,9 @@ type Requester interface {
 	RawBinaryRequest(
 		ctx context.Context,
 		endpoint string,
-		body io.Reader,
-	) (io.ReadCloser, error)
+		body []byte,
+		response func(closer io.ReadCloser) error,
+	) error
 }
 
 // Client provides access to the daemon's JSONRPC methods and regular

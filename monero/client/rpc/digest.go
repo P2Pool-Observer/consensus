@@ -1,0 +1,185 @@
+package rpc
+
+import (
+	"crypto/md5"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"hash"
+	"strings"
+
+	"github.com/tmthrgd/go-hex"
+)
+
+type digest struct {
+	QOP       string
+	Algorithm string
+	Realm     string
+	Nonce     string
+	Opaque    string
+	Stale     string
+}
+
+func (d *digest) Hash(data ...[]byte) []byte {
+	var hasher hash.Hash
+	if d.Algorithm == "" || strings.HasPrefix(d.Algorithm, "MD5") {
+		hasher = md5.New()
+	} else {
+		panic(errors.New("unsupported digest algorithm"))
+	}
+
+	for i, b := range data {
+		if i > 0 {
+			hasher.Write([]byte{':'})
+		}
+		hasher.Write(b)
+	}
+	size := hasher.Size()
+	dst := make([]byte, size*2)
+	cksum := hasher.Sum(dst[size:size])
+
+	hex.Encode(dst, cksum)
+
+	return dst
+}
+
+func (d *digest) Auth(method, uri, user, password string, requestCounter uint32, clientNonce string) (string, error) {
+	ha1 := d.Hash([]byte(user), []byte(d.Realm), []byte(password))
+
+	if strings.HasSuffix(d.Algorithm, "-sess") {
+		ha1 = d.Hash(ha1, []byte(d.Nonce), []byte(clientNonce))
+	}
+
+	var ha2, response []byte
+	if len(d.QOP) == 0 || d.QOP == "auth" {
+		ha2 = d.Hash([]byte(method), []byte(uri))
+	} else {
+		return "", errors.New("unsupported QOP")
+	}
+
+	var nc [8]byte
+	binary.BigEndian.PutUint32(nc[4:], requestCounter)
+	hex.Encode(nc[:], nc[4:])
+
+	if len(d.QOP) == 0 {
+		response = d.Hash(ha1, []byte(d.Nonce), ha2)
+	} else if d.QOP == "auth" {
+		response = d.Hash(ha1, []byte(d.Nonce), nc[:], []byte(clientNonce), []byte(d.QOP), ha2)
+	} else {
+		return "", errors.New("unsupported QOP")
+	}
+
+	var elements []string
+	elements = append(elements, fmt.Sprintf("Digest username=\"%s\",realm=\"%s\",nonce=\"%s\",uri=\"%s\"", user, d.Realm, d.Nonce, uri))
+	if d.QOP != "" {
+		elements = append(elements, fmt.Sprintf("qop=%s", d.QOP))
+	}
+	elements = append(elements, fmt.Sprintf("nc=%s", string(nc[:])))
+	if d.QOP == "auth" || strings.HasSuffix(d.Algorithm, "-sess") {
+		elements = append(elements, fmt.Sprintf("cnonce=\"%s\"", clientNonce))
+	}
+	elements = append(elements, fmt.Sprintf("response=\"%s\"", response))
+	if d.Algorithm != "" {
+		elements = append(elements, fmt.Sprintf("algorithm=%s", d.Algorithm))
+	}
+	if d.Opaque != "" {
+		elements = append(elements, fmt.Sprintf("opaque=\"%s\"", d.Opaque))
+	}
+
+	return strings.Join(elements, ","), nil
+}
+
+func (d *digest) Set(k, v string) bool {
+	switch k {
+	case "qop":
+		d.QOP = v
+	case "algorithm":
+		d.Algorithm = v
+	case "realm":
+		d.Realm = v
+	case "nonce":
+		d.Nonce = v
+	case "opaque":
+		d.Opaque = v
+	case "stale":
+		d.Stale = v
+	default:
+		return false
+	}
+	return true
+}
+
+func newDigest(str string) *digest {
+	const prefix = "Digest "
+	if !strings.HasPrefix(str, prefix) {
+		return nil
+	}
+
+	d := new(digest)
+
+	const (
+		keyOrEqual = iota
+		quoteOrValue
+		valueOrCommaOrEnd
+		valueOrQuote
+		commaOrEnd
+	)
+
+	state := keyOrEqual
+	j := len(prefix)
+
+	var key string
+
+	for i := len(prefix); i < len(str); i++ {
+		b := str[i]
+		switch state {
+		case keyOrEqual:
+			if b == '=' {
+				key = str[j:i]
+				state = quoteOrValue
+				j = i + 1
+			}
+		case quoteOrValue:
+			if b == '"' {
+				state = valueOrQuote
+				j = i + 1
+			} else {
+				state = valueOrCommaOrEnd
+			}
+		case valueOrCommaOrEnd:
+			if b == ',' {
+				if !d.Set(key, str[j:i]) {
+					return nil
+				}
+				state = keyOrEqual
+				j = i + 1
+			}
+		case valueOrQuote:
+			if b == '"' {
+				if !d.Set(key, str[j:i]) {
+					return nil
+				}
+				state = commaOrEnd
+				j = i + 1
+			}
+		case commaOrEnd:
+			if b != ',' {
+				return nil
+			} else {
+				state = keyOrEqual
+				j = i + 1
+			}
+		}
+	}
+
+	if state == valueOrCommaOrEnd {
+		if !d.Set(key, str[j:]) {
+			return nil
+		}
+		return d
+	} else if state == commaOrEnd {
+		return d
+	} else {
+		return nil
+	}
+}

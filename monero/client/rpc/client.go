@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 const (
@@ -38,6 +40,12 @@ type Client struct {
 	// endpoints.
 	//
 	address *url.URL
+
+	userPass *url.Userinfo
+
+	digestLock    sync.Mutex
+	digestCounter uint32
+	digest        *digest
 }
 
 // clientOptions is a set of options that can be overridden to tweak the
@@ -79,9 +87,14 @@ func NewClient(address string, opts ...ClientOption) (*Client, error) {
 		return nil, fmt.Errorf("url parse: %w", err)
 	}
 
+	u := parsedAddress.User
+
+	parsedAddress.User = nil
+
 	return &Client{
-		address: parsedAddress,
-		http:    options.HTTPClient,
+		address:  parsedAddress,
+		userPass: u,
+		http:     options.HTTPClient,
 	}, nil
 }
 
@@ -105,54 +118,52 @@ type RequestEnvelope struct {
 }
 
 // RawBinaryRequest makes requests to any endpoints, not assuming any particular format.
-func (c *Client) RawBinaryRequest(ctx context.Context, endpoint string, body io.Reader) (io.ReadCloser, error) {
+func (c *Client) RawBinaryRequest(ctx context.Context, endpoint string, body []byte, response func(closer io.ReadCloser) error) error {
+	if c.userPass != nil {
+		c.digestLock.Lock()
+		defer c.digestLock.Unlock()
+	}
+
 	address := *c.address
 	address.Path = endpoint
 
-	req, err := http.NewRequestWithContext(ctx, "POST", address.String(), body)
+	req, err := http.NewRequestWithContext(ctx, "POST", address.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("new req '%s': %w", address.String(), err)
+		return fmt.Errorf("new req '%s': %w", address.String(), err)
 	}
 
 	req.Header.Add("Content-Type", "application/octet-stream")
 
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("do: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		defer resp.Body.Close()
-		return nil, fmt.Errorf("non-2xx status code: %d", resp.StatusCode)
-	}
-
-	return resp.Body, nil
+	return c.submitRawRequest(req, 0, body, response)
 }
 
 // RawRequest makes requests to any endpoints, not assuming any particular format except of response is JSON.
-func (c *Client) RawRequest(ctx context.Context, endpoint string, params interface{}, response interface{}) error {
+func (c *Client) RawRequest(ctx context.Context, endpoint string, params interface{}, response interface{}) (err error) {
+	if c.userPass != nil {
+		c.digestLock.Lock()
+		defer c.digestLock.Unlock()
+	}
+
 	address := *c.address
 	address.Path = endpoint
 
-	var body io.Reader
+	var b []byte
 
 	if params != nil {
-		b, err := utils.MarshalJSON(params)
+		b, err = utils.MarshalJSON(params)
 		if err != nil {
 			return fmt.Errorf("marshal: %w", err)
 		}
-
-		body = bytes.NewReader(b)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", address.String(), body)
+	req, err := http.NewRequestWithContext(ctx, "GET", address.String(), nil)
 	if err != nil {
 		return fmt.Errorf("new req '%s': %w", address.String(), err)
 	}
 
 	req.Header.Add("Content-Type", "application/json")
 
-	if err := c.submitRequest(req, response); err != nil {
+	if err := c.submitRequest(req, b, response); err != nil {
 		return fmt.Errorf("submit request: %w", err)
 	}
 
@@ -163,6 +174,11 @@ func (c *Client) RawRequest(ctx context.Context, endpoint string, params interfa
 // with the proper envolope for its requests and unwrapping of results for
 // responses.
 func (c *Client) JSONRPC(ctx context.Context, method string, params interface{}, response interface{}) error {
+	if c.userPass != nil {
+		c.digestLock.Lock()
+		defer c.digestLock.Unlock()
+	}
+
 	address := *c.address
 	address.Path = endpointJSONRPC
 
@@ -176,7 +192,7 @@ func (c *Client) JSONRPC(ctx context.Context, method string, params interface{},
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", address.String(), bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(ctx, "POST", address.String(), nil)
 	if err != nil {
 		return fmt.Errorf("new req '%s': %w", address.String(), err)
 	}
@@ -187,7 +203,7 @@ func (c *Client) JSONRPC(ctx context.Context, method string, params interface{},
 		Result: response,
 	}
 
-	if err := c.submitRequest(req, rpcResponseBody); err != nil {
+	if err := c.submitRequest(req, b, rpcResponseBody); err != nil {
 		return fmt.Errorf("submit request: %w", err)
 	}
 
@@ -203,10 +219,57 @@ func (c *Client) JSONRPC(ctx context.Context, method string, params interface{},
 
 // submitRequest performs any generic HTTP request to the monero node targeted
 // by this client making no assumptions about a particular endpoint.
-func (c *Client) submitRequest(req *http.Request, response interface{}) error {
+func (c *Client) submitRequest(req *http.Request, body []byte, response interface{}) error {
+	return c.submitRawRequest(req, 0, body, func(reader io.ReadCloser) error {
+		if err := utils.NewJSONDecoder(reader).Decode(response); err != nil {
+			return fmt.Errorf("decode: %w", err)
+		}
+		return nil
+	})
+}
+
+// submitRequest performs any generic HTTP request to the monero node targeted
+// by this client making no assumptions about a particular endpoint.
+func (c *Client) submitRawRequest(req *http.Request, n int, body []byte, response func(reader io.ReadCloser) error) error {
+	if n >= 5 {
+		return fmt.Errorf("too many authentication retries")
+	}
+	if c.userPass != nil && c.digest != nil {
+		pass, _ := c.userPass.Password()
+		c.digestCounter++
+		auth, err := c.digest.Auth(req.Method, req.URL.Path, c.userPass.Username(), pass, c.digestCounter, "fixed")
+		if err != nil {
+			return fmt.Errorf("auth: %w", err)
+		}
+		req.Header.Add("Authorization", auth)
+	}
+
+	req.Body = io.NopCloser(bytes.NewReader(body))
+	req.ContentLength = int64(len(body))
+	req.Header.Set("Connection", "keep-alive")
+
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return fmt.Errorf("do: %w", err)
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		if auth := resp.Header.Values("WWW-Authenticate"); len(auth) > 0 {
+			c.digest = nil
+			c.digestCounter = 0
+			for _, e := range auth {
+				if d := newDigest(e); d != nil && d.QOP == "auth" && d.Algorithm == "MD5" {
+					c.digest = d
+					break
+				}
+			}
+
+			if c.digest != nil {
+				_, _ = io.Copy(io.Discard, resp.Body)
+				_ = resp.Body.Close()
+				return c.submitRawRequest(req, n+1, body, response)
+			}
+		}
 	}
 
 	defer resp.Body.Close()
@@ -215,8 +278,8 @@ func (c *Client) submitRequest(req *http.Request, response interface{}) error {
 		return fmt.Errorf("non-2xx status code: %d", resp.StatusCode)
 	}
 
-	if err := utils.NewJSONDecoder(resp.Body).Decode(response); err != nil {
-		return fmt.Errorf("decode: %w", err)
+	if response != nil {
+		return response(resp.Body)
 	}
 
 	return nil
