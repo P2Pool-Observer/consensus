@@ -5,14 +5,15 @@ package randomx
 import (
 	"bytes"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/randomx-go-bindings"
-	fasthex "github.com/tmthrgd/go-hex"
 	"runtime"
 	"slices"
 	"sync"
 	"unsafe"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	"git.gammaspectra.live/P2Pool/randomx-go-bindings"
+	fasthex "github.com/tmthrgd/go-hex"
 )
 
 type hasherCollection struct {
@@ -20,6 +21,10 @@ type hasherCollection struct {
 	index int
 	flags []Flag
 	cache []*hasherState
+}
+
+func Implementation() string {
+	return "tevador/RandomX via randomx-go-bindings"
 }
 
 func (h *hasherCollection) Hash(key []byte, input []byte) (types.Hash, error) {
