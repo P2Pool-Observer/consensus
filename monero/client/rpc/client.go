@@ -192,7 +192,7 @@ func (c *Client) JSONRPC(ctx context.Context, method string, params interface{},
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", address.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", address.String(), nil)
 	if err != nil {
 		return fmt.Errorf("new req '%s': %w", address.String(), err)
 	}

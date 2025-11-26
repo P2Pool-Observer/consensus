@@ -470,7 +470,7 @@ func TestStratumServer_Genesis(t *testing.T) {
 	}
 
 	t.Run("Testnet", func(t *testing.T) {
-		rpcClient, _ := client.NewClient("http://127.0.0.1:28081")
+		rpcClient, _ := client.NewClient("http://127.0.0.1:28081", nil)
 		if minerData := getMinerData(rpcClient); minerData == nil {
 			t.Skip("No Testnet RPC")
 		}
