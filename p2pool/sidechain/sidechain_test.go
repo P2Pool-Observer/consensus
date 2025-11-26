@@ -228,7 +228,7 @@ var testSideChains = []TestSideChainData{
 func TestSideChainFullSync(t *testing.T) {
 
 	if testing.Short() {
-		t.Skip("Skipping full mode with -short")
+		t.Skip("Skipping sync with -short")
 	}
 
 	oldLogLevel := utils.GlobalLogLevel
@@ -338,7 +338,12 @@ func TestSideChainFullSync(t *testing.T) {
 func TestSideChainLightSync(t *testing.T) {
 
 	if testing.Short() {
-		t.Skip("Skipping full mode with -short")
+		t.Skip("Skipping sync with -short")
+	}
+
+	if randomx.Implementation() == "go-RandomX" && runtime.GOARCH != "amd64" {
+		// add when arm64 JIT exists
+		t.Skip("Skipping sync on light mode and !amd64 with go-RandomX")
 	}
 
 	oldLogLevel := utils.GlobalLogLevel
