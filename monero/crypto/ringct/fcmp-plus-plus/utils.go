@@ -3,7 +3,6 @@ package fcmp_plus_plus
 import (
 	"encoding/binary"
 
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
@@ -95,17 +94,6 @@ func TransactionWeightV1(inputs, outputs, extra int) int {
 	bpWeight := 32*(6+2*nrl) + 2
 	bpWeight += 1 /*nbp*/
 
-	// BP+ clawback to price in linear verification times
-	clawback, _ := bulletproofs.CalculateClawback(true, outputs)
-	bpWeight += clawback
-
-	// Much like bulletproofs, the verification time of a FCMP is linear in the number of inputs,
-	// rounded up to the nearest power of 2, so round n_inputs up to power of 2 to price this in
-	nPaddedInputs := 1
-	for nPaddedInputs < inputs {
-		nPaddedInputs <<= 1
-	}
-
 	// There's a few reasons why we treat n_tree_layers as a fixed value for weight calculation:
 	//     a. If we took n_tree_layers into account when calculating weight, then fee calculation
 	//        would be a function of the number of layers in the FCMP tree. This has a couple
@@ -129,8 +117,7 @@ func TransactionWeightV1(inputs, outputs, extra int) int {
 	// for many decades at the current tx volume.
 	const fake_n_tree_layers = 7
 
-	fcmpWeightBase := MembershipProofSize(1, fake_n_tree_layers)
-	fcmpWeight := fcmpWeightBase * nPaddedInputs
+	fcmpWeight := MembershipProofSize(1, fake_n_tree_layers)
 	rctSigPrunableWeight := bpWeight + totalSALWeight + miscFCMPPlusPlusWeight + fcmpWeight
 
 	return unprunableWeight + rctSigPrunableWeight
