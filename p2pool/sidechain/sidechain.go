@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -1132,6 +1133,9 @@ func (c *SideChain) updateChainTip(block *PoolBlock) {
 				}*/
 
 				utils.Logf("SideChain", "SYNCHRONIZED to tip %x", block.SideTemplateId(c.Consensus()).Slice())
+
+				// run GC at the end of this function
+				defer runtime.GC()
 			}
 
 			c.pruneOldBlocks()
