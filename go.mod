@@ -6,7 +6,7 @@ require (
 	git.gammaspectra.live/P2Pool/blake2b v0.42.1
 	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251031164326-a942198b375f
 	git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3
-	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.4.0
+	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.4.1
 	git.gammaspectra.live/P2Pool/helioselene v0.0.0-20251121171618-90ad8cf03c15
 	git.gammaspectra.live/P2Pool/monero-base58 v1.0.0
 	git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0
@@ -21,4 +21,4 @@ require (
 	lukechampine.com/uint128 v1.3.0
 )
 
-require git.gammaspectra.live/P2Pool/softfloat64 v1.0.1 // indirect
+require git.gammaspectra.live/P2Pool/softfloat64 v1.0.2 // indirect

@@ -2,6 +2,7 @@ package randomx
 
 import (
 	"crypto/subtle"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
@@ -43,7 +44,7 @@ func consensusHash(scratchpad []byte) types.Hash {
 	const ScratchpadSize = 1009
 
 	const RandomxArgonMemory = 262144
-	n := RandomxArgonMemory * 1024
+	const n = RandomxArgonMemory * 1024
 
 	const Vec128Size = 128 / 8
 
