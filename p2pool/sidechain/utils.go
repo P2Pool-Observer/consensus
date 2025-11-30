@@ -387,7 +387,7 @@ func ShuffleShares[T any](shares []T, majorVersion uint8, shareVersion ShareVers
 // ShuffleSequence Iterates through a swap sequence according to consensus parameters.
 func ShuffleSequence(majorVersion uint8, shareVersion ShareVersion, privateKeySeed types.Hash, items int, swap func(i, j int)) {
 	n := uint64(items)
-	if shareVersion >= ShareVersion_V2 && n > 1 && majorVersion < monero.HardForkFCMPPlusPlusVersion {
+	if shareVersion >= ShareVersion_V2 && n > 1 && majorVersion < monero.HardForkFCMPPlusPlus {
 		seed := crypto.Keccak256(privateKeySeed[:]).Uint64()
 
 		if seed == 0 {

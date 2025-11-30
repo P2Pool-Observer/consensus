@@ -1,8 +1,10 @@
 package monero
 
 const (
-	HardForkViewTagsVersion        = 15
-	HardForkFCMPPlusPlusVersion    = 17
+	HardForkRandomX = 12
+
+	HardForkViewTags               = 15
+	HardForkFCMPPlusPlus           = 17
 	HardForkCarrotVersion          = 17
 	HardForkRejectLargeExtra       = 17
 	HardForkRejectManyMinerOutputs = 17

@@ -694,7 +694,7 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 	}
 
 	// Wallet point validity and torsion check, at FCMP++ or one week ahead of time
-	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion || monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.GenHeight+720*7) >= monero.HardForkFCMPPlusPlusVersion {
+	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlus || monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.GenHeight+720*7) >= monero.HardForkFCMPPlusPlus {
 		var spendPub, viewPub curve25519.VarTimePublicKey
 		if _, err := spendPub.SetBytes(b.Side.PublicKey.SpendPublicKey()[:]); err != nil {
 			return fmt.Errorf("block must have a valid wallet address: %w", err)
@@ -867,7 +867,7 @@ func (b *PoolBlock) GetPrivateKeySeed() types.Hash {
 	}
 
 	oldSeed := types.Hash(b.Side.PublicKey[address.PackedAddressSpend])
-	if b.Main.MajorVersion < monero.HardForkViewTagsVersion && curve25519.PrivateKeyBytes(GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), oldSeed, b.Main.PreviousId).Bytes()) != b.Side.CoinbasePrivateKey {
+	if b.Main.MajorVersion < monero.HardForkViewTags && curve25519.PrivateKeyBytes(GetDeterministicTransactionPrivateKey(new(curve25519.Scalar), oldSeed, b.Main.PreviousId).Bytes()) != b.Side.CoinbasePrivateKey {
 		return types.ZeroHash
 	}
 
@@ -965,7 +965,7 @@ func (b *PoolBlock) GetTransactionOutputType() uint8 {
 	expectedTxType := uint8(transaction.TxOutToKey)
 	if b.Main.MajorVersion >= monero.HardForkCarrotVersion {
 		expectedTxType = transaction.TxOutToCarrotV1
-	} else if b.Main.MajorVersion >= monero.HardForkViewTagsVersion {
+	} else if b.Main.MajorVersion >= monero.HardForkViewTags {
 		expectedTxType = transaction.TxOutToTaggedKey
 	}
 

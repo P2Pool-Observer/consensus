@@ -377,7 +377,7 @@ func (tpl *Template) HashingBlob(preAllocatedBuffer []byte, nonce, extraNonce ui
 
 	numTransactions, n := utils.CanonicalUvarint(tpl.Buffer[tpl.TransactionsOffset:])
 
-	if tpl.MajorVersion() >= monero.HardForkFCMPPlusPlusVersion {
+	if tpl.MajorVersion() >= monero.HardForkFCMPPlusPlus {
 		for i := range tpl.MerkleTreeMainBranch {
 			_, _ = hasher.Write(rootHash[:])
 			_, _ = hasher.Write(tpl.MerkleTreeMainBranch[i][:])
@@ -424,7 +424,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 
 	fcmpOffset := 0
 	fcmpMerkleRootOffset := 0
-	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlus {
 		fcmpOffset = 1 + types.HashSize
 		// remove the additional pub keys
 		fcmpMerkleRootOffset = 1 + utils.UVarInt64Size(len(b.Main.Coinbase.MinerOutputs)) + curve25519.PublicKeySize*len(b.Main.Coinbase.MinerOutputs)
@@ -470,7 +470,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 	{
 		reserve := 1
 		reserveOffset := 0
-		if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlus {
 			reserve += 2
 		}
 
@@ -479,7 +479,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 		merkleTree[reserveOffset] = types.ZeroHash
 		reserveOffset++
 
-		if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+		if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlus {
 			merkleTree[reserveOffset][0] = b.Main.FCMPTreeLayers
 			reserveOffset++
 			merkleTree[reserveOffset] = b.Main.FCMPTreeRoot

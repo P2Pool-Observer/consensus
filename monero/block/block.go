@@ -65,7 +65,7 @@ func (b *Block) BufferLength() int {
 		4 +
 		b.Coinbase.BufferLength() +
 		utils.UVarInt64Size(len(b.Transactions)) + types.HashSize*len(b.Transactions)
-	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlus {
 		size += 1 + types.HashSize
 	}
 	return size
@@ -131,7 +131,7 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, conta
 		}
 	}
 
-	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlus {
 		buf = append(buf, b.FCMPTreeLayers)
 		buf = append(buf, b.FCMPTreeRoot[:]...)
 	}
@@ -275,7 +275,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		}
 	}
 
-	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlus {
 		if b.FCMPTreeLayers, err = utils.ReadByteNoEscape(reader); err != nil {
 			return err
 		}
@@ -340,7 +340,7 @@ func (b *Block) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId bool
 		buf = append(buf, txId[:]...)
 	}
 
-	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlus {
 		buf = append(buf, b.FCMPTreeLayers)
 		buf = append(buf, b.FCMPTreeRoot[:]...)
 	}
@@ -358,7 +358,7 @@ func (b *Block) HashingBlob(preAllocatedBuf []byte) []byte {
 
 	reserve := 1
 	reserveOffset := 0
-	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlus {
 		reserve += 2
 	}
 
@@ -367,7 +367,7 @@ func (b *Block) HashingBlob(preAllocatedBuf []byte) []byte {
 	merkleTree[reserveOffset] = b.Coinbase.Hash()
 	reserveOffset++
 
-	if b.MajorVersion >= monero.HardForkFCMPPlusPlusVersion {
+	if b.MajorVersion >= monero.HardForkFCMPPlusPlus {
 		merkleTree[reserveOffset][0] = b.FCMPTreeLayers
 		reserveOffset++
 		merkleTree[reserveOffset] = b.FCMPTreeRoot

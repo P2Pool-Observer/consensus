@@ -14,7 +14,7 @@ func TestShuffleMappingV2(t *testing.T) {
 	// Shuffle only exists on ShareVersion_V2 and above, up to carrot
 	const shareVersion = sidechain.ShareVersion_V2
 	var seed = crypto.Keccak256("test")
-	mappings := BuildShuffleMapping(n, monero.HardForkViewTagsVersion, shareVersion, seed, ShuffleMapping{})
+	mappings := BuildShuffleMapping(n, monero.HardForkViewTags, shareVersion, seed, ShuffleMapping{})
 
 	seq := make([]int, n)
 	for i := range seq {
@@ -24,7 +24,7 @@ func TestShuffleMappingV2(t *testing.T) {
 	seq1 := slices.Clone(seq)
 
 	//test that regular shuffle will correspond to a mapping applied shuffle
-	sidechain.ShuffleShares(seq1, monero.HardForkViewTagsVersion, shareVersion, seed)
+	sidechain.ShuffleShares(seq1, monero.HardForkViewTags, shareVersion, seed)
 	seq2 := ApplyShuffleMapping(seq, mappings)
 
 	if slices.Compare(seq1, seq2) != 0 {

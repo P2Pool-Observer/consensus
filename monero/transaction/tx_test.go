@@ -103,6 +103,8 @@ func TestTransactions(t *testing.T) {
 			t.Logf("size    = %d", tx.BufferLength())
 			t.Logf("weight  = %d", tx.Weight())
 			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
+			t.Logf("inputs  = %d", len(tx.Inputs()))
+			t.Logf("outputs = %d", len(tx.Outputs()))
 
 			if calculatedId != txId {
 				t.Fatalf("expected %s, got %s", txId, calculatedId)
@@ -185,6 +187,8 @@ func TestPrunedTransactions(t *testing.T) {
 			t.Logf("prefix  = %s", prefixHash)
 			t.Logf("size    = %d", tx.PrunedBufferLength())
 			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
+			t.Logf("inputs  = %d", len(tx.Inputs()))
+			t.Logf("outputs = %d", len(tx.Outputs()))
 
 			rings, images, err := GetTransactionInputsData(tx, rpc.GetOuts)
 			if err != nil {

@@ -807,7 +807,7 @@ func TestSideChain(t *testing.T) {
 			t.Logf("shuffle seed = %x", shuffleSeed.Slice())
 
 			// Shuffle blocks. This allows testing proper reorg
-			ShuffleSequence(monero.HardForkViewTagsVersion, ShareVersion_V2, shuffleSeed, len(blocks), func(i, j int) {
+			ShuffleSequence(monero.HardForkViewTags, ShareVersion_V2, shuffleSeed, len(blocks), func(i, j int) {
 				blocks[i], blocks[j] = blocks[j], blocks[i]
 			})
 

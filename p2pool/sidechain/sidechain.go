@@ -332,7 +332,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	}
 
 	// Enforce deterministic tx keys starting from v15 up to v17
-	if block.Main.MajorVersion >= monero.HardForkViewTagsVersion && block.Main.MajorVersion < monero.HardForkCarrotVersion {
+	if block.Main.MajorVersion >= monero.HardForkViewTags && block.Main.MajorVersion < monero.HardForkCarrotVersion {
 		if !c.isPoolBlockTransactionKeyIsDeterministic(block) {
 			return nil, errors.New("invalid deterministic transaction keys"), true
 		}

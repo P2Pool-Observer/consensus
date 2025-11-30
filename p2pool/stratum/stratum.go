@@ -592,7 +592,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 		}
 		shares = shares.Compact()
 
-		if s.minerData.MajorVersion < monero.HardForkFCMPPlusPlusVersion {
+		if s.minerData.MajorVersion < monero.HardForkFCMPPlusPlus {
 			// Apply consensus shuffle
 			shares = ApplyShuffleMapping(shares, s.newTemplateData.Window.ShuffleMapping)
 		}

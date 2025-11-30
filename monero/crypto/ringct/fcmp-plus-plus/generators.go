@@ -37,13 +37,13 @@ var SeleneHashInit = rejectionSamplingHashToCurve("Monero Selene Hash Initialize
 // Lazy generator init
 
 var HeliosGenerators = sync.OnceValue(func() *generalized_bulletproofs.Generators[helios.Point] {
-	return initGenerators[helios.Point, helios.Field]("Helios", HeliosGeneratorsSize)
+	return initGenerators[helios.Point, helios.Scalar, helios.Field]("Helios", HeliosGeneratorsSize)
 })
 var SeleneGenerators = sync.OnceValue(func() *generalized_bulletproofs.Generators[selene.Point] {
-	return initGenerators[selene.Point, selene.Field]("Selene", SeleneGeneratorsSize)
+	return initGenerators[selene.Point, selene.Scalar, selene.Field]("Selene", SeleneGeneratorsSize)
 })
 
-func initGenerators[P any, F any, V HSPoint[P, F, VF], VF curve.Field[F]](id string, size int) *generalized_bulletproofs.Generators[P] {
+func initGenerators[P any, S any, F any, V HSPoint[P, S, F, VF], VF curve.Field[F]](id string, size int) *generalized_bulletproofs.Generators[P] {
 
 	G := rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s G", id), new(P))
 	H := rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s H", id), new(P))

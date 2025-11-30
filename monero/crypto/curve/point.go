@@ -45,3 +45,23 @@ type ExtraCurvePoint[P any, S any] interface {
 
 	MultiScalarMult([]*S, []*P) *P
 }
+
+type VarTimeCurvePoint[P any, S any] interface {
+	Point[P]
+
+	// Multiplication operations
+
+	VarTimeScalarBaseMult(*S) *P
+	VarTimeScalarMult(*S, *P) *P
+}
+
+type VarTimeExtraCurvePoint[P any, S any] interface {
+	VarTimeCurvePoint[P, S]
+
+	// Optimized Multiplication operations
+
+	VarTimeDoubleScalarBaseMult(a *S, A *P, b *S) *P
+	VarTimeDoubleScalarMult(a *S, A *P, b *S, B *P) *P
+
+	VarTimeMultiScalarMult([]*S, []*P) *P
+}
