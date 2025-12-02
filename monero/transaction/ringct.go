@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
@@ -346,8 +347,6 @@ func (p *PrunableMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, in
 	return nil
 }
 
-var ErrInvalidBulletproofsProof = errors.New("invalid Bulletproofs proof")
-
 type PrunableMLSAGBulletproofs struct {
 	MLSAG []mlsag.Signature[curve25519.VarTimeOperations]
 	// PseudoOuts The re-blinded commitments for the outputs being spent.
@@ -356,52 +355,11 @@ type PrunableMLSAGBulletproofs struct {
 }
 
 func (p *PrunableMLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
-	var sumInputs, sumOutputs curve25519.VarTimePublicKey
-	// init
-	sumInputs.Identity()
-	sumOutputs.Identity()
-
-	for i, member := range p.MLSAG {
-		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
-		m, err := mlsag.NewRingMatrixFromSingle(rings[i], &p.PseudoOuts[i])
-		if err != nil {
-			return err
-		}
-
-		if err = member.Verify(prefixHash, m, images[i:i+1]); err != nil {
-			return err
-		}
-	}
-
-	commitments := make([]curve25519.VarTimePublicKey, len(base.Commitments))
-	for i, c := range base.Commitments {
-		if _, err = commitments[i].SetBytes(c[:]); err != nil {
-			return err
-		}
-		sumOutputs.Add(&sumOutputs, &commitments[i])
-	}
-
-	// check Bulletproof
-	if !p.Bulletproof.Verify(commitments, rand.Reader) {
-		return ErrInvalidBulletproofsProof
-	}
-
-	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
-
-	// check balances
-	if sumInputs.Equal(&sumOutputs) == 0 {
-		return ErrUnbalancedAmounts
-	}
-	return nil
+	return pSigRangeProofVerifyMLSAG(p.MLSAG, p.PseudoOuts, &p.Bulletproof, prefixHash, base, rings, images)
 }
 
 func (p *PrunableMLSAGBulletproofs) SignatureHash() types.Hash {
-	buf := make([]byte, 0, p.Bulletproof.BufferLength(true))
-	var err error
-	if buf, err = p.Bulletproof.AppendBinary(buf, true); err != nil {
-		return types.ZeroHash
-	}
-	return crypto.Keccak256(buf)
+	return pSigRangeProofSignatureHash(&p.Bulletproof)
 }
 
 func (p *PrunableMLSAGBulletproofs) Hash(signature bool) types.Hash {
@@ -496,14 +454,152 @@ type PrunableMLSAGBulletproofsCompactAmount struct {
 }
 
 func (p *PrunableMLSAGBulletproofsCompactAmount) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+	return pSigRangeProofVerifyMLSAG(p.MLSAG, p.PseudoOuts, &p.Bulletproof, prefixHash, base, rings, images)
+}
+
+func (p *PrunableMLSAGBulletproofsCompactAmount) SignatureHash() types.Hash {
+	return pSigRangeProofSignatureHash(&p.Bulletproof)
+}
+
+func (p *PrunableMLSAGBulletproofsCompactAmount) Hash(signature bool) types.Hash {
+	return pSigRangeProofHash(p.MLSAG, p.PseudoOuts, &p.Bulletproof, signature)
+}
+
+func (p *PrunableMLSAGBulletproofsCompactAmount) BufferLength(signature bool) (n int) {
+	return pSigRangeProofBufferLength(p.MLSAG, p.PseudoOuts, &p.Bulletproof, signature)
+}
+
+func (p *PrunableMLSAGBulletproofsCompactAmount) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
+	return pSigRangeProofAppendBinary(p.MLSAG, p.PseudoOuts, &p.Bulletproof, preAllocatedBuf, signature)
+}
+
+func (p *PrunableMLSAGBulletproofsCompactAmount) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
+	return pSigRangeProofFromReaderMLSAG(&p.MLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, outputs, signature)
+}
+
+type PrunableCLSAGBulletproofs struct {
+	CLSAG []clsag.Signature[curve25519.VarTimeOperations]
+	// PseudoOuts The re-blinded commitments for the outputs being spent.
+	PseudoOuts  []curve25519.VarTimePublicKey
+	Bulletproof bp.AggregateRangeProof[curve25519.VarTimeOperations]
+}
+
+func (p *PrunableCLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+	return pSigRangeProofVerifyCLSAG(p.CLSAG, p.PseudoOuts, &p.Bulletproof, prefixHash, base, rings, images)
+}
+
+func (p *PrunableCLSAGBulletproofs) SignatureHash() types.Hash {
+	return pSigRangeProofSignatureHash(&p.Bulletproof)
+}
+
+func (p *PrunableCLSAGBulletproofs) Hash(signature bool) types.Hash {
+	return pSigRangeProofHash(p.CLSAG, p.PseudoOuts, &p.Bulletproof, signature)
+}
+
+func (p *PrunableCLSAGBulletproofs) BufferLength(signature bool) (n int) {
+	return pSigRangeProofBufferLength(p.CLSAG, p.PseudoOuts, &p.Bulletproof, signature)
+}
+
+func (p *PrunableCLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
+	return pSigRangeProofAppendBinary(p.CLSAG, p.PseudoOuts, &p.Bulletproof, preAllocatedBuf, signature)
+}
+
+func (p *PrunableCLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
+	return pSigRangeProofFromReaderCLSAG(&p.CLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, outputs, signature)
+}
+
+type PrunableCLSAGBulletproofsPlus struct {
+	CLSAG []clsag.Signature[curve25519.VarTimeOperations]
+	// PseudoOuts The re-blinded commitments for the outputs being spent.
+	PseudoOuts  []curve25519.VarTimePublicKey
+	Bulletproof bpp.AggregateRangeProof[curve25519.VarTimeOperations]
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+	return pSigRangeProofVerifyCLSAG(p.CLSAG, p.PseudoOuts, &p.Bulletproof, prefixHash, base, rings, images)
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) SignatureHash() types.Hash {
+	return pSigRangeProofSignatureHash(&p.Bulletproof)
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) Hash(signature bool) types.Hash {
+	return pSigRangeProofHash(p.CLSAG, p.PseudoOuts, &p.Bulletproof, signature)
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) BufferLength(signature bool) (n int) {
+	return pSigRangeProofBufferLength(p.CLSAG, p.PseudoOuts, &p.Bulletproof, signature)
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
+	return pSigRangeProofAppendBinary(p.CLSAG, p.PseudoOuts, &p.Bulletproof, preAllocatedBuf, signature)
+}
+
+func (p *PrunableCLSAGBulletproofsPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
+	return pSigRangeProofFromReaderCLSAG(&p.CLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, outputs, signature)
+}
+
+type pSig[S any] interface {
+	*S
+	AppendBinary(preAllocatedBuf []byte) (data []byte, err error)
+	BufferLength() int
+}
+
+type pRangeProof[RP any] interface {
+	*RP
+	Verify(commitments []curve25519.PublicKey[curve25519.VarTimeOperations], randomReader io.Reader) bool
+	AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error)
+	FromReader(reader utils.ReaderAndByteReader) (err error)
+	BufferLength(signature bool) int
+}
+
+var ErrInvalidRangeProof = errors.New("invalid range proof")
+
+func pSigRangeProofVerifyCLSAG[RP any, pRP pRangeProof[RP]](sigs []clsag.Signature[curve25519.VarTimeOperations], pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
 	sumInputs.Identity()
 	sumOutputs.Identity()
 
-	for i, member := range p.MLSAG {
-		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
-		m, err := mlsag.NewRingMatrixFromSingle(rings[i], &p.PseudoOuts[i])
+	for i, member := range sigs {
+		sumInputs.Add(&sumInputs, &pseudoOuts[i])
+
+		if err = member.Verify(prefixHash, rings[i], &images[i], &pseudoOuts[i]); err != nil {
+			return err
+		}
+	}
+
+	commitments := make([]curve25519.VarTimePublicKey, len(base.Commitments))
+	for i, c := range base.Commitments {
+		if _, err = commitments[i].SetBytes(c[:]); err != nil {
+			return err
+		}
+		sumOutputs.Add(&sumOutputs, &commitments[i])
+	}
+
+	// check range proof
+	if !pRP(rangeProof).Verify(commitments, rand.Reader) {
+		return ErrInvalidRangeProof
+	}
+
+	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
+
+	// check balances
+	if sumInputs.Equal(&sumOutputs) == 0 {
+		return ErrUnbalancedAmounts
+	}
+	return nil
+}
+
+func pSigRangeProofVerifyMLSAG[RP any, pRP pRangeProof[RP]](sigs []mlsag.Signature[curve25519.VarTimeOperations], pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+	var sumInputs, sumOutputs curve25519.VarTimePublicKey
+	// init
+	sumInputs.Identity()
+	sumOutputs.Identity()
+
+	for i, member := range sigs {
+		sumInputs.Add(&sumInputs, &pseudoOuts[i])
+		m, err := mlsag.NewRingMatrixFromSingle(rings[i], &pseudoOuts[i])
 		if err != nil {
 			return err
 		}
@@ -521,9 +617,9 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) Verify(prefixHash types.Hash, b
 		sumOutputs.Add(&sumOutputs, &commitments[i])
 	}
 
-	// check Bulletproof
-	if !p.Bulletproof.Verify(commitments, rand.Reader) {
-		return ErrInvalidBulletproofsProof
+	// check range proof
+	if !pRP(rangeProof).Verify(commitments, rand.Reader) {
+		return ErrInvalidRangeProof
 	}
 
 	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
@@ -535,51 +631,52 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) Verify(prefixHash types.Hash, b
 	return nil
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) SignatureHash() types.Hash {
-	buf := make([]byte, 0, p.Bulletproof.BufferLength(true))
+func pSigRangeProofSignatureHash[RP any, pRP pRangeProof[RP]](rangeProof *RP) types.Hash {
+	buf := make([]byte, 0, pRP(rangeProof).BufferLength(true))
 	var err error
-	if buf, err = p.Bulletproof.AppendBinary(buf, true); err != nil {
+	if buf, err = pRP(rangeProof).AppendBinary(buf, true); err != nil {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) Hash(signature bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(signature))
+func pSigRangeProofHash[S any, RP any, pS pSig[S], pRP pRangeProof[RP]](sigs []S, pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, signature bool) types.Hash {
+	buf := make([]byte, 0, pSigRangeProofBufferLength[S, RP, pS, pRP](sigs, pseudoOuts, rangeProof, signature))
 	var err error
-	if buf, err = p.AppendBinary(buf, signature); err != nil {
+	if buf, err = pSigRangeProofAppendBinary[S, RP, pS, pRP](sigs, pseudoOuts, rangeProof, buf, signature); err != nil {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) BufferLength(signature bool) (n int) {
+func pSigRangeProofBufferLength[S any, RP any, pS pSig[S], pRP pRangeProof[RP]](sigs []S, pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, signature bool) (n int) {
 	if !signature {
-		n += utils.UVarInt64Size(1)
-		for i := range p.MLSAG {
-			n += p.MLSAG[i].BufferLength()
+		n += 1
+		for i := range sigs {
+			n += pS(&sigs[i]).BufferLength()
 		}
-		n += len(p.PseudoOuts) * curve25519.PublicKeySize
+		n += len(pseudoOuts) * curve25519.PublicKeySize
 	}
-	n += p.Bulletproof.BufferLength(false)
+	n += pRP(rangeProof).BufferLength(false)
 	return n
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
+func pSigRangeProofAppendBinary[S any, RP any, pS pSig[S], pRP pRangeProof[RP]](sigs []S, pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, preAllocatedBuf []byte, signature bool) (data []byte, err error) {
 	data = preAllocatedBuf
 	if !signature {
-		data = binary.AppendUvarint(data, 1)
+		// this is the same on varint than byte encodings
+		data = append(data, 1)
 	}
-	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
+	if data, err = pRP(rangeProof).AppendBinary(data, false); err != nil {
 		return nil, err
 	}
 	if !signature {
-		for _, e := range p.MLSAG {
-			if data, err = e.AppendBinary(data); err != nil {
+		for _, e := range sigs {
+			if data, err = pS(&e).AppendBinary(data); err != nil {
 				return nil, err
 			}
 		}
-		for _, e := range p.PseudoOuts {
+		for _, e := range pseudoOuts {
 			if data, err = e.AppendBinary(data); err != nil {
 				return nil, err
 			}
@@ -588,11 +685,48 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) AppendBinary(preAllocatedBuf []
 	return data, nil
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
+func pSigRangeProofFromReaderCLSAG[RP any, pRP pRangeProof[RP]](sigs *[]clsag.Signature[curve25519.VarTimeOperations], pseudoOuts *[]curve25519.VarTimePublicKey, rangeProof *RP, reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
+	var n uint8
+	if !signature {
+		if n, err = reader.ReadByte(); err != nil {
+			return err
+		}
+
+		if n != 1 {
+			return errors.New("unexpected n")
+		}
+	}
+
+	if err = pRP(rangeProof).FromReader(reader); err != nil {
+		return err
+	}
+
+	if !signature {
+		for _, i := range inputs {
+			var e clsag.Signature[curve25519.VarTimeOperations]
+
+			if err = e.FromReader(reader, len(i.Offsets)); err != nil {
+				return err
+			}
+			*sigs = append(*sigs, e)
+		}
+
+		var pk curve25519.VarTimePublicKey
+		for range inputs {
+			if err = pk.FromReader(reader); err != nil {
+				return err
+			}
+			*pseudoOuts = append(*pseudoOuts, pk)
+		}
+	}
+
+	return nil
+}
+
+func pSigRangeProofFromReaderMLSAG[RP any, pRP pRangeProof[RP]](sigs *[]mlsag.Signature[curve25519.VarTimeOperations], pseudoOuts *[]curve25519.VarTimePublicKey, rangeProof *RP, reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
 
 	var n uint64
 	if !signature {
-
 		if n, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
 		}
@@ -602,7 +736,7 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) FromReader(reader utils.ReaderA
 		}
 	}
 
-	if err = p.Bulletproof.FromReader(reader); err != nil {
+	if err = pRP(rangeProof).FromReader(reader); err != nil {
 		return err
 	}
 
@@ -613,7 +747,7 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) FromReader(reader utils.ReaderA
 			if err = e.FromReader(reader, len(i.Offsets), 2); err != nil {
 				return err
 			}
-			p.MLSAG = append(p.MLSAG, e)
+			*sigs = append(*sigs, e)
 		}
 
 		var pk curve25519.VarTimePublicKey
@@ -621,278 +755,7 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) FromReader(reader utils.ReaderA
 			if err = pk.FromReader(reader); err != nil {
 				return err
 			}
-			p.PseudoOuts = append(p.PseudoOuts, pk)
-		}
-	}
-
-	return nil
-}
-
-type PrunableCLSAGBulletproofs struct {
-	CLSAG []clsag.Signature[curve25519.VarTimeOperations]
-	// PseudoOuts The re-blinded commitments for the outputs being spent.
-	PseudoOuts  []curve25519.VarTimePublicKey
-	Bulletproof bp.AggregateRangeProof[curve25519.VarTimeOperations]
-}
-
-func (p *PrunableCLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
-	var sumInputs, sumOutputs curve25519.VarTimePublicKey
-	// init
-	sumInputs.Identity()
-	sumOutputs.Identity()
-
-	for i, member := range p.CLSAG {
-		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
-
-		if err = member.Verify(prefixHash, rings[i], &images[i], &p.PseudoOuts[i]); err != nil {
-			return err
-		}
-	}
-
-	commitments := make([]curve25519.VarTimePublicKey, len(base.Commitments))
-	for i, c := range base.Commitments {
-		if _, err = commitments[i].SetBytes(c[:]); err != nil {
-			return err
-		}
-		sumOutputs.Add(&sumOutputs, &commitments[i])
-	}
-
-	// check Bulletproof
-	if !p.Bulletproof.Verify(commitments, rand.Reader) {
-		return ErrInvalidBulletproofsProof
-	}
-
-	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
-
-	// check balances
-	if sumInputs.Equal(&sumOutputs) == 0 {
-		return ErrUnbalancedAmounts
-	}
-	return nil
-}
-
-func (p *PrunableCLSAGBulletproofs) SignatureHash() types.Hash {
-	buf := make([]byte, 0, p.Bulletproof.BufferLength(true))
-	var err error
-	if buf, err = p.Bulletproof.AppendBinary(buf, true); err != nil {
-		return types.ZeroHash
-	}
-	return crypto.Keccak256(buf)
-}
-
-func (p *PrunableCLSAGBulletproofs) Hash(signature bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(signature))
-	var err error
-	if buf, err = p.AppendBinary(buf, signature); err != nil {
-		return types.ZeroHash
-	}
-	return crypto.Keccak256(buf)
-}
-
-func (p *PrunableCLSAGBulletproofs) BufferLength(signature bool) (n int) {
-	if !signature {
-		n += 1
-		for i := range p.CLSAG {
-			n += p.CLSAG[i].BufferLength()
-		}
-		n += len(p.PseudoOuts) * curve25519.PublicKeySize
-	}
-	n += p.Bulletproof.BufferLength(false)
-	return n
-}
-
-func (p *PrunableCLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
-	data = preAllocatedBuf
-	if !signature {
-		data = append(data, 1)
-	}
-	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
-		return nil, err
-	}
-	if !signature {
-		for _, e := range p.CLSAG {
-			if data, err = e.AppendBinary(data); err != nil {
-				return nil, err
-			}
-		}
-		for _, e := range p.PseudoOuts {
-			if data, err = e.AppendBinary(data); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return data, nil
-}
-
-func (p *PrunableCLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
-
-	var n uint8
-
-	if !signature {
-		if n, err = reader.ReadByte(); err != nil {
-			return err
-		}
-
-		if n != 1 {
-			return errors.New("unexpected n")
-		}
-	}
-
-	if err = p.Bulletproof.FromReader(reader); err != nil {
-		return err
-	}
-
-	if !signature {
-		for _, i := range inputs {
-			var e clsag.Signature[curve25519.VarTimeOperations]
-
-			if err = e.FromReader(reader, len(i.Offsets)); err != nil {
-				return err
-			}
-			p.CLSAG = append(p.CLSAG, e)
-		}
-
-		var pk curve25519.VarTimePublicKey
-		for range inputs {
-			if err = pk.FromReader(reader); err != nil {
-				return err
-			}
-			p.PseudoOuts = append(p.PseudoOuts, pk)
-		}
-	}
-
-	return nil
-}
-
-type PrunableCLSAGBulletproofsPlus struct {
-	CLSAG []clsag.Signature[curve25519.VarTimeOperations]
-	// PseudoOuts The re-blinded commitments for the outputs being spent.
-	PseudoOuts  []curve25519.VarTimePublicKey
-	Bulletproof bpp.AggregateRangeProof[curve25519.VarTimeOperations]
-}
-
-func (p *PrunableCLSAGBulletproofsPlus) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
-	var sumInputs, sumOutputs curve25519.VarTimePublicKey
-	// init
-	sumInputs.Identity()
-	sumOutputs.Identity()
-
-	for i, member := range p.CLSAG {
-		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
-
-		if err = member.Verify(prefixHash, rings[i], &images[i], &p.PseudoOuts[i]); err != nil {
-			return err
-		}
-	}
-
-	commitments := make([]curve25519.VarTimePublicKey, len(base.Commitments))
-	for i, c := range base.Commitments {
-		if _, err = commitments[i].SetBytes(c[:]); err != nil {
-			return err
-		}
-		sumOutputs.Add(&sumOutputs, &commitments[i])
-	}
-
-	// check Bulletproof+
-	if !p.Bulletproof.Verify(commitments, rand.Reader) {
-		return ErrInvalidBulletproofsProof
-	}
-
-	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
-
-	// check balances
-	if sumInputs.Equal(&sumOutputs) == 0 {
-		return ErrUnbalancedAmounts
-	}
-	return nil
-}
-
-func (p *PrunableCLSAGBulletproofsPlus) SignatureHash() types.Hash {
-	buf := make([]byte, 0, p.Bulletproof.BufferLength(true))
-	var err error
-	if buf, err = p.Bulletproof.AppendBinary(buf, true); err != nil {
-		return types.ZeroHash
-	}
-	return crypto.Keccak256(buf)
-}
-
-func (p *PrunableCLSAGBulletproofsPlus) Hash(signature bool) types.Hash {
-	buf := make([]byte, 0, p.BufferLength(signature))
-	var err error
-	if buf, err = p.AppendBinary(buf, signature); err != nil {
-		return types.ZeroHash
-	}
-	return crypto.Keccak256(buf)
-}
-
-func (p *PrunableCLSAGBulletproofsPlus) BufferLength(signature bool) (n int) {
-	if !signature {
-		n += 1
-		for i := range p.CLSAG {
-			n += p.CLSAG[i].BufferLength()
-		}
-		n += len(p.PseudoOuts) * curve25519.PublicKeySize
-	}
-	n += p.Bulletproof.BufferLength(false)
-	return n
-}
-
-func (p *PrunableCLSAGBulletproofsPlus) AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error) {
-	data = preAllocatedBuf
-	if !signature {
-		data = append(data, 1)
-	}
-	if data, err = p.Bulletproof.AppendBinary(data, false); err != nil {
-		return nil, err
-	}
-	if !signature {
-		for _, e := range p.CLSAG {
-			if data, err = e.AppendBinary(data); err != nil {
-				return nil, err
-			}
-		}
-		for _, e := range p.PseudoOuts {
-			if data, err = e.AppendBinary(data); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return data, nil
-}
-
-func (p *PrunableCLSAGBulletproofsPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
-
-	var n uint8
-	if !signature {
-		if n, err = reader.ReadByte(); err != nil {
-			return err
-		}
-
-		if n != 1 {
-			return errors.New("unexpected n")
-		}
-	}
-
-	if err = p.Bulletproof.FromReader(reader); err != nil {
-		return err
-	}
-
-	if !signature {
-		for _, i := range inputs {
-			var e clsag.Signature[curve25519.VarTimeOperations]
-
-			if err = e.FromReader(reader, len(i.Offsets)); err != nil {
-				return err
-			}
-			p.CLSAG = append(p.CLSAG, e)
-		}
-
-		var pk curve25519.VarTimePublicKey
-		for range inputs {
-			if err = pk.FromReader(reader); err != nil {
-				return err
-			}
-			p.PseudoOuts = append(p.PseudoOuts, pk)
+			*pseudoOuts = append(*pseudoOuts, pk)
 		}
 	}
 
@@ -936,7 +799,7 @@ func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base Base, rings []
 
 	// check Bulletproof+
 	if !p.Bulletproof.Verify(commitments, rand.Reader) {
-		return ErrInvalidBulletproofsProof
+		return ErrInvalidRangeProof
 	}
 
 	sumOutputs.Add(&sumOutputs, ringct.CalculateFeeCommitment(new(curve25519.VarTimePublicKey), base.Fee))
