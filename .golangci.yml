@@ -1,7 +1,7 @@
 # See the dedicated "version" documentation section.
 version: "2"
 linters:
-  default: fast
+  default: all
   disable:
     # We don't care about line length or whitespace
     - lll
@@ -11,6 +11,9 @@ linters:
 
     - wsl
     - wsl_v5
+
+    # Inconsistent across the project due to Monero/Go contexts
+    - tagliatelle
 
     # No sorting needed
     - funcorder
@@ -22,6 +25,19 @@ linters:
     # Magic numbers in a lot of binary places
     - mnd
 
+    # No wrap checks
+    - wrapcheck
+
+    # General or pedantic ones
+    - revive
+    - nonamedreturns
+    - noinlineerr
+    - gocritic
+    - exhaustruct
+    - ireturn
+    - goconst
+    - forcetypeassert
+
     # Complexity and duplicity is fine
     - interfacebloat
     - nestif
@@ -31,7 +47,46 @@ linters:
     - maintidx
     - funlen
     - dupl
+    # Or too little complexity
+    - varnamelen
+
+    # TODO: enable these after cleanup or nolint
+    - err113
+    - gochecknoglobals
+
   settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1000"
+        - "-ST1003"
+        - "-ST1020"
+        - "-ST1022"
+        # no condition De Morgan's law
+        - "-QF1001"
+        - "-QF1003"
+
+    gosec:
+      excludes:
+        # secrets in code
+        # todo: define rules to ignore existing
+        - G101
+        # unsafe calls should be audited
+        # todo: explicitly tag each one
+        - G103
+        # integer overflow conversion
+        # todo: too noisy, too prevalent, can't configure specific safe conversions like to int
+        - G115
+
+    errcheck:
+      exclude-functions:
+        - "io.ReadAll"
+        - "(io.ReadCloser).Close"
+        - "(net.Conn).Close"
+        - "(*net.TCPConn).Close"
+        - "(*net.conn).Close"
+        - "(*net.TCPListener).Close"
+
     depguard:
       rules:
         main:
