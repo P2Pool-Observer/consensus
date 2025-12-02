@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"crypto/md5"
+	"crypto/md5" // #nosec G501
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -23,6 +23,7 @@ type digest struct {
 func (d *digest) Hash(data ...[]byte) []byte {
 	var hasher hash.Hash
 	if d.Algorithm == "" || strings.HasPrefix(d.Algorithm, "MD5") {
+		// #nosec G401
 		hasher = md5.New()
 	} else {
 		panic(errors.New("unsupported digest algorithm"))
@@ -43,6 +44,8 @@ func (d *digest) Hash(data ...[]byte) []byte {
 	return dst
 }
 
+var ErrUnsupportedQOP = errors.New("unsupported QOP")
+
 func (d *digest) Auth(method, uri, user, password string, requestCounter uint32, clientNonce string) (string, error) {
 	ha1 := d.Hash([]byte(user), []byte(d.Realm), []byte(password))
 
@@ -54,7 +57,7 @@ func (d *digest) Auth(method, uri, user, password string, requestCounter uint32,
 	if len(d.QOP) == 0 || d.QOP == "auth" {
 		ha2 = d.Hash([]byte(method), []byte(uri))
 	} else {
-		return "", errors.New("unsupported QOP")
+		return "", ErrUnsupportedQOP
 	}
 
 	var nc [8]byte
@@ -66,21 +69,21 @@ func (d *digest) Auth(method, uri, user, password string, requestCounter uint32,
 	} else if d.QOP == "auth" {
 		response = d.Hash(ha1, []byte(d.Nonce), nc[:], []byte(clientNonce), []byte(d.QOP), ha2)
 	} else {
-		return "", errors.New("unsupported QOP")
+		return "", ErrUnsupportedQOP
 	}
 
 	var elements []string
 	elements = append(elements, fmt.Sprintf("Digest username=\"%s\",realm=\"%s\",nonce=\"%s\",uri=\"%s\"", user, d.Realm, d.Nonce, uri))
 	if d.QOP != "" {
-		elements = append(elements, fmt.Sprintf("qop=%s", d.QOP))
+		elements = append(elements, "qop="+d.QOP)
 	}
-	elements = append(elements, fmt.Sprintf("nc=%s", string(nc[:])))
+	elements = append(elements, "nc="+string(nc[:]))
 	if d.QOP == "auth" || strings.HasSuffix(d.Algorithm, "-sess") {
 		elements = append(elements, fmt.Sprintf("cnonce=\"%s\"", clientNonce))
 	}
 	elements = append(elements, fmt.Sprintf("response=\"%s\"", response))
 	if d.Algorithm != "" {
-		elements = append(elements, fmt.Sprintf("algorithm=%s", d.Algorithm))
+		elements = append(elements, "algorithm="+d.Algorithm)
 	}
 	if d.Opaque != "" {
 		elements = append(elements, fmt.Sprintf("opaque=\"%s\"", d.Opaque))

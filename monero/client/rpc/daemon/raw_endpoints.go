@@ -242,7 +242,7 @@ func (c *Client) GetTransactions(
 	ctx context.Context, txns []types.Hash, prune bool,
 ) (*GetTransactionsResult, error) {
 	resp := &GetTransactionsResult{}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"txs_hashes":     txns,
 		"decode_as_json": true,
 		"prune":          prune,

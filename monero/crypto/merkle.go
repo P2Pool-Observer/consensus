@@ -188,7 +188,7 @@ func (proof MerkleProof) GetRootPath(h types.Hash, path uint32) types.Hash {
 		return h
 	}
 
-	for d := 0; d < depth; d++ {
+	for d := range depth {
 		h = pairHash(int(path>>(depth-d-1)), h, proof[d], hasher)
 	}
 	return h

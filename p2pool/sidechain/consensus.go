@@ -12,6 +12,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
+//nolint:recvcheck
 type NetworkType int
 
 const (
@@ -214,6 +215,7 @@ func (c *Consensus) verify() bool {
 	}
 
 	if len(c.HardForks) == 0 {
+		//nolint:exhaustive
 		switch c.NetworkType {
 		case NetworkMainnet:
 			c.HardForks = p2poolMainNetHardForks

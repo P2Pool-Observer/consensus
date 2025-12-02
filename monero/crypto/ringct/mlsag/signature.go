@@ -86,7 +86,7 @@ func (s *Signature[T]) Verify(prefixHash types.Hash, ringMatrix RingMatrix[T], k
 
 	var L, R curve25519.PublicKey[T]
 
-	for i := range len(ringMatrix) {
+	for i := range ringMatrix {
 		ss := s.SS[i]
 		var member ringct.Ring[T]
 		if i == len(ringMatrix) {

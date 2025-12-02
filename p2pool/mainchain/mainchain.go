@@ -200,7 +200,7 @@ func (c *MainChain) getTimestamps(timestamps []uint64) bool {
 		return false
 	}
 
-	for i := 0; i < TimestampWindow; i++ {
+	for i := range TimestampWindow {
 		h, ok := c.mainchainByHeight[c.highest-uint64(i)]
 		if !ok {
 			break
@@ -444,16 +444,13 @@ func (c *MainChain) HandleMinerData(minerData *p2pooltypes.MinerData) {
 		c.lock.Lock()
 		defer c.lock.Unlock()
 
-		mainData := &sidechain.ChainMain{
-			Difficulty: minerData.Difficulty,
-			Height:     minerData.Height,
-		}
-
-		if existingMainData, ok := c.mainchainByHeight[mainData.Height]; !ok {
-			c.mainchainByHeight[mainData.Height] = mainData
+		if existingMainData, ok := c.mainchainByHeight[minerData.Height]; !ok {
+			c.mainchainByHeight[minerData.Height] = &sidechain.ChainMain{
+				Difficulty: minerData.Difficulty,
+				Height:     minerData.Height,
+			}
 		} else {
-			existingMainData.Difficulty = mainData.Difficulty
-			mainData = existingMainData
+			existingMainData.Difficulty = minerData.Difficulty
 		}
 
 		if minerData.Height > 0 {

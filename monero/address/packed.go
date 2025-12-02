@@ -15,6 +15,8 @@ const PackedAddressSpend = 0
 const PackedAddressView = 1
 
 // PackedAddress 0 = spend, 1 = view
+//
+//nolint:recvcheck
 type PackedAddress [2]curve25519.PublicKeyBytes
 
 func NewPackedAddressFromBytes(spend, view curve25519.PublicKeyBytes) (result PackedAddress) {

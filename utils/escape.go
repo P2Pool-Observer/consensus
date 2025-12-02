@@ -12,35 +12,47 @@ import (
 // These functions allow defeat of the escape analysis to prevent heap allocations.
 // It is the caller responsibility to ensure this is safe
 
+//nolint:unused
 func _read(reader io.Reader, buf []byte) (n int, err error) {
 	return reader.Read(buf)
 }
+
+//nolint:unused
 func _readByte(reader io.ByteReader) (byte, error) {
 	return reader.ReadByte()
 }
 
+//nolint:unused
 func _binaryReadNoEscape(r io.Reader, order binary.ByteOrder, data any) error {
 	return binary.Read(r, order, data)
 }
 
+//nolint:unused
 func _write(writer io.Writer, buf []byte) (n int, err error) {
 	return writer.Write(buf)
 }
 
+//nolint:unused
 func _sum(hasher hash.Hash, buf []byte) []byte {
 	return hasher.Sum(buf)
 }
 
+//nolint:unused
 func _reset(hasher hash.Hash) {
 	hasher.Reset()
 }
 
+//nolint:unused
 func _errorfNoEscape(format string, a ...any) error {
 	return fmt.Errorf(format, a...)
 }
+
+//nolint:unused
 func _appendfNoEscape(b []byte, format string, a ...any) []byte {
 	return fmt.Appendf(b, format, a...)
 }
+
+//nolint:unused
 func _sprintfNoEscape(format string, a ...any) string {
 	return fmt.Sprintf(format, a...)
 }
@@ -65,7 +77,7 @@ func ReadFullNoEscape(reader io.Reader, buf []byte) (n int, err error) {
 	}
 	if n >= minRead {
 		err = nil
-	} else if n > 0 && err == io.EOF {
+	} else if n > 0 && err == io.EOF { //nolint:errorlint
 		err = io.ErrUnexpectedEOF
 	}
 	return

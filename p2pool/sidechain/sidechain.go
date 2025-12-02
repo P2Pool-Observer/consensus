@@ -209,7 +209,7 @@ func (c *SideChain) isPoolBlockTransactionKeyIsDeterministic(block *PoolBlock) b
 	if len(pubs) != 1 {
 		return false
 	}
-	return bytes.Compare(pubs[0].Slice(), kP.PublicKey.Bytes()) == 0 && block.Side.CoinbasePrivateKey == curve25519.PrivateKeyBytes(kP.PrivateKey.Bytes())
+	return bytes.Equal(pubs[0].Slice(), kP.PublicKey.Bytes()) && block.Side.CoinbasePrivateKey == curve25519.PrivateKeyBytes(kP.PrivateKey.Bytes())
 }
 
 func (c *SideChain) getSeedByHeightFunc() mainblock.GetSeedByHeightFunc {
@@ -231,9 +231,7 @@ func (c *SideChain) GetPossibleUncles(tip *PoolBlock, forHeight uint64) (uncles 
 	defer c.sidechainLock.RUnlock()
 	for i, n := uint64(0), min(UncleBlockDepth, tip.Side.Height+1); tmp != nil && (i < n); i++ {
 		minedBlocks = append(minedBlocks, tmp.SideTemplateId(c.Consensus()))
-		for _, uncleId := range tmp.Side.Uncles {
-			minedBlocks = append(minedBlocks, uncleId)
-		}
+		minedBlocks = append(minedBlocks, tmp.Side.Uncles...)
 		tmp = c.getParent(tmp)
 	}
 
@@ -463,9 +461,9 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		if (data.Height + 1) != block.Main.Coinbase.GenHeight {
 			return nil, utils.ErrorfNoEscape("wrong mainchain height %d, expected %d", block.Main.Coinbase.GenHeight, data.Height+1), true
 		}
-	} else {
+	} /* else {
 		//TODO warn unknown block, reorg
-	}
+	} */
 
 	return func() []types.Hash {
 		c.sidechainLock.RLock()
@@ -683,7 +681,6 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 			//store for faster startup
 			go func() {
 				c.server.Store(block)
-				return
 			}()
 
 			// Try to verify blocks on top of this one
@@ -696,6 +693,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 						}
 						blocksToVerify = append(blocksToVerify, b)
 					} else {
+						//nolint:modernize
 						for _, uncleHash := range b.Side.Uncles {
 							if uncleHash == block.SideTemplateId(c.Consensus()) {
 								// Update depth if needed
@@ -734,7 +732,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			return nil, errors.New("genesis block has invalid parameters")
 		}
 		//this does not verify coinbase outputs, but that's fine
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	// Deep block
@@ -745,7 +743,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 	// We skip checks in this case to make pruning possible
 	if block.Depth.Load() > ((c.Consensus().ChainWindowSize-1)*2 + UncleBlockDepth) {
 		utils.Logf("SideChain", "block at height = %d, id = %x skipped verification", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice())
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	// Regular block
@@ -798,9 +796,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			n := min(UncleBlockDepth, block.Side.Height+1)
 			for i := uint64(0); tmp != nil && i < n; i++ {
 				minedBlocks = append(minedBlocks, tmp.SideTemplateId(c.Consensus()))
-				for _, uncleId := range tmp.Side.Uncles {
-					minedBlocks = append(minedBlocks, uncleId)
-				}
+				minedBlocks = append(minedBlocks, tmp.Side.Uncles...)
 				tmp = c.getParent(tmp)
 			}
 		}
@@ -979,7 +975,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 		}
 
 		// All checks passed
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	} else {
 		return errors.New("parent does not exist"), nil
 	}
@@ -992,6 +988,7 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 		oldDepth := b.Depth.Load()
 		if oldDepth < newDepth {
 			b.Depth.Store(newDepth)
+			//nolint:staticcheck
 			if oldDepth < preCalcDepth && newDepth >= preCalcDepth {
 				//TODO launchPrecalc
 			}
@@ -1182,7 +1179,7 @@ func (c *SideChain) pruneOldBlocks() {
 
 	curTime := time.Now().UTC()
 
-	curTime.Add(-pruneDelay)
+	curTime = curTime.Add(-pruneDelay)
 
 	tip := c.GetChainTip()
 	if tip == nil || tip.Side.Height < pruneDistance {
@@ -1281,7 +1278,7 @@ func (c *SideChain) pruneOldBlocks() {
 
 		numSeenBlocksPruned := c.cleanupSeenBlocks()
 		if numSeenBlocksPruned > 0 {
-			//utils.Logf("SideChain", "pruned %d seen blocks", numBlocksPruned)
+			utils.Debugf("SideChain", "pruned %d seen blocks", numBlocksPruned)
 		}
 	}
 
@@ -1493,7 +1490,7 @@ func LoadSideChainTestData(consensus *Consensus, derivationCache DerivationCache
 	for {
 		buf = buf[:0]
 		var blockLen uint32
-		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &blockLen); err == io.EOF {
+		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &blockLen); errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return nil, err

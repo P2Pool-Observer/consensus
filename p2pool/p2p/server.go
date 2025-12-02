@@ -41,7 +41,7 @@ type P2PoolInterface interface {
 type PeerListEntry struct {
 	AddressPort       netip.AddrPort
 	FailedConnections atomic.Uint32
-	LastSeenTimestamp atomic.Uint64
+	LastSeenTimestamp atomic.Int64
 }
 
 type PeerList []*PeerListEntry
@@ -146,7 +146,7 @@ type Server struct {
 
 	BroadcastedMoneroBlocks *utils.CircularBuffer[types.Hash]
 
-	ctx context.Context
+	ctx context.Context //nolint:containedctx
 }
 
 func NewServer(p2pool P2PoolInterface, listenAddress string, externalListenPort uint16, maxOutgoingPeers, maxIncomingPeers uint32, useIPv4, useIPv6 bool, ctx context.Context) (*Server, error) {
@@ -264,10 +264,10 @@ func (s *Server) AddToPeerList(addressPort netip.AddrPort) {
 		e = &PeerListEntry{
 			AddressPort: netip.AddrPortFrom(addr, addressPort.Port()),
 		}
-		e.LastSeenTimestamp.Store(uint64(time.Now().Unix()))
+		e.LastSeenTimestamp.Store(time.Now().Unix())
 		s.peerList = append(s.peerList, e)
 	} else {
-		e.LastSeenTimestamp.Store(uint64(time.Now().Unix()))
+		e.LastSeenTimestamp.Store(time.Now().Unix())
 	}
 }
 
@@ -291,11 +291,11 @@ func (s *Server) UpdateInPeerList(addressPort netip.AddrPort) {
 		e = &PeerListEntry{
 			AddressPort: netip.AddrPortFrom(addr, addressPort.Port()),
 		}
-		e.LastSeenTimestamp.Store(uint64(time.Now().Unix()))
+		e.LastSeenTimestamp.Store(time.Now().Unix())
 		s.peerList = append(s.peerList, e)
 	} else {
 		e.FailedConnections.Store(0)
-		e.LastSeenTimestamp.Store(uint64(time.Now().Unix()))
+		e.LastSeenTimestamp.Store(time.Now().Unix())
 	}
 }
 
@@ -353,7 +353,7 @@ func (s *Server) RemoveFromPeerList(ip netip.Addr) {
 
 func (s *Server) GetFastestClient() *Client {
 	var client *Client
-	var ping uint64
+	var ping int64
 	for _, c := range s.Clients() {
 		p := c.PingDuration.Load()
 		if c.IsGood() && p != 0 && (ping == 0 || p < ping) {
@@ -366,7 +366,7 @@ func (s *Server) GetFastestClient() *Client {
 }
 
 func (s *Server) UpdatePeerList() {
-	curTime := uint64(time.Now().Unix())
+	curTime := time.Now().Unix()
 	for _, c := range s.Clients() {
 		if c.IsGood() && curTime >= c.NextOutgoingPeerListRequestTimestamp.Load() {
 			c.SendPeerListRequest()
@@ -389,8 +389,8 @@ func (s *Server) CleanupBanList() {
 
 func (s *Server) UpdateClientConnections() {
 
-	currentTime := uint64(time.Now().Unix())
-	lastUpdated := uint64(s.SideChain().LastUpdated().Unix())
+	currentTime := time.Now().Unix()
+	lastUpdated := s.SideChain().LastUpdated().Unix()
 
 	var hasGoodPeers bool
 	var fastestPeer *Client
@@ -400,7 +400,7 @@ func (s *Server) UpdateClientConnections() {
 	connectedPeers := make([]string, 0, len(connectedClients))
 
 	for _, client := range connectedClients {
-		timeout := uint64(10)
+		timeout := int64(10)
 		if client.HandshakeComplete.Load() {
 			timeout = 300
 		}
@@ -475,6 +475,7 @@ func (s *Server) UpdateClientConnections() {
 	attempts := 0
 
 	for i := s.NumOutgoingConnections.Load() - s.NumIncomingConnections.Load(); int(i) < N && len(peerList) > 0; {
+		// #nosec G404
 		k := unsafeRandom.IntN(len(peerList)) % len(peerList)
 		peer := peerList[k]
 
@@ -511,7 +512,7 @@ func (s *Server) UpdateClientConnections() {
 				e := &PeerListEntry{
 					AddressPort: netip.AddrPortFrom(addr, s.Consensus().DefaultPort()),
 				}
-				e.LastSeenTimestamp.Store(uint64(p.LastSeen))
+				e.LastSeenTimestamp.Store(p.LastSeen)
 				if ok, _ := s.IsBanned(addr); !ok {
 					if !s.useIPv4 && addr.Is4() {
 						continue
@@ -592,6 +593,7 @@ func (s *Server) DownloadMissingBlocks() {
 				}
 			}
 
+			// #nosec G404
 			clientList[unsafeRandom.IntN(len(clientList))].SendUniqueBlockRequest(h)
 		}
 		if !obtained {
@@ -611,17 +613,13 @@ func (s *Server) Listen() (err error) {
 		defer s.listener.Close()
 
 		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range utils.ContextTick(s.ctx, time.Second*5) {
 				s.UpdatePeerList()
 				s.UpdateClientConnections()
 			}
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		})
+		wg.Go(func() {
 			for range utils.ContextTick(s.ctx, time.Second) {
 				if s.SideChain().PreCalcFinished() {
 					s.ClearCachedBlocks()
@@ -634,21 +632,17 @@ func (s *Server) Listen() (err error) {
 			for range utils.ContextTick(s.ctx, time.Minute*2) {
 				s.DownloadMissingBlocks()
 			}
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		})
+		wg.Go(func() {
 			for range utils.ContextTick(s.ctx, time.Hour) {
 				s.RefreshOutgoingIPv6()
 			}
-		}()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		})
+		wg.Go(func() {
 			for range utils.ContextTick(s.ctx, time.Minute*5) {
 				s.CleanupBanList()
 			}
-		}()
+		})
 
 		for !s.close.Load() {
 			if conn, err := s.listener.AcceptTCP(); err != nil {
@@ -863,6 +857,7 @@ func (s *Server) DefaultDialer(ipv6 bool) proxy.ContextDialer {
 	if ipv6 {
 		addrs := s.GetOutgoingIPv6()
 		if len(addrs) > 1 {
+			// #nosec G404
 			a := addrs[unsafeRandom.IntN(len(addrs))]
 			localAddr = &net.TCPAddr{IP: a.AsSlice(), Zone: a.Zone()}
 		} else if len(addrs) == 1 {
@@ -915,7 +910,7 @@ func (s *Server) IsBanned(ip netip.Addr) (bool, *BanEntry) {
 		defer s.bansLock.RUnlock()
 		entry, ok = s.bans[k]
 		return entry, ok
-	}(); ok == false {
+	}(); !ok {
 		return false, nil
 	} else if uint64(time.Now().Unix()) >= b.Expiration {
 		return false, nil
@@ -967,9 +962,9 @@ func (s *Server) Close() {
 		s.clientsLock.Lock()
 		defer s.clientsLock.Unlock()
 		for _, c := range s.clients {
-			c.Connection.Close()
+			_ = c.Connection.Close()
 		}
-		s.listener.Close()
+		_ = s.listener.Close()
 	}
 }
 

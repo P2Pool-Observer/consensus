@@ -199,11 +199,11 @@ func (p *Prefix) BufferLength() int {
 		utils.UVarInt64Size(len(p.Extra)) + len(p.Extra)
 }
 
-type Transaction interface {
+type Transaction interface { //nolint:iface
 	PrunableTransaction
 }
 
-type PrunableTransaction interface {
+type PrunableTransaction interface { //nolint:iface
 	PrunedTransaction
 	Weight() int
 	Hash() types.Hash

@@ -56,14 +56,14 @@ type FullChainMain struct {
 				Height uint64 `json:"height"`
 			} `json:"gen"`
 		} `json:"inputs"`
-		Outputs    []TxOutput    `json:"outputs"`
-		Extra      string        `json:"extra"`
-		Signatures []interface{} `json:"signatures"`
+		Outputs    []TxOutput `json:"outputs"`
+		Extra      string     `json:"extra"`
+		Signatures any        `json:"signatures"`
 		Ringct     struct {
-			Type        int           `json:"type"`
-			Encrypted   []interface{} `json:"encrypted"`
-			Commitments []interface{} `json:"commitments"`
-			Fee         uint64        `json:"fee"`
+			Type        int    `json:"type"`
+			Encrypted   any    `json:"encrypted"`
+			Commitments any    `json:"commitments"`
+			Fee         uint64 `json:"fee"`
 		} `json:"ringct"`
 	} `json:"miner_tx"`
 	TxHashes []types.Hash `json:"tx_hashes"`
@@ -82,9 +82,9 @@ type FullTxPoolAdd struct {
 			KeyImage   types.Hash `json:"key_image"`
 		} `json:"to_key"`
 	} `json:"inputs"`
-	Outputs    []TxOutput    `json:"outputs"`
-	Extra      string        `json:"extra"`
-	Signatures []interface{} `json:"signatures"`
+	Outputs    []TxOutput `json:"outputs"`
+	Extra      string     `json:"extra"`
+	Signatures []any      `json:"signatures"`
 	Ringct     struct {
 		Type      int `json:"type"`
 		Encrypted []struct {
@@ -109,8 +109,8 @@ type FullTxPoolAdd struct {
 				B      string   `json:"b"`
 				T      string   `json:"t"`
 			} `json:"bulletproofs"`
-			Mlsags     []interface{} `json:"mlsags"`
-			PseudoOuts []string      `json:"pseudo_outs"`
+			Mlsags     []any    `json:"mlsags"`
+			PseudoOuts []string `json:"pseudo_outs"`
 		} `json:"prunable"`
 	} `json:"ringct"`
 }

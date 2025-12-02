@@ -157,11 +157,9 @@ func (ars AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness, rando
 		V = append(V, *new(curve25519.PublicKey[T]).Identity())
 	}
 
-	dJS := make([]bulletproofs.ScalarVector[T], 0, len(V))
 	aL := make(bulletproofs.ScalarVector[T], 0, len(V)*bulletproofs.CommitmentBits)
 
 	for j := 1; j <= len(V); j++ {
-		dJS = append(dJS, ars.DJ(j, len(V)))
 		if len(witness) > j-1 {
 			aL = append(aL, bulletproofs.Decompose[T](witness[j-1].Amount)...)
 		} else {

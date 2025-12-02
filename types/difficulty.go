@@ -3,15 +3,16 @@ package types
 import (
 	"database/sql/driver"
 	"errors"
-	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	fasthex "github.com/tmthrgd/go-hex"
 	"io"
-	"lukechampine.com/uint128"
 	"math"
 	"math/big"
 	"math/bits"
 	"strconv"
 	"strings"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	fasthex "github.com/tmthrgd/go-hex"
+	"lukechampine.com/uint128"
 )
 
 const DifficultySize = 16
@@ -19,6 +20,7 @@ const DifficultySize = 16
 var ZeroDifficulty = Difficulty(uint128.Zero)
 var MaxDifficulty = Difficulty(uint128.Max)
 
+//nolint:recvcheck
 type Difficulty uint128.Uint128
 
 func (d Difficulty) IsZero() bool {

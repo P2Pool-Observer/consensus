@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"fmt"
+	"errors"
 	"math/bits"
 	"strconv"
 )
@@ -27,7 +27,7 @@ func NextPowerOfTwo[T ~uint | ~uint64](x T) int {
 // From https://github.com/valyala/fastjson
 func ParseUint64(s []byte) (uint64, error) {
 	if len(s) == 0 {
-		return 0, fmt.Errorf("cannot parse uint64 from empty string")
+		return 0, errors.New("cannot parse uint64 from empty string")
 	}
 	i := uint(0)
 	d := uint64(0)

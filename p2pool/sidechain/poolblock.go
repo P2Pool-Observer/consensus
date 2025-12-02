@@ -100,10 +100,10 @@ type PoolBlock struct {
 
 type PoolBlockReceptionMetadata struct {
 	// LocalTime Moment the block was received from a source
-	LocalTime time.Time `json:"local_time,omitempty"`
+	LocalTime time.Time `json:"local_time"`
 	// AddressPort The address and port of the peer who broadcasted or sent us this block
 	// If the peer specified a listen port, the port will be that instead of current connection one
-	AddressPort netip.AddrPort `json:"address_port,omitempty"`
+	AddressPort netip.AddrPort `json:"address_port"`
 	// PeerId The peer id of the peer who broadcasted or sent us this block
 	PeerId uint64 `json:"peer_id,omitempty"`
 
@@ -425,8 +425,6 @@ func (b *PoolBlock) FullId(consensus *Consensus) FullId {
 
 const FullIdSize = int(types.HashSize + unsafe.Sizeof(uint32(0)) + SideExtraNonceSize)
 
-var zeroFullId FullId
-
 type FullId [FullIdSize]byte
 
 func FullIdFromString(s string) (FullId, error) {
@@ -442,7 +440,7 @@ func FullIdFromString(s string) (FullId, error) {
 	}
 }
 
-func (id FullId) TemplateId() (h types.Hash) {
+func (id FullId) TemplateId() types.Hash {
 	return types.Hash(id[:types.HashSize])
 }
 
@@ -793,7 +791,7 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 		}
 
 		if outputBlob, err := b.Main.Coinbase.MinerOutputs.AppendBinary(make([]byte, 0, b.Main.Coinbase.MinerOutputs.BufferLength())); err != nil {
-			return nil, fmt.Errorf("error filling outputs for block: %s", err)
+			return nil, fmt.Errorf("error filling outputs for block: %w", err)
 		} else if uint64(len(outputBlob)) != b.Main.Coinbase.AuxiliaryData.OutputsBlobSize {
 			return nil, utils.ErrorfNoEscape("error filling outputs for block: invalid output blob size, got %d, expected %d", b.Main.Coinbase.AuxiliaryData.OutputsBlobSize, len(outputBlob))
 		}

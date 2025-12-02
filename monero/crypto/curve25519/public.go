@@ -254,9 +254,9 @@ func (k *PublicKeyBytes) Scan(src any) error {
 func (k *PublicKeyBytes) Value() (driver.Value, error) {
 	var zeroPubKey PublicKeyBytes
 	if *k == zeroPubKey {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
-	return []byte((*k)[:]), nil
+	return (*k)[:], nil
 }
 
 func (k *PublicKeyBytes) UnmarshalJSON(b []byte) error {

@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -205,7 +206,7 @@ func (c *Client) RelayTx(
 	ctx context.Context, txns []types.Hash,
 ) (*RelayTxResult, error) {
 	resp := &RelayTxResult{}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"txids": txns,
 	}
 
@@ -222,7 +223,7 @@ func (c *Client) GetBlockTemplate(
 	ctx context.Context, walletAddress string, reserveSize uint,
 ) (*GetBlockTemplateResult, error) {
 	resp := &GetBlockTemplateResult{}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"wallet_address": walletAddress,
 		"reserve_size":   reserveSize,
 	}
@@ -328,7 +329,7 @@ func (c *Client) GetBlockHeadersRange(
 	ctx context.Context, start, end uint64,
 ) (*GetBlockHeadersRangeResult, error) {
 	resp := &GetBlockHeadersRangeResult{}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"start_height": start,
 		"end_height":   end,
 	}
@@ -347,7 +348,7 @@ func (c *Client) GetBlockHeaderByHeight(
 	ctx context.Context, height uint64,
 ) (*GetBlockHeaderByHeightResult, error) {
 	resp := &GetBlockHeaderByHeightResult{}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"height": height,
 	}
 
@@ -365,7 +366,7 @@ func (c *Client) GetBlockHeaderByHash(
 	ctx context.Context, hashes []types.Hash,
 ) (*GetBlockHeaderByHashResult, error) {
 	resp := &GetBlockHeaderByHashResult{}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"hashes": hashes,
 	}
 

@@ -84,7 +84,7 @@ func JobFromString(s string) (j Job, err error) {
 		// preallocate
 		j.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
 
-		for i := 0; i < int(merkleProofSize); i++ {
+		for i := range merkleProofSize {
 			if _, err = io.ReadFull(reader, j.MerkleProof[i][:]); err != nil {
 				return j, err
 			}
@@ -100,7 +100,7 @@ func JobFromString(s string) (j Job, err error) {
 		j.MergeMiningExtra = make(sidechain.MergeMiningExtra, mergeMiningExtraSize)
 
 		var mergeMiningExtraDataSize uint64
-		for i := 0; i < int(mergeMiningExtraSize); i++ {
+		for i := range mergeMiningExtraSize {
 			if _, err = io.ReadFull(reader, j.MergeMiningExtra[i].ChainId[:]); err != nil {
 				return j, err
 			} else if i > 0 && j.MergeMiningExtra[i-1].ChainId.Compare(j.MergeMiningExtra[i].ChainId) >= 0 {

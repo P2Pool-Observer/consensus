@@ -48,6 +48,7 @@ func getBuffer(length int) []byte {
 
 func returnBuffer(x []byte) {
 	if len(x) <= 16384 {
+		//nolint:staticcheck
 		smallBufferPool.Put(x)
 	}
 }
@@ -92,19 +93,19 @@ type Client struct {
 
 	// Peer general dynamic-ish information
 	BroadcastMaxHeight atomic.Uint64
-	PingDuration       atomic.Uint64
+	PingDuration       atomic.Int64
 
 	// Internal values
 	Owner                                *Server
 	Connection                           net.Conn
 	banErrorLock                         sync.Mutex
 	banError                             error
-	LastBroadcastTimestamp               atomic.Uint64
-	LastBlockRequestTimestamp            atomic.Uint64
+	LastBroadcastTimestamp               atomic.Int64
+	LastBlockRequestTimestamp            atomic.Int64
 	LastIncomingPeerListRequestTime      time.Time
-	LastActiveTimestamp                  atomic.Uint64
-	LastPeerListRequestTimestamp         atomic.Uint64
-	NextOutgoingPeerListRequestTimestamp atomic.Uint64
+	LastActiveTimestamp                  atomic.Int64
+	LastPeerListRequestTimestamp         atomic.Int64
+	NextOutgoingPeerListRequestTimestamp atomic.Int64
 
 	expectedMessage      MessageId
 	IsIncomingConnection bool
@@ -124,8 +125,6 @@ type Client struct {
 	handshakeChallenge HandshakeChallenge
 
 	closeChannel chan struct{}
-
-	sendLock sync.Mutex
 }
 
 func NewClient(owner *Server, source HostPort, conn net.Conn) *Client {
@@ -141,20 +140,20 @@ func NewClient(owner *Server, source HostPort, conn net.Conn) *Client {
 		blockPendingRequests: make(chan types.Hash, 100), //allow max 100 pending block requests at the same time
 	}
 
-	c.LastActiveTimestamp.Store(uint64(time.Now().Unix()))
+	c.LastActiveTimestamp.Store(time.Now().Unix())
 
 	return c
 }
 
 func (c *Client) BanError() error {
 	c.banErrorLock.Lock()
-	c.banErrorLock.Unlock()
+	defer c.banErrorLock.Unlock()
 	return c.banError
 }
 
 func (c *Client) SetError(err error) {
 	c.banErrorLock.Lock()
-	c.banErrorLock.Unlock()
+	defer c.banErrorLock.Unlock()
 	if c.banError == nil {
 		c.banError = err
 	}
@@ -173,7 +172,7 @@ func (c *Client) OnAfterHandshake() {
 	c.SendBlockRequest(types.ZeroHash)
 	utils.Logf("P2PClient", "Peer %s after handshake complete: sent LISTEN_PORT + tip BLOCK_REQUEST", c.HostPort.String())
 
-	c.LastBroadcastTimestamp.Store(uint64(time.Now().Unix()))
+	c.LastBroadcastTimestamp.Store(time.Now().Unix())
 }
 
 func (c *Client) getNextBlockRequest() (id types.Hash, ok bool) {
@@ -224,7 +223,7 @@ func (c *Client) SendMissingBlockRequestAtRandom(hash types.Hash, allowedClients
 	}
 
 	for len(allowedClients) > 0 {
-		k := unsafeRandom.IntN(len(allowedClients)) % len(allowedClients)
+		k := unsafeRandom.IntN(len(allowedClients)) % len(allowedClients) // #nosec G404
 		client := allowedClients[k]
 		if client.IsGood() && len(client.blockPendingRequests) < 20 {
 			client.SendBlockRequest(hash)
@@ -335,11 +334,12 @@ func (c *Client) SendBlockResponse(block *sidechain.PoolBlock) {
 }
 
 func (c *Client) SendPeerListRequest() {
-	c.NextOutgoingPeerListRequestTimestamp.Store(uint64(time.Now().Unix()) + PeerRequestDelay + (unsafeRandom.Uint64() % (PeerRequestDelay + 1)))
+	// #nosec G404
+	c.NextOutgoingPeerListRequestTimestamp.Store(time.Now().Unix() + PeerRequestDelay + int64(unsafeRandom.Uint64()%(PeerRequestDelay+1)))
 	c.SendMessage(&ClientMessage{
 		MessageId: MessagePeerListRequest,
 	})
-	c.LastPeerListRequestTimestamp.Store(uint64(time.Now().UnixMicro()))
+	c.LastPeerListRequestTimestamp.Store(time.Now().UnixMicro())
 	//utils.Logf("P2PClient", "Sending PEER_LIST_REQUEST to %s", c.HostPort.String())
 }
 
@@ -371,7 +371,7 @@ func (c *Client) IsGood() bool {
 }
 
 func (c *Client) OnConnection(ourPeerId uint64) {
-	c.LastActiveTimestamp.Store(uint64(time.Now().Unix()))
+	c.LastActiveTimestamp.Store(time.Now().Unix())
 
 	c.sendHandshakeChallenge()
 
@@ -506,7 +506,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			c.ListenPort.Store(listenPort)
 			c.Owner.UpdateInPeerList(netip.AddrPortFrom(c.HostPort.Addr(), uint16(c.ListenPort.Load())))
 		case MessageBlockRequest:
-			c.LastBlockRequestTimestamp.Store(uint64(time.Now().Unix()))
+			c.LastBlockRequestTimestamp.Store(time.Now().Unix())
 
 			var templateId types.Hash
 			if err := binary.Read(c, binary.LittleEndian, &templateId); err != nil {
@@ -569,7 +569,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				return
 			} else if blockSize == 0 {
 				utils.Logf("P2PClient", "Peer %s sent nil BLOCK_RESPONSE to id = %s", c.HostPort.String(), expectedBlockId)
-				if isChainTipBlockRequest && time.Now().Unix() >= int64(c.NextOutgoingPeerListRequestTimestamp.Load()) {
+				if isChainTipBlockRequest && time.Now().Unix() >= c.NextOutgoingPeerListRequestTimestamp.Load() {
 					c.SendPeerListRequest()
 				}
 				break
@@ -611,7 +611,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 							}
 						}
 
-						if time.Now().Unix() >= int64(c.NextOutgoingPeerListRequestTimestamp.Load()) {
+						if time.Now().Unix() >= c.NextOutgoingPeerListRequestTimestamp.Load() {
 							c.SendPeerListRequest()
 						}
 					}
@@ -697,13 +697,14 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 					c.SendMissingBlockRequest(id)
 				}
 				//TODO: ban here, but sort blocks properly, maybe a queue to re-try?
+				//nolint:staticcheck
 				break
 			} else {
 				tipHash := poolBlock.FastSideTemplateId(c.Owner.Consensus())
 
 				c.BroadcastedHashes.Push(tipHash)
 
-				c.LastBroadcastTimestamp.Store(uint64(time.Now().Unix()))
+				c.LastBroadcastTimestamp.Store(time.Now().Unix())
 
 				if lastTip := c.LastKnownTip.Load(); lastTip == nil || lastTip.Side.Height <= poolBlock.Side.Height {
 					c.LastKnownTip.Store(poolBlock)
@@ -719,7 +720,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 					if peerHeight < ourHeight {
 						if (ourHeight - peerHeight) < 5 {
-							elapsedTime := time.Now().Sub(ourMinerData.TimeReceived)
+							elapsedTime := time.Since(ourMinerData.TimeReceived)
 							if (ourHeight-peerHeight) > 1 || elapsedTime > (time.Second*10) {
 								utils.Logf("P2PClient", "Peer %s broadcasted a stale block (%d ms late, mainchain height %d, expected >= %d), ignoring it", c.HostPort.String(), elapsedTime.Milliseconds(), peerHeight, ourHeight)
 							}
@@ -775,6 +776,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 						entriesToSend = append(entriesToSend, netip.AddrPortFrom(addr, peer.HostPort.Port))
 					}
 
+					// #nosec G404
 					k := unsafeRandom.IntN(n)
 					if k < peersToSendTarget {
 						entriesToSend[k] = netip.AddrPortFrom(addr, peer.HostPort.Port)
@@ -799,6 +801,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				//improvement from normal p2pool: pad response with other peers from peer list, not connected
 				peerList := c.Owner.PeerList()
 				for i := lastLen; i < PeerListResponseMaxPeers && len(peerList) > 0; i++ {
+					// #nosec G404
 					k := unsafeRandom.IntN(len(peerList)) % len(peerList)
 					peer := peerList[k]
 					if !slices.ContainsFunc(entriesToSend, func(addrPort netip.AddrPort) bool {
@@ -820,6 +823,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			//include one ipv6, if existent
 			if !hasIpv6 {
 				peerList := c.Owner.PeerList()
+				// #nosec G404
 				unsafeRandom.Shuffle(len(peerList), func(i, j int) {
 					peerList[i] = peerList[j]
 				})
@@ -846,14 +850,14 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				c.Ban(DefaultBanTime, utils.ErrorfNoEscape("too many peers on PEER_LIST_RESPONSE num_peers = %d", numPeers))
 				return
 			} else {
-				firstPeerResponse := c.PingDuration.Swap(uint64(max(time.Now().Sub(time.UnixMicro(int64(c.LastPeerListRequestTimestamp.Load()))), 0))) == 0
+				firstPeerResponse := c.PingDuration.Swap(int64(max(time.Since(time.UnixMicro(c.LastPeerListRequestTimestamp.Load())), 0))) == 0
 				var rawIp [16]byte
 				var port uint16
 
 				if firstPeerResponse {
 					utils.Logf("P2PClient", "Peer %s initial PEER_LIST_RESPONSE: num_peers %d", c.HostPort.String(), numPeers)
 				}
-				for i := uint8(0); i < numPeers; i++ {
+				for range numPeers {
 					if isV6, err := c.ReadByte(); err != nil {
 						c.Ban(DefaultBanTime, err)
 						return
@@ -883,6 +887,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 							}
 
 							copy(rawIp[:], make([]byte, 10))
+							// #nosec G602
 							rawIp[10], rawIp[11] = 0xFF, 0xFF
 
 						}
@@ -892,7 +897,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				}
 			}
 		case MessageBlockNotify:
-			c.LastBlockRequestTimestamp.Store(uint64(time.Now().Unix()))
+			c.LastBlockRequestTimestamp.Store(time.Now().Unix())
 
 			var templateId types.Hash
 			if err := binary.Read(c, binary.LittleEndian, &templateId); err != nil {
@@ -905,6 +910,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			// If we don't know about this block, request it from this peer. The peer can do it to speed up our initial sync, for example.
 			if tip := c.Owner.SideChain().GetPoolBlockByTemplateId(templateId); tip == nil {
 				//TODO: prevent sending duplicate requests
+				//nolint:staticcheck
 				if c.SendBlockRequestWithBound(templateId, 25) {
 
 				}
@@ -1041,7 +1047,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			return
 		}
 
-		c.LastActiveTimestamp.Store(uint64(time.Now().Unix()))
+		c.LastActiveTimestamp.Store(time.Now().Unix())
 	}
 }
 

@@ -51,10 +51,7 @@ func consensusHash(scratchpad []byte) types.Hash {
 	cachePtr := scratchpad[ScratchpadSize*Vec128Size:]
 	scratchpadTopPtr := scratchpad[:ScratchpadSize*Vec128Size]
 	for i := ScratchpadSize * Vec128Size; i < n; i += ScratchpadSize * Vec128Size {
-		stride := ScratchpadSize * Vec128Size
-		if stride > len(cachePtr) {
-			stride = len(cachePtr)
-		}
+		stride := min(ScratchpadSize*Vec128Size, len(cachePtr))
 		subtle.XORBytes(scratchpadTopPtr, scratchpadTopPtr, cachePtr[:stride])
 		cachePtr = cachePtr[stride:]
 	}

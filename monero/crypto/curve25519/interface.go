@@ -37,6 +37,7 @@ type PointOperations interface {
 // See https://github.com/golang/go/issues/48849
 // See https://github.com/golang/go/issues/75056
 
+//nolint:unused
 func _add(op PointOperations, v *Point, p, q *Point) *Point {
 	return op.Add(v, p, q)
 }
@@ -45,6 +46,7 @@ func _add(op PointOperations, v *Point, p, q *Point) *Point {
 //go:linkname add git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._add
 func add(op PointOperations, v *Point, p, q *Point) *Point
 
+//nolint:unused
 func _subtract(op PointOperations, v *Point, p, q *Point) *Point {
 	return op.Subtract(v, p, q)
 }
@@ -53,6 +55,7 @@ func _subtract(op PointOperations, v *Point, p, q *Point) *Point {
 //go:linkname subtract git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._subtract
 func subtract(op PointOperations, v *Point, p, q *Point) *Point
 
+//nolint:unused
 func _double(op PointOperations, v *Point, x *Point) *Point {
 	return op.Double(v, x)
 }
@@ -61,6 +64,7 @@ func _double(op PointOperations, v *Point, x *Point) *Point {
 //go:linkname double git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._double
 func double(op PointOperations, v *Point, x *Point) *Point
 
+//nolint:unused
 func _negate(op PointOperations, v *Point, x *Point) *Point {
 	return op.Negate(v, x)
 }
@@ -69,6 +73,7 @@ func _negate(op PointOperations, v *Point, x *Point) *Point {
 //go:linkname negate git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._negate
 func negate(op PointOperations, v *Point, x *Point) *Point
 
+//nolint:unused
 func _multByCofactor(op PointOperations, v *Point, x *Point) *Point {
 	return op.MultByCofactor(v, x)
 }
@@ -77,6 +82,7 @@ func _multByCofactor(op PointOperations, v *Point, x *Point) *Point {
 //go:linkname multByCofactor git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._multByCofactor
 func multByCofactor(op PointOperations, v *Point, x *Point) *Point
 
+//nolint:unused
 func _scalarBaseMult(op PointOperations, v *Point, x *Scalar) *Point {
 	return op.ScalarBaseMult(v, x)
 }
@@ -85,6 +91,7 @@ func _scalarBaseMult(op PointOperations, v *Point, x *Scalar) *Point {
 //go:linkname scalarBaseMult git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._scalarBaseMult
 func scalarBaseMult(op PointOperations, v *Point, x *Scalar) *Point
 
+//nolint:unused
 func _scalarMult(op PointOperations, v *Point, x *Scalar, q *Point) *Point {
 	return op.ScalarMult(v, x, q)
 }
@@ -93,6 +100,7 @@ func _scalarMult(op PointOperations, v *Point, x *Scalar, q *Point) *Point {
 //go:linkname scalarMult git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._scalarMult
 func scalarMult(op PointOperations, v *Point, x *Scalar, q *Point) *Point
 
+//nolint:unused
 func _scalarMultPrecomputed(op PointOperations, v *Point, x *Scalar, q *Generator) *Point {
 	return op.ScalarMultPrecomputed(v, x, q)
 }
@@ -101,6 +109,7 @@ func _scalarMultPrecomputed(op PointOperations, v *Point, x *Scalar, q *Generato
 //go:linkname scalarMultPrecomputed git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._scalarMultPrecomputed
 func scalarMultPrecomputed(op PointOperations, v *Point, x *Scalar, q *Generator) *Point
 
+//nolint:unused
 func _doubleScalarBaseMult(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar) *Point {
 	return op.DoubleScalarBaseMult(v, a, A, b)
 }
@@ -109,6 +118,7 @@ func _doubleScalarBaseMult(op PointOperations, v *Point, a *Scalar, A *Point, b 
 //go:linkname doubleScalarBaseMult git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarBaseMult
 func doubleScalarBaseMult(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar) *Point
 
+//nolint:unused
 func _doubleScalarBaseMultPrecomputed(op PointOperations, v *Point, a *Scalar, A *Generator, b *Scalar) *Point {
 	return op.DoubleScalarBaseMultPrecomputed(v, a, A, b)
 }
@@ -117,22 +127,25 @@ func _doubleScalarBaseMultPrecomputed(op PointOperations, v *Point, a *Scalar, A
 //go:linkname doubleScalarBaseMultPrecomputed git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarBaseMultPrecomputed
 func doubleScalarBaseMultPrecomputed(op PointOperations, v *Point, a *Scalar, A *Generator, b *Scalar) *Point
 
+//nolint:unused
 func _doubleScalarMultPrecomputed(op PointOperations, v *Point, a *Scalar, A *Generator, b *Scalar, B *Generator) *Point {
 	return op.DoubleScalarMultPrecomputed(v, a, A, b, B)
-}
-
-func _doubleScalarMult(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Point) *Point {
-	return op.DoubleScalarMult(v, a, A, b, B)
 }
 
 //go:noescape
 //go:linkname doubleScalarMult git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarMult
 func doubleScalarMult(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Point) *Point
 
+//nolint:unused
+func _doubleScalarMult(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Point) *Point {
+	return op.DoubleScalarMult(v, a, A, b, B)
+}
+
 //go:noescape
 //go:linkname doubleScalarMultPrecomputed git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarMultPrecomputed
 func doubleScalarMultPrecomputed(op PointOperations, v *Point, a *Scalar, A *Generator, b *Scalar, B *Generator) *Point
 
+//nolint:unused
 func _doubleScalarMultPrecomputedB(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Generator) *Point {
 	return op.DoubleScalarMultPrecomputedB(v, a, A, b, B)
 }
@@ -141,6 +154,7 @@ func _doubleScalarMultPrecomputedB(op PointOperations, v *Point, a *Scalar, A *P
 //go:linkname doubleScalarMultPrecomputedB git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._doubleScalarMultPrecomputedB
 func doubleScalarMultPrecomputedB(op PointOperations, v *Point, a *Scalar, A *Point, b *Scalar, B *Generator) *Point
 
+//nolint:unused
 func _multiScalarMult(op PointOperations, v *Point, scalars []*Scalar, points []*Point) *Point {
 	return op.MultiScalarMult(v, scalars, points)
 }
@@ -149,6 +163,7 @@ func _multiScalarMult(op PointOperations, v *Point, scalars []*Scalar, points []
 //go:linkname multiScalarMult git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._multiScalarMult
 func multiScalarMult(op PointOperations, v *Point, scalars []*Scalar, points []*Point) *Point
 
+//nolint:unused
 func _isSmallOrder(op PointOperations, v *Point) bool {
 	return op.IsSmallOrder(v)
 }
@@ -157,6 +172,7 @@ func _isSmallOrder(op PointOperations, v *Point) bool {
 //go:linkname isSmallOrder git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._isSmallOrder
 func isSmallOrder(op PointOperations, v *Point) bool
 
+//nolint:unused
 func _isTorsionFree(op PointOperations, v *Point) bool {
 	return op.IsTorsionFree(v)
 }
@@ -165,6 +181,7 @@ func _isTorsionFree(op PointOperations, v *Point) bool {
 //go:linkname isTorsionFree git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519._isTorsionFree
 func isTorsionFree(op PointOperations, v *Point) bool
 
+//nolint:unused
 func _setBytes(op PointOperations, v *Point, x []byte) (*Point, error) {
 	return op.SetBytes(v, x)
 }

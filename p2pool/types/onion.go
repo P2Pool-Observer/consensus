@@ -13,6 +13,7 @@ var onionBase32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567")
 
 const OnionPort = 28722
 
+//nolint:recvcheck
 type OnionAddressV3 curve25519.PublicKeyBytes
 
 func MustOnionAddressV3FromString(s string) (addr OnionAddressV3) {

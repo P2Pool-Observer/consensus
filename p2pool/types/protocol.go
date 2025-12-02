@@ -14,7 +14,7 @@ func IsPeerVersionInformation(addr netip.AddrPort) bool {
 		return false
 	}
 	rawIp := addr.Addr().As16()
-	return bytes.Compare(rawIp[12:], []byte{0xFF, 0xFF, 0xFF, 0xFF}) == 0
+	return bytes.Equal(rawIp[12:], []byte{0xFF, 0xFF, 0xFF, 0xFF})
 }
 
 // ProtocolFeature List of features to check to not depend on hardcoded protocol versions.
@@ -93,7 +93,9 @@ func (v ProtocolVersion) String() string {
 }
 
 const (
+	//nolint:staticcheck
 	ProtocolVersion_0_0 ProtocolVersion = (0 << 16) | 0
+	//nolint:staticcheck
 	ProtocolVersion_1_0 ProtocolVersion = (1 << 16) | 0
 	ProtocolVersion_1_1 ProtocolVersion = (1 << 16) | 1
 	ProtocolVersion_1_2 ProtocolVersion = (1 << 16) | 2

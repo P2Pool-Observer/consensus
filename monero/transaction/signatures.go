@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"errors"
-	"fmt"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client/rpc/daemon"
@@ -20,7 +19,7 @@ type Proofs interface {
 type ProofType uint8
 
 func (p ProofType) CompactAmount() bool {
-	switch p {
+	switch p { //nolint:exhaustive
 	case MLSAGBulletproofCompactAmount, CLSAGBulletproof, CLSAGBulletproofPlus, FCMPPlusPlus:
 		return true
 	default:
@@ -29,7 +28,7 @@ func (p ProofType) CompactAmount() bool {
 }
 
 func (p ProofType) Bulletproof() bool {
-	switch p {
+	switch p { //nolint:exhaustive
 	case MLSAGBulletproof, MLSAGBulletproofCompactAmount, CLSAGBulletproof:
 		return true
 	default:
@@ -38,7 +37,7 @@ func (p ProofType) Bulletproof() bool {
 }
 
 func (p ProofType) BulletproofPlus() bool {
-	switch p {
+	switch p { //nolint:exhaustive
 	case CLSAGBulletproofPlus, FCMPPlusPlus:
 		return true
 	default:
@@ -47,7 +46,7 @@ func (p ProofType) BulletproofPlus() bool {
 }
 
 func (p ProofType) FCMP() bool {
-	switch p {
+	switch p { //nolint:exhaustive
 	case FCMPPlusPlus:
 		return true
 	default:
@@ -149,11 +148,11 @@ func (rs *RingSignatures) ProofType() ProofType {
 
 func (rs *RingSignatures) Verify(prefixHash types.Hash, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error {
 	if len(rings) != len(*rs) || len(images) != len(*rs) {
-		return fmt.Errorf("rings length mismatch")
+		return errors.New("rings length mismatch")
 	}
 	for i, sig := range *rs {
 		if len(sig) != len(rings[i]) {
-			return fmt.Errorf("ring member length mismatch")
+			return errors.New("ring member length mismatch")
 		}
 		if !sig.Verify(prefixHash, rings[i].Ring(make(ringct.Ring[curve25519.VarTimeOperations], 0, len(rings[i]))), &images[i]) {
 			return ErrInvalidRingSignature

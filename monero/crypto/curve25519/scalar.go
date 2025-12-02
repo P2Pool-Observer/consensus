@@ -261,10 +261,11 @@ type UnreducedScalar PrivateKeyBytes
 // This function does not execute in constant time and must only be used with public data.
 // Variable time
 func (s *UnreducedScalar) NAF5() (naf [256]int8) {
-	for pos := 0; pos < PrivateKeySize*8; pos++ {
+	for pos := range PrivateKeySize * 8 {
 		b := s[pos/8] >> uint(pos&7)
 
-		naf[b] = int8(b)
+		// #nosec G602
+		naf[pos] = int8(b)
 	}
 
 	for i := range naf {
@@ -309,7 +310,7 @@ func (s *UnreducedScalar) NAF5() (naf [256]int8) {
 	return naf
 }
 
-func (s *UnreducedScalar) ScalarVarTime(out *Scalar) *Scalar {
+func (s *UnreducedScalar) VarTimeScalar(out *Scalar) *Scalar {
 	if s[31]&128 == 0 {
 		// Computing the w-NAF of a number can only give an output with 1 more bit than
 		// the number, so even if the number isn't reduced, the `slide` function will be
@@ -319,6 +320,7 @@ func (s *UnreducedScalar) ScalarVarTime(out *Scalar) *Scalar {
 	}
 
 	out.Set(zeroScalar)
+	//TODO: add tests for unreduced ones
 	for _, n := range s.NAF5() {
 		out.Add(out, out)
 		if n > 0 {

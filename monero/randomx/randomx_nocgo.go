@@ -33,7 +33,7 @@ func (h *hasherCollection) Hash(key []byte, input []byte) (types.Hash, error) {
 		h.lock.RLock()
 		defer h.lock.RUnlock()
 		for _, c := range h.cache {
-			if len(c.key) > 0 && bytes.Compare(c.key, key) == 0 {
+			if len(c.key) > 0 && bytes.Equal(c.key, key) {
 				return c.Hash(input), nil
 			}
 		}
@@ -106,7 +106,7 @@ func ConsensusHash(buf []byte) types.Hash {
 	if err != nil {
 		panic(err)
 	}
-	defer cache.Close()
+	defer cache.Close() //nolint:errcheck
 
 	cache.Init(buf)
 
@@ -200,12 +200,12 @@ func (h *hasherState) Close() {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	if h.vm != nil {
-		h.vm.Close()
+		_ = h.vm.Close()
 	}
 	if h.dataset != nil {
-		h.dataset.Close()
+		_ = h.dataset.Close()
 	}
 	if h.cache != nil {
-		h.cache.Close()
+		_ = h.cache.Close()
 	}
 }

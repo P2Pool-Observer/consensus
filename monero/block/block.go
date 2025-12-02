@@ -244,7 +244,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 			b.TransactionParentIndices = make([]uint64, 0, min(8192, txCount))
 
 			var parentIndex uint64
-			for i := 0; i < int(txCount); i++ {
+			for range txCount {
 				if parentIndex, err = utils.ReadCanonicalUvarint(reader); err != nil {
 					return err
 				}
@@ -266,7 +266,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 			// preallocate with soft cap
 			b.Transactions = make([]types.Hash, 0, min(8192, txCount))
 
-			for i := 0; i < int(txCount); i++ {
+			for range txCount {
 				if _, err = utils.ReadFullNoEscape(reader, transactionHash[:]); err != nil {
 					return err
 				}

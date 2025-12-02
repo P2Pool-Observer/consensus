@@ -2,14 +2,15 @@ package legacy
 
 import (
 	"encoding/binary"
-	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/cache"
-	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
-	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"io"
 	"os"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/cache"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 const blockSize = 96 * 1024
@@ -26,7 +27,7 @@ type Cache struct {
 }
 
 func NewCache(consensus *sidechain.Consensus, path string) (*Cache, error) {
-	if f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666); err != nil {
+	if f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666); err != nil { //nolint:gosec
 		return nil, err
 	} else {
 		if _, err = f.Seek(cacheSize-1, io.SeekStart); err != nil {
@@ -76,7 +77,7 @@ func (c *Cache) LoadAll(l cache.Loadee) {
 		var highest uint64
 		var highestIndex int
 
-		for i := 0; i < NumBlocks; i++ {
+		for i := range NumBlocks {
 			storeIndex := i * blockSize
 
 			if _, err := c.f.ReadAt(blobLen[:], int64(storeIndex)); err != nil {

@@ -133,6 +133,7 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 		if len(merkleProof) > merge_mining.MaxChainsLog2 {
 			return errors.New("merkle proof too large")
 		}
+		// #nosec G602
 		uint32Buf[0] = uint8(len(merkleProof))
 		if _, err := utils.WriteNoEscape(writer, uint32Buf[:1]); err != nil {
 			return err
@@ -302,17 +303,10 @@ func (tpl *Template) CoinbaseBlob(preAllocatedBuffer []byte, extraNonce uint32, 
 
 func (tpl *Template) CoinbaseBlobData(buf []byte, extraNonce uint32, merkleRoot types.Hash) {
 	// sidechain hash
-	if merkleRoot == types.ZeroHash && tpl.MajorVersion() >= monero.HardForkCarrotVersion {
-		// Overwrite extra nonce bytes with zero??: TODO: allow more bytes
-		binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset-tpl.CoinbaseOffset:], extraNonce)
-		// Overwrite merkle root: TODO
-		copy(buf[tpl.MerkleRootOffset-tpl.CoinbaseOffset:], merkleRoot[:])
-	} else {
-		// Overwrite extra nonce
-		binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset-tpl.CoinbaseOffset:], extraNonce)
-		// Overwrite merkle root
-		copy(buf[tpl.MerkleRootOffset-tpl.CoinbaseOffset:], merkleRoot[:])
-	}
+	// Overwrite extra nonce
+	binary.LittleEndian.PutUint32(buf[tpl.ExtraNonceOffset-tpl.CoinbaseOffset:], extraNonce)
+	// Overwrite merkle root
+	copy(buf[tpl.MerkleRootOffset-tpl.CoinbaseOffset:], merkleRoot[:])
 }
 
 func (tpl *Template) CoinbaseBlobId(preAllocatedBuffer []byte, extraNonce uint32, templateId types.Hash, result *types.Hash) {

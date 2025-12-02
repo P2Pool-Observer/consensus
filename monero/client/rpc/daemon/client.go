@@ -12,7 +12,7 @@ type Requester interface {
 	// monero's `v2` response and error encapsulation.
 	//
 	JSONRPC(
-		ctx context.Context, method string, params, result interface{},
+		ctx context.Context, method string, params, result any,
 	) error
 
 	// RawRequest is used for making a request to an arbitrary endpoint
@@ -22,8 +22,8 @@ type Requester interface {
 	RawRequest(
 		ctx context.Context,
 		endpoint string,
-		params interface{},
-		response interface{},
+		params any,
+		response any,
 	) error
 
 	// RawBinaryRequest is used for making a request to an arbitrary endpoint

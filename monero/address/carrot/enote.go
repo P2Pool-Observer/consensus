@@ -210,6 +210,9 @@ func makePaymentIdEncryptionMask(hasher *blake2b.Digest, secretSenderReceiver ty
 }
 
 // makeJanusAnchorSpecial make_carrot_janus_anchor_special
+// todo: implement ProposalSelfSendV1 / SpecialOutput
+//
+//nolint:unused
 func makeJanusAnchorSpecial(hasher *blake2b.Digest, ephemeralPubKey curve25519.MontgomeryPoint, inputContext []byte, oneTimeAddress curve25519.PublicKeyBytes, viewSecret curve25519.PrivateKeyBytes) (out [monero.JanusAnchorSize]byte) {
 	// anchor_sp = H_16(D_e, input_context, Ko, k_v)
 	HashedTranscript(

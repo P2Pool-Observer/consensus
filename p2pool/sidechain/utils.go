@@ -28,6 +28,7 @@ type GetBySideHeightFunc func(height uint64) UniquePoolBlockSlice
 // GetChainMainByHashFunc if h = types.ZeroHash, return tip
 type GetChainMainByHashFunc func(h types.Hash) *ChainMain
 
+//nolint:unused
 func _getEphemeralPublicKey(derivationCache DerivationCacheInterface, a *address.PackedAddress, txKey curve25519.PrivateKeyBytes, txKeyScalar *curve25519.Scalar, outputIndex uint64) (curve25519.PublicKeyBytes, uint8) {
 	return derivationCache.GetEphemeralPublicKey(a, txKey, txKeyScalar, outputIndex)
 }
@@ -47,6 +48,7 @@ func CalculateOutputCryptonote(derivationCache DerivationCacheInterface, txType 
 	}
 }
 
+//nolint:unused
 func _getCarrotCoinbaseEnote(derivationCache DerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) *carrot.CoinbaseEnoteV1 {
 	return derivationCache.GetCarrotCoinbaseEnote(a, seed, blockIndex, amount)
 }
@@ -394,7 +396,7 @@ func ShuffleSequence(majorVersion uint8, shareVersion ShareVersion, privateKeySe
 			seed = 1
 		}
 
-		for i := uint64(0); i < (n - 1); i++ {
+		for i := range n - 1 {
 			seed = utils.XorShift64Star(seed)
 			k, _ := bits.Mul64(seed, n-i)
 			//swap

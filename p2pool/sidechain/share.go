@@ -87,6 +87,7 @@ func (p *PreAllocatedSharesPool) Get() Shares {
 }
 
 func (p *PreAllocatedSharesPool) Put(s Shares) {
+	//nolint:staticcheck
 	p.pool.Put(s)
 }
 

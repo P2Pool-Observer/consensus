@@ -96,7 +96,7 @@ func FromBase58(address string) *Address {
 		hasChecksum: true,
 	}
 
-	if bytes.Compare(a.checksum[:], raw[65:]) != 0 {
+	if !bytes.Equal(a.checksum[:], raw[65:]) {
 		return nil
 	}
 

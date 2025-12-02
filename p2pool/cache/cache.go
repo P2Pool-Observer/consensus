@@ -35,7 +35,3 @@ type AddressableCache interface {
 	// ProcessBlock blocks returned on other Load methods may return pruned/compact blocks. Use this to process them
 	ProcessBlock(block *sidechain.PoolBlock) error
 }
-
-type IndexedCache interface {
-	AddressableCache
-}

@@ -93,9 +93,6 @@ type Server struct {
 	preAllocatedDifficultyDifferences []uint32
 	preAllocatedSharesPool            *sidechain.PreAllocatedSharesPool
 
-	preAllocatedBufferLock sync.Mutex
-	preAllocatedBuffer     []byte
-
 	minersLock sync.RWMutex
 	miners     map[uint64]*MinerTrackingEntry
 
@@ -116,7 +113,6 @@ func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBloc
 		preAllocatedDifficultyData:        make([]sidechain.DifficultyData, s.Consensus().ChainWindowSize*2),
 		preAllocatedDifficultyDifferences: make([]uint32, s.Consensus().ChainWindowSize*2),
 		preAllocatedSharesPool:            sidechain.NewPreAllocatedSharesPool(s.Consensus().ChainWindowSize * 2),
-		preAllocatedBuffer:                make([]byte, 0, sidechain.PoolBlockMaxTemplateSize),
 		miners:                            make(map[uint64]*MinerTrackingEntry),
 		mempool:                           (MiningMempool)(make(map[types.Hash]*mempool.Entry, 512)),
 		// buffer 4 at a time for non-blocking source
@@ -859,7 +855,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 
 		if txType == transaction.TxOutToCarrotV1 {
 			carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(shares))
-			for i := range len(shares) {
+			for i := range shares {
 				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i])
 				if carrotEnotes[i] == nil {
 					return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
@@ -1088,7 +1084,7 @@ func (s *Server) IsBanned(ip netip.Addr) (bool, *BanEntry) {
 		defer s.bansLock.RUnlock()
 		entry, ok = s.bans[k]
 		return entry, ok
-	}(); ok == false {
+	}(); !ok {
 		return false, nil
 	} else if uint64(time.Now().Unix()) >= b.Expiration {
 		return false, nil
@@ -1223,6 +1219,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 
 					var rpcId uint32
 					for rpcId == 0 {
+						// #nosec G404
 						rpcId = unsafeRandom.Uint32()
 					}
 					decoder := utils.NewJSONDecoder(conn)
@@ -1588,8 +1585,6 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 
 		}
 	}
-
-	return nil
 }
 
 func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
@@ -1606,7 +1601,9 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 		c.buf = make([]byte, 0, bufLen)
 	}
 
+	// #nosec G404
 	sideRandomNumber := unsafeRandom.Uint32()
+	// #nosec G404
 	sideExtraNonce := unsafeRandom.Uint32()
 	extraNonce := uint32(0)
 	if !supportsTemplate {
@@ -1677,7 +1674,9 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 	var hexBuf [4]byte
 	binary.LittleEndian.PutUint32(hexBuf[:], c.RpcId)
 
+	// #nosec G404
 	sideRandomNumber := unsafeRandom.Uint32()
+	// #nosec G404
 	sideExtraNonce := unsafeRandom.Uint32()
 	extraNonce := uint32(0)
 	if !supportsTemplate {
@@ -1735,7 +1734,7 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 }
 
 func (s *Server) CloseClient(c *Client) {
-	c.Conn.Close()
+	_ = c.Conn.Close()
 
 	//TODO: ban bad clients after n failed attempts
 

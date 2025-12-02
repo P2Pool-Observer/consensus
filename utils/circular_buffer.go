@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"math"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -13,6 +14,9 @@ type CircularBuffer[T comparable] struct {
 }
 
 func NewCircularBuffer[T comparable](size int) *CircularBuffer[T] {
+	if size > math.MaxUint32 {
+		return nil
+	}
 	return &CircularBuffer[T]{
 		buffer: make([]T, size),
 	}

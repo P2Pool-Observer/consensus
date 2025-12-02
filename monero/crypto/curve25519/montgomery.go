@@ -62,9 +62,9 @@ func (v *MontgomeryPoint) Scan(src any) error {
 
 func (v *MontgomeryPoint) Value() (driver.Value, error) {
 	if *v == ZeroMontgomeryPoint {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
-	return []byte((*v)[:]), nil
+	return (*v)[:], nil
 }
 
 func (v *MontgomeryPoint) UnmarshalJSON(b []byte) error {
@@ -191,7 +191,7 @@ func ConvertPointE(v *edwards25519.Point) (out MontgomeryPoint) {
 	return out
 }
 
-// MontgomerySmallOrderPoints
+// MontgomerySmallOrderPoints S
 // https://github.com/jedisct1/libsodium/blob/master/src/libsodium/crypto_scalarmult/curve25519/ref10/x25519_ref10.c#L17
 var MontgomerySmallOrderPoints = [7]MontgomeryPoint{
 	/* 0 (order 4) */

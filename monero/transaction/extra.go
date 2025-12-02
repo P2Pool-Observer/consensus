@@ -187,7 +187,7 @@ var ErrExtraTagNoMoreTags = errors.New("no more tags")
 func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 
 	if t.Tag, err = utils.ReadByteNoEscape(reader); err != nil {
-		if err == io.EOF {
+		if err == io.EOF { //nolint:errorlint
 			return ErrExtraTagNoMoreTags
 		}
 		return err
@@ -201,7 +201,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		var zero byte
 		for size = 1; size <= TxExtraPaddingMaxCount; size++ {
 			if zero, err = utils.ReadByteNoEscape(reader); err != nil {
-				if err == io.EOF {
+				if err == io.EOF { //nolint:errorlint
 					break
 				} else {
 					return err

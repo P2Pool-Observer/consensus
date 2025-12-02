@@ -25,8 +25,8 @@ func (s *Outputs) FromReader(reader utils.ReaderAndByteReader) (err error) {
 		}
 
 		var o Output
-		for index := 0; index < int(outputCount); index++ {
-			o.Index = uint64(index)
+		for index := range outputCount {
+			o.Index = index
 
 			if o.Amount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 				return err
@@ -116,7 +116,7 @@ type Output struct {
 	Amount uint64 `json:"amount"`
 	// Type would be here
 	EphemeralPublicKey   curve25519.PublicKeyBytes                       `json:"ephemeral_public_key"`
-	EncryptedJanusAnchor types.FixedBytes[[monero.JanusAnchorSize]uint8] `json:"encrypted_janus_anchor,omitempty"`
+	EncryptedJanusAnchor types.FixedBytes[[monero.JanusAnchorSize]uint8] `json:"encrypted_janus_anchor"`
 
 	// Type re-arranged here to improve memory layout space
 	Type uint8 `json:"type"`

@@ -50,7 +50,6 @@ func GetDefaultClient() *Client {
 	}
 }
 
-// Client
 type Client struct {
 	c *rpc.Client
 	d *daemon.Client
@@ -98,7 +97,6 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 				}
 				data = append(data, d...)
 				jsonTx = append(jsonTx, j...)
-				i = i[:0]
 				break
 			}
 		}
@@ -152,7 +150,6 @@ func (c *Client) GetPrunedTransactions(txIds ...types.Hash) (data [][]byte, json
 				}
 				data = append(data, d...)
 				jsonTx = append(jsonTx, j...)
-				i = i[:0]
 				break
 			}
 		}
@@ -225,7 +222,7 @@ func (c *Client) GetTransactionInputs(ctx context.Context, hashes ...types.Hash)
 				s[ix].Inputs[i].KeyImage = input.Key.KImage
 				s[ix].Inputs[i].KeyOffsets = make([]uint64, len(input.Key.KeyOffsets))
 				for j, o := range input.Key.KeyOffsets {
-					s[ix].Inputs[i].KeyOffsets[j] = uint64(o)
+					s[ix].Inputs[i].KeyOffsets[j] = o
 					if j > 0 {
 						s[ix].Inputs[i].KeyOffsets[j] += s[ix].Inputs[i].KeyOffsets[j-1]
 					}

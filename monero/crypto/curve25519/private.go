@@ -46,9 +46,9 @@ func (k *PrivateKeyBytes) Scan(src any) error {
 func (k *PrivateKeyBytes) Value() (driver.Value, error) {
 	var zeroPrivKey PrivateKeyBytes
 	if *k == zeroPrivKey {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
-	return []byte((*k)[:]), nil
+	return (*k)[:], nil
 }
 
 func (k *PrivateKeyBytes) UnmarshalJSON(b []byte) error {

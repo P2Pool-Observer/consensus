@@ -61,7 +61,7 @@ func NewRingMatrixFromAggregateRings[T curve25519.PointOperations](fee uint64, c
 		if len(keyRing) == 0 {
 			keyRing = make([]ringct.Ring[T], len(ring))
 			amountsRing = make(ringct.Ring[T], len(ring))
-			for i := range len(ring) {
+			for i := range ring {
 				amountsRing[i] = sumOut
 			}
 		}

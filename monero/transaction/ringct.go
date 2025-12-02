@@ -95,7 +95,7 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 	}
 	if b.ProofType == MLSAGBorromean {
 		var ps curve25519.PublicKeyBytes
-		for range len(inputs) {
+		for range inputs {
 			if _, err = utils.ReadFullNoEscape(reader, ps[:]); err != nil {
 				return err
 			}
@@ -104,7 +104,7 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 	}
 	if b.ProofType.CompactAmount() {
 		var amount [curve25519.PrivateKeySize]byte
-		for range len(outputs) {
+		for range outputs {
 			if _, err = utils.ReadFullNoEscape(reader, amount[:monero.EncryptedAmountSize]); err != nil {
 				return err
 			}
@@ -113,7 +113,7 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 	} else {
 		var mask curve25519.PublicKeyBytes
 		var amount [curve25519.PrivateKeySize]byte
-		for range len(outputs) {
+		for range outputs {
 			if _, err = utils.ReadFullNoEscape(reader, mask[:]); err != nil {
 				return err
 			}
@@ -124,7 +124,7 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 		}
 	}
 	var c curve25519.PublicKeyBytes
-	for range len(outputs) {
+	for range outputs {
 		if _, err = utils.ReadFullNoEscape(reader, c[:]); err != nil {
 			return err
 		}
@@ -213,7 +213,7 @@ func (p *PrunableAggregateMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, s
 }
 
 func (p *PrunableAggregateMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
-	for range len(outputs) {
+	for range outputs {
 		var br borromean.Range[curve25519.VarTimeOperations]
 		if err = br.FromReader(reader); err != nil {
 			return err
@@ -324,7 +324,7 @@ func (p *PrunableMLSAGBorromean) AppendBinary(preAllocatedBuf []byte, signature 
 }
 
 func (p *PrunableMLSAGBorromean) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
-	for range len(outputs) {
+	for range outputs {
 		var br borromean.Range[curve25519.VarTimeOperations]
 		if err = br.FromReader(reader); err != nil {
 			return err

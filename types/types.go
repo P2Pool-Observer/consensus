@@ -14,6 +14,7 @@ import (
 
 const HashSize = 32
 
+//nolint:recvcheck
 type Hash [HashSize]byte
 
 var ZeroHash Hash
@@ -133,7 +134,7 @@ func (h *Hash) Scan(src any) error {
 
 func (h *Hash) Value() (driver.Value, error) {
 	if *h == ZeroHash {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 	return (*h)[:], nil
 }
@@ -154,6 +155,7 @@ func (h *Hash) UnmarshalJSON(b []byte) error {
 	}
 }
 
+//nolint:recvcheck
 type Bytes []byte
 
 func (b Bytes) MarshalJSON() ([]byte, error) {
@@ -182,6 +184,7 @@ func (b *Bytes) UnmarshalJSON(buf []byte) error {
 	}
 }
 
+//nolint:recvcheck
 type SliceBytes []byte
 
 func (b SliceBytes) MarshalJSON() ([]byte, error) {

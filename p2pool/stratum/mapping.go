@@ -85,7 +85,7 @@ type ShuffleMappingIndices [][3]int
 func (m ShuffleMapping) RangePossibleIndices(f func(i, ix0, ix1, ix2 int)) {
 	n := len(m.Including)
 	var ix0, ix1, ix2 int
-	for i := 0; i < n; i++ {
+	for i := range n {
 		// Count with all + miner
 		ix0 = m.Including[i]
 		if i > ShuffleMappingZeroKeyIndex {

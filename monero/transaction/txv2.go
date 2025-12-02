@@ -54,15 +54,15 @@ func (tx *TransactionV2) Fee() uint64 {
 }
 
 func (tx *TransactionV2) Weight() int {
-	if tx.Base.ProofType == FCMPPlusPlus {
+	if tx.ProofType == FCMPPlusPlus {
 		return fcmp_pp.TransactionWeightV1(len(tx.Inputs()), len(tx.Outputs()), len(tx.Extra))
 	}
 	if tx.Prunable == nil {
 		return 0
 	}
 	weight := tx.BufferLength()
-	if tx.Base.ProofType.Bulletproof() || tx.Base.ProofType.BulletproofPlus() {
-		clawback, _ := bulletproofs.CalculateClawback(tx.Base.ProofType.BulletproofPlus(), len(tx.Outputs()))
+	if tx.ProofType.Bulletproof() || tx.ProofType.BulletproofPlus() {
+		clawback, _ := bulletproofs.CalculateClawback(tx.ProofType.BulletproofPlus(), len(tx.Outputs()))
 		weight += clawback
 	}
 
@@ -86,7 +86,7 @@ func (tx *TransactionV2) PrefixHash() types.Hash {
 }
 
 func (tx *TransactionV2) SignatureHash() (out types.Hash) {
-	if tx.Base.ProofType == FCMPPlusPlus {
+	if tx.ProofType == FCMPPlusPlus {
 		// Don't hash range proof data to enable cleaner separation of SAL signature <> membership proof <> range proof
 		crypto.SignableFCMPTransactionHash(&out, tx.PrefixHash(), tx.Base.Hash())
 		return out
@@ -154,7 +154,7 @@ func (tx *TransactionV2) FromPrunedReader(reader utils.ReaderAndByteReader) (err
 		return err
 	}
 
-	if int(tx.Base.ProofType) >= len(prunableTypes) || prunableTypes[tx.Base.ProofType] == nil {
+	if int(tx.ProofType) >= len(prunableTypes) || prunableTypes[tx.ProofType] == nil {
 		return errors.New("invalid proof type")
 	}
 
@@ -166,7 +166,7 @@ func (tx *TransactionV2) FromReader(reader utils.ReaderAndByteReader) (err error
 		return err
 	}
 
-	if tx.Prunable, err = prunableTypes[tx.Base.ProofType](reader, tx.Inputs(), tx.Outputs(), false); err != nil {
+	if tx.Prunable, err = prunableTypes[tx.ProofType](reader, tx.Inputs(), tx.Outputs(), false); err != nil {
 		return err
 	}
 

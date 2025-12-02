@@ -24,7 +24,7 @@ func SplitWork(routines int, workSize uint64, do func(workIndex uint64, routineI
 			}
 		}
 
-		for workIndex := uint64(0); workIndex < workSize; workIndex++ {
+		for workIndex := range workSize {
 			if err := do(workIndex, 0); err != nil {
 				return err
 			}
@@ -39,7 +39,7 @@ func SplitWork(routines int, workSize uint64, do func(workIndex uint64, routineI
 	var counter atomic.Uint64
 
 	if init != nil {
-		for routineIndex := 0; routineIndex < routines; routineIndex++ {
+		for routineIndex := range routines {
 			if err := init(routines, routineIndex); err != nil {
 				return err
 			}
@@ -48,7 +48,7 @@ func SplitWork(routines int, workSize uint64, do func(workIndex uint64, routineI
 
 	var eg errgroup.Group
 
-	for routineIndex := 0; routineIndex < routines; routineIndex++ {
+	for routineIndex := range routines {
 		innerRoutineIndex := routineIndex
 		eg.Go(func() error {
 			var err error

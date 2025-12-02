@@ -3,6 +3,7 @@ package rpc
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -100,21 +101,21 @@ func NewClient(address string, opts ...ClientOption) (*Client, error) {
 
 // ResponseEnvelope wraps all responses from the RPC server.
 type ResponseEnvelope struct {
-	ID      string      `json:"id"`
-	JSONRPC string      `json:"jsonrpc"`
-	Result  interface{} `json:"result,omitempty"`
+	ID      string `json:"id"`
+	JSONRPC string `json:"jsonrpc"`
+	Result  any    `json:"result,omitempty"`
 	Error   struct {
 		Code    int    `json:"code"`
 		Message string `json:"message"`
-	} `json:"error,omitempty"`
+	} `json:"error"`
 }
 
 // RequestEnvelope wraps all requests made to the RPC server.
 type RequestEnvelope struct {
-	ID      string      `json:"id"`
-	JSONRPC string      `json:"jsonrpc"`
-	Method  string      `json:"method"`
-	Params  interface{} `json:"params,omitempty"`
+	ID      string `json:"id"`
+	JSONRPC string `json:"jsonrpc"`
+	Method  string `json:"method"`
+	Params  any    `json:"params,omitempty"`
 }
 
 // RawBinaryRequest makes requests to any endpoints, not assuming any particular format.
@@ -138,7 +139,7 @@ func (c *Client) RawBinaryRequest(ctx context.Context, endpoint string, body []b
 }
 
 // RawRequest makes requests to any endpoints, not assuming any particular format except of response is JSON.
-func (c *Client) RawRequest(ctx context.Context, endpoint string, params interface{}, response interface{}) (err error) {
+func (c *Client) RawRequest(ctx context.Context, endpoint string, params any, response any) (err error) {
 	if c.userPass != nil {
 		c.digestLock.Lock()
 		defer c.digestLock.Unlock()
@@ -173,7 +174,7 @@ func (c *Client) RawRequest(ctx context.Context, endpoint string, params interfa
 // JSONRPC issues a request for a particular method under the JSONRPC endpoint
 // with the proper envolope for its requests and unwrapping of results for
 // responses.
-func (c *Client) JSONRPC(ctx context.Context, method string, params interface{}, response interface{}) error {
+func (c *Client) JSONRPC(ctx context.Context, method string, params any, response any) error {
 	if c.userPass != nil {
 		c.digestLock.Lock()
 		defer c.digestLock.Unlock()
@@ -219,7 +220,7 @@ func (c *Client) JSONRPC(ctx context.Context, method string, params interface{},
 
 // submitRequest performs any generic HTTP request to the monero node targeted
 // by this client making no assumptions about a particular endpoint.
-func (c *Client) submitRequest(req *http.Request, body []byte, response interface{}) error {
+func (c *Client) submitRequest(req *http.Request, body []byte, response any) error {
 	return c.submitRawRequest(req, 0, body, func(reader io.ReadCloser) error {
 		if err := utils.NewJSONDecoder(reader).Decode(response); err != nil {
 			return fmt.Errorf("decode: %w", err)
@@ -232,7 +233,7 @@ func (c *Client) submitRequest(req *http.Request, body []byte, response interfac
 // by this client making no assumptions about a particular endpoint.
 func (c *Client) submitRawRequest(req *http.Request, n int, body []byte, response func(reader io.ReadCloser) error) error {
 	if n >= 5 {
-		return fmt.Errorf("too many authentication retries")
+		return errors.New("too many authentication retries")
 	}
 	if c.userPass != nil && c.digest != nil {
 		pass, _ := c.userPass.Password()

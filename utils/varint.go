@@ -19,10 +19,10 @@ var ErrNonCanonicalEncoding = errors.New("binary: varint has non canonical encod
 func ReadCanonicalUvarint(r io.ByteReader) (uint64, error) {
 	var x uint64
 	var s uint
-	for i := 0; i < binary.MaxVarintLen64; i++ {
+	for i := range binary.MaxVarintLen64 {
 		b, err := ReadByteNoEscape(r)
 		if err != nil {
-			if i > 0 && err == io.EOF {
+			if i > 0 && err == io.EOF { //nolint:errorlint
 				err = io.ErrUnexpectedEOF
 			}
 			return x, err

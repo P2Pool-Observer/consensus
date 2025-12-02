@@ -38,6 +38,7 @@ func getLogBuf() []byte {
 }
 
 func returnLogBuf(buf []byte) {
+	//nolint:staticcheck
 	logBufPool.Put(buf)
 }
 

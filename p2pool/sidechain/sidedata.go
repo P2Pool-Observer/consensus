@@ -43,7 +43,7 @@ type SideData struct {
 	MergeMiningExtra MergeMiningExtra `json:"merge_mining_extra,omitempty"`
 
 	// ExtraBuffer Arbitrary extra data, available in ShareVersion ShareVersion_V2 and above
-	ExtraBuffer SideDataExtraBuffer `json:"extra_buffer,omitempty"`
+	ExtraBuffer SideDataExtraBuffer `json:"extra_buffer"`
 }
 type SideDataExtraBuffer struct {
 	SoftwareId          p2pooltypes.SoftwareId      `json:"software_id"`
@@ -195,7 +195,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 		// preallocate for append, with 64 as soft limit
 		b.Uncles = make([]types.Hash, 0, min(64, uncleCount))
 
-		for i := 0; i < int(uncleCount); i++ {
+		for range uncleCount {
 			if _, err = utils.ReadFullNoEscape(reader, uncleHash[:]); err != nil {
 				return err
 			}
@@ -245,7 +245,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 			// preallocate
 			b.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
 
-			for i := 0; i < int(merkleProofSize); i++ {
+			for i := range merkleProofSize {
 				if _, err = io.ReadFull(reader, b.MerkleProof[i][:]); err != nil {
 					return err
 				}
@@ -260,7 +260,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 			// preallocate
 			b.MergeMiningExtra = make(MergeMiningExtra, mergeMiningExtraSize)
 
-			for i := 0; i < int(mergeMiningExtraSize); i++ {
+			for i := range mergeMiningExtraSize {
 				if _, err = io.ReadFull(reader, b.MergeMiningExtra[i].ChainId[:]); err != nil {
 					return err
 				} else if i > 0 && b.MergeMiningExtra[i-1].ChainId.Compare(b.MergeMiningExtra[i].ChainId) >= 0 {
