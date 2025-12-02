@@ -5,25 +5,25 @@ type Point[P any] interface {
 
 	// Operations
 
-	Add(*P, *P) *P
-	Subtract(*P, *P) *P
-	Double(*P) *P
-	Negate(*P) *P
+	Add(a, b *P) *P
+	Subtract(a, b *P) *P
+	Double(x *P) *P
+	Negate(x *P) *P
 
 	// Marshaling
 
-	SetBytes([]byte) (*P, error)
+	SetBytes(x []byte) (*P, error)
 	Bytes() []byte
 
 	// Setters
 
-	Set(*P) *P
+	Set(x *P) *P
 	Identity() *P
 
 	// Comparison
 
 	IsIdentity() int
-	Equal(*P) int
+	Equal(x *P) int
 }
 
 type CurvePoint[P any, S any] interface {
@@ -31,8 +31,8 @@ type CurvePoint[P any, S any] interface {
 
 	// Multiplication operations
 
-	ScalarBaseMult(*S) *P
-	ScalarMult(*S, *P) *P
+	ScalarBaseMult(x *S) *P
+	ScalarMult(x *S, X *P) *P
 }
 
 type ExtraCurvePoint[P any, S any] interface {
@@ -43,7 +43,7 @@ type ExtraCurvePoint[P any, S any] interface {
 	DoubleScalarBaseMult(a *S, A *P, b *S) *P
 	DoubleScalarMult(a *S, A *P, b *S, B *P) *P
 
-	MultiScalarMult([]*S, []*P) *P
+	MultiScalarMult(scalars []*S, points []*P) *P
 }
 
 type VarTimeCurvePoint[P any, S any] interface {
@@ -51,8 +51,8 @@ type VarTimeCurvePoint[P any, S any] interface {
 
 	// Multiplication operations
 
-	VarTimeScalarBaseMult(*S) *P
-	VarTimeScalarMult(*S, *P) *P
+	VarTimeScalarBaseMult(x *S) *P
+	VarTimeScalarMult(x *S, X *P) *P
 }
 
 type VarTimeExtraCurvePoint[P any, S any] interface {
@@ -63,5 +63,5 @@ type VarTimeExtraCurvePoint[P any, S any] interface {
 	VarTimeDoubleScalarBaseMult(a *S, A *P, b *S) *P
 	VarTimeDoubleScalarMult(a *S, A *P, b *S, B *P) *P
 
-	VarTimeMultiScalarMult([]*S, []*P) *P
+	VarTimeMultiScalarMult(scalars []*S, points []*P) *P
 }

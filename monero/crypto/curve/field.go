@@ -5,30 +5,30 @@ type Field[F any] interface {
 
 	// Operations
 
-	Add(*F, *F) *F
-	Subtract(*F, *F) *F
-	Multiply(*F, *F) *F
-	Square(*F) *F
-	Negate(*F) *F
-	Invert(*F) *F
-	Absolute(*F) *F
-	Sqrt(*F) *F
+	Add(a, b *F) *F
+	Subtract(a, b *F) *F
+	Multiply(a, b *F) *F
+	Square(x *F) *F
+	Negate(x *F) *F
+	Invert(x *F) *F
+	Absolute(x *F) *F
+	Sqrt(x *F) *F
 
 	// Marshaling
 
-	SetBytes([]byte) (*F, error)
-	SetWideBytes([]byte) (*F, error)
+	SetBytes(x []byte) (*F, error)
+	SetWideBytes(x []byte) (*F, error)
 	Bytes() []byte
 
 	// Setters
 
-	Set(*F) *F
-	Select(*F, *F, int) *F
+	Set(x *F) *F
+	Select(a, b *F, cond int) *F
 	Zero() *F
 	One() *F
 
 	// Comparison
 
 	IsNegative() int
-	Equal(*F) int
+	Equal(x *F) int
 }

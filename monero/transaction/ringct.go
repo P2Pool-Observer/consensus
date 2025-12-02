@@ -150,19 +150,16 @@ type PrunableAggregateMLSAGBorromean struct {
 }
 
 func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
-	var commitment curve25519.VarTimePublicKey
-
-	var commitments []curve25519.VarTimePublicKey
+	commitments := make([]curve25519.VarTimePublicKey, len(p.Borromean))
 
 	// check range proof
 	for i, b := range p.Borromean {
-		if _, err = commitment.SetBytes(base.Commitments[i][:]); err != nil {
+		if _, err = commitments[i].SetBytes(base.Commitments[i][:]); err != nil {
 			return err
 		}
-		if !b.Verify(&commitment) {
+		if !b.Verify(&commitments[i]) {
 			return ErrInvalidBorromeanProof
 		}
-		commitments = append(commitments, commitment)
 	}
 
 	m, err := mlsag.NewRingMatrixFromAggregateRings(base.Fee, commitments, rings...)

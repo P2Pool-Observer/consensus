@@ -519,9 +519,9 @@ func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []
 		defer func() {
 			if e := recover(); e != nil {
 				if panicError, ok := e.(error); ok {
-					err = utils.ErrorfNoEscape("panic in NextDifficulty, wrap occured?: %w", panicError)
+					err = utils.ErrorfNoEscape("panic in NextDifficulty, wrap occurred?: %w", panicError)
 				} else {
-					err = utils.ErrorfNoEscape("panic in NextDifficulty, wrap occured?: %v", e)
+					err = utils.ErrorfNoEscape("panic in NextDifficulty, wrap occurred?: %v", e)
 				}
 			}
 		}()

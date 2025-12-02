@@ -196,10 +196,10 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 	if len(ags.Commitments) != len(witness.Commitments) {
 		return AggregateRangeProof[T]{}, errors.New("commitments mismatch")
 	}
-	var commited curve25519.PublicKey[T]
+	var committed curve25519.PublicKey[T]
 	for i := range witness.Commitments {
-		ringct.CalculateCommitment[T](&commited, witness.Commitments[i])
-		if commited.Equal(&ags.Commitments[i]) == 0 {
+		ringct.CalculateCommitment[T](&committed, witness.Commitments[i])
+		if committed.Equal(&ags.Commitments[i]) == 0 {
 			return AggregateRangeProof[T]{}, errors.New("commitments mismatch")
 		}
 	}

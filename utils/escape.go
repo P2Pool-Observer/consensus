@@ -54,16 +54,16 @@ func ReadNoEscape(reader io.Reader, buf []byte) (n int, err error)
 func ReadByteNoEscape(reader io.ByteReader) (byte, error)
 
 func ReadFullNoEscape(reader io.Reader, buf []byte) (n int, err error) {
-	min := len(buf)
-	if len(buf) < min {
+	minRead := len(buf)
+	if len(buf) < minRead {
 		return 0, io.ErrShortBuffer
 	}
-	for n < min && err == nil {
+	for n < minRead && err == nil {
 		var nn int
 		nn, err = ReadNoEscape(reader, buf[n:])
 		n += nn
 	}
-	if n >= min {
+	if n >= minRead {
 		err = nil
 	} else if n > 0 && err == io.EOF {
 		err = io.ErrUnexpectedEOF
