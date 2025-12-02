@@ -127,7 +127,7 @@ func (c *Client) RawBinaryRequest(ctx context.Context, endpoint string, body []b
 	address := *c.address
 	address.Path = endpoint
 
-	req, err := http.NewRequestWithContext(ctx, "POST", address.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, address.String(), nil)
 	if err != nil {
 		return fmt.Errorf("new req '%s': %w", address.String(), err)
 	}
@@ -156,7 +156,7 @@ func (c *Client) RawRequest(ctx context.Context, endpoint string, params interfa
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", address.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address.String(), nil)
 	if err != nil {
 		return fmt.Errorf("new req '%s': %w", address.String(), err)
 	}
@@ -192,7 +192,7 @@ func (c *Client) JSONRPC(ctx context.Context, method string, params interface{},
 		return fmt.Errorf("marshal: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", address.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address.String(), nil)
 	if err != nil {
 		return fmt.Errorf("new req '%s': %w", address.String(), err)
 	}

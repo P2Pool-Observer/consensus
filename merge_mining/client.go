@@ -114,7 +114,7 @@ func (c *GenericClient) GetChainId() (id types.Hash, err error) {
 	}
 
 	response, err := c.Client.Do(&http.Request{
-		Method: "POST",
+		Method: http.MethodPost,
 		URL:    c.Address,
 		Header: http.Header{
 			"Content-Type": []string{"application/json"},
@@ -164,7 +164,7 @@ func (c *GenericClient) GetJob(chainAddress string, auxiliaryHash types.Hash, he
 	}
 
 	response, err := c.Client.Do(&http.Request{
-		Method: "POST",
+		Method: http.MethodPost,
 		URL:    c.Address,
 		Header: http.Header{
 			"Content-Type": []string{"application/json"},
@@ -228,7 +228,7 @@ func (c *GenericClient) SubmitSolution(job AuxiliaryJob, blob []byte, proof cryp
 	}
 
 	response, err := c.Client.Do(&http.Request{
-		Method: "POST",
+		Method: http.MethodPost,
 		URL:    c.Address,
 		Header: http.Header{
 			"Content-Type": []string{"application/json"},
