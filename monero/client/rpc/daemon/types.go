@@ -247,7 +247,7 @@ type GetInfoResult struct {
 	WideCumulativeDifficulty  string     `json:"wide_cumulative_difficulty"`
 	WideDifficulty            string     `json:"wide_difficulty"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetBlockTemplateResult is the result of a call to the GetBlockTemplate RPC
@@ -282,7 +282,7 @@ type GetBlockTemplateResult struct {
 	//
 	ReservedOffset int `json:"reserved_offset"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetMinerDataResult is the result of a call to the GetMinerData RPC
@@ -329,7 +329,7 @@ type GetPeerListResult struct {
 	GrayList  []Peer `json:"gray_list"`
 	WhiteList []Peer `json:"white_list"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetConnectionsResult is the result of a call to the GetConnections RPC
@@ -359,7 +359,7 @@ type GetConnectionsResult struct {
 		SupportFlags    uint64 `json:"support_flags"`
 	} `json:"connections"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 type GetOutsInput struct {
@@ -376,7 +376,7 @@ type GetOutsResult struct {
 		Unlocked bool       `json:"unlocked"`
 	} `json:"outs"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetHeightResult is the result of a call to the GetHeight RPC method.
@@ -384,7 +384,7 @@ type GetHeightResult struct {
 	Hash   types.Hash `json:"hash"`
 	Height uint64     `json:"height"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetNetStatsResult is the result of a call to the GetNetStats RPC method.
@@ -395,7 +395,7 @@ type GetNetStatsResult struct {
 	TotalPacketsIn  uint64 `json:"total_packets_in"`
 	TotalPacketsOut uint64 `json:"total_packets_out"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetPublicNodesResult is the result of a call to the GetPublicNodes RPC
@@ -404,7 +404,7 @@ type GetPublicNodesResult struct {
 	WhiteList []Peer `json:"white"`
 	GrayList  []Peer `json:"gray"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GenerateBlocksResult is the result of a call to the GenerateBlocks RPC
@@ -413,14 +413,14 @@ type GenerateBlocksResult struct {
 	Blocks []types.Hash `json:"blocks"`
 	Height int          `json:"height"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetBlockCountResult is the result of a call to the GetBlockCount RPC method.
 type GetBlockCountResult struct {
 	Count uint64 `json:"count"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // RelayTxResult is the result of a call to the RelayTx RPC method.
@@ -438,7 +438,7 @@ type GetCoinbaseTxSumResult struct {
 	WideEmissionAmount  string `json:"wide_emission_amount"`
 	WideFeeAmount       string `json:"wide_fee_amount"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 type BlockHeader struct {
@@ -567,7 +567,7 @@ type GetBlockResult struct {
 	//
 	MinerTxHash types.Hash `json:"miner_tx_hash"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetBlockResultJSON is the internal json-formatted block information.
@@ -689,7 +689,7 @@ type SyncInfoResult struct {
 		} `json:"info"`
 	} `json:"peers"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetLastBlockHeaderResult is the result of a call to the GetLastBlockHeader
@@ -697,7 +697,7 @@ type SyncInfoResult struct {
 type GetLastBlockHeaderResult struct {
 	BlockHeader BlockHeader `json:"block_header"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetBlockHeadersRangeResult is the result of a call to the
@@ -705,7 +705,7 @@ type GetLastBlockHeaderResult struct {
 type GetBlockHeadersRangeResult struct {
 	Headers []BlockHeader `json:"headers"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetBlockHeaderByHeightResult is the result of a call to the
@@ -713,7 +713,7 @@ type GetBlockHeadersRangeResult struct {
 type GetBlockHeaderByHeightResult struct {
 	BlockHeader BlockHeader `json:"block_header"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetBlockHeaderByHashResult is the result of a call to the
@@ -722,7 +722,7 @@ type GetBlockHeaderByHashResult struct {
 	BlockHeader  BlockHeader   `json:"block_header"`
 	BlockHeaders []BlockHeader `json:"block_headers"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 type MiningStatusResult struct {
@@ -742,7 +742,7 @@ type MiningStatusResult struct {
 	ThreadsCount              uint64 `json:"threads_count"`
 	WideDifficulty            string `json:"wide_difficulty"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetTransactionPoolStatsResult is the result of a call to the
@@ -767,7 +767,7 @@ type GetTransactionPoolStatsResult struct {
 		TxsTotal        uint64 `json:"txs_total"`
 	} `json:"pool_stats"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 type GetTransactionsResultTransaction struct {
@@ -906,8 +906,8 @@ type SetLogCategoriesRequestParameters struct {
 }
 
 type SetLogCategoriesResult struct {
-	Categories      string `json:"categories"`
-	RPCResultFooter `json:",inline"`
+	Categories      string           `json:"categories"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 type SetLogLevelRequestParameters struct {
@@ -938,7 +938,7 @@ type SetLimitResult struct {
 	//
 	LimitDown uint64 `json:"limit_down"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 type GetLimitResult struct {
@@ -949,7 +949,7 @@ type GetLimitResult struct {
 	//
 	LimitDown uint64 `json:"limit_down"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 type StartMiningRequestParameters struct {
