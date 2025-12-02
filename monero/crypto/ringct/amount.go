@@ -6,10 +6,9 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
-func AmountToScalar(out *curve25519.Scalar, amount uint64) *edwards25519.Scalar {
+func AmountToScalar(out *curve25519.Scalar, amount uint64) *curve25519.Scalar {
 	// no reduction is necessary: amountBytes is always lesser than l
 	var amountBytes curve25519.PrivateKeyBytes
 	binary.LittleEndian.PutUint64(amountBytes[:], amount)

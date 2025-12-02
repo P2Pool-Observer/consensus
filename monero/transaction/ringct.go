@@ -17,7 +17,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/mlsag"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type Base struct {
@@ -246,8 +245,8 @@ var ErrUnbalancedAmounts = errors.New("unbalanced amounts")
 func (p *PrunableMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var pseudoOut, sumInputs, sumOutputs, commitment curve25519.VarTimePublicKey
 	// init
-	sumInputs.P().Set(edwards25519.NewIdentityPoint())
-	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
+	sumInputs.Identity()
+	sumOutputs.Identity()
 	for i, member := range p.MLSAG {
 		if _, err = pseudoOut.SetBytes(base.PseudoOuts[i][:]); err != nil {
 			return err
@@ -359,8 +358,8 @@ type PrunableMLSAGBulletproofs struct {
 func (p *PrunableMLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
-	sumInputs.P().Set(edwards25519.NewIdentityPoint())
-	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
+	sumInputs.Identity()
+	sumOutputs.Identity()
 
 	for i, member := range p.MLSAG {
 		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
@@ -499,8 +498,8 @@ type PrunableMLSAGBulletproofsCompactAmount struct {
 func (p *PrunableMLSAGBulletproofsCompactAmount) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
-	sumInputs.P().Set(edwards25519.NewIdentityPoint())
-	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
+	sumInputs.Identity()
+	sumOutputs.Identity()
 
 	for i, member := range p.MLSAG {
 		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
@@ -639,8 +638,8 @@ type PrunableCLSAGBulletproofs struct {
 func (p *PrunableCLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
-	sumInputs.P().Set(edwards25519.NewIdentityPoint())
-	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
+	sumInputs.Identity()
+	sumOutputs.Identity()
 
 	for i, member := range p.CLSAG {
 		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
@@ -775,8 +774,8 @@ type PrunableCLSAGBulletproofsPlus struct {
 func (p *PrunableCLSAGBulletproofsPlus) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
-	sumInputs.P().Set(edwards25519.NewIdentityPoint())
-	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
+	sumInputs.Identity()
+	sumOutputs.Identity()
 
 	for i, member := range p.CLSAG {
 		sumInputs.Add(&sumInputs, &p.PseudoOuts[i])
@@ -915,8 +914,8 @@ type PrunableFCMPPlusPlus struct {
 func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
-	sumInputs.P().Set(edwards25519.NewIdentityPoint())
-	sumOutputs.P().Set(edwards25519.NewIdentityPoint())
+	sumInputs.Identity()
+	sumOutputs.Identity()
 
 	// TODO: verify FCMP++
 	{

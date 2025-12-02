@@ -78,6 +78,7 @@ func (e VarTimeOperations) SetBytes(v *Point, x []byte) (*Point, error) {
 
 var _ PointOperations = VarTimeOperations{}
 
+//nolint:gochecknoinits
 func init() {
 	assertSize[VarTimeOperations]()
 }

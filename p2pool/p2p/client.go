@@ -6,7 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	unsafeRandom "math/rand/v2"
+	unsafeRandom "math/rand/v2" //nolint:depguard
 	"net"
 	"net/netip"
 	"slices"

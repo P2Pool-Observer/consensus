@@ -5,7 +5,6 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 // MinRingSize Monero requires that there is more than one ring member for MLSAG signatures:
@@ -49,7 +48,7 @@ func NewRingMatrixFromAggregateRings[T curve25519.PointOperations](fee uint64, c
 	var sumOut curve25519.PublicKey[T]
 
 	// initialize
-	sumOut.P().Set(edwards25519.NewIdentityPoint())
+	sumOut.Identity()
 
 	for _, commitment := range commitments {
 		sumOut.Add(&sumOut, &commitment)

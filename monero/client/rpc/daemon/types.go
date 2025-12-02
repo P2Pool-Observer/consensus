@@ -74,10 +74,10 @@ type GetAlternateChainsResult struct {
 		WideDifficulty string `json:"wide_difficulty"`
 	} `json:"chains"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
-// AccessTrackingResult is the result of a call to the RPCAccessTracking RPC
+// RPCAccessTrackingResult is the result of a call to the RPCAccessTracking RPC
 // method.
 type RPCAccessTrackingResult struct {
 	Data []struct {
@@ -101,7 +101,7 @@ type RPCAccessTrackingResult struct {
 		Credits uint64 `json:"credits"`
 	} `json:"data"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // HardForkInfoResult is the result of a call to the HardForkInfo RPC method.
@@ -143,7 +143,7 @@ type HardForkInfoResult struct {
 	//
 	Window int `json:"window"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetVersionResult is the result of a call to the GetVersion RPC method.
@@ -155,7 +155,7 @@ type GetVersionResult struct {
 	TargetHeight  uint64          `json:"target_height"`
 	HardForks     []HardForkEntry `json:"hard_forks,omitempty"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 type HardForkEntry struct {
@@ -183,7 +183,7 @@ type GetBansResult struct {
 		Seconds uint `json:"seconds"`
 	} `json:"bans"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // SetBansResult is the result of a call to the SetBans RPC method.
@@ -203,7 +203,7 @@ type GetFeeEstimateResult struct {
 	//
 	QuantizationMask int `json:"quantization_mask"`
 
-	RPCResultFooter `json:",inline"`
+	RPCResultFooter `json:",inline"` //nolint:embeddedstructfieldcheck
 }
 
 // GetInfoResult is the result of a call to the GetInfo RPC method.

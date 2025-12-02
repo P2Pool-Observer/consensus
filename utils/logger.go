@@ -26,6 +26,7 @@ var GlobalLogLevel = LogLevelError | LogLevelInfo
 
 var logBufPool sync.Pool
 
+//nolint:gochecknoinits
 func init() {
 	logBufPool.New = func() any {
 		return make([]byte, 0, 512)

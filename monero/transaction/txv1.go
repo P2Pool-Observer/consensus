@@ -12,7 +12,8 @@ import (
 )
 
 type TransactionV1 struct {
-	Prefix     `json:",inline"`
+	Prefix `json:",inline"`
+
 	Signatures RingSignatures `json:"signatures"`
 	fee        uint64
 }

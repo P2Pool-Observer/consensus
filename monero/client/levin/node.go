@@ -86,6 +86,7 @@ func ParsePeerList(entry Entry) map[string]*Peer {
 	return peers
 }
 
+// NewNodeFromEntries
 // TODO less panic'ing.
 func NewNodeFromEntries(entries Entries) Node {
 	lpl := Node{}

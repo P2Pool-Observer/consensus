@@ -3,7 +3,7 @@ package curve25519
 import (
 	"encoding/binary"
 
-	"git.gammaspectra.live/P2Pool/edwards25519/field"
+	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 )
 
 func elementFromUint64(x uint64) *field.Element {

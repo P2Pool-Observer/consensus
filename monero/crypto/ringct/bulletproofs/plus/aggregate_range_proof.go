@@ -11,7 +11,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 var eight = (&curve25519.PrivateKeyBytes{8}).Scalar()
@@ -48,7 +47,7 @@ func (ars AggregateRangeStatement[T]) ComputeAHat(V []curve25519.PublicKey[T], t
 	A = new(curve25519.PublicKey[T]).MultByCofactor(A)
 
 	for len(V) < bulletproofs.PaddedPowerOfTwo(len(V)) {
-		V = append(V, *curve25519.FromPoint[T](edwards25519.NewIdentityPoint()))
+		V = append(V, *new(curve25519.PublicKey[T]).Identity())
 	}
 
 	mn := len(V) * bulletproofs.CommitmentBits
@@ -82,7 +81,7 @@ func (ars AggregateRangeStatement[T]) ComputeAHat(V []curve25519.PublicKey[T], t
 
 	yMnPlusOne := new(curve25519.Scalar).Multiply(&descendingY[0], &y)
 
-	commitmentAccum := curve25519.FromPoint[T](edwards25519.NewIdentityPoint())
+	commitmentAccum := new(curve25519.PublicKey[T]).Identity()
 	for j, commitment := range V {
 		commitmentAccum.Add(commitmentAccum, new(curve25519.PublicKey[T]).ScalarMult(&zPow[j], &commitment))
 	}
@@ -155,7 +154,7 @@ func (ars AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness, rando
 
 	// Pad V
 	for len(V) < bulletproofs.PaddedPowerOfTwo(len(V)) {
-		V = append(V, *curve25519.FromPoint[T](edwards25519.NewIdentityPoint()))
+		V = append(V, *new(curve25519.PublicKey[T]).Identity())
 	}
 
 	dJS := make([]bulletproofs.ScalarVector[T], 0, len(V))

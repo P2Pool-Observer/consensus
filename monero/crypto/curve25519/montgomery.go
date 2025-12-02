@@ -5,8 +5,8 @@ import (
 	"database/sql/driver"
 	"errors"
 
-	"git.gammaspectra.live/P2Pool/edwards25519"
-	"git.gammaspectra.live/P2Pool/edwards25519/field"
+	"git.gammaspectra.live/P2Pool/edwards25519"       //nolint:depguard
+	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 	fasthex "github.com/tmthrgd/go-hex"
 )
 

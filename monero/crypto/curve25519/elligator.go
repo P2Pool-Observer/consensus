@@ -1,7 +1,7 @@
 package curve25519
 
 import (
-	"git.gammaspectra.live/P2Pool/edwards25519/field"
+	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 )
 
 // Elligator2WithUniformBytes

@@ -1,6 +1,6 @@
 package curve25519
 
-import "git.gammaspectra.live/P2Pool/edwards25519"
+import "git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
 
 type Generator struct {
 	// Point The point used as Generator

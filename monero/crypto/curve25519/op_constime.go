@@ -99,6 +99,7 @@ func (e ConstantTimeOperations) SetBytes(v *Point, x []byte) (*Point, error) {
 
 var _ PointOperations = ConstantTimeOperations{}
 
+//nolint:gochecknoinits
 func init() {
 	assertSize[ConstantTimeOperations]()
 }

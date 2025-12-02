@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"git.gammaspectra.live/P2Pool/edwards25519"
+	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
 	fasthex "github.com/tmthrgd/go-hex"
 )
 
@@ -364,6 +364,7 @@ func (s UnreducedScalar) MarshalJSON() ([]byte, error) {
 
 var precomputedScalars [8]*Scalar
 
+//nolint:gochecknoinits
 func init() {
 	precomputedScalars[0] = (&PrivateKeyBytes{1}).Scalar()
 	for i := range precomputedScalars[1:] {

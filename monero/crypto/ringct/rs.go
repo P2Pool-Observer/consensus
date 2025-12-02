@@ -9,7 +9,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 // RingSignature Implements Pre-RingCT Traceable Ring Signature
@@ -122,7 +121,7 @@ func (s *RingSignature[T]) sign(prefixHash types.Hash, ring Ring[T], keyImage *c
 
 	//precomputedImage := curve25519.NewGenerator(keyImage.P())
 
-	var sum edwards25519.Scalar
+	var sum curve25519.Scalar
 
 	var tmpH2P curve25519.PublicKey[T]
 	var k curve25519.Scalar
@@ -184,7 +183,7 @@ func (s *RingSignature[T]) verify(prefixHash types.Hash, ring Ring[T], keyImage 
 
 	//precomputedImage := curve25519.NewGenerator(keyImage.P())
 
-	var sum, result edwards25519.Scalar
+	var sum, result curve25519.Scalar
 
 	var tmpH2P curve25519.PublicKey[T]
 	for i, pub := range ring {

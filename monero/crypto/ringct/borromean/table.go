@@ -8,6 +8,7 @@ import (
 // generatorHPow2 Monero's `H` generator, multiplied by 2**i for i in 1 ..= 64.
 var generatorHPow2 [Elements]*curve25519.Point
 
+//nolint:gochecknoinits
 func init() {
 	generatorHPow2[0] = crypto.GeneratorH.Point
 	for i := range generatorHPow2[1:] {

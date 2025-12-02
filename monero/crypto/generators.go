@@ -2,7 +2,7 @@ package crypto
 
 import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
-	"git.gammaspectra.live/P2Pool/edwards25519"
+	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
 )
 
 func inlineKeccak[T ~[]byte | ~string](data T) []byte {

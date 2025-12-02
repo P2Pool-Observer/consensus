@@ -236,7 +236,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return err
 	} else if txCount > MaxTransactionCount {
 		//TODO: #define CRYPTONOTE_MAX_TX_PER_BLOCK                     0x10000000
-		return utils.ErrorfNoEscape("transaction count count too large: %d > %d", txCount, MaxTransactionCount)
+		return utils.ErrorfNoEscape("transaction count too large: %d > %d", txCount, MaxTransactionCount)
 	} else if txCount > 0 {
 		if compact {
 			// preallocate with soft cap
