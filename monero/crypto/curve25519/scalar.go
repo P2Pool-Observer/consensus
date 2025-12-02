@@ -253,15 +253,16 @@ var zeroScalar = ZeroPrivateKeyBytes.Scalar()
 // This struct delays scalar conversions and offers the non-standard reduction.
 type UnreducedScalar PrivateKeyBytes
 
-// NAF5 Computes the non-adjacent form of this scalar with width 5.
+// naf5 Computes the non-adjacent form of this scalar with width 5.
 //
 // This matches Monero's `slide` function and intentionally gives incorrect outputs under
 // certain conditions in order to match Monero.
 //
 // This function does not execute in constant time and must only be used with public data.
 // Variable time
-func (s *UnreducedScalar) NAF5() (naf [256]int8) {
-	for pos := range PrivateKeySize * 8 {
+func (s *UnreducedScalar) naf5() (naf [256]int8) {
+	const bits = PrivateKeySize * 8
+	for pos := range bits {
 		b := s[pos/8] >> uint(pos&7)
 
 		// #nosec G602
@@ -273,7 +274,7 @@ func (s *UnreducedScalar) NAF5() (naf [256]int8) {
 			// if the bit is a one, work our way up through the window
 			// combining the bits with this bit.
 			for b := 1; b < 6; b++ {
-				if (i + b) > 256 {
+				if (i + b) > bits {
 					// if we are at the length of the array then break out
 					// the loop.
 					break
@@ -292,7 +293,7 @@ func (s *UnreducedScalar) NAF5() (naf [256]int8) {
 						// we hit the first zero we change it to one then stop, this is to factor
 						// in the minus.
 						naf[i] -= potentialCarry
-						for k := i + b; k < 256; k++ {
+						for k := i + b; k < bits; k++ {
 							if naf[k] == 0 {
 								naf[k] = 1
 								break
@@ -321,7 +322,7 @@ func (s *UnreducedScalar) VarTimeScalar(out *Scalar) *Scalar {
 
 	out.Set(zeroScalar)
 	//TODO: add tests for unreduced ones
-	for _, n := range s.NAF5() {
+	for _, n := range s.naf5() {
 		out.Add(out, out)
 		if n > 0 {
 			out.Add(out, precomputedScalars[n])
