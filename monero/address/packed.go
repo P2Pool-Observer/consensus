@@ -101,6 +101,7 @@ func (p PackedAddress) Reference() *PackedAddress {
 }
 
 func (p PackedAddress) Bytes() []byte {
+	// #nosec G103
 	return (*[curve25519.PublicKeySize * 2]byte)(unsafe.Pointer(&p))[:]
 }
 
@@ -120,10 +121,12 @@ func NewPackedAddressWithSubaddress(a *PackedAddress, isSubaddress bool) (out Pa
 }
 
 func (p *PackedAddressWithSubaddress) SpendPublicKey() *curve25519.PublicKeyBytes {
+	// #nosec G103
 	return (*curve25519.PublicKeyBytes)(unsafe.Pointer(p))
 }
 
 func (p *PackedAddressWithSubaddress) ViewPublicKey() *curve25519.PublicKeyBytes {
+	// #nosec G103 -- gets second index
 	return (*curve25519.PublicKeyBytes)(unsafe.Pointer(&p[curve25519.PublicKeySize]))
 }
 
@@ -132,6 +135,7 @@ func (p *PackedAddressWithSubaddress) IsSubaddress() bool {
 }
 
 func (p *PackedAddressWithSubaddress) PackedAddress() *PackedAddress {
+	// #nosec G103
 	return (*PackedAddress)(unsafe.Pointer(p))
 }
 

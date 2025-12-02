@@ -5,11 +5,12 @@ package utils
 import (
 	"encoding/binary"
 	"errors"
-	"golang.org/x/sys/unix"
 	"net"
 	"os"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // InterfaceAddrs returns a list of unicast interface addresses for a specific
@@ -77,6 +78,7 @@ loop:
 		case syscall.NLMSG_DONE:
 			break loop
 		case syscall.RTM_NEWLINK:
+			// #nosec G103
 			ifim := (*syscall.IfInfomsg)(unsafe.Pointer(&m.Data[0]))
 			if ifindex == 0 || ifindex == int(ifim.Index) {
 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
@@ -113,6 +115,7 @@ loop:
 		case syscall.NLMSG_DONE:
 			break loop
 		case syscall.RTM_NEWADDR:
+			// #nosec G103
 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
 			if len(ift) != 0 || ifi.Index == int(ifam.Index) {
 				if len(ift) != 0 {
@@ -276,7 +279,8 @@ func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) *net.Int
 		case syscall.IFLA_IFNAME:
 			ifi.Name = string(a.Value[:len(a.Value)-1])
 		case syscall.IFLA_MTU:
-			ifi.MTU = int(*(*uint32)(unsafe.Pointer(&a.Value[:4][0])))
+			// #nosec G103
+			ifi.MTU = int(*(*uint32)(unsafe.Pointer(unsafe.SliceData(a.Value[:4]))))
 		}
 	}
 	return ifi

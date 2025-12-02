@@ -369,6 +369,7 @@ func (b *PoolBlock) CoinbasePublicKeys() (result []curve25519.PublicKeyBytes) {
 			if len(t.Data)%curve25519.PublicKeySize != 0 || len(t.Data) == 0 {
 				return nil
 			}
+			// #nosec G103
 			return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(t.Data))), len(t.Data)/curve25519.PublicKeySize)
 		}
 	}

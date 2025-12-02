@@ -2,7 +2,7 @@ package types
 
 import (
 	"bytes"
-	"crypto/sha3"
+	"crypto/sha3" //nolint:depguard
 	"encoding/base32"
 	"errors"
 

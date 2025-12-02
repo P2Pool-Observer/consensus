@@ -1,7 +1,7 @@
 package ringct
 
 import (
-	"encoding/hex"
+	"encoding/hex" //nolint:depguard
 	"errors"
 	"io"
 

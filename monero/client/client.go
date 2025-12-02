@@ -77,6 +77,7 @@ func (c *Client) SetThrottle(timesPerSecond uint64) {
 	c.throttler = time.Tick(time.Second / time.Duration(timesPerSecond))
 }
 
+//nolint:dupl
 func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*daemon.TransactionJSON, err error) {
 	const restrictedTxCount = 100
 	if len(txIds) > restrictedTxCount {
@@ -130,6 +131,7 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 	return data, jsonTx, nil
 }
 
+//nolint:dupl
 func (c *Client) GetPrunedTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*daemon.TransactionJSON, err error) {
 	const restrictedTxCount = 100
 	if len(txIds) > restrictedTxCount {

@@ -36,10 +36,11 @@ func assertSize[T PointOperations]() {
 }
 
 func To[T2 PointOperations, T1 PointOperations](u *PublicKey[T1]) *PublicKey[T2] {
-	return (*PublicKey[T2])(unsafe.Pointer(u))
+	return (*PublicKey[T2])(u)
 }
 
 func FromPoint[T PointOperations](u *Point) *PublicKey[T] {
+	// #nosec G103 -- safe, we check size on assert
 	return (*PublicKey[T])(unsafe.Pointer(u))
 }
 
@@ -119,6 +120,7 @@ func (v *PublicKey[T]) DoubleScalarMultPrecomputedB(a *Scalar, A *PublicKey[T], 
 }
 
 func (v *PublicKey[T]) MultiScalarMult(scalars []*Scalar, points []*PublicKey[T]) *PublicKey[T] {
+	// #nosec G103 -- converts to internal Point representation
 	return v.MultiScalarMultPoints(scalars, unsafe.Slice((**Point)(unsafe.Pointer(unsafe.SliceData(points))), len(points)))
 }
 

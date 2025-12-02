@@ -474,7 +474,7 @@ func (p *PrunableMLSAGBulletproofsCompactAmount) AppendBinary(preAllocatedBuf []
 }
 
 func (p *PrunableMLSAGBulletproofsCompactAmount) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
-	return pSigRangeProofFromReaderMLSAG(&p.MLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, outputs, signature)
+	return pSigRangeProofFromReaderMLSAG(&p.MLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, signature)
 }
 
 type PrunableCLSAGBulletproofs struct {
@@ -505,7 +505,7 @@ func (p *PrunableCLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, signatu
 }
 
 func (p *PrunableCLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
-	return pSigRangeProofFromReaderCLSAG(&p.CLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, outputs, signature)
+	return pSigRangeProofFromReaderCLSAG(&p.CLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, signature)
 }
 
 type PrunableCLSAGBulletproofsPlus struct {
@@ -536,7 +536,7 @@ func (p *PrunableCLSAGBulletproofsPlus) AppendBinary(preAllocatedBuf []byte, sig
 }
 
 func (p *PrunableCLSAGBulletproofsPlus) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
-	return pSigRangeProofFromReaderCLSAG(&p.CLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, outputs, signature)
+	return pSigRangeProofFromReaderCLSAG(&p.CLSAG, &p.PseudoOuts, &p.Bulletproof, reader, inputs, signature)
 }
 
 type pSig[S any] interface {
@@ -685,7 +685,7 @@ func pSigRangeProofAppendBinary[S any, RP any, pS pSig[S], pRP pRangeProof[RP]](
 	return data, nil
 }
 
-func pSigRangeProofFromReaderCLSAG[RP any, pRP pRangeProof[RP]](sigs *[]clsag.Signature[curve25519.VarTimeOperations], pseudoOuts *[]curve25519.VarTimePublicKey, rangeProof *RP, reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
+func pSigRangeProofFromReaderCLSAG[RP any, pRP pRangeProof[RP]](sigs *[]clsag.Signature[curve25519.VarTimeOperations], pseudoOuts *[]curve25519.VarTimePublicKey, rangeProof *RP, reader utils.ReaderAndByteReader, inputs Inputs, signature bool) (err error) {
 	var n uint8
 	if !signature {
 		if n, err = reader.ReadByte(); err != nil {
@@ -723,7 +723,7 @@ func pSigRangeProofFromReaderCLSAG[RP any, pRP pRangeProof[RP]](sigs *[]clsag.Si
 	return nil
 }
 
-func pSigRangeProofFromReaderMLSAG[RP any, pRP pRangeProof[RP]](sigs *[]mlsag.Signature[curve25519.VarTimeOperations], pseudoOuts *[]curve25519.VarTimePublicKey, rangeProof *RP, reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs, signature bool) (err error) {
+func pSigRangeProofFromReaderMLSAG[RP any, pRP pRangeProof[RP]](sigs *[]mlsag.Signature[curve25519.VarTimeOperations], pseudoOuts *[]curve25519.VarTimePublicKey, rangeProof *RP, reader utils.ReaderAndByteReader, inputs Inputs, signature bool) (err error) {
 
 	var n uint64
 	if !signature {

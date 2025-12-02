@@ -9,7 +9,9 @@ import (
 
 // CompareConsensusPublicKeyBytes Compares public keys in a special consensus specific way
 func CompareConsensusPublicKeyBytes(a, b *curve25519.PublicKeyBytes) int {
+	// #nosec G103 -- 32 bytes -> 4 uint64
 	aUint64 := (*[curve25519.PublicKeySize / 8]uint64)(unsafe.Pointer(a))
+	// #nosec G103 -- 32 bytes -> 4 uint64
 	bUint64 := (*[curve25519.PublicKeySize / 8]uint64)(unsafe.Pointer(b))
 
 	if aUint64[3] < bUint64[3] {

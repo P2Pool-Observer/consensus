@@ -46,7 +46,6 @@ linters:
     - cyclop
     - maintidx
     - funlen
-    - dupl
     # Or too little complexity
     - varnamelen
 
@@ -69,11 +68,7 @@ linters:
     gosec:
       excludes:
         # secrets in code
-        # todo: define rules to ignore existing
         - G101
-        # unsafe calls should be audited
-        # todo: explicitly tag each one
-        - G103
         # integer overflow conversion
         # todo: too noisy, too prevalent, can't configure specific safe conversions like to int
         - G115
@@ -96,6 +91,14 @@ linters:
               desc: use math/rand/v2
             - pkg: "encoding/json$"
               desc: use git.gammaspectra.live/P2Pool/go-json
+            - pkg: "encoding/hex"
+              desc: use github.com/tmthrgd/go-hex
+            - pkg: "golang.org/x/crypto/blake2b"
+              desc: use git.gammaspectra.live/P2Pool/blake2b
+            - pkg: "golang.org/x/crypto/sha3"
+              desc: use monero/crypto/NewKeccak256
+            - pkg: "crypto/sha3"
+              desc: use monero/crypto/NewKeccak256
         unsafeRandom:
           list-mode: lax
           deny:

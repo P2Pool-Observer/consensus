@@ -8,7 +8,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"golang.org/x/crypto/sha3"
+	"golang.org/x/crypto/sha3" //nolint:depguard
 )
 
 type HashReader interface {

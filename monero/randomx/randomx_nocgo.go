@@ -111,6 +111,7 @@ func ConsensusHash(buf []byte) types.Hash {
 	cache.Init(buf)
 
 	memory := cache.GetMemory()
+	// #nosec G103 -- blocks -> bytes
 	scratchpad := unsafe.Slice((*byte)(unsafe.Pointer(memory)), len(memory)*len(memory[0])*int(unsafe.Sizeof(uint64(0))))
 	defer runtime.KeepAlive(cache)
 

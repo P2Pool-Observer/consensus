@@ -137,6 +137,7 @@ func (w *CarrotViewWallet[T]) track(hasher *blake2b.Digest, ix address.Subaddres
 	return nil
 }
 
+//nolint:dupl
 func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 	scan = &carrot.ScanV1{}

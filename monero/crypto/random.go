@@ -70,6 +70,7 @@ func (g *DeterministicTestGenerator) permute() {
 			a[i] = binary.LittleEndian.Uint64(g.state[i*8:])
 		}
 	} else {
+		// #nosec G103
 		a = (*[25]uint64)(unsafe.Pointer(&g.state))
 	}
 

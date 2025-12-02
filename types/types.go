@@ -69,7 +69,10 @@ func (h Hash) Compare(other Hash) int {
 	//golang might free other otherwise
 	defer runtime.KeepAlive(other)
 	defer runtime.KeepAlive(h)
+
+	// #nosec G103 -- 32 bytes -> 4 uint64
 	a := unsafe.Slice((*uint64)(unsafe.Pointer(&h)), len(h)/int(unsafe.Sizeof(uint64(0))))
+	// #nosec G103 -- 32 bytes -> 4 uint64
 	b := unsafe.Slice((*uint64)(unsafe.Pointer(&other)), len(other)/int(unsafe.Sizeof(uint64(0))))
 
 	if a[3] < b[3] {
@@ -236,6 +239,7 @@ func (b FixedBytes[T]) MarshalJSON() ([]byte, error) {
 }
 
 func (b *FixedBytes[T]) Slice() []byte {
+	// #nosec G103
 	return unsafe.Slice((*byte)(unsafe.Pointer(&b.t)), len(b.t))
 }
 
