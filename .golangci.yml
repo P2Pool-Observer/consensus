@@ -1,0 +1,73 @@
+# See the dedicated "version" documentation section.
+version: "2"
+linters:
+  default: fast
+  disable:
+    # We don't care about line length or whitespace
+    - lll
+    - whitespace
+    - nlreturn
+    - nakedret
+
+    - wsl
+    - wsl_v5
+
+    # No sorting needed
+    - funcorder
+
+    # Comments and task lists
+    - godox
+    - godot
+
+    # Magic numbers in a lot of binary places
+    - mnd
+
+    # Complexity and duplicity is fine
+    - interfacebloat
+    - nestif
+    - gocognit
+    - gocyclo
+    - cyclop
+    - maintidx
+    - funlen
+    - dupl
+  settings:
+    depguard:
+      rules:
+        main:
+          list-mode: lax
+          deny:
+            - pkg: "math/rand$"
+              desc: use math/rand/v2
+            - pkg: "encoding/json$"
+              desc: use git.gammaspectra.live/P2Pool/go-json
+        unsafeRandom:
+          list-mode: lax
+          deny:
+            - pkg: "math/rand/v2$"
+              desc: use crypto/rand
+        curve25519:
+          list-mode: lax
+          deny:
+            - pkg: "git.gammaspectra.live/P2Pool/edwards25519"
+              desc: use monero/crypto/curve25519
+  exclusions:
+    rules:
+
+    paths:
+      - "monero/client/levin/*"
+
+
+severity:
+  default: error
+
+issues:
+
+
+output:
+
+run:
+  timeout: 5m
+  tests: false
+  modules-download-mode: readonly
+  go: "1.25"

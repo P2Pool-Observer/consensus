@@ -1,6 +1,19 @@
 ---
 kind: pipeline
 type: docker
+name: linter
+
+workspace:
+  path: /drone/src
+
+steps:
+  - name: run
+    image: golangci/golangci-lint:v2.6.2
+    commands:
+      - golangci-lint run
+---
+kind: pipeline
+type: docker
 name: amd64
 platform:
   os: linux
