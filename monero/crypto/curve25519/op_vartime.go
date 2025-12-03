@@ -61,6 +61,9 @@ func (e VarTimeOperations) DoubleScalarMultPrecomputedB(v *Point, a *Scalar, A *
 }
 
 func (e VarTimeOperations) MultiScalarMult(v *Point, scalars []*Scalar, points []*Point) *Point {
+	if len(scalars) >= 190 {
+		return v.VarTimeMultiScalarMultPippenger(scalars, points)
+	}
 	return v.VarTimeMultiScalarMult(scalars, points)
 }
 
