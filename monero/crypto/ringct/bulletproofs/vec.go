@@ -1,22 +1,29 @@
 package bulletproofs
 
 import (
-	"slices"
-
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 )
 
-func NewScalarVectorPowers[T curve25519.PointOperations](x *curve25519.Scalar, size int) (out ScalarVector[T]) {
+var two = (&curve25519.PrivateKeyBytes{2}).Scalar()
+
+var twoScalarVectorPowers = AppendScalarVectorPowers[curve25519.ConstantTimeOperations](nil, two, CommitmentBits)
+
+func TwoScalarVectorPowers[T curve25519.PointOperations]() ScalarVector[T] {
+	return ScalarVector[T](twoScalarVectorPowers)
+}
+
+func AppendScalarVectorPowers[T curve25519.PointOperations](out ScalarVector[T], x *curve25519.Scalar, size int) ScalarVector[T] {
 	if size == 0 {
-		return nil
+		return out
 	}
-	out = make(ScalarVector[T], max(size, 2))
-	out[0] = *(&curve25519.PrivateKeyBytes{1}).Scalar()
-	out[1] = *x
+	n := len(out)
+	out = append(out, *(&curve25519.PrivateKeyBytes{1}).Scalar())
+	out = append(out, *x)
+	var tmp curve25519.Scalar
 	for i := 2; i < size; i++ {
-		out[i].Multiply(&out[i-1], x)
+		out = append(out, *tmp.Multiply(&out[i-1+n], x))
 	}
-	return out[:size]
+	return out[:size+n]
 }
 
 type ScalarVector[T curve25519.PointOperations] []curve25519.Scalar
@@ -36,12 +43,47 @@ func (v ScalarVector[T]) Sum() (out curve25519.Scalar) {
 	return out
 }
 
-func (v ScalarVector[T]) InnerProduct(o ScalarVector[T]) (out curve25519.Scalar) {
-	return slices.Clone(v).MultiplyVec(o).Sum()
+func (v ScalarVector[T]) Copy(out ScalarVector[T]) ScalarVector[T] {
+	out = append(out, v...)
+	return out
 }
 
-func (v ScalarVector[T]) WeightedInnerProduct(o, y ScalarVector[T]) (out curve25519.Scalar) {
-	return slices.Clone(v).MultiplyVec(o).MultiplyVec(y).Sum()
+// InnerProduct Returns sum(v * o)
+func (v ScalarVector[T]) InnerProduct(o ScalarVector[T]) (out curve25519.Scalar) {
+	if len(o) != len(v) {
+		panic("len mismatch")
+	}
+	for i := range v {
+		out.MultiplyAdd(&v[i], &o[i], &out)
+	}
+	return out
+}
+
+// WeightedInnerProduct Returns sum(v * x * y * o)
+func (v ScalarVector[T]) WeightedInnerProduct(x, y ScalarVector[T]) (out curve25519.Scalar) {
+	if len(x) != len(v) || len(y) != len(v) {
+		panic("len mismatch")
+	}
+	var tmp curve25519.Scalar
+	for i := range v {
+		tmp.Multiply(&v[i], &x[i])
+		out.MultiplyAdd(&tmp, &y[i], &out)
+	}
+	return out
+}
+
+// WeightedWeightedInnerProduct Returns sum(v * [x] * y * z * o)
+func (v ScalarVector[T]) WeightedWeightedInnerProduct(x *curve25519.Scalar, y, z ScalarVector[T]) (out curve25519.Scalar) {
+	if len(y) != len(v) || len(z) != len(v) {
+		panic("len mismatch")
+	}
+	var tmp curve25519.Scalar
+	for i := range v {
+		tmp.Multiply(&v[i], x)
+		tmp.Multiply(&tmp, &y[i])
+		out.MultiplyAdd(&tmp, &z[i], &out)
+	}
+	return out
 }
 
 func (v ScalarVector[T]) Add(s *curve25519.Scalar) ScalarVector[T] {
@@ -71,6 +113,16 @@ func (v ScalarVector[T]) AddVec(o ScalarVector[T]) ScalarVector[T] {
 	}
 	for i := range v {
 		v[i].Add(&v[i], &o[i])
+	}
+	return v
+}
+
+func (v ScalarVector[T]) AddVecMultiply(o ScalarVector[T], s *curve25519.Scalar) ScalarVector[T] {
+	if len(o) != len(v) {
+		panic("len mismatch")
+	}
+	for i := range v {
+		v[i].MultiplyAdd(&o[i], s, &v[i])
 	}
 	return v
 }
@@ -125,6 +177,11 @@ func (v PointVector[T]) Split() (a, b PointVector[T]) {
 	}
 
 	return v[:len(v)/2], v[len(v)/2:]
+}
+
+func (v PointVector[T]) Copy(out PointVector[T]) PointVector[T] {
+	out = append(out, v...)
+	return out
 }
 
 func (v PointVector[T]) MultiplyVec(o ScalarVector[T]) PointVector[T] {

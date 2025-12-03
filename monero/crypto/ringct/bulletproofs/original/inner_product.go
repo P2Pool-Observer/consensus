@@ -20,13 +20,13 @@ type InnerProductStatement[T curve25519.PointOperations] struct {
 	U curve25519.Scalar
 }
 
-func (ips InnerProductStatement[T]) TranscriptLR(transcript curve25519.Scalar, L, R *curve25519.PublicKey[T]) (out curve25519.Scalar) {
+func (ips *InnerProductStatement[T]) TranscriptLR(transcript curve25519.Scalar, L, R *curve25519.PublicKey[T]) (out curve25519.Scalar) {
 	crypto.ScalarDeriveLegacy(&out, transcript.Bytes(), L.Bytes(), R.Bytes())
 	return out
 }
 
 // Prove for this Inner-Product statement.
-func (ips InnerProductStatement[T]) Prove(transcript curve25519.Scalar, witness InnerProductWitness[T]) (proof InnerProductProof[T], err error) {
+func (ips *InnerProductStatement[T]) Prove(transcript curve25519.Scalar, witness InnerProductWitness[T]) (proof InnerProductProof[T], err error) {
 	GBoldSlice := bulletproofs.Generator.G[:len(witness.A)]
 	HBoldSlice := bulletproofs.Generator.H[:len(witness.A)]
 
@@ -118,7 +118,7 @@ func (ips InnerProductStatement[T]) Prove(transcript curve25519.Scalar, witness 
 var ErrIncorrectAmountOfGenerators = errors.New("incorrect amount of generators")
 var ErrDifferingLRLengths = errors.New("differing LR lengths")
 
-func (ips InnerProductStatement[T]) Verify(verifier *BatchVerifier[T], ipRows int, transcript, verifierWeight curve25519.Scalar, proof InnerProductProof[T]) (err error) {
+func (ips *InnerProductStatement[T]) Verify(verifier *BatchVerifier[T], ipRows int, transcript, verifierWeight curve25519.Scalar, proof InnerProductProof[T]) (err error) {
 	GBoldSlice := bulletproofs.Generator.G[:ipRows]
 	HBoldSlice := bulletproofs.Generator.H[:ipRows]
 

@@ -17,7 +17,7 @@ type ScalarPointPair[T curve25519.PointOperations] struct {
 	P curve25519.PublicKey[T]
 }
 
-func (ibv InternalBatchVerifier[T]) Verify(G, H *curve25519.PublicKey[T], gen Generators) bool {
+func (ibv *InternalBatchVerifier[T]) Verify(G, H *curve25519.PublicKey[T], gen Generators) bool {
 	capacity := 2 + len(ibv.GBold) + len(ibv.HBold) + len(ibv.Other)
 	scalars := make([]*curve25519.Scalar, 0, capacity)
 	points := make([]*curve25519.PublicKey[T], 0, capacity)
@@ -38,9 +38,9 @@ func (ibv InternalBatchVerifier[T]) Verify(G, H *curve25519.PublicKey[T], gen Ge
 		points = append(points, curve25519.FromPoint[T](gen.H[i]))
 	}
 
-	for _, p := range ibv.Other {
-		scalars = append(scalars, &p.S)
-		points = append(points, &p.P)
+	for i := range ibv.Other {
+		scalars = append(scalars, &ibv.Other[i].S)
+		points = append(points, &ibv.Other[i].P)
 	}
 
 	return new(curve25519.PublicKey[T]).MultiScalarMult(scalars, points).IsIdentity() == 1

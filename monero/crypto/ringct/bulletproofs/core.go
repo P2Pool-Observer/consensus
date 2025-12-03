@@ -32,7 +32,10 @@ func saturatingSub(a, b uint64) uint64 {
 //
 // When there are 4 challenges (n=16), the iterative approach does 28 multiplications versus divide and conquer's 24.
 func ChallengeProducts(challenges [][2]curve25519.Scalar) []curve25519.Scalar {
-	products := []curve25519.Scalar{*ringct.AmountToScalar(new(curve25519.Scalar), 1), *ringct.AmountToScalar(new(curve25519.Scalar), 1<<len(challenges))}
+	products := []curve25519.Scalar{
+		*ringct.AmountToScalar(new(curve25519.Scalar), 1),
+		*ringct.AmountToScalar(new(curve25519.Scalar), 1<<len(challenges)),
+	}
 
 	if len(challenges) > 0 {
 		products[0] = challenges[0][1]

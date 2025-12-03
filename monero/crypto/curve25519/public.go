@@ -119,13 +119,14 @@ func (v *PublicKey[T]) DoubleScalarMultPrecomputedB(a *Scalar, A *PublicKey[T], 
 	return v
 }
 
-func (v *PublicKey[T]) MultiScalarMult(scalars []*Scalar, points []*PublicKey[T]) *PublicKey[T] {
+func (v *PublicKey[T]) MultiScalarMult(scalars []*Scalar, pubs []*PublicKey[T]) *PublicKey[T] {
 	// #nosec G103 -- converts to internal Point representation
-	return v.MultiScalarMultPoints(scalars, unsafe.Slice((**Point)(unsafe.Pointer(unsafe.SliceData(points))), len(points)))
+	points := unsafe.Slice((**Point)(unsafe.Pointer(unsafe.SliceData(pubs))), len(pubs))
+	return v.MultiScalarMultPoints(scalars, points)
 }
 
 func (v *PublicKey[T]) MultiScalarMultPoints(scalars []*Scalar, points []*Point) *PublicKey[T] {
-	v.op().MultiScalarMult(&v.p, scalars, points)
+	multiScalarMult(v.op(), &v.p, scalars, points)
 	return v
 }
 

@@ -154,7 +154,6 @@ type AggregateRangeStatement[T curve25519.PointOperations] struct {
 }
 
 var eight = (&curve25519.PrivateKeyBytes{8}).Scalar()
-var two = (&curve25519.PrivateKeyBytes{2}).Scalar()
 var invEight = new(curve25519.Scalar).Invert(eight)
 
 func (ags AggregateRangeStatement[T]) InitialTranscript() (S curve25519.Scalar, V []curve25519.PublicKey[T]) {
@@ -241,13 +240,13 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 
 	var y curve25519.Scalar
 	y, transcript = ags.TranscriptAS(transcript, &A, &S)
-	z := bulletproofs.NewScalarVectorPowers[T](&transcript, 3+paddedPowOf2)
-	twos := bulletproofs.NewScalarVectorPowers[T](two, bulletproofs.CommitmentBits)
+	z := bulletproofs.AppendScalarVectorPowers[T](make(bulletproofs.ScalarVector[T], 0, 3+paddedPowOf2), &transcript, 3+paddedPowOf2)
+	twos := bulletproofs.TwoScalarVectorPowers[T]()
 
 	l0 := slices.Clone(aL).Subtract(&z[1])
 	l1 := sL
 
-	yPowN := bulletproofs.NewScalarVectorPowers[T](&y, len(aR))
+	yPowN := bulletproofs.AppendScalarVectorPowers[T](make(bulletproofs.ScalarVector[T], 0, len(aR)), &y, len(aR))
 
 	r0 := (slices.Clone(sR).Add(&z[1])).MultiplyVec(yPowN)
 	r1 := slices.Clone(sR).MultiplyVec(yPowN)
@@ -262,10 +261,10 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 	var t1, t2, tau1, tau2 curve25519.Scalar
 	{
 		var tmp1, tmp2 curve25519.Scalar
-		tmp1 = slices.Clone(l0).InnerProduct(r1)
-		tmp2 = slices.Clone(r0).InnerProduct(l1)
+		tmp1 = l0.InnerProduct(r1)
+		tmp2 = r0.InnerProduct(l1)
 		t1.Add(&tmp1, &tmp2)
-		t2 = slices.Clone(l1).InnerProduct(r1)
+		t2 = l1.InnerProduct(r1)
 	}
 	curve25519.RandomScalar(&tau1, randomReader)
 	curve25519.RandomScalar(&tau2, randomReader)
@@ -279,14 +278,14 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 	l := l0.AddVec(slices.Clone(l1).Multiply(&x))
 	r := r0.AddVec(slices.Clone(r1).Multiply(&x))
 
-	THat := slices.Clone(l).InnerProduct(r)
+	THat := l.InnerProduct(r)
 	TauX := new(curve25519.Scalar).Multiply(new(curve25519.Scalar).Add(new(curve25519.Scalar).Multiply(&tau2, &x), &tau1), &x)
 	for i, commitment := range witness.Commitments {
 		TauX.Add(TauX, new(curve25519.Scalar).Multiply(&z[2+i], &commitment.Mask))
 	}
 	mu := new(curve25519.Scalar).Add(&alpha, new(curve25519.Scalar).Multiply(&rho, &x))
 
-	yInvPowN := bulletproofs.NewScalarVectorPowers[T](new(curve25519.Scalar).Invert(&y), len(l))
+	yInvPowN := bulletproofs.AppendScalarVectorPowers[T](make(bulletproofs.ScalarVector[T], 0, len(l)), new(curve25519.Scalar).Invert(&y), len(l))
 
 	transcript = ags.TranscriptTauXMuTHat(transcript, TauX, mu, &THat)
 	xIp := transcript
@@ -341,7 +340,7 @@ func (ags AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *
 	}
 
 	y, transcript := ags.TranscriptAS(transcript, &proof.A, &proof.S)
-	z := bulletproofs.NewScalarVectorPowers[T](&transcript, 3+paddedPowOf2)
+	z := bulletproofs.AppendScalarVectorPowers[T](nil, &transcript, 3+paddedPowOf2)
 	transcript = ags.TranscriptT12(transcript, &proof.T1, &proof.T2)
 	x := transcript
 	transcript = ags.TranscriptTauXMuTHat(transcript, &proof.TauX, &proof.Mu, &proof.THat)
@@ -354,10 +353,10 @@ func (ags AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *
 	T1.MultByCofactor(&proof.T1)
 	T2.MultByCofactor(&proof.T2)
 
-	yPowN := bulletproofs.NewScalarVectorPowers[T](&y, ipRows)
-	yInvPowN := bulletproofs.NewScalarVectorPowers[T](new(curve25519.Scalar).Invert(&y), ipRows)
+	yPowN := bulletproofs.AppendScalarVectorPowers[T](nil, &y, ipRows)
+	yInvPowN := bulletproofs.AppendScalarVectorPowers[T](nil, new(curve25519.Scalar).Invert(&y), ipRows)
 
-	twos := bulletproofs.NewScalarVectorPowers[T](two, bulletproofs.CommitmentBits)
+	twos := bulletproofs.TwoScalarVectorPowers[T]()
 
 	// 65
 	{
@@ -416,10 +415,10 @@ func (ags AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *
 	// 67, 68
 	verifier.G.Add(&verifier.G, new(curve25519.Scalar).Multiply(&ipWeight, new(curve25519.Scalar).Negate(&proof.Mu)))
 
-	return InnerProductStatement[T]{
+	return (&InnerProductStatement[T]{
 		HBoldWeights: yInvPowN,
 		U:            xIp,
-	}.Verify(verifier, ipRows, transcript, ipWeight, proof.IP) == nil
+	}).Verify(verifier, ipRows, transcript, ipWeight, proof.IP) == nil
 }
 
 type AggregateRangeWitness[T curve25519.PointOperations] struct {

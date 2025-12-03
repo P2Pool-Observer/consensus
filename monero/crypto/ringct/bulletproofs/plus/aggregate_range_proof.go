@@ -15,7 +15,6 @@ import (
 
 var eight = (&curve25519.PrivateKeyBytes{8}).Scalar()
 var one = (&curve25519.PrivateKeyBytes{1}).Scalar()
-var two = (&curve25519.PrivateKeyBytes{2}).Scalar()
 var invEight = new(curve25519.Scalar).Invert(eight)
 
 type AggregateRangeStatement[T curve25519.PointOperations] struct {
@@ -29,16 +28,29 @@ func (ars AggregateRangeStatement[T]) TranscriptA(transcript *curve25519.Scalar,
 	return y, z
 }
 
-func (ars AggregateRangeStatement[T]) DJ(j, m int) bulletproofs.ScalarVector[T] {
+var preallocatedDJTable = func() (out [16][16]bulletproofs.ScalarVector[curve25519.ConstantTimeOperations]) {
+	for j := range out {
+		for m := range out[j] {
+			out[m][j] = calculateDJ[curve25519.ConstantTimeOperations](j+1, m+1)
+		}
+	}
+	return out
+}()
+
+func calculateDJ[T curve25519.PointOperations](j, m int) bulletproofs.ScalarVector[T] {
 	dj := make(bulletproofs.ScalarVector[T], 0, m*bulletproofs.CommitmentBits)
 	for range (j - 1) * bulletproofs.CommitmentBits {
 		dj = append(dj, curve25519.Scalar{})
 	}
-	dj = append(dj, bulletproofs.NewScalarVectorPowers[T](two, bulletproofs.CommitmentBits)...)
+	dj = append(dj, bulletproofs.TwoScalarVectorPowers[T]()...)
 	for range (m - j) * bulletproofs.CommitmentBits {
 		dj = append(dj, curve25519.Scalar{})
 	}
 	return dj
+}
+
+func (ars AggregateRangeStatement[T]) DJ(j, m int) bulletproofs.ScalarVector[T] {
+	return bulletproofs.ScalarVector[T](preallocatedDJTable[m-1][j-1])
 }
 
 func (ars AggregateRangeStatement[T]) ComputeAHat(V []curve25519.PublicKey[T], transcript *curve25519.Scalar, A *curve25519.PublicKey[T]) (ahc AggregateHatComputation[T]) {
@@ -62,7 +74,7 @@ func (ars AggregateRangeStatement[T]) ComputeAHat(V []curve25519.PublicKey[T], t
 
 	for j := 1; j <= len(V); j++ {
 		zPow = append(zPow, *new(curve25519.Scalar).Multiply(&zPow[len(zPow)-1], &zPow[0]))
-		d.AddVec(ars.DJ(j, len(V)).Multiply(&zPow[j-1]))
+		d.AddVecMultiply(ars.DJ(j, len(V)), &zPow[j-1])
 	}
 
 	ascendingY := make(bulletproofs.ScalarVector[T], 0, len(d))
@@ -79,37 +91,43 @@ func (ars AggregateRangeStatement[T]) ComputeAHat(V []curve25519.PublicKey[T], t
 	dDescendingY := slices.Clone(d).MultiplyVec(descendingY)
 	dDescendingYPlusZ := dDescendingY.Add(&z)
 
-	yMnPlusOne := new(curve25519.Scalar).Multiply(&descendingY[0], &y)
+	var yMnPlusOne curve25519.Scalar
+	yMnPlusOne.Multiply(&descendingY[0], &y)
 
 	commitmentAccum := new(curve25519.PublicKey[T]).Identity()
 	for j, commitment := range V {
 		commitmentAccum.Add(commitmentAccum, new(curve25519.PublicKey[T]).ScalarMult(&zPow[j], &commitment))
 	}
 
-	negZ := new(curve25519.Scalar).Negate(&z)
+	var negZ curve25519.Scalar
+	negZ.Negate(&z)
 
 	scalars := make([]*curve25519.Scalar, 0, len(dDescendingYPlusZ)*2+2)
 	points := make([]*curve25519.PublicKey[T], 0, len(dDescendingYPlusZ)*2+2)
 
 	for i := range dDescendingYPlusZ {
-		scalars = append(scalars, negZ)
+		scalars = append(scalars, &negZ)
 		points = append(points, curve25519.FromPoint[T](bulletproofs.GeneratorPlus.G[i]))
 		scalars = append(scalars, &dDescendingYPlusZ[i])
 		points = append(points, curve25519.FromPoint[T](bulletproofs.GeneratorPlus.H[i]))
 	}
 
-	scalars = append(scalars, yMnPlusOne)
+	scalars = append(scalars, &yMnPlusOne)
 	points = append(points, commitmentAccum)
 
 	dSum := d.Sum()
 
-	scalars = append(scalars, new(curve25519.Scalar).Subtract(
-		new(curve25519.Scalar).Subtract(
-			new(curve25519.Scalar).Multiply(&yPows, &z),
-			new(curve25519.Scalar).Multiply(&dSum, new(curve25519.Scalar).Multiply(yMnPlusOne, &z)),
-		),
-		new(curve25519.Scalar).Multiply(&yPows, &zPow[0]),
-	))
+	{
+		var tmp curve25519.Scalar
+		tmp.Subtract(
+			new(curve25519.Scalar).Subtract(
+				new(curve25519.Scalar).Multiply(&yPows, &z),
+				new(curve25519.Scalar).Multiply(&dSum, new(curve25519.Scalar).Multiply(&yMnPlusOne, &z)),
+			),
+			new(curve25519.Scalar).Multiply(&yPows, &zPow[0]),
+		)
+		scalars = append(scalars, &tmp)
+	}
 	points = append(points, curve25519.FromPoint[T](crypto.GeneratorH.Point))
 
 	A.Add(A, new(curve25519.PublicKey[T]).MultiScalarMult(scalars, points))
@@ -117,7 +135,7 @@ func (ars AggregateRangeStatement[T]) ComputeAHat(V []curve25519.PublicKey[T], t
 	return AggregateHatComputation[T]{
 		Y:                 y,
 		DDescendingYPlusZ: dDescendingYPlusZ,
-		YMnPlusOne:        *yMnPlusOne,
+		YMnPlusOne:        yMnPlusOne,
 		Z:                 z,
 		ZPow:              zPow,
 		AHat:              *A,
@@ -142,7 +160,8 @@ func (ars AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness, rando
 	// Commitments aren't transmitted INV_EIGHT though, so this multiplies by INV_EIGHT to enable
 	// clearing its cofactor without mutating the value
 	// For some reason, these values are transcripted * INV_EIGHT, not as transmitted
-	V := slices.Clone(ars.V)
+	V := make([]curve25519.PublicKey[T], 0, len(ars.V))
+	V = append(V, ars.V...)
 	for i := range V {
 		V[i].ScalarMult(invEight, &V[i])
 	}

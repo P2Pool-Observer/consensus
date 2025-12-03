@@ -123,7 +123,7 @@ func (wips WeightedInnerProductStatement[T]) Prove(transcript *curve25519.Scalar
 			scalars = append(scalars, &witness.B[i])
 		}
 
-		wip := slices.Clone(witness.A).WeightedInnerProduct(witness.B, wips.Y)
+		wip := witness.A.WeightedInnerProduct(witness.B, wips.Y)
 		points = append(points, curve25519.FromPoint[T](crypto.GeneratorH.Point))
 		scalars = append(scalars, &wip)
 		points = append(points, curve25519.FromPoint[T](crypto.GeneratorG.Point))
@@ -134,6 +134,7 @@ func (wips WeightedInnerProductStatement[T]) Prove(transcript *curve25519.Scalar
 		}
 	}
 
+	scalarTmp := make(bulletproofs.ScalarVector[T], len(witness.A))
 	a := slices.Clone(witness.A)
 	b := slices.Clone(witness.B)
 
@@ -162,7 +163,7 @@ func (wips WeightedInnerProductStatement[T]) Prove(transcript *curve25519.Scalar
 		curve25519.RandomScalar(&dR, randomReader)
 
 		cL := a1.WeightedInnerProduct(b2, y)
-		cR := slices.Clone(a2).Multiply(&yNHat).WeightedInnerProduct(b1, y)
+		cR := a2.WeightedWeightedInnerProduct(&yNHat, b1, y)
 
 		// pop
 		yInvNHat := yInv[len(yInv)-1]
@@ -171,7 +172,7 @@ func (wips WeightedInnerProductStatement[T]) Prove(transcript *curve25519.Scalar
 		{
 			points = points[:0]
 			scalars = scalars[:0]
-			a1YInv := slices.Clone(a1).Multiply(&yInvNHat)
+			a1YInv := a1.Copy(scalarTmp[:0]).Multiply(&yInvNHat)
 			for i := range a1YInv {
 				points = append(points, &GBold2[i])
 				scalars = append(scalars, &a1YInv[i])
@@ -193,7 +194,7 @@ func (wips WeightedInnerProductStatement[T]) Prove(transcript *curve25519.Scalar
 		{
 			points = points[:0]
 			scalars = scalars[:0]
-			a2Y := slices.Clone(a2).Multiply(&yNHat)
+			a2Y := a2.Copy(scalarTmp[:0]).Multiply(&yNHat)
 			for i := range a2Y {
 				points = append(points, &GBold1[i])
 				scalars = append(scalars, &a2Y[i])
@@ -214,8 +215,8 @@ func (wips WeightedInnerProductStatement[T]) Prove(transcript *curve25519.Scalar
 
 		e, invE, eSquare, invESquare, GBold, HBold = wips.NextGH(transcript, GBold1, GBold2, HBold1, HBold2, &L, &R, &yInvNHat)
 
-		a = slices.Clone(a1).Multiply(&e).AddVec(slices.Clone(a2).Multiply(new(curve25519.Scalar).Multiply(&yNHat, &invE)))
-		b = slices.Clone(b1).Multiply(&invE).AddVec(slices.Clone(b2).Multiply(&e))
+		a = a1.Multiply(&e).AddVecMultiply(a2, new(curve25519.Scalar).Multiply(&yNHat, &invE))
+		b = b1.Multiply(&invE).AddVecMultiply(b2, &e)
 		alpha.Add(&alpha, new(curve25519.Scalar).Add(new(curve25519.Scalar).Multiply(&dL, &eSquare), new(curve25519.Scalar).Multiply(&dR, &invESquare)))
 	}
 
@@ -241,7 +242,9 @@ func (wips WeightedInnerProductStatement[T]) Prove(transcript *curve25519.Scalar
 		scalars = append(scalars, &s)
 
 		points = append(points, curve25519.FromPoint[T](crypto.GeneratorH.Point))
-		scalars = append(scalars, new(curve25519.Scalar).Add(new(curve25519.Scalar).Multiply(ry, &b[0]), new(curve25519.Scalar).Multiply(new(curve25519.Scalar).Multiply(&s, &y[0]), &a[0])))
+		var tmp curve25519.Scalar
+		tmp.Add(new(curve25519.Scalar).Multiply(ry, &b[0]), new(curve25519.Scalar).Multiply(new(curve25519.Scalar).Multiply(&s, &y[0]), &a[0]))
+		scalars = append(scalars, &tmp)
 		points = append(points, curve25519.FromPoint[T](crypto.GeneratorG.Point))
 		scalars = append(scalars, &delta)
 
@@ -311,10 +314,10 @@ func (wips WeightedInnerProductStatement[T]) Verify(verifier *BatchVerifier[T], 
 
 	challenges := make([][2]curve25519.Scalar, 0, len(proof.L))
 
-	invEIs := slices.Clone(eIs)
+	invEIs := make([]curve25519.Scalar, len(eIs))
 	//todo: batch invert
 	for i := range invEIs {
-		invEIs[i].Invert(&invEIs[i])
+		invEIs[i].Invert(&eIs[i])
 	}
 
 	var L, R curve25519.PublicKey[T]
