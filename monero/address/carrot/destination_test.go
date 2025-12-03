@@ -4,14 +4,13 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/blake2b"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 )
 
 func TestDestinationV1_ConvergeMakeSubaddress(t *testing.T) {
 	var accountViewPub curve25519.VarTimePublicKey
 
-	spendPubPoint := testCarrotSpendPubkey.PointVarTime()
+	spendPubPoint := testAccountSpendPubkey.PointVarTime()
 	MakeAccountViewPub(&accountViewPub, testViewIncoming.Scalar(), spendPubPoint)
 
 	sa, err := MakeDestinationSubaddress(
@@ -19,7 +18,7 @@ func TestDestinationV1_ConvergeMakeSubaddress(t *testing.T) {
 		spendPubPoint,
 		&accountViewPub,
 		testGenerateAddressSecret,
-		address.SubaddressIndex{Account: 5, Offset: 16},
+		testSubaddressIndex,
 	)
 	if err != nil {
 		t.Fatalf("failed to make subaddress: %v", err)

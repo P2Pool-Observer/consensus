@@ -15,11 +15,11 @@ import (
 
 func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 	expectedEnote := CoinbaseEnoteV1{
-		OneTimeAddress:  types.MustBytes32FromString[curve25519.PublicKeyBytes]("661d4466f94d96d598ac983ed51f4f082aeb51045752c1bf8275f903bd090d79"),
-		Amount:          monero.TailEmissionReward,
-		EncryptedAnchor: types.MakeFixed([monero.JanusAnchorSize]byte(hex.MustDecodeString("e1654ef76f418d7357e45ba601c086a1"))),
-		ViewTag:         types.MakeFixed([monero.CarrotViewTagSize]byte(hex.MustDecodeString("6bdfa1"))),
-		EphemeralPubKey: types.MustBytes32FromString[curve25519.MontgomeryPoint]("ca85a5dba8a672974ac0b80a9d0b5eebf3a9ec8e2f2d4366152a6edb5facc232"),
+		OneTimeAddress:  types.MustBytes32FromString[curve25519.PublicKeyBytes]("504e8d9594c9ec03c6e70fd4c044b160ed945a8be839bd9953343d655ec7c993"),
+		Amount:          testAmount,
+		EncryptedAnchor: types.MakeFixed([monero.JanusAnchorSize]byte(hex.MustDecodeString("e9d0df7b0b36c711d3b04ec8d1491a92"))),
+		ViewTag:         types.MakeFixed([monero.CarrotViewTagSize]byte(hex.MustDecodeString("95a125"))),
+		EphemeralPubKey: types.MustBytes32FromString[curve25519.MontgomeryPoint]("f120a52046feb1e4fac770e97eb15568f8a86b67c8478e8816086dccdb6dcc2e"),
 		BlockIndex:      123456,
 	}
 
@@ -28,8 +28,8 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 			Address:   address.NewPackedAddressWithSubaddress(testSubaddress.PackedAddress(), false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
-		Amount:     monero.TailEmissionReward,
-		Randomness: testRandomness,
+		Amount:     testAmount,
+		Randomness: testAnchorNorm,
 	}
 
 	var enote CoinbaseEnoteV1
@@ -49,8 +49,8 @@ func BenchmarkPaymentProposalV1_OutputPartial(b *testing.B) {
 			Address:   address.NewPackedAddressWithSubaddress(testSubaddress.PackedAddress(), false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
-		Amount:     monero.TailEmissionReward,
-		Randomness: testRandomness,
+		Amount:     testAmount,
+		Randomness: testAnchorNorm,
 	}
 
 	b.Run("TorsionChecked", func(b *testing.B) {
@@ -111,8 +111,8 @@ func BenchmarkPaymentProposalV1_CoinbaseOutput(b *testing.B) {
 			Address:   address.NewPackedAddressWithSubaddress(testSubaddress.PackedAddress(), false),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
-		Amount:     monero.TailEmissionReward,
-		Randomness: [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55")),
+		Amount:     testAmount,
+		Randomness: testAnchorNorm,
 	}
 
 	b.Run("TorsionChecked", func(b *testing.B) {
@@ -171,8 +171,8 @@ func BenchmarkPaymentProposalV1_Output(b *testing.B) {
 			Address:   address.NewPackedAddressWithSubaddress(testSubaddress.PackedAddress(), true),
 			PaymentId: [monero.PaymentIdSize]byte{},
 		},
-		Amount:     monero.TailEmissionReward,
-		Randomness: testRandomness,
+		Amount:     testAmount,
+		Randomness: testAnchorNorm,
 	}
 
 	b.Run("TorsionChecked", func(b *testing.B) {

@@ -19,16 +19,18 @@ const (
 
 // Carrot account secret domain separators
 const (
-	DomainSeparatorProveSpendKey         = "Carrot prove-spend key"
-	DomainSeparatorViewBalanceSecret     = "Carrot view-balance secret"
-	DomainSeparatorGenerateImageKey      = "Carrot generate-image key"
-	DomainSeparatorIncomingViewKey       = "Carrot incoming view key"
-	DomainSeparatorGenerateAddressSecret = "Carrot generate-address secret"
+	DomainSeparatorProveSpendKey               = "Carrot prove-spend key"
+	DomainSeparatorViewBalanceSecret           = "Carrot view-balance secret"
+	DomainSeparatorGenerateImageKey            = "Carrot generate-image key"
+	DomainSeparatorGenerateImagePreimageSecret = "Carrot generate-image preimage secret"
+	DomainSeparatorIncomingViewKey             = "Carrot incoming view key"
+	DomainSeparatorGenerateAddressSecret       = "Carrot generate-address secret"
 )
 
 // Carrot address domain separators
 const (
-	DomainSeparatorAddressIndexGenerator = "Carrot address index generator"
+	DomainSeparatorAddressIndexPreimage1 = "Carrot address index preimage 1"
+	DomainSeparatorAddressIndexPreimage2 = "Carrot address index preimage 2"
 	DomainSeparatorSubaddressScalar      = "Carrot subaddress scalar"
 )
 

@@ -10,24 +10,24 @@ import (
 	"github.com/tmthrgd/go-hex"
 )
 
-var testEphemeralPriv = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("7c2fbbe9d38ecc35fdeab8be7ed9659c05407a2c96d6fe251229cb8274305b07")
-var testEphemeralPub = types.MustBytes32FromString[curve25519.MontgomeryPoint]("68b04386b14657aa221ac63b6b008d123e8dbd84814abcdb660997cbfa837c65")
-
-var testEphemeralPubCryptonote = types.MustBytes32FromString[curve25519.MontgomeryPoint]("81f59f8d2207ce0403a552c7069d8b35945d25bb1426417d71860be2c2efbc44")
-
-var testSecretSenderReceiver = types.MustHashFromString("300f88e1626c74c97e8b2f3d627a0444a34d515d8657c2e7dc2291e75727e268")
-
-var testSenderReceiverUnctx = types.MustBytes32FromString[curve25519.MontgomeryPoint]("ae62faa4d5b1277fe9c4777a950969f56deee7bfba7b2c2921e301e12f46411d")
-
+var testAnchorNorm = [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55"))
 var testInputContext = hex.MustDecodeString("9423f74f3e869dc8427d8b35bb24c917480409c3f4750bff3c742f8e4d5af7bef7")
 
-var testRandomness = [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55"))
+var testEphemeralPriv = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("6aea0ed0c34ad3483415377658841a75e0da8b462e637d8bf783b9bcd320b303")
 
-var testCarrotAmountBlindingFactorPayment = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("ee02780bf4b4a90a9577e694bbba25264f2604e4933590bd1efffd2a558a4d0a")
-var testCarrotAmountCommitment = types.MustBytes32FromString[curve25519.PublicKeyBytes]("edd30d1b0808defb3c5a33dcc55dd05a1b197242f427f88f80b4dda63ed39958")
-var testCarrotOnetimeAddress = types.MustBytes32FromString[curve25519.PublicKeyBytes]("1e3c78039277f79d373e21c629291e49d64a36dd1948c6913227da1088e66280")
+var testEphemeralPubCryptonote = types.MustBytes32FromString[curve25519.MontgomeryPoint]("8df2a40a42ecc10348a461310c1afc2c2b1be7b29fd27a3921a1aefba5efa27b")
+var testEphemeralPubSubaddress = types.MustBytes32FromString[curve25519.MontgomeryPoint]("a3c3cdf84fd301cfc4675096f1c896543f2efc1001d899bbab3a0fd137f6a630")
+
+var testSenderReceiverUnctx = types.MustBytes32FromString[curve25519.MontgomeryPoint]("1f848f8384e7a9f217dc9dc2691703cf392eaf6c92931acd0fc840c900d3ed49")
+var testSecretSenderReceiver = types.MustHashFromString("6e99852ed7b3744177bb669e73fd1c544d88555ea6fffe3787ca6af48d2fe9f6")
 
 const testAmount = 67000000000000
+
+var testAmountBlindingFactorPayment = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("5a01cc9f8ca9556c429d623d848fe036c76593005c63a62df57afc4b51d3c20b")
+var testAmountBlindingFactorChange = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f69587a2e01d039758b5dd61999e4d60f226eb7b8027be2ff2656ecbb584d103")
+var testAmountCommitment = types.MustBytes32FromString[curve25519.PublicKeyBytes]("f5df40aeba877e8ccadd9dff363d90ec28efbfd1201573897cd70c61c026edb9")
+
+var testOnetimeAddress = types.MustBytes32FromString[curve25519.PublicKeyBytes]("522347147e41f22ebe155abc32b9def985b2e454045c6edd8921ee4253cd4516")
 
 func TestConverge(t *testing.T) {
 	t.Parallel()
@@ -41,7 +41,7 @@ func TestConverge(t *testing.T) {
 		makeEnoteEphemeralPrivateKey(
 			&blake2b.Digest{},
 			&result,
-			testRandomness[:],
+			testAnchorNorm[:],
 			testInputContext,
 			*testSubaddress.SpendPublicKey(),
 			[8]byte(hex.MustDecodeString("4321734f56621440")),
@@ -65,15 +65,15 @@ func TestConverge(t *testing.T) {
 			testEphemeralPriv.Scalar(),
 			testSubaddress.SpendPublicKey().PointVarTime(),
 		)
-		if result != testEphemeralPub {
-			t.Fatalf("expected: %x, got: %x", testEphemeralPub, result)
+		if result != testEphemeralPubSubaddress {
+			t.Fatalf("expected: %x, got: %x", testEphemeralPubSubaddress, result)
 		}
 	})
 
 	t.Run("make_carrot_uncontextualized_shared_key_receiver", func(t *testing.T) {
 		result := MakeUncontextualizedSharedKeyReceiver(
 			testViewIncoming.Scalar(),
-			&testEphemeralPub,
+			&testEphemeralPubSubaddress,
 		)
 		if result != testSenderReceiverUnctx {
 			t.Fatalf("expected: %x, got: %x", testSenderReceiverUnctx, result)
@@ -102,7 +102,7 @@ func TestConverge(t *testing.T) {
 		result := makeSenderReceiverSecret(
 			&blake2b.Digest{},
 			testSenderReceiverUnctx,
-			testEphemeralPub,
+			testEphemeralPubSubaddress,
 			testInputContext,
 		)
 		if result != testSecretSenderReceiver {
@@ -120,13 +120,12 @@ func TestConverge(t *testing.T) {
 			*testSubaddress.SpendPublicKey(),
 			EnoteTypePayment,
 		)
-		if curve25519.PrivateKeyBytes(result.Bytes()) != testCarrotAmountBlindingFactorPayment {
-			t.Fatalf("expected: %s, got: %x", testCarrotAmountBlindingFactorPayment.String(), result.Bytes())
+		if curve25519.PrivateKeyBytes(result.Bytes()) != testAmountBlindingFactorPayment {
+			t.Fatalf("expected: %s, got: %x", testAmountBlindingFactorPayment.String(), result.Bytes())
 		}
 	})
 
 	t.Run("make_carrot_amount_blinding_factor_change", func(t *testing.T) {
-		expected := types.MustBytes32FromString[curve25519.PrivateKeyBytes]("abac509b18e04c39a70a3e1e72b4c06b7b21c43dd95c2d2e97ceace6c44ba90c")
 		var result curve25519.Scalar
 		makeAmountBlindingFactor(
 			&blake2b.Digest{},
@@ -136,18 +135,18 @@ func TestConverge(t *testing.T) {
 			*testSubaddress.SpendPublicKey(),
 			EnoteTypeChange,
 		)
-		if curve25519.PrivateKeyBytes(result.Bytes()) != expected {
-			t.Fatalf("expected: %s, got: %x", expected.String(), result.Bytes())
+		if curve25519.PrivateKeyBytes(result.Bytes()) != testAmountBlindingFactorChange {
+			t.Fatalf("expected: %s, got: %x", testAmountBlindingFactorChange.String(), result.Bytes())
 		}
 	})
 
 	t.Run("make_carrot_amount_commitment", func(t *testing.T) {
 		result := makeAmountCommitment[curve25519.VarTimeOperations](
 			testAmount,
-			testCarrotAmountBlindingFactorPayment.Scalar(),
+			testAmountBlindingFactorPayment.Scalar(),
 		)
-		if result != testCarrotAmountCommitment {
-			t.Fatalf("expected: %s, got: %s", testCarrotAmountCommitment.String(), result.String())
+		if result != testAmountCommitment {
+			t.Fatalf("expected: %s, got: %s", testAmountCommitment.String(), result.String())
 		}
 	})
 
@@ -156,20 +155,20 @@ func TestConverge(t *testing.T) {
 			&blake2b.Digest{},
 			testSubaddress.SpendPublicKey().PointVarTime(),
 			testSecretSenderReceiver,
-			testCarrotAmountCommitment,
+			testAmountCommitment,
 		)
-		if result != testCarrotOnetimeAddress {
-			t.Fatalf("expected: %s, got: %s", testCarrotOnetimeAddress.String(), result.String())
+		if result != testOnetimeAddress {
+			t.Fatalf("expected: %s, got: %s", testOnetimeAddress.String(), result.String())
 		}
 	})
 
 	t.Run("make_carrot_view_tag", func(t *testing.T) {
-		expected := [monero.CarrotViewTagSize]byte(hex.MustDecodeString("93096d"))
+		expected := [monero.CarrotViewTagSize]byte(hex.MustDecodeString("5f58e1"))
 		result := makeViewTag(
 			&blake2b.Digest{},
 			testSenderReceiverUnctx,
 			testInputContext,
-			testCarrotOnetimeAddress,
+			testOnetimeAddress,
 		)
 		if result != expected {
 			t.Fatalf("expected: %x, got: %x", expected, result)
@@ -177,11 +176,11 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_anchor_encryption_mask", func(t *testing.T) {
-		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("c6df4ecdfe1beed0cdadf0483467391e"))
+		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("6ba7e188fb315ad2158ac6b6652408d4"))
 		result := makeAnchorEncryptionMask(
 			&blake2b.Digest{},
 			testSecretSenderReceiver,
-			testCarrotOnetimeAddress,
+			testOnetimeAddress,
 		)
 		if result != expected {
 			t.Fatalf("expected: %x, got: %x", expected, result)
@@ -189,11 +188,11 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_amount_encryption_mask", func(t *testing.T) {
-		expected := [monero.EncryptedAmountSize]byte(hex.MustDecodeString("2a982ec96a940a5d"))
+		expected := [monero.EncryptedAmountSize]byte(hex.MustDecodeString("2b739fdb6d1d5e50"))
 		result := makeAmountEncryptionMask(
 			&blake2b.Digest{},
 			testSecretSenderReceiver,
-			testCarrotOnetimeAddress,
+			testOnetimeAddress,
 		)
 		if result != expected {
 			t.Fatalf("expected: %x, got: %x", expected, result)
@@ -201,11 +200,11 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_payment_id_encryption_mask", func(t *testing.T) {
-		expected := [monero.PaymentIdSize]byte(hex.MustDecodeString("39b004624a1170d4"))
+		expected := [monero.PaymentIdSize]byte(hex.MustDecodeString("043d7e9ed13a3484"))
 		result := makePaymentIdEncryptionMask(
 			&blake2b.Digest{},
 			testSecretSenderReceiver,
-			testCarrotOnetimeAddress,
+			testOnetimeAddress,
 		)
 		if result != expected {
 			t.Fatalf("expected: %x, got: %x", expected, result)
@@ -213,12 +212,12 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_janus_anchor_special", func(t *testing.T) {
-		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("cea1a83cbe3b2c82f36fbcb4d5af85d8"))
+		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("70fe9b941fe1ef3b2345c87485f70a6e"))
 		result := makeJanusAnchorSpecial(
 			&blake2b.Digest{},
 			testEphemeralPubCryptonote,
 			testInputContext,
-			testCarrotOnetimeAddress,
+			testOnetimeAddress,
 			testViewIncoming,
 		)
 		if result != expected {

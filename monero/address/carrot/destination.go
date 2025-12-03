@@ -16,32 +16,37 @@ type DestinationV1 struct {
 	PaymentId [monero.PaymentIdSize]byte `json:"payment_id,omitempty"`
 }
 
-// MakeDestinationMainAddress make_main_address
+// MakeDestinationMainAddress make_carrot_main_address_v1
 func MakeDestinationMainAddress(accountSpendPub, primaryAddressViewPub curve25519.PublicKeyBytes) DestinationV1 {
 	return DestinationV1{
 		Address: address.NewPackedAddressWithSubaddressFromBytes(accountSpendPub, primaryAddressViewPub, false),
 	}
 }
 
-// MakeDestinationSubaddress make_subaddress
+// MakeDestinationSubaddress make_carrot_subaddress_v1
 func MakeDestinationSubaddress[T curve25519.PointOperations](hasher *blake2b.Digest, accountSpendPub, accountViewPub *curve25519.PublicKey[T], generateAddressSecret types.Hash, i address.SubaddressIndex) (DestinationV1, error) {
 	if i.IsZero() {
 		return DestinationV1{}, errors.New("invalid subaddress index")
 	}
 
-	// s^j_gen = H_32[s_ga](j_major, j_minor)
-	addressIndexGenerator := MakeIndexExtensionGenerator(hasher, generateAddressSecret, i)
+	// s^j_ap1 = H_32[s_ga](j_major, j_minor)
+	addressIndexPreimage1 := MakeAddressIndexPreimage1(hasher, generateAddressSecret, i)
 
-	// k^j_subscal = H_n[s^j_gen](K_s, K_v, j_major, j_minor)
-	var addressIndexGeneratorSecret curve25519.Scalar
-	MakeSubaddressScalar(hasher, &addressIndexGeneratorSecret, accountSpendPub.AsBytes(), accountViewPub.AsBytes(), addressIndexGenerator, i)
+	spendPubBytes := accountSpendPub.AsBytes()
+
+	// s^j_ap2 = H_32[s^j_ap1](j_major, j_minor, K_s, K_v)
+	addressIndexPreimage2 := MakeAddressIndexPreimage2(hasher, addressIndexPreimage1, spendPubBytes, accountViewPub.AsBytes(), i)
+
+	// k^j_subscal = H_n[s^j_ap2](K_s)
+	var subaddressScalar curve25519.Scalar
+	MakeSubaddressScalar(hasher, &subaddressScalar, addressIndexPreimage2, spendPubBytes)
 
 	var addressSpendPub, addressViewPub curve25519.PublicKey[T]
 	// K^j_s = k^j_subscal * K_s
-	addressSpendPub.ScalarMult(&addressIndexGeneratorSecret, accountSpendPub)
+	addressSpendPub.ScalarMult(&subaddressScalar, accountSpendPub)
 
 	// K^j_v = k^j_subscal * K_v
-	addressViewPub.ScalarMult(&addressIndexGeneratorSecret, accountViewPub)
+	addressViewPub.ScalarMult(&subaddressScalar, accountViewPub)
 
 	return DestinationV1{
 		Address: address.NewPackedAddressWithSubaddressFromBytes(addressSpendPub.AsBytes(), addressViewPub.AsBytes(), true),
@@ -51,16 +56,21 @@ func MakeDestinationSubaddress[T curve25519.PointOperations](hasher *blake2b.Dig
 // MakeDestinationSubaddressSpendPub used to create subaddress map
 func MakeDestinationSubaddressSpendPub[T curve25519.PointOperations](hasher *blake2b.Digest, accountSpendPub, accountViewPub *curve25519.PublicKey[T], generateAddressSecret types.Hash, i address.SubaddressIndex) curve25519.PublicKeyBytes {
 
-	// s^j_gen = H_32[s_ga](j_major, j_minor)
-	addressIndexGenerator := MakeIndexExtensionGenerator(hasher, generateAddressSecret, i)
+	// s^j_ap1 = H_32[s_ga](j_major, j_minor)
+	addressIndexPreimage1 := MakeAddressIndexPreimage1(hasher, generateAddressSecret, i)
 
-	// k^j_subscal = H_n[s^j_gen](K_s, K_v, j_major, j_minor)
-	var addressIndexGeneratorSecret curve25519.Scalar
-	MakeSubaddressScalar(hasher, &addressIndexGeneratorSecret, accountSpendPub.AsBytes(), accountViewPub.AsBytes(), addressIndexGenerator, i)
+	spendPubBytes := accountSpendPub.AsBytes()
+
+	// s^j_ap2 = H_32[s^j_ap1](j_major, j_minor, K_s, K_v)
+	addressIndexPreimage2 := MakeAddressIndexPreimage2(hasher, addressIndexPreimage1, spendPubBytes, accountViewPub.AsBytes(), i)
+
+	// k^j_subscal = H_n[s^j_ap2](K_s)
+	var subaddressScalar curve25519.Scalar
+	MakeSubaddressScalar(hasher, &subaddressScalar, addressIndexPreimage2, spendPubBytes)
 
 	var addressSpendPub curve25519.PublicKey[T]
 	// K^j_s = k^j_subscal * K_s
-	addressSpendPub.ScalarMult(&addressIndexGeneratorSecret, accountSpendPub)
+	addressSpendPub.ScalarMult(&subaddressScalar, accountSpendPub)
 
 	return addressSpendPub.AsBytes()
 }
