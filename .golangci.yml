@@ -82,8 +82,29 @@ linters:
         - "(*net.conn).Close"
         - "(*net.TCPListener).Close"
 
+    forbidigo:
+      forbid:
+        - pattern: ^print(ln)?$
+        - pattern: ^fmt\.Print.*$
+
+        # varint related
+        - pattern: ^binary.ReadUvarint$
+          msg: Use ReadCanonicalUvarint
+        - pattern: ^binary.ReadVarint$
+          msg: Use ReadCanonicalUvarint
+        - pattern: ^binary.Uvarint$
+          msg: Use CanonicalUvarint
+        - pattern: ^binary.Varint$
+          msg: Use CanonicalUvarint
+      analyze-types: true
+
     depguard:
       rules:
+        deprecated:
+          list-mode: lax
+          deny:
+            - pkg: "ioutil"
+              desc: use io
         main:
           list-mode: lax
           deny:
@@ -120,7 +141,9 @@ severity:
   default: error
 
 issues:
-
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: true
 
 output:
 
