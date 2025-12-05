@@ -19,14 +19,14 @@ func TestCarrotViewWallet_Match(t *testing.T) {
 	var proveSpend curve25519.Scalar
 	carrot.MakeProveSpendKey(&blake2b.Digest{}, &proveSpend, masterSecret)
 
-	vw, err := NewCarrotViewWalletFromMasterSecret[curve25519.ConstantTimeOperations](masterSecret, monero.TestNetwork, 0, 80)
+	wallet, err := NewCarrotSpendWalletFromMasterSecret[curve25519.ConstantTimeOperations](masterSecret, monero.TestNetwork, 0, 80)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testScanCoinbase[curve25519.ConstantTimeOperations](t, vw, address.ZeroSubaddressIndex, &proveSpend)
-	testScanCoinbase[curve25519.ConstantTimeOperations](t, vw, testGeneralFundSubaddressIndex, &proveSpend)
+	testScanCoinbase[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
+	testScanCoinbase[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
 
-	testScanPayment[curve25519.ConstantTimeOperations](t, vw, address.ZeroSubaddressIndex, &proveSpend)
-	testScanPayment[curve25519.ConstantTimeOperations](t, vw, testGeneralFundSubaddressIndex, &proveSpend)
+	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
+	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
 }

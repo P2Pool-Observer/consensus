@@ -15,7 +15,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
-func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex, spendKey *curve25519.Scalar) {
+func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWalletInterface[T], ix address.SubaddressIndex) {
 	addr := wallet.Get(ix)
 	if addr == nil {
 		t.Fatal("got nil address")
@@ -34,8 +34,8 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 
 				var addrI address.Interface
 				if addr.IsSubaddress() {
-					if vw, ok := wallet.(*ViewWallet[T]); ok {
-						addrI = cryptonote.GetSubaddressFakeAddress(addr, vw.ViewKey())
+					if vw, ok := wallet.(SpendWalletLegacyInterface[T]); ok {
+						addrI = cryptonote.GetSubaddressFakeAddress(addr, vw.ViewWallet().ViewKey())
 					} else {
 						t.Skip("not supported")
 					}
@@ -108,14 +108,14 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet ViewWal
 			}
 
 			// check spendability
-			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), spendKey, &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
+			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
 				t.Fatalf("cannot spend output")
 			}
 		})
 	})
 }
 
-func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWalletInterface[T], ix address.SubaddressIndex, spendKey *curve25519.Scalar) {
+func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWalletInterface[T], ix address.SubaddressIndex) {
 	addr := wallet.Get(ix)
 	if addr == nil {
 		t.Fatal("got nil address")
@@ -124,7 +124,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 	t.Run(fmt.Sprintf("Payment/#%d,%d", ix.Account, ix.Offset), func(t *testing.T) {
 		const amount = monero.TailEmissionReward
 
-		if lw, ok := wallet.(ViewWalletLegacyInterface[T]); ok {
+		if lw, ok := wallet.(SpendWalletLegacyInterface[T]); ok {
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
@@ -213,7 +213,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet ViewWall
 			}
 
 			// check spendability
-			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), spendKey, &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
+			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
 				t.Fatalf("cannot spend output")
 			}
 		})

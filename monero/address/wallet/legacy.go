@@ -22,15 +22,6 @@ type ViewWallet[T curve25519.PointOperations] struct {
 	spendMap map[curve25519.PublicKeyBytes]address.SubaddressIndex
 }
 
-func NewViewWalletFromSpendKey[T curve25519.PointOperations](spendKey *curve25519.Scalar, addressNetwork uint8, accountDepth, indexDepth int) (*ViewWallet[T], error) {
-	var viewKey curve25519.Scalar
-	crypto.ScalarDeriveLegacy(&viewKey, spendKey.Bytes())
-	var spendPub, viewPub curve25519.PublicKey[T]
-	spendPub.ScalarBaseMult(spendKey)
-	viewPub.ScalarBaseMult(&viewKey)
-	return NewViewWallet[T](address.FromRawAddress(addressNetwork, spendPub.AsBytes(), viewPub.AsBytes()), &viewKey, accountDepth, indexDepth)
-}
-
 // NewViewWallet Creates a new ViewWallet with the specified account and index depth. The main address is always tracked
 func NewViewWallet[T curve25519.PointOperations](primaryAddress *address.Address, viewKey *curve25519.Scalar, accountDepth, indexDepth int) (*ViewWallet[T], error) {
 	if primaryAddress == nil || primaryAddress.IsSubaddress() || !primaryAddress.Valid() {
@@ -180,19 +171,6 @@ func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, com
 func (w *ViewWallet[T]) HasSpend(spendPub curve25519.PublicKeyBytes) (address.SubaddressIndex, bool) {
 	ix, ok := w.spendMap[spendPub]
 	return ix, ok
-}
-
-func (w *ViewWallet[T]) Opening(index address.SubaddressIndex, spendKey *curve25519.Scalar) (keyG, keyT *curve25519.Scalar, spendPub *curve25519.PublicKey[T]) {
-	// m = Hn(k_v || j_major || j_minor) if subaddress else 0
-	subaddressExtension := cryptonote.SubaddressExtension(new(curve25519.Scalar), index, w.viewKey)
-
-	keyG = new(curve25519.Scalar).Add(spendKey, subaddressExtension)
-	keyT = new(curve25519.Scalar)
-
-	// x G + y T
-	spendPub = new(curve25519.PublicKey[T]).DoubleScalarBaseMultPrecomputed(keyT, crypto.GeneratorT, keyG)
-
-	return keyG, keyT, spendPub
 }
 
 func (w *ViewWallet[T]) Get(index address.SubaddressIndex) *address.Address {
