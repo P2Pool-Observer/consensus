@@ -21,7 +21,7 @@ This can be done on:
 * Via Matrix private message to [@DataHoarder:monero.social](https://matrix.to/#/@datahoarder:monero.social) 
 * Email to `weebdatahoarder [at] protonmail.com`.
 
-If sending mail, it's recommended to send an advisory private message to Matrix.
+> **Note:** If sending mail, it's recommended to send an advisory private message to Matrix.
 
 You must disclose usage of automated tools (fuzzers, static checkers) or AI-driven tools if used on your findings.
 
@@ -58,7 +58,7 @@ Reports will be reviewed and answered to. There are no bug bounties at this time
 | p2pool/sidechain                       | ✅&#160;Supported             |               [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain)                | P2Pool Consensus SideChain, compatible across all P2Pool versions and hard forks.<br/>Passes all upstream tests. For go-p2pool and Observer.                                                                              |
 | p2pool/stratum                         | ✅&#160;Supported             |                [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/p2pool/stratum)                 | P2Pool Stratum implementation, supporting multiple addresses. For go-p2pool.                                                                                                                                              |
 | types                                  | ✅&#160;Supported             |                     [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/types)                     | General data types to work with 256-bit hashes or other fixed bytes, proof of work checking and 128-bit network difficulty.                                                                                               |
-| utils                                  | Semi-Internal                |                     [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/utils)                     | Utilities to decode or work with general types.                                                                                                                                                                           |
+| utils                                  | Semi-Internal                |                     [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/utils)                     | Utilities to decode or work with specialized Monero types.                                                                                                                                                                |
 
 ### Support Status Description
 * **✅ Supported**: Fully supported, maintained, and regularly/automatically tested. They are built for external consumption. Will follow the semver of the main package.
@@ -69,15 +69,18 @@ Reports will be reviewed and answered to. There are no bug bounties at this time
 * **⏳ Planned**: Planned to be developed.
 * **❌ Unsupported**: Not supported. Package may be deprecated or not currently developed.
 
+> **Note:** Project is automatically tested under Linux for _amd64_ and _arm64_ architectures, with normal, _purego_, and _cgo_ flavors. 
+> Other platforms are tested manually. 32-bit platforms are not supported, but may receive fixes.
+
 ## Other maintained external libraries
 
-| Package                                                             |            Status            | Description                                                                                                                                                                                                                                                                                |
-|:--------------------------------------------------------------------|:----------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [go-p2pool](https://git.gammaspectra.live/P2Pool/go-p2pool)         |       ✅&#160;Supported       | Alternative P2Pool daemon implementation in Go.<br/>Supports full consensus and mining, with similar arguments. Able to run P2Pool seed nodes.                                                                                                                                             |
-| [go-randomx](https://git.gammaspectra.live/P2Pool/go-randomx)       |       ✅&#160;Supported       | Implements pure Go [RandomX](https://github.com/tevador/RandomX/blob/master/doc/specs.md), with JIT for amd64 and native support for more architectures, and purego implementation for WASM.<br/>Achieves ~90% speed of equivalent full mode, aimed at verification (not mining) purposes. |
-| [edwards25519](https://git.gammaspectra.live/P2Pool/edwards25519)   |       ✅&#160;Supported       | Implements the edwards25519 elliptic curve, with extensions to support Monero operations efficiently.                                                                                                                                                                                      |
-| [helioselene](https://git.gammaspectra.live/P2Pool/helioselene)     | 🛠️&#160;In&#160;Development | Implements [Helio-Selene](https://gist.github.com/tevador/4524c2092178df08996487d4e272b096), Elliptic curve tower-cycle for Curve25519.<br/>Efficient purego implementation using formally proven field element operations.                                                                |
-| [monero-base58](https://git.gammaspectra.live/P2Pool/monero-base58) |       ✅&#160;Supported       | Efficient Monero's Base58 encoder/decoder.                                                                                                                                                                                                                                                 |
+| Package                                                             |            Status            | Description                                                                                                                                                                                                                                                                                               |
+|:--------------------------------------------------------------------|:----------------------------:|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [go-p2pool](https://git.gammaspectra.live/P2Pool/go-p2pool)         |       ✅&#160;Supported       | Alternative P2Pool daemon implementation in Go.<br/>Supports full consensus and mining, with similar arguments. Able to run P2Pool seed nodes.                                                                                                                                                            |
+| [go-randomx](https://git.gammaspectra.live/P2Pool/go-randomx)       |       ✅&#160;Supported       | Implements pure Go [RandomX](https://github.com/tevador/RandomX/blob/master/doc/specs.md), with JIT for amd64 and native support for more architectures, and purego implementation for WASM.<br/>Achieves ~90% speed of equivalent full mode under `amd64`, aimed for verification (not mining) purposes. |
+| [edwards25519](https://git.gammaspectra.live/P2Pool/edwards25519)   |       ✅&#160;Supported       | Implements the edwards25519 elliptic curve, with extensions to support Monero operations efficiently.<br/>Builds on top of [FiloSottile/edwards25519](https://github.com/FiloSottile/edwards25519) as a fork.                                                                                             |
+| [helioselene](https://git.gammaspectra.live/P2Pool/helioselene)     | 🛠️&#160;In&#160;Development | Implements [Helio-Selene](https://gist.github.com/tevador/4524c2092178df08996487d4e272b096), Elliptic curve tower-cycle for Curve25519.<br/>Efficient _purego_ implementation using formally proven field element operations.                                                                             |
+| [monero-base58](https://git.gammaspectra.live/P2Pool/monero-base58) |       ✅&#160;Supported       | Efficient Monero's Base58 encoder/decoder.                                                                                                                                                                                                                                                                |
 
 
 ## Donations
@@ -88,11 +91,52 @@ Donate to support this project, its development, and running the Observer Instan
 
 You can also use the OpenAlias `p2pool.observer` directly on the GUI.
 
-### Development notes
+## Development notes
 
-This library supports both [go-RandomX library](https://git.gammaspectra.live/P2Pool/go-randomx) and the [C++ RandomX counterpart](https://github.com/tevador/RandomX).
+### Running tests
 
-By default, the Golang library will be used. You can enable the C++ library if by using CGO and the Go compile tag `enable_randomx_library` and have it installed via the command below:
+#### Initialize test data
+
+Several test data is provided outside the repository tree, but is verified with saved hashes.
+Monero crypto tests and P2Pool crypto and sidechain tests will be downloaded. Requires `curl` and `sha256sum` installed.
+
+> **Note:** This only needs to be run once, or when new test data is added.
+
+```shell
+cd path/to/project/consensus
+./testdata/setup.sh
+```
+
+```shell
+cd path/to/project/consensus
+MONEROD_RPC_URL=http://127.0.0.1:18081
+MONEROD_ZMQ_URL=tcp://127.0.0.1:18083
+go test -v ./...
+```
+
+### Running linters
+
+Install [golangci-lint](https://golangci-lint.run/docs/welcome/install/#local-installation)
+
+The config is available in-tree at [.golangci.yml](.golangci.yml)
+
+```shell
+cd path/to/project/consensus
+golangci-lint run
+```
+
+### Requirements
+
+Go 1.25
+
+By default `CGO_ENABLED=0` is not necessary. You may use the `purego` build flag to disable any assembly or architecture specific optimizations.
+
+This library supports both [go-RandomX library](https://git.gammaspectra.live/P2Pool/go-randomx) and the [C++ RandomX reference counterpart](https://github.com/tevador/RandomX).
+
+By default, the Golang library will be used, without special requirements.
+
+You can enable the C++ library if by using CGO and the Go compile tag `enable_randomx_library` and use `CGO_ENABLED=1`.
+You must have the library installed or done via the command below:
 ```bash
 $ git clone --depth 1 --branch master https://github.com/tevador/RandomX.git /tmp/RandomX && cd /tmp/RandomX && \
     mkdir build && cd build && \
