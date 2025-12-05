@@ -129,11 +129,8 @@ func (p *PaymentProposalV1[T]) CoinbaseOutputFromPartial(hasher *blake2b.Digest,
 
 		// 2. get other parts: k_a, C_a, Ko, a_enc, pid_enc
 		{
-			// 2. C_a = k_a G + a H
-			amountCommitment := makeAmountCommitmentCoinbase[T](p.Amount)
-
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			enote.OneTimeAddress = makeOnetimeAddress(hasher, &spendPub, secretSenderReceiver, amountCommitment)
+			enote.OneTimeAddress = makeOneTimeAddressCoinbase(hasher, secretSenderReceiver, p.Amount, &spendPub)
 		}
 
 		// 3. vt = H_3(s_sr || input_context || Ko)
@@ -203,7 +200,7 @@ func (p *PaymentProposalV1[T]) Output(out *RCTEnoteProposal, firstKeyImage curve
 			out.AmountBlindingFactor = curve25519.PrivateKeyBytes(amountBlindingFactor.Bytes())
 
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			out.Enote.OneTimeAddress = makeOnetimeAddress(&hasher, &spendPub, secretSenderReceiver, out.Enote.AmountCommitment)
+			out.Enote.OneTimeAddress = makeOnetimeAddress(&hasher, secretSenderReceiver, &spendPub, out.Enote.AmountCommitment)
 
 			// 4. a_enc = a XOR m_a
 			amountMask := makeAmountEncryptionMask(&hasher, secretSenderReceiver, out.Enote.OneTimeAddress)

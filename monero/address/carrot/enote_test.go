@@ -27,6 +27,7 @@ var testAmountBlindingFactorPayment = types.MustBytes32FromString[curve25519.Pri
 var testAmountBlindingFactorChange = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f69587a2e01d039758b5dd61999e4d60f226eb7b8027be2ff2656ecbb584d103")
 var testAmountCommitment = types.MustBytes32FromString[curve25519.PublicKeyBytes]("f5df40aeba877e8ccadd9dff363d90ec28efbfd1201573897cd70c61c026edb9")
 
+var testOnetimeAddressCoinbase = types.MustBytes32FromString[curve25519.PublicKeyBytes]("0c4ee83d079ebd77882f894b2e0a43e3d572af9c330871f1dfbcc62f5c64e4ae")
 var testOnetimeAddress = types.MustBytes32FromString[curve25519.PublicKeyBytes]("522347147e41f22ebe155abc32b9def985b2e454045c6edd8921ee4253cd4516")
 
 func TestConverge(t *testing.T) {
@@ -150,11 +151,23 @@ func TestConverge(t *testing.T) {
 		}
 	})
 
+	t.Run("make_carrot_onetime_address_coinbase", func(t *testing.T) {
+		result := makeOneTimeAddressCoinbase(
+			&blake2b.Digest{},
+			testSecretSenderReceiver,
+			testAmount,
+			testSubaddress.SpendPublicKey().PointVarTime(),
+		)
+		if result != testOnetimeAddressCoinbase {
+			t.Fatalf("expected: %s, got: %s", testOnetimeAddressCoinbase.String(), result.String())
+		}
+	})
+
 	t.Run("make_carrot_onetime_address", func(t *testing.T) {
 		result := makeOnetimeAddress(
 			&blake2b.Digest{},
-			testSubaddress.SpendPublicKey().PointVarTime(),
 			testSecretSenderReceiver,
+			testSubaddress.SpendPublicKey().PointVarTime(),
 			testAmountCommitment,
 		)
 		if result != testOnetimeAddress {

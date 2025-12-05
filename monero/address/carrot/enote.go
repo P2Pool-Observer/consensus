@@ -134,38 +134,55 @@ func makeAmountCommitment[T curve25519.PointOperations](amount uint64, amountBli
 	return amountCommitment.AsBytes()
 }
 
-// coinbaseAmountBlindingFactor precompute coinbase blinding factor scalar multiplication
-var coinbaseAmountBlindingFactor = new(curve25519.Point).ScalarBaseMult((&curve25519.PrivateKeyBytes{1}).Scalar())
-
-// makeAmountCommitmentCoinbase Specialized implementation with baked in blinding factor
-// this is faster than makeAmountCommitment, but is specific only for coinbase (as it uses a fixed amount blinding key)
-func makeAmountCommitmentCoinbase[T curve25519.PointOperations](amount uint64) curve25519.PublicKeyBytes {
-	var amountK curve25519.Scalar
-	var amountCommitment curve25519.PublicKey[T]
-	amountCommitment.ScalarMultPrecomputed(ringct.AmountToScalar(&amountK, amount), crypto.GeneratorH)
-	amountCommitment.Add(&amountCommitment, curve25519.FromPoint[T](coinbaseAmountBlindingFactor))
-
-	return amountCommitment.AsBytes()
-}
-
 // makeOnetimeAddress make_carrot_onetime_address
-func makeOnetimeAddress[T curve25519.PointOperations](hasher *blake2b.Digest, spendPub *curve25519.PublicKey[T], secretSenderReceiver types.Hash, amountCommitment curve25519.PublicKeyBytes) curve25519.PublicKeyBytes {
+func makeOnetimeAddress[T curve25519.PointOperations](hasher *blake2b.Digest, secretSenderReceiver types.Hash, spendPub *curve25519.PublicKey[T], amountCommitment curve25519.PublicKeyBytes) curve25519.PublicKeyBytes {
 	var senderExtensionPubkey curve25519.PublicKey[T]
-	// K^o_ext = k^o_g G + k^o_t T
-	// make_carrot_onetime_address_extension_pubkey
-	{
-		var senderExtensionG, senderExtensionT curve25519.Scalar
-		makeCarrotOnetimeAddressExtensionG(hasher, &senderExtensionG, secretSenderReceiver, amountCommitment)
-		makeCarrotOnetimeAddressExtensionT(hasher, &senderExtensionT, secretSenderReceiver, amountCommitment)
-
-		// K^o_ext = k^o_g G + k^o_t T
-		senderExtensionPubkey.DoubleScalarBaseMultPrecomputed(&senderExtensionT, crypto.GeneratorT, &senderExtensionG)
-	}
+	makeOneTimeSenderExtensionPub(hasher, &senderExtensionPubkey, secretSenderReceiver, amountCommitment)
 
 	// Ko = K^j_s + K^o_ext
 	var Ko curve25519.PublicKey[T]
 	Ko.Add(spendPub, &senderExtensionPubkey)
 	return Ko.AsBytes()
+}
+
+// makeOneTimeAddressCoinbase make_carrot_onetime_address_coinbase
+func makeOneTimeAddressCoinbase[T curve25519.PointOperations](hasher *blake2b.Digest, secretSenderReceiver types.Hash, amount uint64, mainSpendPub *curve25519.PublicKey[T]) curve25519.PublicKeyBytes {
+	var senderExtensionPubkey curve25519.PublicKey[T]
+	// K^o_ext = k^o_g G + k^o_t T
+	makeOneTimeSenderExtensionPubCoinbase(hasher, &senderExtensionPubkey, secretSenderReceiver, amount, mainSpendPub.AsBytes())
+
+	// Ko = K^0_s + K^o_ext
+	var Ko curve25519.PublicKey[T]
+	Ko.Add(mainSpendPub, &senderExtensionPubkey)
+	return Ko.AsBytes()
+}
+
+// makeOneTimeSenderExtensionPub make_carrot_sender_extension_pubkey
+func makeOneTimeSenderExtensionPub[T curve25519.PointOperations](hasher *blake2b.Digest, senderExtensionPubOut *curve25519.PublicKey[T], secretSenderReceiver types.Hash, amountCommitment curve25519.PublicKeyBytes) {
+	var senderExtensionG, senderExtensionT curve25519.Scalar
+
+	// k^o_g = H_n("..g..", s^ctx_sr, C_a)
+	makeCarrotSenderExtensionG(hasher, &senderExtensionG, secretSenderReceiver, amountCommitment)
+
+	// k^o_t = H_n("..t..", s^ctx_sr, C_a)
+	makeCarrotSenderExtensionT(hasher, &senderExtensionT, secretSenderReceiver, amountCommitment)
+
+	// K^o_ext = k^o_g G + k^o_t T
+	senderExtensionPubOut.DoubleScalarBaseMultPrecomputed(&senderExtensionT, crypto.GeneratorT, &senderExtensionG)
+}
+
+// makeOneTimeSenderExtensionPubCoinbase make_carrot_sender_extension_pubkey_coinbase
+func makeOneTimeSenderExtensionPubCoinbase[T curve25519.PointOperations](hasher *blake2b.Digest, senderExtensionPubOut *curve25519.PublicKey[T], secretSenderReceiver types.Hash, amount uint64, mainSpendPub curve25519.PublicKeyBytes) {
+	var senderExtensionG, senderExtensionT curve25519.Scalar
+
+	// k^o_g = H_n("..g..", s^ctx_sr, a, K^0_s)
+	makeCarrotSenderExtensionGCoinbase(hasher, &senderExtensionG, secretSenderReceiver, amount, mainSpendPub)
+
+	// k^o_t = H_n("..t..", s^ctx_sr, a, K^0_s)
+	makeCarrotSenderExtensionTCoinbase(hasher, &senderExtensionT, secretSenderReceiver, amount, mainSpendPub)
+
+	// K^o_ext = k^o_g G + k^o_t T
+	senderExtensionPubOut.DoubleScalarBaseMultPrecomputed(&senderExtensionT, crypto.GeneratorT, &senderExtensionG)
 }
 
 // makeViewTag make_carrot_view_tag
@@ -222,8 +239,8 @@ func makeJanusAnchorSpecial(hasher *blake2b.Digest, ephemeralPubKey curve25519.M
 	return out
 }
 
-// makeCarrotOnetimeAddressExtensionG make_carrot_onetime_address_extension_g
-func makeCarrotOnetimeAddressExtensionG(hasher *blake2b.Digest, extensionOut *curve25519.Scalar, secretSenderReceiver types.Hash, amountCommitment curve25519.PublicKeyBytes) {
+// makeCarrotSenderExtensionG make_carrot_sender_extension_g
+func makeCarrotSenderExtensionG(hasher *blake2b.Digest, extensionOut *curve25519.Scalar, secretSenderReceiver types.Hash, amountCommitment curve25519.PublicKeyBytes) {
 	// k^o_g = H_n("..g..", s^ctx_sr, C_a)
 	ScalarTranscript(
 		extensionOut, hasher, secretSenderReceiver[:],
@@ -231,11 +248,33 @@ func makeCarrotOnetimeAddressExtensionG(hasher *blake2b.Digest, extensionOut *cu
 	)
 }
 
-// makeCarrotOnetimeAddressExtensionT make_carrot_onetime_address_extension_t
-func makeCarrotOnetimeAddressExtensionT(hasher *blake2b.Digest, extensionOut *curve25519.Scalar, secretSenderReceiver types.Hash, amountCommitment curve25519.PublicKeyBytes) {
+// makeCarrotSenderExtensionT make_carrot_sender_extension_t
+func makeCarrotSenderExtensionT(hasher *blake2b.Digest, extensionOut *curve25519.Scalar, secretSenderReceiver types.Hash, amountCommitment curve25519.PublicKeyBytes) {
 	// k^o_t = H_n("..t..", s^ctx_sr, C_a)
 	ScalarTranscript(
 		extensionOut, hasher, secretSenderReceiver[:],
 		[]byte(DomainSeparatorOneTimeExtensionT), amountCommitment[:],
+	)
+}
+
+// makeCarrotSenderExtensionGCoinbase make_carrot_sender_extension_g_coinbase
+func makeCarrotSenderExtensionGCoinbase(hasher *blake2b.Digest, extensionOut *curve25519.Scalar, secretSenderReceiver types.Hash, amount uint64, mainSpendPub curve25519.PublicKeyBytes) {
+	// k^o_g = H_n("..g..", s^ctx_sr, a, K^0_s)
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], amount)
+	ScalarTranscript(
+		extensionOut, hasher, secretSenderReceiver[:],
+		[]byte(DomainSeparatorOneTimeExtensionGCoinbase), buf[:], mainSpendPub[:],
+	)
+}
+
+// makeCarrotSenderExtensionTCoinbase make_carrot_sender_extension_t_coinbase
+func makeCarrotSenderExtensionTCoinbase(hasher *blake2b.Digest, extensionOut *curve25519.Scalar, secretSenderReceiver types.Hash, amount uint64, mainSpendPub curve25519.PublicKeyBytes) {
+	// k^o_t = H_n("..t..", s^ctx_sr, a, K^0_s)
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], amount)
+	ScalarTranscript(
+		extensionOut, hasher, secretSenderReceiver[:],
+		[]byte(DomainSeparatorOneTimeExtensionTCoinbase), buf[:], mainSpendPub[:],
 	)
 }

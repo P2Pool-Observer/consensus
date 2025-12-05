@@ -2,16 +2,18 @@ package carrot
 
 // Carrot addressing protocol domain separators
 const (
-	DomainSeparatorAmountBlindingFactor    = "Carrot commitment mask"
-	DomainSeparatorOneTimeExtensionG       = "Carrot key extension G"
-	DomainSeparatorOneTimeExtensionT       = "Carrot key extension T"
-	DomainSeparatorEncryptionMaskAnchor    = "Carrot encryption mask anchor"
-	DomainSeparatorEncryptionMaskAmount    = "Carrot encryption mask a"
-	DomainSeparatorEncryptionMaskPaymentId = "Carrot encryption mask pid"
-	DomainSeparatorJanusAnchorSpecial      = "Carrot janus anchor special"
-	DomainSeparatorEphemeralPrivateKey     = "Carrot sending key normal"
-	DomainSeparatorViewTag                 = "Carrot view tag"
-	DomainSeparatorSenderReceiverSecret    = "Carrot sender-receiver secret"
+	DomainSeparatorAmountBlindingFactor      = "Carrot commitment mask"
+	DomainSeparatorOneTimeExtensionGCoinbase = "Carrot coinbase extension G"
+	DomainSeparatorOneTimeExtensionTCoinbase = "Carrot coinbase extension T"
+	DomainSeparatorOneTimeExtensionG         = "Carrot key extension G"
+	DomainSeparatorOneTimeExtensionT         = "Carrot key extension T"
+	DomainSeparatorEncryptionMaskAnchor      = "Carrot encryption mask anchor"
+	DomainSeparatorEncryptionMaskAmount      = "Carrot encryption mask a"
+	DomainSeparatorEncryptionMaskPaymentId   = "Carrot encryption mask pid"
+	DomainSeparatorJanusAnchorSpecial        = "Carrot janus anchor special"
+	DomainSeparatorEphemeralPrivateKey       = "Carrot sending key normal"
+	DomainSeparatorViewTag                   = "Carrot view tag"
+	DomainSeparatorSenderReceiverSecret      = "Carrot sender-receiver secret"
 
 	DomainSeparatorInputContextCoinbase = 'C'
 	DomainSeparatorInputContextRingCT   = 'R'

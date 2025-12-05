@@ -15,10 +15,10 @@ import (
 
 func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 	expectedEnote := CoinbaseEnoteV1{
-		OneTimeAddress:  types.MustBytes32FromString[curve25519.PublicKeyBytes]("504e8d9594c9ec03c6e70fd4c044b160ed945a8be839bd9953343d655ec7c993"),
+		OneTimeAddress:  types.MustBytes32FromString[curve25519.PublicKeyBytes]("8519e0b836e249a2870b089402ee2bf8549cb91d237dee7768a3bfe1864151f2"),
 		Amount:          testAmount,
-		EncryptedAnchor: types.MakeFixed([monero.JanusAnchorSize]byte(hex.MustDecodeString("e9d0df7b0b36c711d3b04ec8d1491a92"))),
-		ViewTag:         types.MakeFixed([monero.CarrotViewTagSize]byte(hex.MustDecodeString("95a125"))),
+		EncryptedAnchor: types.MakeFixed([monero.JanusAnchorSize]byte(hex.MustDecodeString("a0bab247eab215b31cb61d143c72bbe1"))),
+		ViewTag:         types.MakeFixed([monero.CarrotViewTagSize]byte(hex.MustDecodeString("ecd398"))),
 		EphemeralPubKey: types.MustBytes32FromString[curve25519.MontgomeryPoint]("f120a52046feb1e4fac770e97eb15568f8a86b67c8478e8816086dccdb6dcc2e"),
 		BlockIndex:      123456,
 	}

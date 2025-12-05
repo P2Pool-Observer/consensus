@@ -33,7 +33,7 @@ var ErrJanusProtectionFailed = errors.New("janus protection check failed")
 var ErrMismatchedAmountCommitment = errors.New("mismatched amount commitment")
 
 // TryScanEnoteChecked try_scan_carrot_coinbase_enote_checked
-func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, senderReceiverUnctx curve25519.MontgomeryPoint, mainAddressSpendPub curve25519.PublicKeyBytes) error {
+func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, senderReceiverUnctx curve25519.MontgomeryPoint, mainAddressSpendPubs ...curve25519.PublicKeyBytes) error {
 	var hasher blake2b.Digest
 
 	// if vt' != vt, then FAIL
@@ -46,22 +46,44 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 	// s^ctx_sr = H_32(s_sr, D_e, input_context)
 	senderReceiverSecret := makeSenderReceiverSecret(&hasher, senderReceiverUnctx, enote.EphemeralPubKey, inputContext)
 
-	amountCommitment := makeAmountCommitmentCoinbase[curve25519.VarTimeOperations](enote.Amount)
-
 	var oneTimeAddress curve25519.VarTimePublicKey
 	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 		return ErrInvalidOneTimeAddress
 	}
+	var extensionG, extensionT curve25519.Scalar
+	var nominalSpendPub curve25519.PublicKeyBytes
 
-	scanDestInfo(&hasher, scan, &oneTimeAddress, amountCommitment, enote.EncryptedAnchor.Value(), nil, senderReceiverSecret)
+	var recoveredMainPub bool
+	for _, mainAddressSpendPub := range mainAddressSpendPubs {
+		// k^o_g = H_n("..g..", s^ctx_sr, C_a)
+		makeCarrotSenderExtensionGCoinbase(&hasher, &extensionG, senderReceiverSecret, enote.Amount, mainAddressSpendPub)
+		// k^o_t = H_n("..t..", s^ctx_sr, C_a)
+		makeCarrotSenderExtensionTCoinbase(&hasher, &extensionT, senderReceiverSecret, enote.Amount, mainAddressSpendPub)
 
-	if mainAddressSpendPub != scan.SpendPub {
+		var senderExtensionPubkey curve25519.VarTimePublicKey
+		// K^j_s = Ko - K^o_ext = Ko - (k^o_g G + k^o_t T)
+		senderExtensionPubkey.DoubleScalarBaseMultPrecomputed(&extensionT, crypto.GeneratorT, &extensionG)
+
+		// K^j_s = Ko - K^o_ext
+		nominalSpendPub = new(curve25519.VarTimePublicKey).Subtract(&oneTimeAddress, &senderExtensionPubkey).AsBytes()
+
+		if nominalSpendPub == mainAddressSpendPub {
+			recoveredMainPub = true
+			break
+		}
+	}
+
+	if !recoveredMainPub {
 		return ErrMismatchedMainAddress
 	}
 
-	if !verifyNormalJanusProtection[curve25519.VarTimeOperations](&hasher, scan.Randomness, inputContext, scan.SpendPub, false, [monero.PaymentIdSize]byte{}, enote.EphemeralPubKey) {
-		return ErrJanusProtectionFailed
-	}
+	scan.SpendPub = nominalSpendPub
+	scan.ExtensionG = extensionG
+	scan.ExtensionT = extensionT
+
+	// anchor = anchor_enc XOR m_anchor
+	mask := makeAnchorEncryptionMask(&hasher, senderReceiverSecret, oneTimeAddress.AsBytes())
+	subtle.XORBytes(scan.Randomness[:], enote.EncryptedAnchor.Slice(), mask[:])
 
 	scan.Amount = enote.Amount
 	scan.Type = EnoteTypePayment
@@ -90,7 +112,7 @@ func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, sen
 	}
 
 	// TODO: payment id
-	scanDestInfo(&hasher, scan, &oneTimeAddress, enote.AmountCommitment, enote.EncryptedAnchor, nil, senderReceiverSecret)
+	scanNonCoinbaseInfo(&hasher, scan, &oneTimeAddress, enote.AmountCommitment, enote.EncryptedAnchor, nil, senderReceiverSecret)
 
 	var amountBlindingKey curve25519.Scalar
 	scan.Amount, scan.Type, err = tryGetCarrotAmount[curve25519.VarTimeOperations](&hasher, &amountBlindingKey, senderReceiverSecret, enote.EncryptedAmount, enote.OneTimeAddress, scan.SpendPub, enote.AmountCommitment)
@@ -107,29 +129,34 @@ func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, sen
 	return nil
 }
 
-// scanDestInfo scan_carrot_dest_info
-func scanDestInfo[T curve25519.PointOperations](hasher *blake2b.Digest,
+// scanNonCoinbaseInfo scan_non_coinbase_info
+func scanNonCoinbaseInfo[T curve25519.PointOperations](hasher *blake2b.Digest,
 	scan *ScanV1,
 	oneTimeAddress *curve25519.PublicKey[T], amountCommitment curve25519.PublicKeyBytes,
 	encryptedJanusAnchor [monero.JanusAnchorSize]byte, encryptedPaymentId *[monero.PaymentIdSize]byte, senderReceiverSecret types.Hash) {
-	var senderExtensionPubkey curve25519.PublicKey[T]
-	// K^o_ext = k^o_g G + k^o_t T
-	// make_carrot_onetime_address_extension_pubkey
+
+	// K^j_s = Ko - K^o_ext = Ko - (k^o_g G + k^o_t T)
 	{
-		makeCarrotOnetimeAddressExtensionG(hasher, &scan.ExtensionG, senderReceiverSecret, amountCommitment)
-		makeCarrotOnetimeAddressExtensionT(hasher, &scan.ExtensionT, senderReceiverSecret, amountCommitment)
+		var senderExtensionPubkey curve25519.PublicKey[T]
+		// k^o_g = H_n("..g..", s^ctx_sr, C_a)
+		makeCarrotSenderExtensionG(hasher, &scan.ExtensionG, senderReceiverSecret, amountCommitment)
+
+		// k^o_t = H_n("..t..", s^ctx_sr, C_a)
+		makeCarrotSenderExtensionT(hasher, &scan.ExtensionT, senderReceiverSecret, amountCommitment)
 
 		// K^o_ext = k^o_g G + k^o_t T
 		senderExtensionPubkey.DoubleScalarBaseMultPrecomputed(&scan.ExtensionT, crypto.GeneratorT, &scan.ExtensionG)
+
+		// K^j_s = Ko - K^o_ext
+		scan.SpendPub = new(curve25519.PublicKey[T]).Subtract(oneTimeAddress, &senderExtensionPubkey).AsBytes()
 	}
 
-	// K^j_s = Ko - K^o_ext = Ko - (k^o_g G + k^o_t T)
-	scan.SpendPub = new(curve25519.PublicKey[T]).Subtract(oneTimeAddress, &senderExtensionPubkey).AsBytes()
-
 	if encryptedPaymentId != nil {
-		// 5. pid_enc = pid XOR m_pid
+		// pid = pid_enc XOR m_pid, if applicable
 		pidMask := makePaymentIdEncryptionMask(hasher, senderReceiverSecret, oneTimeAddress.AsBytes())
 		subtle.XORBytes(scan.PaymentId[:], encryptedPaymentId[:], pidMask[:])
+	} else {
+		clear(scan.PaymentId[:])
 	}
 
 	// anchor = anchor_enc XOR m_anchor
