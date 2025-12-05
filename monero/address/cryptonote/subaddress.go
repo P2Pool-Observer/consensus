@@ -45,7 +45,8 @@ func GetSubaddressSpendPub[T curve25519.PointOperations](spendPub *curve25519.Pu
 	return D.AsBytes()
 }
 
-func GetSubaddressNoAllocate[T curve25519.PointOperations](baseNetwork uint8, spendPub *curve25519.PublicKey[T], viewKeyScalar *curve25519.Scalar, viewKeyBytes curve25519.PrivateKeyBytes, index address.SubaddressIndex) *address.Address {
+func GetSubaddressDC[T curve25519.PointOperations](D, C *curve25519.PublicKey[T], spendPub *curve25519.PublicKey[T], viewKeyScalar *curve25519.Scalar, viewKeyBytes curve25519.PrivateKeyBytes, index address.SubaddressIndex) {
+	var extension curve25519.PublicKey[T]
 	// special case
 	if index == address.ZeroSubaddressIndex {
 		panic("unreachable")
@@ -53,8 +54,6 @@ func GetSubaddressNoAllocate[T curve25519.PointOperations](baseNetwork uint8, sp
 
 	var extensionScalar curve25519.Scalar
 	SubaddressExtension(&extensionScalar, index, viewKeyBytes)
-
-	var extension, D, C curve25519.PublicKey[T]
 
 	// spend pub
 	// M = m*G
@@ -64,9 +63,21 @@ func GetSubaddressNoAllocate[T curve25519.PointOperations](baseNetwork uint8, sp
 	D.Add(spendPub, &extension)
 
 	// view pub
-	C.ScalarMult(viewKeyScalar, &D)
+	C.ScalarMult(viewKeyScalar, D)
 
-	switch baseNetwork {
+}
+
+func GetSubaddress(a *address.Address, viewKey *curve25519.Scalar, index address.SubaddressIndex) *address.Address {
+	if index == address.ZeroSubaddressIndex {
+		return a
+	}
+	var D, C, spendPub curve25519.VarTimePublicKey
+	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+		return nil
+	}
+	GetSubaddressDC(&D, &C, &spendPub, viewKey, curve25519.PrivateKeyBytes(viewKey.Bytes()), index)
+
+	switch a.BaseNetwork() {
 	case monero.MainNetwork:
 		return address.FromRawAddress(monero.SubAddressMainNetwork, D.AsBytes(), C.AsBytes())
 	case monero.TestNetwork:
@@ -76,18 +87,6 @@ func GetSubaddressNoAllocate[T curve25519.PointOperations](baseNetwork uint8, sp
 	default:
 		return nil
 	}
-}
-
-func GetSubaddress(a *address.Address, viewKey *curve25519.Scalar, index address.SubaddressIndex) *address.Address {
-	if index == address.ZeroSubaddressIndex {
-		return a
-	}
-	var spendPub curve25519.VarTimePublicKey
-	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
-		return nil
-	}
-
-	return GetSubaddressNoAllocate(a.BaseNetwork(), &spendPub, viewKey, curve25519.PrivateKeyBytes(viewKey.Bytes()), index)
 }
 
 func GetSubaddressFakeAddress(sa address.InterfaceSubaddress, viewKey *curve25519.Scalar) address.Interface {

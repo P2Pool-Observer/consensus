@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/cryptonote"
@@ -177,7 +178,20 @@ func (w *ViewWallet[T]) Get(index address.SubaddressIndex) *address.Address {
 	if index.IsZero() {
 		return w.primaryAddress
 	}
-	return cryptonote.GetSubaddressNoAllocate(w.primaryAddress.BaseNetwork(), &w.accountSpendPub, &w.viewKeyScalar, w.viewKey, index)
+
+	var D, C curve25519.PublicKey[T]
+	cryptonote.GetSubaddressDC(&D, &C, &w.accountSpendPub, &w.viewKeyScalar, w.viewKey, index)
+
+	switch w.primaryAddress.BaseNetwork() {
+	case monero.MainNetwork:
+		return address.FromRawAddress(monero.SubAddressMainNetwork, D.AsBytes(), C.AsBytes())
+	case monero.TestNetwork:
+		return address.FromRawAddress(monero.SubAddressTestNetwork, D.AsBytes(), C.AsBytes())
+	case monero.StageNetwork:
+		return address.FromRawAddress(monero.SubAddressStageNetwork, D.AsBytes(), C.AsBytes())
+	default:
+		return nil
+	}
 }
 
 func (w *ViewWallet[T]) ViewKey() *curve25519.Scalar {
