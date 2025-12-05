@@ -228,6 +228,10 @@ func (k *PublicKeyBytes) Point() *ConstantTimePublicKey {
 	return p
 }
 
+func (k *PublicKeyBytes) PointMontgomery() *MontgomeryPoint {
+	return (*MontgomeryPoint)(k)
+}
+
 func (k *PublicKeyBytes) PointVarTime() *VarTimePublicKey {
 	p, _ := new(VarTimePublicKey).SetBytes(k[:])
 	return p

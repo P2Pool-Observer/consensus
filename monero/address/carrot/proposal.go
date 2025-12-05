@@ -95,7 +95,7 @@ func (p *PaymentProposalV1[T]) OutputPartial(hasher *blake2b.Digest, inputContex
 	}
 
 	// 4. build the output enote address pieces
-	secretSenderReceiver = makeSenderReceiverSecret(hasher, senderReceiverUnctx, ephemeralPubkey, inputContext[:])
+	secretSenderReceiver = MakeSenderReceiverSecret(hasher, senderReceiverUnctx, ephemeralPubkey, inputContext[:])
 
 	return ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, nil
 }
@@ -200,7 +200,7 @@ func (p *PaymentProposalV1[T]) Output(out *RCTEnoteProposal, firstKeyImage curve
 			out.AmountBlindingFactor = curve25519.PrivateKeyBytes(amountBlindingFactor.Bytes())
 
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			out.Enote.OneTimeAddress = makeOnetimeAddress(&hasher, secretSenderReceiver, &spendPub, out.Enote.AmountCommitment)
+			out.Enote.OneTimeAddress = makeOneTimeAddress(&hasher, secretSenderReceiver, &spendPub, out.Enote.AmountCommitment)
 
 			// 4. a_enc = a XOR m_a
 			amountMask := makeAmountEncryptionMask(&hasher, secretSenderReceiver, out.Enote.OneTimeAddress)

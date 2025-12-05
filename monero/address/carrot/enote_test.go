@@ -100,7 +100,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_sender_receiver_secret", func(t *testing.T) {
-		result := makeSenderReceiverSecret(
+		result := MakeSenderReceiverSecret(
 			&blake2b.Digest{},
 			testSenderReceiverUnctx,
 			testEphemeralPubSubaddress,
@@ -164,7 +164,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_onetime_address", func(t *testing.T) {
-		result := makeOnetimeAddress(
+		result := makeOneTimeAddress(
 			&blake2b.Digest{},
 			testSecretSenderReceiver,
 			testSubaddress.SpendPublicKey().PointVarTime(),

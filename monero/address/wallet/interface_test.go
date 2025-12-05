@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
@@ -111,6 +112,47 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
 				t.Fatalf("cannot spend output")
 			}
+
+			if cw, ok := wallet.(*CarrotSpendWallet[T]); ok {
+				// check PQ turnstile
+				var migrationTxSignableHash types.Hash
+				_, _ = rand.Reader.Read(migrationTxSignableHash[:])
+
+				sig := carrot.CreateSignatureT[T](migrationTxSignableHash, cw.ProveSpendKey(), rand.Reader)
+
+				var senderReceiverSecret types.Hash
+
+				{
+					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey(), &enote.EphemeralPubKey)
+
+					inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
+
+					senderReceiverSecret = carrot.MakeSenderReceiverSecret(&blake2b.Digest{}, senderReceiverUnctx, enote.EphemeralPubKey, inputContext[:])
+				}
+
+				pqt := carrot.PQTurnstile[T]{
+					FetchOutput: func(id types.Hash, outputIndex int) (pub curve25519.PublicKeyBytes, commitment curve25519.PublicKeyBytes, err error) {
+						return enote.OneTimeAddress, ringct.CalculateCommitmentCoinbase(new(curve25519.PublicKey[T]), enote.Amount).AsBytes(), nil
+					},
+					IsKeyImageSpent: func(ki curve25519.PublicKeyBytes) bool {
+						return false
+					},
+				}
+
+				if err := pqt.VerifyCoinbase(
+					types.ZeroHash, 0,
+					cw.PartialSpendPub(),
+					cw.GenerateImagePreimageSecret(),
+					senderReceiverSecret,
+					proposal.Amount,
+					migrationTxSignableHash,
+					sig,
+				); err != nil {
+					t.Fatalf("PQ Turnstile: cannot verify: %s", err)
+				} else {
+					t.Log("PQ Turnstile: OK")
+				}
+			}
 		})
 	})
 }
@@ -215,6 +257,53 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 			// check spendability
 			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
 				t.Fatalf("cannot spend output")
+			}
+
+			if cw, ok := wallet.(*CarrotSpendWallet[T]); ok {
+				// check PQ turnstile
+				var migrationTxSignableHash types.Hash
+				_, _ = rand.Reader.Read(migrationTxSignableHash[:])
+
+				sig := carrot.CreateSignatureT[T](migrationTxSignableHash, cw.ProveSpendKey(), rand.Reader)
+
+				var senderReceiverSecret types.Hash
+
+				{
+					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey(), &enote.Enote.EphemeralPubKey)
+
+					inputContext := carrot.MakeInputContext(firstKeyImage)
+
+					senderReceiverSecret = carrot.MakeSenderReceiverSecret(&blake2b.Digest{}, senderReceiverUnctx, enote.Enote.EphemeralPubKey, inputContext[:])
+				}
+
+				addressIndexPreimage1 := carrot.MakeAddressIndexPreimage1(&blake2b.Digest{}, cw.ViewWallet().GenerateAddressSecret(), ix)
+				addressIndexPreimage2 := carrot.MakeAddressIndexPreimage2(&blake2b.Digest{}, addressIndexPreimage1, cw.ViewWallet().AccountSpendPub().AsBytes(), cw.ViewWallet().AccountViewPub().AsBytes(), ix)
+
+				pqt := carrot.PQTurnstile[T]{
+					FetchOutput: func(id types.Hash, outputIndex int) (pub curve25519.PublicKeyBytes, commitment curve25519.PublicKeyBytes, err error) {
+						return enote.Enote.OneTimeAddress, enote.Enote.AmountCommitment, nil
+					},
+					IsKeyImageSpent: func(ki curve25519.PublicKeyBytes) bool {
+						return false
+					},
+				}
+
+				if err := pqt.Verify(
+					types.ZeroHash, 0,
+					cw.PartialSpendPub(),
+					cw.GenerateImagePreimageSecret(),
+					addr.IsSubaddress(),
+					addressIndexPreimage2,
+					senderReceiverSecret,
+					proposal.Amount,
+					carrot.EnoteTypePayment,
+					migrationTxSignableHash,
+					sig,
+				); err != nil {
+					t.Fatalf("PQ Turnstile: cannot verify: %s", err)
+				} else {
+					t.Log("PQ Turnstile: OK")
+				}
 			}
 		})
 	})

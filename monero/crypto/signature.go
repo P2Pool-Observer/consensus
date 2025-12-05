@@ -48,10 +48,20 @@ func (s Signature[T]) Bytes() []byte {
 	return buf[:]
 }
 
-// Verify checks a Schnorr Signature using H = keccak
+// Verify checks a Schnorr Signature using H = keccak, base = G
 func (s Signature[T]) Verify(handler SignatureVerificationHandler[T], publicKey *curve25519.PublicKey[T]) (ok bool) {
+	return s.VerifyPrecomputed(handler, publicKey, GeneratorG)
+}
+
+// VerifyPrecomputed checks a Schnorr Signature using H = keccak, and specified base
+func (s Signature[T]) VerifyPrecomputed(handler SignatureVerificationHandler[T], publicKey *curve25519.PublicKey[T], base *curve25519.Generator) (ok bool) {
+	// is zero
+	if s.C.Equal(new(curve25519.Scalar)) == 1 {
+		return false
+	}
+
 	//s = C * k, R * G
-	sp := new(curve25519.PublicKey[T]).DoubleScalarBaseMult(&s.C, publicKey, &s.R)
+	sp := new(curve25519.PublicKey[T]).DoubleScalarMultPrecomputedB(&s.C, publicKey, &s.R, base)
 	if sp.P().Equal(infinityPoint) == 1 {
 		return false
 	}

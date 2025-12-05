@@ -106,8 +106,8 @@ func makeUncontextualizedSharedKeySenderVarTime[T curve25519.PointOperations](ep
 	return tmp.ScalarMult(ephemeralPrivKey, viewPub).Montgomery()
 }
 
-// makeSenderReceiverSecret make_carrot_sender_receiver_secret
-func makeSenderReceiverSecret(hasher *blake2b.Digest, senderReceiverUnctx, ephemeralPubKey curve25519.MontgomeryPoint, inputContext []byte) (out types.Hash) {
+// MakeSenderReceiverSecret make_carrot_sender_receiver_secret
+func MakeSenderReceiverSecret(hasher *blake2b.Digest, senderReceiverUnctx, ephemeralPubKey curve25519.MontgomeryPoint, inputContext []byte) (out types.Hash) {
 	// 1. s^ctx_sr = H_32(s_sr, D_e, input_context)
 	HashedTranscript(
 		out[:], hasher, senderReceiverUnctx[:],
@@ -134,8 +134,8 @@ func makeAmountCommitment[T curve25519.PointOperations](amount uint64, amountBli
 	return amountCommitment.AsBytes()
 }
 
-// makeOnetimeAddress make_carrot_onetime_address
-func makeOnetimeAddress[T curve25519.PointOperations](hasher *blake2b.Digest, secretSenderReceiver types.Hash, spendPub *curve25519.PublicKey[T], amountCommitment curve25519.PublicKeyBytes) curve25519.PublicKeyBytes {
+// makeOneTimeAddress make_carrot_onetime_address
+func makeOneTimeAddress[T curve25519.PointOperations](hasher *blake2b.Digest, secretSenderReceiver types.Hash, spendPub *curve25519.PublicKey[T], amountCommitment curve25519.PublicKeyBytes) curve25519.PublicKeyBytes {
 	var senderExtensionPubkey curve25519.PublicKey[T]
 	makeOneTimeSenderExtensionPub(hasher, &senderExtensionPubkey, secretSenderReceiver, amountCommitment)
 

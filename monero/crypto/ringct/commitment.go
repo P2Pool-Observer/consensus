@@ -25,6 +25,17 @@ func CalculateCommitment[T curve25519.PointOperations](out *curve25519.PublicKey
 	return out
 }
 
+// coinbaseAmountBlindingFactor precompute coinbase blinding factor scalar multiplication
+var coinbaseAmountBlindingFactor = new(curve25519.Point).ScalarBaseMult((&curve25519.PrivateKeyBytes{1}).Scalar())
+
+// CalculateCommitmentCoinbase Specialized implementation with baked in blinding factor
+// this is faster than CalculateCommitment, but is specific only for coinbase (as it uses a fixed amount blinding key)
+func CalculateCommitmentCoinbase[T curve25519.PointOperations](out *curve25519.PublicKey[T], amount uint64) *curve25519.PublicKey[T] {
+	var amountK curve25519.Scalar
+	out.ScalarMultPrecomputed(AmountToScalar(&amountK, amount), crypto.GeneratorH)
+	return out.Add(out, curve25519.FromPoint[T](coinbaseAmountBlindingFactor))
+}
+
 // Commit generates C =aG + bH from b, a is mask
 func Commit[T curve25519.PointOperations](dst *curve25519.PublicKey[T], amount uint64, mask *curve25519.Scalar) {
 

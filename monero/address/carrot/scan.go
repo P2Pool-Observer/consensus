@@ -44,7 +44,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 	}
 
 	// s^ctx_sr = H_32(s_sr, D_e, input_context)
-	senderReceiverSecret := makeSenderReceiverSecret(&hasher, senderReceiverUnctx, enote.EphemeralPubKey, inputContext)
+	senderReceiverSecret := MakeSenderReceiverSecret(&hasher, senderReceiverUnctx, enote.EphemeralPubKey, inputContext)
 
 	var oneTimeAddress curve25519.VarTimePublicKey
 	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
@@ -104,7 +104,7 @@ func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, sen
 	}
 
 	// s^ctx_sr = H_32(s_sr, D_e, input_context)
-	senderReceiverSecret := makeSenderReceiverSecret(&hasher, senderReceiverUnctx, enote.EphemeralPubKey, inputContext)
+	senderReceiverSecret := MakeSenderReceiverSecret(&hasher, senderReceiverUnctx, enote.EphemeralPubKey, inputContext)
 
 	var oneTimeAddress curve25519.VarTimePublicKey
 	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {

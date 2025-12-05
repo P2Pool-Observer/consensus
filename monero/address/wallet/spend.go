@@ -13,8 +13,10 @@ import (
 )
 
 type CarrotSpendWallet[T curve25519.PointOperations] struct {
-	vw               CarrotViewWallet[T]
-	proveSpendScalar curve25519.Scalar
+	vw                          CarrotViewWallet[T]
+	generateImagePreimageSecret types.Hash
+	partialSpendPub             curve25519.PublicKey[T]
+	proveSpendScalar            curve25519.Scalar
 }
 
 func (w *CarrotSpendWallet[T]) Get(ix address.SubaddressIndex) *address.Address {
@@ -35,6 +37,18 @@ func (w *CarrotSpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyByt
 
 func (w *CarrotSpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	return w.vw.MatchCarrotCoinbase(blockIndex, outputs, txPubs...)
+}
+
+func (w *CarrotSpendWallet[T]) ProveSpendKey() *curve25519.Scalar {
+	return &w.proveSpendScalar
+}
+
+func (w *CarrotSpendWallet[T]) PartialSpendPub() *curve25519.PublicKey[T] {
+	return &w.partialSpendPub
+}
+
+func (w *CarrotSpendWallet[T]) GenerateImagePreimageSecret() types.Hash {
+	return w.generateImagePreimageSecret
 }
 
 func (w *CarrotSpendWallet[T]) ViewWallet() *CarrotViewWallet[T] {
@@ -88,9 +102,12 @@ func NewCarrotSpendWalletFromMasterSecret[T curve25519.PointOperations](masterSe
 	if err != nil {
 		return nil, err
 	}
+
 	return &CarrotSpendWallet[T]{
-		vw:               *vw,
-		proveSpendScalar: proveSpend,
+		vw:                          *vw,
+		generateImagePreimageSecret: carrot.MakeGenerateImagePreimageSecret(&hasher, viewBalanceSecret),
+		partialSpendPub:             partialSpendPub,
+		proveSpendScalar:            proveSpend,
 	}, nil
 }
 
@@ -121,6 +138,10 @@ func (w *SpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transact
 
 func (w *SpendWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, txPub curve25519.PublicKeyBytes, sharedData *curve25519.Scalar, addressIndex address.SubaddressIndex) {
 	return w.vw.Match(outputs, txPubs...)
+}
+
+func (w *SpendWallet[T]) SpendKey() *curve25519.Scalar {
+	return &w.spendKeyScalar
 }
 
 func (w *SpendWallet[T]) ViewWallet() *ViewWallet[T] {
