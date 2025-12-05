@@ -11,6 +11,9 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
+// PQTurnstile Implements Post-quantum Turnstile Design for Carrot/FCMP++ Enotes
+//
+// See https://gist.github.com/jeffro256/146bfd5306ea3a8a2a0ea4d660cd2243
 type PQTurnstile[T curve25519.PointOperations] struct {
 	FetchOutput     func(id types.Hash, outputIndex int) (pub curve25519.PublicKeyBytes, commitment curve25519.PublicKeyBytes, err error)
 	IsKeyImageSpent func(ki curve25519.PublicKeyBytes) bool
