@@ -17,7 +17,7 @@ func TestGetSubaddress(t *testing.T) {
 	sa := GetSubaddress(testGeneralFundAddr, testGeneralFundViewKey.Scalar(), address.SubaddressIndex{Offset: 70})
 
 	if sa == nil {
-		t.Fatal("GetMergeMineExtraSubaddress returned nil")
+		t.Fatal("GetSubaddress returned nil")
 	}
 
 	if !sa.IsSubaddress() {
@@ -30,5 +30,14 @@ func TestGetSubaddress(t *testing.T) {
 		t.Logf("need spend %s", testGeneralFundDonationAddr.SpendPublicKey().String())
 		t.Logf("need view %s", testGeneralFundDonationAddr.ViewPublicKey().String())
 		t.Fatalf("expected %s, got %s", string(testGeneralFundDonationAddr.ToBase58()), string(sa.ToBase58()))
+	}
+}
+
+func TestGetSubaddressFakeAddress(t *testing.T) {
+
+	sa := GetSubaddressFakeAddress(testGeneralFundDonationAddr, testGeneralFundViewKey.Scalar())
+
+	if sa == nil {
+		t.Fatal("GetSubaddressFakeAddress returned nil")
 	}
 }

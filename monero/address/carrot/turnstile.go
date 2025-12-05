@@ -209,7 +209,7 @@ type s_comm_T struct {
 }
 
 func (comm s_comm_T) Bytes() []byte {
-	buf := make([]byte, 0, types.HashSize+curve25519.PublicKeySize)
+	buf := make([]byte, 0, types.HashSize+curve25519.PublicKeySize*2)
 	buf = append(buf, comm.Hash[:]...)
 	buf = append(buf, comm.Key[:]...)
 	buf = append(buf, comm.Comm[:]...)
