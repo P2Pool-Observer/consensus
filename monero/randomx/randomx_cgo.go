@@ -32,7 +32,7 @@ func (h *hasherCollection) Hash(key []byte, input []byte) (types.Hash, error) {
 		h.lock.RLock()
 		defer h.lock.RUnlock()
 		for _, c := range h.cache {
-			if len(c.key) > 0 && bytes.Compare(c.key, key) == 0 {
+			if len(c.key) > 0 && bytes.Equal(c.key, key) {
 				return c.Hash(input), nil
 			}
 		}
@@ -111,6 +111,7 @@ func ConsensusHash(buf []byte) types.Hash {
 	const RandomxArgonMemory = 262144
 	n := RandomxArgonMemory * 1024
 
+	// #nosec G103
 	scratchpad := unsafe.Slice((*byte)(randomx.GetCacheMemory(cache)), n)
 	return consensusHash(scratchpad)
 }
@@ -157,7 +158,7 @@ func (h *hasherState) Init(key []byte) (err error) {
 	copy(h.key, key)
 
 	utils.Logf("RandomX", "Initializing to seed %s", fasthex.EncodeToString(h.key))
-	if h.dataset.GoInit(h.key, uint32(utils.GOMAXPROCS)) == false {
+	if !h.dataset.GoInit(h.key, uint32(utils.GOMAXPROCS)) {
 		return errors.New("could not initialize dataset")
 	}
 	if h.vm != nil {

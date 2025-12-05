@@ -11,6 +11,8 @@ steps:
     image: golangci/golangci-lint:v2.6.2
     commands:
       - golangci-lint run
+      # run optional build tags
+      - golangci-lint run --build-tags enable_randomx_library
 ---
 kind: pipeline
 type: docker
