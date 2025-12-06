@@ -1,7 +1,7 @@
 git.gammaspectra.live/P2Pool/blake2b v0.42.1 h1:Y8wR9XTCA95MWXULzydAvj/8+td2/oHb7SWtbwAXpOA=
 git.gammaspectra.live/P2Pool/blake2b v0.42.1/go.mod h1:BYEHzMel96uAsRcarHolru4XoteQvZclIQl639MzyF8=
-git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251203212002-9608ab0845ed h1:Jt1K4QxeLUH4b4IShbGIat0h0gxbbbnURf1NwZl53kM=
-git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251203212002-9608ab0845ed/go.mod h1:FZsrMWGucMP3SZamzrd7m562geIs5zp1O/9MGoiAKH0=
+git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251206112811-c233ac191587 h1:k/lv7oKRLFO3zmwEVpC8tjgTzQfKK0aF2QZU1+x8lZk=
+git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251206112811-c233ac191587/go.mod h1:FZsrMWGucMP3SZamzrd7m562geIs5zp1O/9MGoiAKH0=
 git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3 h1:WWvaMmjJ4ThS2d0Lg+nNspkmDb3pS39VPv0PGum9NRo=
 git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3/go.mod h1:X9PvT0fmWrU1I+BiDUjMypUWdsWFm24QCW1sWxbzT8w=
 git.gammaspectra.live/P2Pool/go-randomx/v4 v4.6.1 h1:o3Ie76zPaZmR+taWae2IZX11Hyz77ueJ8ihuRbMwWys=

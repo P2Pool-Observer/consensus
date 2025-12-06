@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -150,11 +151,8 @@ func (ips *InnerProductStatement[T]) Verify(verifier *BatchVerifier[T], ipRows i
 	}
 
 	// We calculate their inverse in batch
-	//todo: batch invert
 	xInvs := slices.Clone(xs)
-	for i := range xInvs {
-		xInvs[i].Invert(&xInvs[i])
-	}
+	curve.BatchInvert(new(curve25519.Scalar), utils.ValuesToPointers(xInvs)...)
 
 	// Now, with x and x_inv, we need to calculate g_bold', h_bold', P'
 	//

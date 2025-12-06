@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -314,11 +315,8 @@ func (wips WeightedInnerProductStatement[T]) Verify(verifier *BatchVerifier[T], 
 
 	challenges := make([][2]curve25519.Scalar, 0, len(proof.L))
 
-	invEIs := make([]curve25519.Scalar, len(eIs))
-	//todo: batch invert
-	for i := range invEIs {
-		invEIs[i].Invert(&eIs[i])
-	}
+	invEIs := slices.Clone(eIs)
+	curve.BatchInvert(new(curve25519.Scalar), utils.ValuesToPointers(invEIs)...)
 
 	var L, R curve25519.PublicKey[T]
 	var eISquare, invEISquare curve25519.Scalar
