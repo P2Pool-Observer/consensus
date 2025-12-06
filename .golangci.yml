@@ -102,6 +102,13 @@ linters:
           msg: Use utils.CanonicalUvarint
         - pattern: ^binary.Varint$
           msg: Use utils.CanonicalUvarint
+
+        # test crypto
+        - pattern: ^crypto.NewDeterministicTestGenerator$
+          msg: Test-only cryptography
+        - pattern: ^curve25519.RandomPoint$
+          msg: Test-only cryptography
+
       analyze-types: true
 
     depguard:
