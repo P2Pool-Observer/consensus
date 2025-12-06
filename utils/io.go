@@ -3,7 +3,9 @@ package utils
 import (
 	"io"
 	"math"
+	"runtime"
 	"slices"
+	"unsafe"
 )
 
 // ReadFullProgressive Reads into buf up to size bytes by doubling size each time
@@ -44,4 +46,14 @@ type Serializable interface {
 	AppendBinary(preAllocatedBuf []byte) (data []byte, err error)
 	FromReader(reader ReaderAndByteReader) (err error)
 	BufferLength() (n int)
+}
+
+// ReadLittleEndianInteger Reads a defined Integer type that has a defined size. Does not support reading int/uint types.
+func ReadLittleEndianInteger[T ~uint8 | ~int8 | ~uint16 | ~int16 | ~uint32 | ~int32 | ~uint64 | ~int64](r io.Reader, x *T) (err error) {
+	var zero T
+	// #nosec G103 -- verified using unsafe.Sizeof
+	buf := unsafe.Slice((*byte)(unsafe.Pointer(x)), unsafe.Sizeof(zero))
+	_, err = ReadFullNoEscape(r, buf)
+	runtime.KeepAlive(x)
+	return err
 }

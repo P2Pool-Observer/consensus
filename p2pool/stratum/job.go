@@ -61,13 +61,13 @@ func JobFromString(s string) (j Job, err error) {
 	if j.TemplateCounter, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return j, err
 	}
-	if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.ExtraNonce); err != nil {
+	if err = utils.ReadLittleEndianInteger(reader, &j.ExtraNonce); err != nil {
 		return j, err
 	}
-	if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.SideRandomNumber); err != nil {
+	if err = utils.ReadLittleEndianInteger(reader, &j.SideRandomNumber); err != nil {
 		return j, err
 	}
-	if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.SideExtraNonce); err != nil {
+	if err = utils.ReadLittleEndianInteger(reader, &j.SideExtraNonce); err != nil {
 		return j, err
 	}
 	if _, err = utils.ReadFullNoEscape(reader, j.MerkleRoot[:]); err != nil {

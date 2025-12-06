@@ -402,7 +402,7 @@ func (p *PrunableMLSAGBulletproofs) FromReader(reader utils.ReaderAndByteReader,
 	var n uint32
 
 	if !signature {
-		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &n); err != nil {
+		if err = utils.ReadLittleEndianInteger(reader, &n); err != nil {
 			return err
 		}
 

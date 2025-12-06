@@ -102,14 +102,14 @@ func (j *AuxiliaryJobDonation) FromReader(reader utils.ReaderAndByteReader) (err
 	if _, err := utils.ReadFullNoEscape(reader, j.SecondaryPublicKey[:]); err != nil {
 		return err
 	}
-	if err := utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.SecondaryPublicKeyExpiration); err != nil {
+	if err := utils.ReadLittleEndianInteger(reader, &j.SecondaryPublicKeyExpiration); err != nil {
 		return err
 	}
 
 	if _, err := utils.ReadFullNoEscape(reader, j.SecondarySignature[:]); err != nil {
 		return err
 	}
-	if err := utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.Timestamp); err != nil {
+	if err := utils.ReadLittleEndianInteger(reader, &j.Timestamp); err != nil {
 		return err
 	}
 

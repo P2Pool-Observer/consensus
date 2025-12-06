@@ -3,7 +3,6 @@ package sidechain
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -1490,7 +1489,7 @@ func LoadSideChainTestData(consensus *Consensus, derivationCache DerivationCache
 	for {
 		buf = buf[:0]
 		var blockLen uint32
-		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &blockLen); errors.Is(err, io.EOF) {
+		if err = utils.ReadLittleEndianInteger(reader, &blockLen); errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return nil, err

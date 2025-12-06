@@ -287,16 +287,16 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 
 	// Read share extra buffer. Only on ShareVersion_V2 and above
 	if version >= ShareVersion_V2 {
-		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &b.ExtraBuffer.SoftwareId); err != nil {
+		if err = utils.ReadLittleEndianInteger(reader, &b.ExtraBuffer.SoftwareId); err != nil {
 			return fmt.Errorf("within extra buffer: %w", err)
 		}
-		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &b.ExtraBuffer.SoftwareVersion); err != nil {
+		if err = utils.ReadLittleEndianInteger(reader, &b.ExtraBuffer.SoftwareVersion); err != nil {
 			return fmt.Errorf("within extra buffer: %w", err)
 		}
-		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &b.ExtraBuffer.RandomNumber); err != nil {
+		if err = utils.ReadLittleEndianInteger(reader, &b.ExtraBuffer.RandomNumber); err != nil {
 			return fmt.Errorf("within extra buffer: %w", err)
 		}
-		if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &b.ExtraBuffer.SideChainExtraNonce); err != nil {
+		if err = utils.ReadLittleEndianInteger(reader, &b.ExtraBuffer.SideChainExtraNonce); err != nil {
 			return fmt.Errorf("within extra buffer: %w", err)
 		}
 	}
