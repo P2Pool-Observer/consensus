@@ -164,7 +164,7 @@ func (pqt PQTurnstile[T]) Verify(
 
 	// step 8
 	var amountCommitmentCheck curve25519.PublicKey[T]
-	ringct.CalculateCommitment(&amountCommitmentCheck, ringct.Commitment{Mask: amountBlindingFactor, Amount: amount})
+	ringct.CalculateCommitment(&amountCommitmentCheck, ringct.LazyCommitment{Mask: amountBlindingFactor, Amount: amount})
 
 	// step 9
 	if amountCommitmentCheck.AsBytes() != amountCommitmentBytes {

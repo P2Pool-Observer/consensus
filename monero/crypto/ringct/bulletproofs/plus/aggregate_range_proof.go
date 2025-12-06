@@ -263,7 +263,7 @@ func (ars AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *
 	return NewWeightedInnerProductStatement(&ahc.AHat, &ahc.Y, bulletproofs.PaddedPowerOfTwo(len(V)*bulletproofs.CommitmentBits)).Verify(verifier, &transcript, proof.WIP, randomReader)
 }
 
-type AggregateRangeWitness []ringct.Commitment
+type AggregateRangeWitness []ringct.LazyCommitment
 
 type AggregateRangeProof[T curve25519.PointOperations] struct {
 	A   curve25519.PublicKey[T]

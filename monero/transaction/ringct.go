@@ -24,16 +24,8 @@ type Base struct {
 	ProofType        ProofType                   `json:"type"`
 	Fee              uint64                      `json:"txnFee"`
 	PseudoOuts       []curve25519.PublicKeyBytes `json:"pseudoOuts,omitempty"`
-	EncryptedAmounts []EncryptedAmount           `json:"ecdhInfo"`
+	EncryptedAmounts []ringct.EncryptedAmount    `json:"ecdhInfo"`
 	Commitments      []curve25519.PublicKeyBytes `json:"outPk"`
-}
-
-type EncryptedAmount struct {
-	// Mask used with a mask derived from the shared secret to encrypt the amount.
-	Mask curve25519.PublicKeyBytes `json:"mask"`
-
-	// Amount The amount, as a scalar, encrypted.
-	Amount types.FixedBytes[[curve25519.PrivateKeySize]byte] `json:"amount"`
 }
 
 func (b *Base) Hash() types.Hash {
@@ -104,16 +96,15 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 		}
 	}
 	if b.ProofType.CompactAmount() {
-		var amount [curve25519.PrivateKeySize]byte
+		var amount curve25519.PrivateKeyBytes
 		for range outputs {
 			if _, err = utils.ReadFullNoEscape(reader, amount[:monero.EncryptedAmountSize]); err != nil {
 				return err
 			}
-			b.EncryptedAmounts = append(b.EncryptedAmounts, EncryptedAmount{Amount: types.MakeFixed(amount)})
+			b.EncryptedAmounts = append(b.EncryptedAmounts, ringct.EncryptedAmount{Amount: amount})
 		}
 	} else {
-		var mask curve25519.PublicKeyBytes
-		var amount [curve25519.PrivateKeySize]byte
+		var mask, amount curve25519.PrivateKeyBytes
 		for range outputs {
 			if _, err = utils.ReadFullNoEscape(reader, mask[:]); err != nil {
 				return err
@@ -121,7 +112,7 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 			if _, err = utils.ReadFullNoEscape(reader, amount[:]); err != nil {
 				return err
 			}
-			b.EncryptedAmounts = append(b.EncryptedAmounts, EncryptedAmount{mask, types.MakeFixed(amount)})
+			b.EncryptedAmounts = append(b.EncryptedAmounts, ringct.EncryptedAmount{Mask: mask, Amount: amount})
 		}
 	}
 	var c curve25519.PublicKeyBytes

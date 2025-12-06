@@ -56,8 +56,8 @@ func GetEphemeralPublicKeyAndViewTagWithViewKey[T curve25519.PointOperations](ou
 	return GetPublicKeyForSharedData(out, spendPub, pK), viewTag
 }
 
-func CalculateTransactionOutput[T curve25519.PointOperations](a Interface, txKey *curve25519.Scalar, outputIndex, amount uint64) (out transaction.Output, additionalTxPub *curve25519.PublicKey[T], encryptedAmount uint64) {
-	var pK curve25519.Scalar
+func CalculateTransactionOutput[T curve25519.PointOperations](a Interface, txKey *curve25519.Scalar, outputIndex, amount uint64) (out transaction.Output, additionalTxPub *curve25519.PublicKey[T], commitmentEncryptedAmount ringct.CommitmentEncryptedAmount) {
+	var sharedSecret curve25519.Scalar
 
 	var spendPub, viewPub curve25519.PublicKey[T]
 	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
@@ -73,14 +73,22 @@ func CalculateTransactionOutput[T curve25519.PointOperations](a Interface, txKey
 
 	derivation := GetDerivation(new(curve25519.PublicKey[T]), &viewPub, txKey)
 
-	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&pK, derivation.AsBytes(), outputIndex)
+	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&sharedSecret, derivation.AsBytes(), outputIndex)
 
 	out.Type = transaction.TxOutToTaggedKey
 	out.Index = outputIndex
 	out.ViewTag.Slice()[0] = viewTag
-	out.EphemeralPublicKey = GetPublicKeyForSharedData(new(curve25519.PublicKey[T]), &spendPub, &pK).AsBytes()
+	out.EphemeralPublicKey = GetPublicKeyForSharedData(new(curve25519.PublicKey[T]), &spendPub, &sharedSecret).AsBytes()
 
-	return out, additionalTxPub, ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(pK.Bytes()), amount)
+	sharedSecretBytes := curve25519.PrivateKeyBytes(sharedSecret.Bytes())
+
+	var mask curve25519.Scalar
+	ringct.CalculateCommitmentMask(&mask, sharedSecretBytes)
+	copy(commitmentEncryptedAmount.Commitment[:], ringct.CalculateCommitment[T](new(curve25519.PublicKey[T]), ringct.LazyCommitment{Mask: mask, Amount: amount}).Bytes())
+
+	commitmentEncryptedAmount.Encode(curve25519.PrivateKeyBytes(sharedSecret.Bytes()), amount, true)
+
+	return out, additionalTxPub, commitmentEncryptedAmount
 }
 
 func GetEphemeralPublicKeyAndViewTag[T curve25519.PointOperations](out, spendPub, viewPub *curve25519.PublicKey[T], txKey *curve25519.Scalar, outputIndex uint64) (*curve25519.PublicKey[T], uint8) {

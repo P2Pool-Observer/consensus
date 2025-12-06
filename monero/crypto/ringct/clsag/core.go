@@ -122,7 +122,7 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 func signCore[T curve25519.PointOperations](prefixHash types.Hash, I *curve25519.PublicKey[T], input *Context[T], mask *curve25519.Scalar, A, AH *curve25519.PublicKey[T], randomReader io.Reader) (incomplete Signature[T], pseudoOut *curve25519.PublicKey[T], keyChallenge, challengedMask *curve25519.Scalar) {
 	signerIndex := input.Decoys.SignerIndex
 
-	pseudoOut = ringct.CalculateCommitment(new(curve25519.PublicKey[T]), ringct.Commitment{
+	pseudoOut = ringct.CalculateCommitment(new(curve25519.PublicKey[T]), ringct.LazyCommitment{
 		Mask:   *mask,
 		Amount: input.Commitment.Amount,
 	})

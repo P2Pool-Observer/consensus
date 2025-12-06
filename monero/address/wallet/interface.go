@@ -34,15 +34,19 @@ type ViewWalletInterface[T curve25519.PointOperations] interface {
 	Track(ix address.SubaddressIndex) error
 	HasSpend(spendPub curve25519.PublicKeyBytes) (address.SubaddressIndex, bool)
 
-	MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, commitments []ringct.Amount, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
-	MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
+	MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
+	MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
 }
 
 type LegacyScan struct {
+	Amount               uint64
+	AmountBlindingFactor curve25519.PrivateKeyBytes
+
 	ExtensionG curve25519.Scalar
-	// ExtensionT Always zero/one?
+	// ExtensionT Always zero
 	ExtensionT curve25519.Scalar
-	SpendPub   curve25519.PublicKeyBytes
+
+	SpendPub curve25519.PublicKeyBytes
 
 	PaymentId [monero.PaymentIdSize]byte
 }
@@ -51,5 +55,5 @@ type ViewWalletLegacyInterface[T curve25519.PointOperations] interface {
 	ViewWalletInterface[T]
 
 	// Match Only available in non-Carrot legacy implementation
-	Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex)
+	Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex)
 }

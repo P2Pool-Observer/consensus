@@ -16,14 +16,14 @@ func TestAggregateRangeProof(t *testing.T) {
 	var verifier BatchVerifier[curve25519.VarTimeOperations]
 
 	for m := 1; m <= 16; m++ {
-		var commitments []ringct.Commitment
+		var commitments []ringct.LazyCommitment
 		var mask curve25519.Scalar
 		var amount [8]byte
 		for range m {
 			curve25519.RandomScalar(&mask, rng)
 			_, _ = rng.Read(amount[:])
 
-			commitments = append(commitments, ringct.Commitment{
+			commitments = append(commitments, ringct.LazyCommitment{
 				Mask:   mask,
 				Amount: binary.LittleEndian.Uint64(amount[:]),
 			})
@@ -64,14 +64,14 @@ func BenchmarkAggregateRangeProofProve(b *testing.B) {
 
 			rng := crypto.NewDeterministicTestGenerator()
 
-			var commitments []ringct.Commitment
+			var commitments []ringct.LazyCommitment
 			var mask curve25519.Scalar
 			var amount [8]byte
 			for range m {
 				curve25519.RandomScalar(&mask, rng)
 				_, _ = rng.Read(amount[:])
 
-				commitments = append(commitments, ringct.Commitment{
+				commitments = append(commitments, ringct.LazyCommitment{
 					Mask:   mask,
 					Amount: binary.LittleEndian.Uint64(amount[:]),
 				})

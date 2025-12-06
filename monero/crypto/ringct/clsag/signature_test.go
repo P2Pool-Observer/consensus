@@ -58,7 +58,7 @@ func testCLSAG[T curve25519.PointOperations](t *testing.T, randomReader io.Reade
 				decoys.Offsets = append(decoys.Offsets, uint64(i+1))
 				decoys.Ring = append(decoys.Ring, [2]curve25519.PublicKey[T]{
 					*new(curve25519.PublicKey[T]).ScalarBaseMult(&dest),
-					*ringct.CalculateCommitment(new(curve25519.PublicKey[T]), ringct.Commitment{
+					*ringct.CalculateCommitment(new(curve25519.PublicKey[T]), ringct.LazyCommitment{
 						Mask:   mask,
 						Amount: amount,
 					}),
@@ -69,7 +69,7 @@ func testCLSAG[T curve25519.PointOperations](t *testing.T, randomReader io.Reade
 			var sumOutputs curve25519.Scalar
 			curve25519.RandomScalar(&sumOutputs, randomReader)
 
-			ctx, err := NewContext(decoys, ringct.Commitment{
+			ctx, err := NewContext(decoys, ringct.LazyCommitment{
 				Mask:   secretMask,
 				Amount: Amount,
 			})

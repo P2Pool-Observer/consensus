@@ -47,7 +47,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				out, _, _ := address.CalculateTransactionOutput[T](addrI, txKey, 0, amount)
 				out.Amount = 0
 
-				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes())
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, nil, []curve25519.PublicKeyBytes{txPub.AsBytes()})
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
@@ -66,7 +66,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 
 		t.Run("Carrot", func(t *testing.T) {
 			if addr.IsSubaddress() {
-				t.Skip("not supported")
+				t.Skip("coinbase outputs to a subaddress not supported under Carrot")
 			}
 
 			proposal := carrot.PaymentProposalV1[T]{
@@ -92,7 +92,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				ViewTag:              enote.ViewTag,
 			}
 
-			i, scan, subaddressIndex := wallet.MatchCarrotCoinbase(blockIndex, transaction.Outputs{out}, curve25519.PublicKeyBytes(enote.EphemeralPubKey))
+			i, scan, subaddressIndex := wallet.MatchCarrotCoinbase(blockIndex, transaction.Outputs{out}, []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.EphemeralPubKey)})
 			if i != 0 {
 				t.Fatalf("got index %d, want 0", i)
 			}
@@ -158,6 +158,8 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				} else {
 					t.Log("PQ Turnstile: OK")
 				}
+			} else {
+				t.Log("PQ Turnstile: Not Carrot")
 			}
 		})
 	})
@@ -187,7 +189,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 					additionalPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 				}
 
-				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes(), additionalPub.AsBytes())
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, []ringct.CommitmentEncryptedAmount{encryptedAmount}, []curve25519.PublicKeyBytes{txPub.AsBytes(), additionalPub.AsBytes()})
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
@@ -203,9 +205,8 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 					t.Log("Spend Opening: OK")
 				}
 
-				decryptedAmount := ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(scan.ExtensionG.Bytes()), encryptedAmount)
-				if decryptedAmount != amount {
-					t.Fatalf("got amount %d, want %d", decryptedAmount, amount)
+				if scan.Amount != amount {
+					t.Fatalf("got amount %d, want %d", scan.Amount, amount)
 				}
 			})
 		}
@@ -236,13 +237,17 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 				ViewTag:              types.MakeFixed(enote.Enote.ViewTag),
 			}
 			i, scan, subaddressIndex := wallet.MatchCarrot(firstKeyImage,
-				[]ringct.Amount{
+				transaction.Outputs{out},
+				[]ringct.CommitmentEncryptedAmount{
 					{
-						Encrypted:  enote.Enote.EncryptedAmount,
+						EncryptedAmount: ringct.EncryptedAmount{
+							Amount: curve25519.PrivateKeyBytes(append(append(make([]byte, 0, curve25519.PrivateKeySize), enote.Enote.EncryptedAmount[:]...), make([]byte, curve25519.PrivateKeySize-monero.EncryptedAmountSize)...)),
+						},
 						Commitment: enote.Enote.AmountCommitment,
 					},
 				},
-				transaction.Outputs{out}, curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey))
+				[]curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)},
+			)
 			if i != 0 {
 				t.Fatalf("got index %d, want 0", i)
 			}
@@ -317,6 +322,8 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 				} else {
 					t.Log("PQ Turnstile: OK")
 				}
+			} else {
+				t.Log("PQ Turnstile: Not Carrot")
 			}
 		})
 	})

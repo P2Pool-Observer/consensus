@@ -422,5 +422,5 @@ func (ags AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *
 }
 
 type AggregateRangeWitness[T curve25519.PointOperations] struct {
-	Commitments []ringct.Commitment
+	Commitments []ringct.LazyCommitment
 }

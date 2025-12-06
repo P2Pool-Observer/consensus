@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"crypto/rand"
-	"encoding/binary"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -30,16 +29,24 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 		t.Fatalf("expected %s, got %s", string(testGeneralFundDonationAddr.ToBase58()), string(sa.ToBase58()))
 	}
 
-	var ecdhInfo []uint64
+	commitments := make([]ringct.CommitmentEncryptedAmount, 2)
 
 	txId := types.MustHashFromString("0b0ff5efc5e1a277f256501a4df8e86eb3387828c1cf235a93702a9c16548965")
 
-	for _, o := range []string{"46cd3b24cca1aa6c", "bbb7ce98edb2d678"} {
+	for i, o := range []string{"add031be3b52ddfb3dc95c1e8a190eff69633925a9a52c6d28263db7413f21b0", "e4a9a76ec76c601a809d689402303117489b63ec6e1bf8c985e71f75ac2feebe"} {
 		buf, err := hex.DecodeString(o)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ecdhInfo = append(ecdhInfo, binary.LittleEndian.Uint64(buf))
+		copy(commitments[i].Commitment[:], buf)
+	}
+
+	for i, o := range []string{"46cd3b24cca1aa6c", "bbb7ce98edb2d678"} {
+		buf, err := hex.DecodeString(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		copy(commitments[i].Amount[:], buf)
 	}
 
 	txPub := types.MustBytes32FromString[curve25519.PublicKeyBytes]("889432b1c870f2c5748b4c6f8bd2f28879cc698859674940b082b5fb5fef7e90")
@@ -60,7 +67,7 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 		},
 	}
 
-	i, scan, ix := vw.Match(outputs, txPub)
+	i, scan, ix := vw.Match(outputs, commitments, []curve25519.PublicKeyBytes{txPub})
 	if i == -1 {
 		t.Fatal("expected to find output")
 	}
@@ -70,15 +77,14 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 	}
 
 	const expected = 3284260000
-	if amount := ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(scan.ExtensionG.Bytes()), ecdhInfo[i]); amount != expected {
-		t.Fatalf("expected %d, got %d", expected, amount)
+	if scan.Amount != expected {
+		t.Fatalf("expected %d, got %d", expected, scan.Amount)
 	}
 
 	var txPubPoint curve25519.VarTimePublicKey
 	_, _ = txPubPoint.SetBytes(txPub[:])
 
 	inProof := address.GetInProof(sa, txId, vw.ViewKey(), &txPubPoint, "", 2)
-	t.Logf("tx proof: %s", inProof)
 
 	pI, pOk := address.VerifyTxProof(inProof, sa, txId, &txPubPoint, "")
 	if pI == -1 || !pOk {

@@ -124,13 +124,16 @@ func (w *CarrotViewWallet[T]) track(hasher *blake2b.Digest, ix address.Subaddres
 }
 
 //nolint:dupl
-func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 	scan = &carrot.ScanV1{}
 	for _, pub := range txPubs {
 
 		//TODO: optimize order from pubs?
 		for _, out := range outputs {
+			if out.Type != transaction.TxOutToCarrotV1 {
+				continue
+			}
 			enote := carrot.CoinbaseEnoteV1{
 				OneTimeAddress:  out.EphemeralPublicKey,
 				Amount:          out.Amount,
@@ -151,7 +154,7 @@ func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs tra
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, commitments []ringct.Amount, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeInputContext(firstKeyImage)
 	scan = &carrot.ScanV1{}
 
@@ -163,10 +166,13 @@ func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyByte
 
 		//TODO: optimize order from pubs?
 		for i, out := range outputs {
+			if out.Type != transaction.TxOutToCarrotV1 {
+				continue
+			}
 			enote := carrot.EnoteV1{
 				OneTimeAddress:   out.EphemeralPublicKey,
 				EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
-				EncryptedAmount:  commitments[i].Encrypted,
+				EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[i].Amount[:]),
 				AmountCommitment: commitments[i].Commitment,
 				ViewTag:          out.ViewTag.Value(),
 				EphemeralPubKey:  curve25519.MontgomeryPoint(pub),

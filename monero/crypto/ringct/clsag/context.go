@@ -6,11 +6,11 @@ import (
 )
 
 type Context[T curve25519.PointOperations] struct {
-	Commitment ringct.Commitment
+	Commitment ringct.LazyCommitment
 	Decoys     ringct.Decoys[T]
 }
 
-func NewContext[T curve25519.PointOperations](decoys ringct.Decoys[T], commitment ringct.Commitment) (*Context[T], error) {
+func NewContext[T curve25519.PointOperations](decoys ringct.Decoys[T], commitment ringct.LazyCommitment) (*Context[T], error) {
 	if len(decoys.Offsets) > 256 {
 		return nil, ErrInvalidRing
 	}

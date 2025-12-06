@@ -228,12 +228,12 @@ func NewTransactionFromBytes(buf []byte) (tx Transaction, err error) {
 	r := bytes.NewReader(buf)
 	tx, err = NewTransactionFromReader(r)
 	if err != nil {
-		// try coinbase v2 tx, or return original error
-		var coinbaseV2 CoinbaseV2
-		if coinbaseV2.UnmarshalBinary(buf, false, false) != nil {
+		// try coinbase tx, or return original error
+		var coinbase GenericCoinbase
+		if coinbase.UnmarshalBinary(buf) != nil {
 			return nil, err
 		}
-		return &coinbaseV2, nil
+		return &coinbase, nil
 	}
 	if r.Len() > 0 {
 		return nil, errors.New("leftover bytes in reader")
@@ -271,25 +271,12 @@ func NewPrunedTransactionFromBytes(buf []byte) (tx PrunedTransaction, err error)
 	r := bytes.NewReader(buf)
 	tx, err = NewPrunedTransactionFromReader(r)
 	if err != nil {
-		// try coinbase v2 tx, or return original error
-		var coinbaseV2 CoinbaseV2
-		if coinbaseV2.UnmarshalBinary(buf, false, false) != nil {
+		// try coinbase tx, or return original error
+		var coinbase GenericCoinbase
+		if coinbase.UnmarshalBinary(buf) != nil {
 			return nil, err
 		}
-		return &coinbaseV2, nil
-
-		/*
-			var coinbaseV2 CoinbaseV2
-			// add pruned RCT
-			rr := bufio.NewReader(io.MultiReader(bytes.NewReader(buf), bytes.NewReader([]byte{0})))
-			if coinbaseV2.FromReader(rr, false, false) != nil {
-				return nil, err
-			}
-			if _, err := rr.ReadByte(); err == nil {
-				return nil, errors.New("leftover bytes in reader")
-			}
-				return &coinbaseV2, nil
-		*/
+		return &coinbase, nil
 	}
 	if r.Len() > 0 {
 		return nil, errors.New("leftover bytes in reader")
