@@ -2,11 +2,13 @@ package cryptonight
 
 import (
 	"encoding/binary"
+	"io"
 	"math/bits"
 	"unsafe"
 
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	"golang.org/x/crypto/sha3" //nolint:depguard
 )
 
 const ScratchpadSize = 2 * 1024 * 1024
@@ -20,7 +22,7 @@ type State struct {
 	roundKeys [aesRounds * 4]uint32 // 10 rounds, instead of 14 as in standard AES-256
 }
 
-func (cn *State) Sum(data []byte, variant int) types.Hash {
+func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 	var (
 		// used in memory hard
 		a, b, c, d [2]uint64
@@ -34,13 +36,21 @@ func (cn *State) Sum(data []byte, variant int) types.Hash {
 		sqrtResult uint64
 	)
 
-	// CNS008 sec.3 Scratchpad Initialization
-	hasher := crypto.NewKeccak256()
-	_, _ = hasher.Write(data)
-	// trigger pad and permute
-	_, _ = hasher.Read(nil)
-	// #nosec G103 -- fixed length read
-	copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), hasher.State()[:])
+	if !prehashed {
+		// CNS008 sec.3 Scratchpad Initialization
+		hasher := sha3.NewLegacyKeccak256()
+		_, _ = utils.WriteNoEscape(hasher, data)
+		// trigger pad and permute
+		_, _ = utils.ReadNoEscape(hasher.(io.Reader), nil)
+		// #nosec G103 -- fixed length read
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), keccakStatePtr(hasher)[:])
+	} else {
+		if len(data) < len(cn.finalState)*8 {
+			panic("cryptonight: state length too short")
+		}
+		// #nosec G103 -- fixed length read
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), data)
+	}
 
 	if variant == 1 {
 		if len(data) < 43 {

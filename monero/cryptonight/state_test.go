@@ -59,7 +59,7 @@ func TestSum(t *testing.T) {
 	for _, v := range testVectors {
 		t.Run(fmt.Sprintf("V%d/%x..._%d", v.Variant, v.Input[:min(len(v.Input), 8)], len(v.Input)), func(t *testing.T) {
 			var state State
-			result := state.Sum(v.Input, v.Variant)
+			result := state.Sum(v.Input, v.Variant, false)
 			if result != v.Output {
 				t.Errorf("Sum(%s) = %x, want %x", string(v.Input), result.Slice(), v.Output.Slice())
 			}
