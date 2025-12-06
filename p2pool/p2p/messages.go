@@ -59,11 +59,11 @@ func (h *MoneroBlockBroadcastHeader) AppendBinary(preAllocatedBuf []byte) (data 
 }
 
 func (h *MoneroBlockBroadcastHeader) FromReader(reader utils.ReaderAndByteReader) (err error) {
-	if err := binary.Read(reader, binary.LittleEndian, &h.HeaderSize); err != nil {
+	if err := utils.BinaryReadNoEscape(reader, binary.LittleEndian, &h.HeaderSize); err != nil {
 		return err
 	}
 
-	if err := binary.Read(reader, binary.LittleEndian, &h.MinerTransactionSize); err != nil {
+	if err := utils.BinaryReadNoEscape(reader, binary.LittleEndian, &h.MinerTransactionSize); err != nil {
 		return err
 	}
 

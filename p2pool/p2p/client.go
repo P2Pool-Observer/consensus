@@ -378,7 +378,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 	var messageIdBuf [1]byte
 	var messageId MessageId
 	for !c.Closed.Load() {
-		if _, err := io.ReadFull(c, messageIdBuf[:]); err != nil {
+		if _, err := utils.ReadFullNoEscape(c, messageIdBuf[:]); err != nil {
 			c.Close()
 			return
 		}
@@ -399,11 +399,11 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 			var challenge HandshakeChallenge
 			var peerId uint64
-			if err := binary.Read(c, binary.LittleEndian, &challenge); err != nil {
+			if err := utils.BinaryReadNoEscape(c, binary.LittleEndian, &challenge); err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
-			if err := binary.Read(c, binary.LittleEndian, &peerId); err != nil {
+			if err := utils.BinaryReadNoEscape(c, binary.LittleEndian, &peerId); err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
@@ -452,11 +452,11 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 			var challengeHash types.Hash
 			var solution uint64
-			if err := binary.Read(c, binary.LittleEndian, &challengeHash); err != nil {
+			if _, err := utils.ReadFullNoEscape(c, challengeHash[:]); err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
-			if err := binary.Read(c, binary.LittleEndian, &solution); err != nil {
+			if err := utils.BinaryReadNoEscape(c, binary.LittleEndian, &solution); err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
@@ -494,7 +494,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 			var listenPort uint32
 
-			if err := binary.Read(c, binary.LittleEndian, &listenPort); err != nil {
+			if err := utils.BinaryReadNoEscape(c, binary.LittleEndian, &listenPort); err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
@@ -509,7 +509,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			c.LastBlockRequestTimestamp.Store(time.Now().Unix())
 
 			var templateId types.Hash
-			if err := binary.Read(c, binary.LittleEndian, &templateId); err != nil {
+			if _, err := utils.ReadFullNoEscape(c, templateId[:]); err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
@@ -563,7 +563,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			isChainTipBlockRequest := expectedBlockId == types.ZeroHash
 
 			var blockSize uint32
-			if err := binary.Read(c, binary.LittleEndian, &blockSize); err != nil {
+			if err := utils.BinaryReadNoEscape(c, binary.LittleEndian, &blockSize); err != nil {
 				//TODO warn
 				c.Ban(DefaultBanTime, err)
 				return
@@ -650,7 +650,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				},
 			}
 			var blockSize uint32
-			if err := binary.Read(c, binary.LittleEndian, &blockSize); err != nil {
+			if err := utils.BinaryReadNoEscape(c, binary.LittleEndian, &blockSize); err != nil {
 				//TODO warn
 				c.Ban(DefaultBanTime, err)
 				return
@@ -865,7 +865,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 						if _, err = c.Read(rawIp[:]); err != nil {
 							c.Ban(DefaultBanTime, err)
 							return
-						} else if err = binary.Read(c, binary.LittleEndian, &port); err != nil {
+						} else if err = utils.BinaryReadNoEscape(c, binary.LittleEndian, &port); err != nil {
 							c.Ban(DefaultBanTime, err)
 							return
 						}
@@ -900,7 +900,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			c.LastBlockRequestTimestamp.Store(time.Now().Unix())
 
 			var templateId types.Hash
-			if err := binary.Read(c, binary.LittleEndian, &templateId); err != nil {
+			if _, err := utils.ReadFullNoEscape(c, templateId[:]); err != nil {
 				c.Ban(DefaultBanTime, err)
 				return
 			}
@@ -921,7 +921,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			}
 		case MessageAuxJobDonation:
 			var dataSize uint32
-			if err := binary.Read(c, binary.LittleEndian, &dataSize); err != nil {
+			if err := utils.BinaryReadNoEscape(c, binary.LittleEndian, &dataSize); err != nil {
 				//TODO warn
 				c.Ban(DefaultBanTime, err)
 				return
@@ -946,7 +946,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			//TODO: broadcast/save data signatures
 		case MessageMoneroBlockBroadcast:
 			var dataSize uint32
-			if err := binary.Read(c, binary.LittleEndian, &dataSize); err != nil {
+			if err := utils.BinaryReadNoEscape(c, binary.LittleEndian, &dataSize); err != nil {
 				//TODO warn
 				c.Ban(DefaultBanTime, err)
 				return

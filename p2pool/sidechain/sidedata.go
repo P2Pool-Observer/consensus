@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/merge_mining"
@@ -152,10 +151,10 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 		mergeMiningExtraDataSize uint64
 	)
 
-	if _, err = io.ReadFull(reader, b.PublicKey[address.PackedAddressSpend][:]); err != nil {
+	if _, err = utils.ReadFullNoEscape(reader, b.PublicKey[address.PackedAddressSpend][:]); err != nil {
 		return err
 	}
-	if _, err = io.ReadFull(reader, b.PublicKey[address.PackedAddressView][:]); err != nil {
+	if _, err = utils.ReadFullNoEscape(reader, b.PublicKey[address.PackedAddressView][:]); err != nil {
 		return err
 	}
 	// read subaddress data
@@ -174,16 +173,16 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 	if version >= ShareVersion_V2 {
 		// Read private key seed instead of private key. Only on ShareVersion_V2 and above
 		// needs preprocessing
-		if _, err = io.ReadFull(reader, b.CoinbasePrivateKeySeed[:]); err != nil {
+		if _, err = utils.ReadFullNoEscape(reader, b.CoinbasePrivateKeySeed[:]); err != nil {
 			return err
 		}
 	} else {
-		if _, err = io.ReadFull(reader, b.CoinbasePrivateKey[:]); err != nil {
+		if _, err = utils.ReadFullNoEscape(reader, b.CoinbasePrivateKey[:]); err != nil {
 			return err
 		}
 	}
 
-	if _, err = io.ReadFull(reader, b.Parent[:]); err != nil {
+	if _, err = utils.ReadFullNoEscape(reader, b.Parent[:]); err != nil {
 		return err
 	}
 
@@ -246,7 +245,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 			b.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
 
 			for i := range merkleProofSize {
-				if _, err = io.ReadFull(reader, b.MerkleProof[i][:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, b.MerkleProof[i][:]); err != nil {
 					return err
 				}
 			}
@@ -261,7 +260,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 			b.MergeMiningExtra = make(MergeMiningExtra, mergeMiningExtraSize)
 
 			for i := range mergeMiningExtraSize {
-				if _, err = io.ReadFull(reader, b.MergeMiningExtra[i].ChainId[:]); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, b.MergeMiningExtra[i].ChainId[:]); err != nil {
 					return err
 				} else if i > 0 && b.MergeMiningExtra[i-1].ChainId.Compare(b.MergeMiningExtra[i].ChainId) >= 0 {
 					// IDs must be ordered to avoid duplicates
@@ -272,7 +271,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 					return utils.ErrorfNoEscape("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, PoolBlockMaxTemplateSize)
 				} else if mergeMiningExtraDataSize > 0 {
 					b.MergeMiningExtra[i].Data = make(types.Bytes, mergeMiningExtraDataSize)
-					if _, err = io.ReadFull(reader, b.MergeMiningExtra[i].Data); err != nil {
+					if _, err = utils.ReadFullNoEscape(reader, b.MergeMiningExtra[i].Data); err != nil {
 						return err
 					}
 				}

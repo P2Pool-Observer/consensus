@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
-	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/merge_mining"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -62,16 +61,16 @@ func JobFromString(s string) (j Job, err error) {
 	if j.TemplateCounter, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return j, err
 	}
-	if err = binary.Read(reader, binary.LittleEndian, &j.ExtraNonce); err != nil {
+	if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.ExtraNonce); err != nil {
 		return j, err
 	}
-	if err = binary.Read(reader, binary.LittleEndian, &j.SideRandomNumber); err != nil {
+	if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.SideRandomNumber); err != nil {
 		return j, err
 	}
-	if err = binary.Read(reader, binary.LittleEndian, &j.SideExtraNonce); err != nil {
+	if err = utils.BinaryReadNoEscape(reader, binary.LittleEndian, &j.SideExtraNonce); err != nil {
 		return j, err
 	}
-	if _, err = io.ReadFull(reader, j.MerkleRoot[:]); err != nil {
+	if _, err = utils.ReadFullNoEscape(reader, j.MerkleRoot[:]); err != nil {
 		return j, err
 	}
 	merkleProofSize, err := reader.ReadByte()
@@ -85,7 +84,7 @@ func JobFromString(s string) (j Job, err error) {
 		j.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
 
 		for i := range merkleProofSize {
-			if _, err = io.ReadFull(reader, j.MerkleProof[i][:]); err != nil {
+			if _, err = utils.ReadFullNoEscape(reader, j.MerkleProof[i][:]); err != nil {
 				return j, err
 			}
 		}
@@ -101,7 +100,7 @@ func JobFromString(s string) (j Job, err error) {
 
 		var mergeMiningExtraDataSize uint64
 		for i := range mergeMiningExtraSize {
-			if _, err = io.ReadFull(reader, j.MergeMiningExtra[i].ChainId[:]); err != nil {
+			if _, err = utils.ReadFullNoEscape(reader, j.MergeMiningExtra[i].ChainId[:]); err != nil {
 				return j, err
 			} else if i > 0 && j.MergeMiningExtra[i-1].ChainId.Compare(j.MergeMiningExtra[i].ChainId) >= 0 {
 				// IDs must be ordered to avoid duplicates
@@ -112,7 +111,7 @@ func JobFromString(s string) (j Job, err error) {
 				return j, utils.ErrorfNoEscape("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, sidechain.PoolBlockMaxTemplateSize)
 			} else if mergeMiningExtraDataSize > 0 {
 				j.MergeMiningExtra[i].Data = make(types.Bytes, mergeMiningExtraDataSize)
-				if _, err = io.ReadFull(reader, j.MergeMiningExtra[i].Data); err != nil {
+				if _, err = utils.ReadFullNoEscape(reader, j.MergeMiningExtra[i].Data); err != nil {
 					return j, err
 				}
 			}

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/netip"
 	"slices"
@@ -132,7 +131,7 @@ func (m *PoolBlockReceptionMetadata) UnmarshalBinary(buf []byte) error {
 		return errors.New("too large ip")
 	}
 	ip := make([]byte, l)
-	_, err = io.ReadFull(r, ip)
+	_, err = utils.ReadFullNoEscape(r, ip)
 	if err != nil {
 		return err
 	}

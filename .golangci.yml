@@ -87,15 +87,21 @@ linters:
         - pattern: ^print(ln)?$
         - pattern: ^fmt\.Print.*$
 
-        # varint related
+        # noescape concerns
+        - pattern: ^io.ReadFull$
+          msg: Use utils.ReadFullNoEscape
+        - pattern: ^binary.Read$
+          msg: Use utils.BinaryReadNoEscape
+
+        # varint consensus / malleability related
         - pattern: ^binary.ReadUvarint$
-          msg: Use ReadCanonicalUvarint
+          msg: Use utils.ReadCanonicalUvarint
         - pattern: ^binary.ReadVarint$
-          msg: Use ReadCanonicalUvarint
+          msg: Use utils.ReadCanonicalUvarint
         - pattern: ^binary.Uvarint$
-          msg: Use CanonicalUvarint
+          msg: Use utils.CanonicalUvarint
         - pattern: ^binary.Varint$
-          msg: Use CanonicalUvarint
+          msg: Use utils.CanonicalUvarint
       analyze-types: true
 
     depguard:

@@ -151,7 +151,7 @@ func (c *GenericCoinbase) FromReader(reader utils.ReaderAndByteReader) (err erro
 
 	if c.version == 2 {
 
-		if err = binary.Read(reader, binary.LittleEndian, &c.ExtraBaseRCT); err != nil {
+		if c.ExtraBaseRCT, err = reader.ReadByte(); err != nil {
 			return err
 		}
 

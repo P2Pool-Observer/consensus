@@ -24,7 +24,7 @@ func _readByte(reader io.ByteReader) (byte, error) {
 
 //nolint:unused
 func _binaryReadNoEscape(r io.Reader, order binary.ByteOrder, data any) error {
-	return binary.Read(r, order, data)
+	return binary.Read(r, order, data) //nolint:forbidigo
 }
 
 //nolint:unused
