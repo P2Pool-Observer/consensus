@@ -1,6 +1,7 @@
 package wallet
 
 import (
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
@@ -17,6 +18,7 @@ type SpendWalletInterface[T curve25519.PointOperations] interface {
 
 type CarrotWalletInterface[T curve25519.PointOperations] interface {
 	SpendWalletInterface[T]
+
 	ViewWallet() *CarrotViewWallet[T]
 }
 
@@ -36,9 +38,18 @@ type ViewWalletInterface[T curve25519.PointOperations] interface {
 	MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
 }
 
+type LegacyScan struct {
+	ExtensionG curve25519.Scalar
+	// ExtensionT Always zero/one?
+	ExtensionT curve25519.Scalar
+	SpendPub   curve25519.PublicKeyBytes
+
+	PaymentId [monero.PaymentIdSize]byte
+}
+
 type ViewWalletLegacyInterface[T curve25519.PointOperations] interface {
 	ViewWalletInterface[T]
 
 	// Match Only available in non-Carrot legacy implementation
-	Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, txPub curve25519.PublicKeyBytes, sharedData *curve25519.Scalar, addressIndex address.SubaddressIndex)
+	Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex)
 }

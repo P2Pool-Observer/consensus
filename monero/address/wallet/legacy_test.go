@@ -60,12 +60,9 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 		},
 	}
 
-	i, pub, sharedData, ix := vw.Match(outputs, txPub)
+	i, scan, ix := vw.Match(outputs, txPub)
 	if i == -1 {
 		t.Fatal("expected to find output")
-	}
-	if pub != txPub {
-		t.Fatal("expected to find same public key")
 	}
 
 	if ix.Account != 0 || ix.Offset != 70 {
@@ -73,7 +70,7 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 	}
 
 	const expected = 3284260000
-	if amount := ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(sharedData.Bytes()), ecdhInfo[i]); amount != expected {
+	if amount := ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(scan.ExtensionG.Bytes()), ecdhInfo[i]); amount != expected {
 		t.Fatalf("expected %d, got %d", expected, amount)
 	}
 

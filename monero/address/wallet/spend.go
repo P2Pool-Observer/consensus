@@ -1,6 +1,8 @@
 package wallet
 
 import (
+	"errors"
+
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
@@ -136,7 +138,7 @@ func (w *SpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transact
 	return w.vw.MatchCarrotCoinbase(blockIndex, outputs, txPubs...)
 }
 
-func (w *SpendWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, txPub curve25519.PublicKeyBytes, sharedData *curve25519.Scalar, addressIndex address.SubaddressIndex) {
+func (w *SpendWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex) {
 	return w.vw.Match(outputs, txPubs...)
 }
 
@@ -177,26 +179,29 @@ func NewSpendWalletFromSpendKey[T curve25519.PointOperations](spendKey *curve255
 	}, nil
 }
 
-func TrySearchForOpeningForSubaddress[T curve25519.PointOperations, SpendWallet SpendWalletInterface[T]](wallet SpendWallet, spendPub *curve25519.PublicKey[T]) (keyG, keyT *curve25519.Scalar, ok bool) {
+var ErrNoSpendPub = errors.New("wallet is not tracking spend pub")
+var ErrCannotRecomputeSpendPub = errors.New("cannot recompute spend pub")
+
+func TrySearchForOpeningForSubaddress[T curve25519.PointOperations, SpendWallet SpendWalletInterface[T]](wallet SpendWallet, spendPub *curve25519.PublicKey[T]) (keyG, keyT *curve25519.Scalar, err error) {
 	index, ok := wallet.HasSpend(spendPub.AsBytes())
 	if !ok {
-		return nil, nil, false
+		return nil, nil, ErrNoSpendPub
 	}
 	var recomputedSpendPub *curve25519.PublicKey[T]
 	keyG, keyT, recomputedSpendPub = wallet.Opening(index)
 
 	if recomputedSpendPub == nil || spendPub.Equal(recomputedSpendPub) == 0 {
-		return nil, nil, false
+		return nil, nil, ErrCannotRecomputeSpendPub
 	}
 
-	return keyG, keyT, true
+	return keyG, keyT, nil
 }
 
-func TrySearchForOpeningForOneTimeAddress[T curve25519.PointOperations, SpendWallet SpendWalletInterface[T]](wallet SpendWallet, spendPub *curve25519.PublicKey[T], senderExtensionG, senderExtensionT *curve25519.Scalar) (x, y *curve25519.Scalar, ok bool) {
+func TrySearchForOpeningForOneTimeAddress[T curve25519.PointOperations, SpendWallet SpendWalletInterface[T]](wallet SpendWallet, spendPub *curve25519.PublicKey[T], senderExtensionG, senderExtensionT *curve25519.Scalar) (x, y *curve25519.Scalar, err error) {
 	// k^{j,g}_addr, k^{j,t}_addr
-	keyG, keyT, ok := TrySearchForOpeningForSubaddress(wallet, spendPub)
-	if !ok {
-		return nil, nil, false
+	keyG, keyT, err := TrySearchForOpeningForSubaddress(wallet, spendPub)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// x = k^{j,g}_addr + k^g_o
@@ -205,27 +210,33 @@ func TrySearchForOpeningForOneTimeAddress[T curve25519.PointOperations, SpendWal
 	// y = k^{j,t}_addr + k^t_o
 	y = new(curve25519.Scalar).Add(keyT, senderExtensionT)
 
-	return x, y, true
+	return x, y, nil
 }
 
+var ErrCannotRecomputeOneTimeAddressFromExtension = errors.New("cannot recompute one time address from extension")
+var ErrCannotRecomputeOneTimeAddressFromOpening = errors.New("cannot recompute one time address from opening")
+
 // CanOpenOneTimeAddress can_open_fcmp_onetime_address
-func CanOpenOneTimeAddress[T curve25519.PointOperations, SpendWallet SpendWalletInterface[T]](wallet SpendWallet, spendPub *curve25519.PublicKey[T], senderExtensionG, senderExtensionT *curve25519.Scalar, oneTimeAddress *curve25519.PublicKey[T]) bool {
+func CanOpenOneTimeAddress[T curve25519.PointOperations, SpendWallet SpendWalletInterface[T]](wallet SpendWallet, spendPub *curve25519.PublicKey[T], senderExtensionG, senderExtensionT *curve25519.Scalar, oneTimeAddress *curve25519.PublicKey[T]) error {
 	senderExtensionPub := new(curve25519.PublicKey[T]).DoubleScalarBaseMultPrecomputed(senderExtensionT, crypto.GeneratorT, senderExtensionG)
 
 	recomputedOneTimeAddress := new(curve25519.PublicKey[T]).Add(spendPub, senderExtensionPub)
 
 	if oneTimeAddress.Equal(recomputedOneTimeAddress) == 0 {
-		return false
+		return ErrCannotRecomputeOneTimeAddressFromExtension
 	}
 
-	x, y, ok := TrySearchForOpeningForOneTimeAddress(wallet, spendPub, senderExtensionG, senderExtensionT)
-	if !ok {
-		return false
+	x, y, err := TrySearchForOpeningForOneTimeAddress(wallet, spendPub, senderExtensionG, senderExtensionT)
+	if err != nil {
+		return err
 	}
 
 	// O' = x G + y T
 	recomputedOneTimeAddress = new(curve25519.PublicKey[T]).DoubleScalarBaseMultPrecomputed(y, crypto.GeneratorT, x)
 
 	// O' ?= O
-	return oneTimeAddress.Equal(recomputedOneTimeAddress) == 1
+	if oneTimeAddress.Equal(recomputedOneTimeAddress) == 0 {
+		return ErrCannotRecomputeOneTimeAddressFromOpening
+	}
+	return nil
 }

@@ -47,15 +47,19 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				out, _, _ := address.CalculateTransactionOutput[T](addrI, txKey, 0, amount)
 				out.Amount = 0
 
-				i, pub, _, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes())
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes())
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
-				if pub != txPub.AsBytes() {
-					t.Fatalf("got pub %s, want %s", pub.String(), txPub.String())
-				}
 				if subaddressIndex != ix {
 					t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+				}
+
+				// check spendability
+				if err := CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())); err != nil {
+					t.Fatalf("Spend Opening: cannot spend: %s", err)
+				} else {
+					t.Log("Spend Opening: OK")
 				}
 			})
 		}
@@ -109,8 +113,10 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 			}
 
 			// check spendability
-			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
-				t.Fatalf("cannot spend output")
+			if err := CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())); err != nil {
+				t.Fatalf("Spend Opening: cannot spend: %s", err)
+			} else {
+				t.Log("Spend Opening: OK")
 			}
 
 			if cw, ok := wallet.(*CarrotSpendWallet[T]); ok {
@@ -181,18 +187,23 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 					additionalPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 				}
 
-				i, pub, sharedData, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes(), additionalPub.AsBytes())
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, txPub.AsBytes(), additionalPub.AsBytes())
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
-				if pub != additionalPub.AsBytes() {
-					t.Fatalf("got pub %s, want %s", pub.String(), additionalPub.String())
-				}
+
 				if subaddressIndex != ix {
 					t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
 				}
 
-				decryptedAmount := ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(sharedData.Bytes()), encryptedAmount)
+				// check spendability
+				if err := CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())); err != nil {
+					t.Fatalf("Spend Opening: cannot spend: %s", err)
+				} else {
+					t.Log("Spend Opening: OK")
+				}
+
+				decryptedAmount := ringct.DecryptOutputAmount(curve25519.PrivateKeyBytes(scan.ExtensionG.Bytes()), encryptedAmount)
 				if decryptedAmount != amount {
 					t.Fatalf("got amount %d, want %d", decryptedAmount, amount)
 				}
@@ -255,8 +266,10 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 			}
 
 			// check spendability
-			if !CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())) {
-				t.Fatalf("cannot spend output")
+			if err := CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())); err != nil {
+				t.Fatalf("Spend Opening: cannot spend: %s", err)
+			} else {
+				t.Log("Spend Opening: OK")
 			}
 
 			if cw, ok := wallet.(*CarrotSpendWallet[T]); ok {

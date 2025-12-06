@@ -73,10 +73,10 @@ func (w *ViewWallet[T]) Track(ix address.SubaddressIndex) error {
 }
 
 // Match Matches a list of outputs from a transaction
-func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, txPub curve25519.PublicKeyBytes, sharedData *curve25519.Scalar, addressIndex address.SubaddressIndex) {
+func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.PublicKeyBytes) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex) {
 	var sharedDataPub, ephemeralPub curve25519.PublicKey[T]
 	var err error
-	var sharedDataScalar curve25519.Scalar
+	var extensionG curve25519.Scalar
 	var derivation curve25519.PublicKey[T]
 	var publicKey curve25519.PublicKey[T]
 	for _, pub := range txPubs {
@@ -86,26 +86,34 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, txPubs ...curve25519.
 		address.GetDerivation(&derivation, &publicKey, &w.viewKeyScalar)
 		//TODO: optimize order?
 		for _, out := range outputs {
-			_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&sharedDataScalar, derivation.AsBytes(), out.Index)
+			_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&extensionG, derivation.AsBytes(), out.Index)
 			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag.Slice()[0] {
 				continue
 			}
 
-			sharedDataPub.ScalarBaseMult(&sharedDataScalar)
+			sharedDataPub.ScalarBaseMult(&extensionG)
 
 			_, err = ephemeralPub.P().SetBytes(out.EphemeralPublicKey[:])
 			if err != nil {
-				return -1, curve25519.PublicKeyBytes{}, nil, address.ZeroSubaddressIndex
+				return -1, nil, address.ZeroSubaddressIndex
 			}
 
 			D := ephemeralPub.Subtract(&ephemeralPub, &sharedDataPub)
 			if ix, ok := w.HasSpend(D.AsBytes()); ok {
-				return int(out.Index), pub, &sharedDataScalar, ix
+
+				scan = &LegacyScan{
+					ExtensionG: extensionG,
+					// zero
+					ExtensionT: *new(curve25519.Scalar),
+					SpendPub:   D.AsBytes(),
+					//TODO: payment id
+				}
+				return int(out.Index), scan, ix
 			}
 		}
 	}
 
-	return -1, curve25519.PublicKeyBytes{}, nil, address.ZeroSubaddressIndex
+	return -1, nil, address.ZeroSubaddressIndex
 }
 
 //nolint:dupl
