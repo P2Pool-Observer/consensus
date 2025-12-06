@@ -1,0 +1,201 @@
+package cryptonight
+
+import (
+	"encoding/binary"
+	"math/bits"
+	"unsafe"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+)
+
+const ScratchpadSize = 2 * 1024 * 1024
+
+type State struct {
+	scratchpad [ScratchpadSize / 8]uint64 // 2 MiB scratchpad for memhard loop
+	finalState [25]uint64                 // state of kecnak1600
+	_          [8]byte                    // padded to keep 16-byte align (0x2000d0)
+
+	blocks    [16]uint64            // temporary chunk/pointer of data
+	roundKeys [aesRounds * 4]uint32 // 10 rounds, instead of 14 as in standard AES-256
+}
+
+func (cn *State) Sum(data []byte, variant int) types.Hash {
+	var (
+		// used in memory hard
+		a, b, c, d [2]uint64
+
+		// for variant 1
+		v1Tweak uint64
+
+		// for variant 2
+		e          [2]uint64
+		divResult  uint64
+		sqrtResult uint64
+	)
+
+	// CNS008 sec.3 Scratchpad Initialization
+	hasher := crypto.NewKeccak256()
+	_, _ = hasher.Write(data)
+	// trigger pad and permute
+	_, _ = hasher.Read(nil)
+	// #nosec G103 -- fixed length read
+	copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), hasher.State()[:])
+
+	if variant == 1 {
+		if len(data) < 43 {
+			panic("cryptonight: variant 2 requires at least 43 bytes of input")
+		}
+		v1Tweak = cn.finalState[24] ^ binary.LittleEndian.Uint64(data[35:43])
+	}
+
+	// scratchpad init
+	aes_expand_key(cn.finalState[:4], &cn.roundKeys)
+	copy(cn.blocks[:], cn.finalState[8:24])
+
+	for i := 0; i < ScratchpadSize/8; i += 16 {
+		for j := 0; j < 16; j += 2 {
+			aes_rounds(cn.blocks[j:j+2], &cn.roundKeys)
+		}
+		copy(cn.scratchpad[i:i+16], cn.blocks[:16])
+	}
+
+	// CNS008 sec.4 Memory-Hard Loop
+	a[0] = cn.finalState[0] ^ cn.finalState[4]
+	a[1] = cn.finalState[1] ^ cn.finalState[5]
+	b[0] = cn.finalState[2] ^ cn.finalState[6]
+	b[1] = cn.finalState[3] ^ cn.finalState[7]
+	if variant == 2 {
+		e[0] = cn.finalState[8] ^ cn.finalState[10]
+		e[1] = cn.finalState[9] ^ cn.finalState[11]
+		divResult = cn.finalState[12]
+		sqrtResult = cn.finalState[13]
+	}
+
+	for range 524288 {
+		addr := (a[0] & 0x1ffff0) >> 3
+		aes_single_round(c[:2], cn.scratchpad[addr:addr+2], &a)
+
+		if variant == 2 {
+			// since we use []uint64 instead of []uint8 as scratchpad, the offset applies too
+			offset0 := addr ^ 0x02
+			offset1 := addr ^ 0x04
+			offset2 := addr ^ 0x06
+
+			chunk0_0 := cn.scratchpad[offset0+0]
+			chunk0_1 := cn.scratchpad[offset0+1]
+			chunk1_0 := cn.scratchpad[offset1+0]
+			chunk1_1 := cn.scratchpad[offset1+1]
+			chunk2_0 := cn.scratchpad[offset2+0]
+			chunk2_1 := cn.scratchpad[offset2+1]
+
+			cn.scratchpad[offset0+0] = chunk2_0 + e[0]
+			cn.scratchpad[offset0+1] = chunk2_1 + e[1]
+			cn.scratchpad[offset2+0] = chunk1_0 + a[0]
+			cn.scratchpad[offset2+1] = chunk1_1 + a[1]
+			cn.scratchpad[offset1+0] = chunk0_0 + b[0]
+			cn.scratchpad[offset1+1] = chunk0_1 + b[1]
+		}
+
+		cn.scratchpad[addr+0] = b[0] ^ c[0]
+		cn.scratchpad[addr+1] = b[1] ^ c[1]
+
+		if variant == 1 {
+			t := cn.scratchpad[addr+1] >> 24
+			t = ((^t)&1)<<4 | (((^t)&1)<<4&t)<<1 | (t&32)>>1
+			cn.scratchpad[addr+1] ^= t << 24
+		}
+
+		addr = (c[0] & 0x1ffff0) >> 3
+		d[0] = cn.scratchpad[addr]
+		d[1] = cn.scratchpad[addr+1]
+
+		if variant == 2 {
+			// equivalent to VARIANT2_PORTABLE_INTEGER_MATH in slow-hash.c
+			// VARIANT2_INTEGER_MATH_DIVISION_STEP
+			d[0] ^= divResult ^ (sqrtResult << 32)
+			divisor := (c[0]+(sqrtResult<<1))&0xffffffff | 0x80000001
+			divResult = (c[1]/divisor)&0xffffffff | (c[1]%divisor)<<32
+			sqrtInput := c[0] + divResult
+
+			// VARIANT2_INTEGER_MATH_SQRT_STEP_FP64 and
+			// VARIANT2_INTEGER_MATH_SQRT_FIXUP
+			sqrtResult = sqrt(sqrtInput)
+		}
+
+		// byteMul
+		hi, lo := bits.Mul64(c[0], d[0])
+
+		if variant == 2 {
+			// shuffle again, it's the same process as above
+			offset0 := addr ^ 0x02
+			offset1 := addr ^ 0x04
+			offset2 := addr ^ 0x06
+
+			chunk0_0 := cn.scratchpad[offset0+0]
+			chunk0_1 := cn.scratchpad[offset0+1]
+			chunk1_0 := cn.scratchpad[offset1+0]
+			chunk1_1 := cn.scratchpad[offset1+1]
+			chunk2_0 := cn.scratchpad[offset2+0]
+			chunk2_1 := cn.scratchpad[offset2+1]
+
+			// VARIANT2_2
+			chunk0_0 ^= hi
+			chunk0_1 ^= lo
+			hi ^= chunk1_0
+			lo ^= chunk1_1
+
+			cn.scratchpad[offset0+0] = chunk2_0 + e[0]
+			cn.scratchpad[offset0+1] = chunk2_1 + e[1]
+			cn.scratchpad[offset2+0] = chunk1_0 + a[0]
+			cn.scratchpad[offset2+1] = chunk1_1 + a[1]
+			cn.scratchpad[offset1+0] = chunk0_0 + b[0]
+			cn.scratchpad[offset1+1] = chunk0_1 + b[1]
+
+			// re-assign higher-order of b
+			e[0] = b[0]
+			e[1] = b[1]
+		}
+
+		// byteAdd
+		a[0] += hi
+		a[1] += lo
+
+		cn.scratchpad[addr+0] = a[0]
+		cn.scratchpad[addr+1] = a[1]
+
+		if variant == 1 {
+			cn.scratchpad[addr+1] ^= v1Tweak
+		}
+
+		a[0] ^= d[0]
+		a[1] ^= d[1]
+
+		b[0] = c[0]
+		b[1] = c[1]
+	}
+
+	// CNS008 sec.5 Result Calculation
+	aes_expand_key(cn.finalState[4:8], &cn.roundKeys)
+	tmp := cn.finalState[8:24] // a temp pointer
+
+	for i := 0; i < ScratchpadSize/8; i += 16 {
+		for j := 0; j < 16; j += 2 {
+			cn.scratchpad[i+j+0] ^= tmp[j+0]
+			cn.scratchpad[i+j+1] ^= tmp[j+1]
+			aes_rounds(cn.scratchpad[i+j:i+j+2], &cn.roundKeys)
+		}
+		tmp = cn.scratchpad[i : i+16]
+	}
+
+	copy(cn.finalState[8:24], tmp)
+	keccakF1600(&cn.finalState)
+
+	var sum types.Hash
+
+	// #nosec G103 -- checked exact len
+	stateBuf := unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8)
+	finalHash(uint8(cn.finalState[0]), stateBuf, sum[:])
+
+	return sum
+}

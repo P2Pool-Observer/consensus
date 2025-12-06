@@ -3,6 +3,7 @@ package crypto
 import (
 	"hash"
 	"io"
+	"unsafe"
 
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
@@ -42,6 +43,26 @@ func (k KeccakHasher) Reset() {
 
 func (k KeccakHasher) Size() int {
 	return k.h.Size()
+}
+
+type genericInterface struct {
+	_type uintptr
+	data  unsafe.Pointer
+}
+type keccakState struct {
+	a         [1600 / 8]byte
+	n, rate   int
+	dsbyte    byte
+	outputLen int
+	state     int
+}
+
+func (k KeccakHasher) State() *[1600 / 8]byte {
+	// extremely unsafe
+	// read eface/iface ptr to get underlying state field
+	// #nosec 103 -- specifically checked structure
+	state := (*keccakState)((*genericInterface)(unsafe.Pointer(&k.h)).data)
+	return &state.a
 }
 
 func (k KeccakHasher) BlockSize() int {

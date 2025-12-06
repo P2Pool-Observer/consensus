@@ -145,6 +145,12 @@ linters:
               desc: use monero/crypto/curve25519
   exclusions:
     rules:
+      # False positive
+      # See issue https://github.com/securego/gosec/issues/1406
+      - linters:
+          - gosec
+        text: "G602: slice index out of range"
+        path: "monero/cryptonight/*"
 
     paths:
       - "monero/client/levin/*"
