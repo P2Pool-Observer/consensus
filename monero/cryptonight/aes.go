@@ -1,7 +1,6 @@
 package cryptonight
 
 import (
-	"math/bits"
 	"unsafe"
 )
 
@@ -22,24 +21,7 @@ func soft_aesenc(state *[4]uint32, key *[4]uint32) {
 }
 
 // Powers of x mod poly in GF(2).
-var powx = [16]byte{
-	0x01,
-	0x02,
-	0x04,
-	0x08,
-	0x10,
-	0x20,
-	0x40,
-	0x80,
-	0x1b,
-	0x36,
-	0x6c,
-	0xd8,
-	0xab,
-	0x4d,
-	0x9a,
-	0x2f,
-}
+var powx = [16]byte{0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a, 0x2f}
 
 // Apply sbox0 to each byte in w.
 func subw(w uint32) uint32 {
@@ -50,28 +32,24 @@ func subw(w uint32) uint32 {
 }
 
 // Rotate
-func rotw(w uint32) uint32 { return w<<8 | w>>24 }
+func rotw(w uint32) uint32 { return w<<24 | w>>8 }
 
 const aesRounds = 10
 
 func aes_expand_key(key []uint64, roundKeys *[aesRounds * 4]uint32) {
 	for i := range 4 {
-		roundKeys[2*i] = bits.ReverseBytes32(uint32(key[i]))
-		roundKeys[2*i+1] = bits.ReverseBytes32(uint32(key[i] >> 32))
+		roundKeys[2*i] = uint32(key[i])
+		roundKeys[2*i+1] = uint32(key[i] >> 32)
 	}
 
-	for i := 8; i < 40; i++ {
+	for i := 8; i < aesRounds*4; i++ {
 		t := roundKeys[i-1]
 		if i%8 == 0 {
-			t = subw(rotw(t)) ^ (uint32(powx[i/8-1]) << 24)
+			t = subw(rotw(t)) ^ uint32(powx[i/8-1])
 		} else if 8 > 6 && i%8 == 4 {
 			t = subw(t)
 		}
 		roundKeys[i] = roundKeys[i-8] ^ t
-	}
-	// TODO: make this all little endian
-	for i := range roundKeys {
-		roundKeys[i] = bits.ReverseBytes32(roundKeys[i])
 	}
 }
 
