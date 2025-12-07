@@ -75,9 +75,9 @@ func aes_expand_key(key []uint64, roundKeys *[aesRounds * 4]uint32) {
 	}
 }
 
-func aes_rounds(state []uint64, roundKeys *[aesRounds * 4]uint32) {
+func aes_rounds_generic(state *[2]uint64, roundKeys *[aesRounds * 4]uint32) {
 	// #nosec G103
-	state32 := (*[4]uint32)(unsafe.Pointer(unsafe.SliceData(state)))
+	state32 := (*[4]uint32)(unsafe.Pointer(state))
 	// #nosec G103
 	rkey32 := (*[aesRounds][4]uint32)(unsafe.Pointer(roundKeys))
 
@@ -86,10 +86,10 @@ func aes_rounds(state []uint64, roundKeys *[aesRounds * 4]uint32) {
 	}
 }
 
-func aes_single_round(dst, src []uint64, roundKey *[2]uint64) {
-	copy(dst, src)
+func aes_single_round_generic(dst, src *[2]uint64, roundKey *[2]uint64) {
+	*dst = *src
 	// #nosec G103
-	dst32 := (*[4]uint32)(unsafe.Pointer(unsafe.SliceData(dst)))
+	dst32 := (*[4]uint32)(unsafe.Pointer(dst))
 	// #nosec G103
 	rkey32 := (*[4]uint32)(unsafe.Pointer(roundKey))
 	soft_aesenc(dst32, rkey32)

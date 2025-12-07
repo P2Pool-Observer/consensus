@@ -113,7 +113,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 
 	for i := 0; i < ScratchpadSize/8; i += 16 {
 		for j := 0; j < 16; j += 2 {
-			aes_rounds(cn.blocks[j:j+2], &cn.roundKeys)
+			aes_rounds((*[2]uint64)(cn.blocks[j:j+2]), &cn.roundKeys)
 		}
 		copy(cn.scratchpad[i:i+16], cn.blocks[:16])
 	}
@@ -135,7 +135,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		_a[1] = a[1]
 
 		addr := (a[0] & 0x1ffff0) >> 3
-		aes_single_round(c[:2], cn.scratchpad[addr:addr+2], &a)
+		aes_single_round((*[2]uint64)(c[:2]), (*[2]uint64)(cn.scratchpad[addr:addr+2]), &a)
 
 		if variant >= V2 {
 			// since we use []uint64 instead of []uint8 as scratchpad, the offset applies too
@@ -269,7 +269,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		for j := 0; j < 16; j += 2 {
 			cn.scratchpad[i+j+0] ^= tmp[j+0]
 			cn.scratchpad[i+j+1] ^= tmp[j+1]
-			aes_rounds(cn.scratchpad[i+j:i+j+2], &cn.roundKeys)
+			aes_rounds((*[2]uint64)(cn.scratchpad[i+j:i+j+2]), &cn.roundKeys)
 		}
 		tmp = cn.scratchpad[i : i+16]
 	}
