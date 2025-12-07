@@ -1,6 +1,9 @@
 # monero test data
 monero_crypto_tests.txt
 
+# getmonero assets
+getmonero_*
+
 v4_2_sidechain_dump.dat.xz
 v4_2_sidechain_dump_mini.dat.xz
 v4_2_sidechain_dump_nano.dat.xz

@@ -14,6 +14,13 @@ function download_test_monero() {
     curl --progress-bar --output "./monero_${1}_${2}" "https://raw.githubusercontent.com/monero-project/monero/${TESTS_MONERO_COMMIT_ID}/tests/${1}/${2}"
 }
 
+function download_getmonero() {
+    if [ -f "./getmonero_${1}" ]; then
+      return
+    fi
+    curl --progress-bar --output "./getmonero_${1}" "https://downloads.getmonero.org/${1}"
+}
+
 # Pre-v2 p2pool hardfork
 TESTS_COMMIT_ID_V1=b9eb66e2b3e02a5ec358ff8a0c5169a5606d9fde
 function download_test_v1() {
@@ -51,6 +58,8 @@ function download_test_v4_2() {
 }
 
 download_test_monero crypto tests.txt
+
+download_getmonero key_images_GF_until_20250206
 
 download_test_v4_2 sidechain_dump.dat.xz
 download_test_v4_2 sidechain_dump_mini.dat.xz

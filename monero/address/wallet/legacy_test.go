@@ -2,6 +2,9 @@ package wallet
 
 import (
 	"crypto/rand"
+	"os"
+	"path"
+	"runtime"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -13,12 +16,23 @@ import (
 	"github.com/tmthrgd/go-hex"
 )
 
+func init() {
+	_, filename, _, _ := runtime.Caller(0)
+	// The ".." may change depending on you folder structure
+	dir := path.Join(path.Dir(filename), "../../..")
+	err := os.Chdir(dir)
+	if err != nil {
+		panic(err)
+	}
+
+}
+
 var testGeneralFundAddr = address.FromBase58("44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A")
 var testGeneralFundViewKey = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501")
 var testGeneralFundDonationAddr = address.FromBase58("888tNkZrPN6JsEgekjMnABU4TBzc2Dt29EPAvkRxbANsAnjyPbb3iQ1YBRk1UXcdRsiKc9dhwMVgN5S9cQUiyoogDavup3H")
 var testGeneralFundSubaddressIndex = address.SubaddressIndex{Account: 0, Offset: 70}
 
-func TestViewWallet_GeneralFund(t *testing.T) {
+func TestViewWallet_GeneralFund_Match(t *testing.T) {
 	vw, err := NewViewWallet[curve25519.VarTimeOperations](testGeneralFundAddr, testGeneralFundViewKey.Scalar(), 0, 80)
 	if err != nil {
 		t.Fatal(err)
@@ -90,6 +104,27 @@ func TestViewWallet_GeneralFund(t *testing.T) {
 	if pI == -1 || !pOk {
 		t.Fatal("expected to verify proof")
 	}
+}
+
+func TestViewWallet_GeneralFund_KeyImages(t *testing.T) {
+	vw, err := NewViewWallet[curve25519.ConstantTimeOperations](testGeneralFundAddr, testGeneralFundViewKey.Scalar(), 0, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile("testdata/getmonero_key_images_GF_until_20250206")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	export, err := DecryptKeyImages[curve25519.VarTimeOperations](data, vw.ViewKey(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, ki := range export.Images {
+		t.Logf("#%04d: ki = %x", i, ki.KI.Bytes())
+	}
+
 }
 
 func TestViewWallet_Match(t *testing.T) {
