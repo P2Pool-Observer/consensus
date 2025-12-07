@@ -11,16 +11,19 @@ import (
 	"golang.org/x/crypto/sha3" //nolint:depguard
 )
 
+// ScratchpadSize 2 MiB scratchpad for memhard loop
 const ScratchpadSize = 2 * 1024 * 1024
 
+// State Cryptonight state, to reuse between hashes. Not thread-safe.
 type State struct {
-	scratchpad [ScratchpadSize / 8]uint64 // 2 MiB scratchpad for memhard loop
-	finalState [25]uint64                 // state of kecnak1600
-	_          [8]byte                    // padded to keep 16-byte align (0x2000d0)
+	scratchpad  [ScratchpadSize / 8]uint64
+	keccakState [25]uint64
+	_           [8]byte // padded to keep 16-byte align (0x2000d0)
 
 	blocks    [16]uint64            // temporary chunk/pointer of data
 	roundKeys [aesRounds * 4]uint32 // 10 rounds, instead of 14 as in standard AES-256
 
+	// code cached program, regenerated when codeHeight changes
 	code       [V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction
 	codeHeight uint64
 }
@@ -29,14 +32,7 @@ func (cn *State) SumR(data []byte, height uint64, prehashed bool) types.Hash {
 	return cn.sum_v2_r(data, R, height, prehashed)
 }
 
-func (cn *State) Sum(data []byte, variant Variant, prehashed bool) types.Hash {
-	if variant == V0 || variant == V1 {
-		return cn.sum_v0_v1(data, variant, prehashed)
-	}
-	return cn.sum_v2_r(data, variant, 0, prehashed)
-}
-
-// sum Computes the hash of <data> (which consists of <length> bytes), returning the
+// Sum Computes the hash of <data> (which consists of <length> bytes), returning the
 // hash in <hash>.  The CryptoNight hash operates by first using Keccak 1600,
 // the 1600 bit variant of the Keccak hash used in SHA-3, to create a 200 byte
 // buffer of pseudorandom data by hashing the supplied data.  It then uses this
@@ -58,6 +54,13 @@ func (cn *State) Sum(data []byte, variant Variant, prehashed bool) types.Hash {
 //
 // A diagram of the inner loop of this function can be found at
 // https://www.cs.cmu.edu/~dga/crypto/xmr/cryptonight.png
+func (cn *State) Sum(data []byte, variant Variant, prehashed bool) types.Hash {
+	if variant == V0 || variant == V1 {
+		return cn.sum_v0_v1(data, variant, prehashed)
+	}
+	return cn.sum_v2_r(data, variant, 0, prehashed)
+}
+
 func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.Hash {
 	var (
 		// used in memory hard
@@ -74,25 +77,25 @@ func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.H
 		// trigger pad and permute
 		_, _ = utils.ReadNoEscape(hasher.(io.Reader), nil)
 		// #nosec G103 -- fixed length read
-		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), keccakStatePtr(hasher)[:])
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8), keccakStatePtr(hasher)[:])
 	} else {
-		if len(data) < len(cn.finalState)*8 {
+		if len(data) < len(cn.keccakState)*8 {
 			panic("cryptonight: state length too short")
 		}
 		// #nosec G103 -- fixed length read
-		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), data)
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8), data)
 	}
 
 	if variant == V1 {
 		if len(data) < 43 {
 			panic("cryptonight: variant 2 requires at least 43 bytes of input")
 		}
-		v1Tweak = cn.finalState[24] ^ binary.LittleEndian.Uint64(data[35:43])
+		v1Tweak = cn.keccakState[24] ^ binary.LittleEndian.Uint64(data[35:43])
 	}
 
 	// scratchpad init
-	aes_expand_key(cn.finalState[:4], &cn.roundKeys)
-	copy(cn.blocks[:], cn.finalState[8:24])
+	aes_expand_key(cn.keccakState[:4], &cn.roundKeys)
+	copy(cn.blocks[:], cn.keccakState[8:24])
 
 	for i := 0; i < ScratchpadSize/8; i += 16 {
 		for j := 0; j < 16; j += 2 {
@@ -102,10 +105,10 @@ func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.H
 	}
 
 	// CNS008 sec.4 Memory-Hard Loop
-	a[0] = cn.finalState[0] ^ cn.finalState[4]
-	a[1] = cn.finalState[1] ^ cn.finalState[5]
-	b[0] = cn.finalState[2] ^ cn.finalState[6]
-	b[1] = cn.finalState[3] ^ cn.finalState[7]
+	a[0] = cn.keccakState[0] ^ cn.keccakState[4]
+	a[1] = cn.keccakState[1] ^ cn.keccakState[5]
+	b[0] = cn.keccakState[2] ^ cn.keccakState[6]
+	b[1] = cn.keccakState[3] ^ cn.keccakState[7]
 
 	for range 1 << 19 {
 		addr := (a[0] & 0x1ffff0) >> 3
@@ -146,8 +149,8 @@ func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.H
 	}
 
 	// CNS008 sec.5 Result Calculation
-	aes_expand_key(cn.finalState[4:8], &cn.roundKeys)
-	tmp := cn.finalState[8:24] // a temp pointer
+	aes_expand_key(cn.keccakState[4:8], &cn.roundKeys)
+	tmp := cn.keccakState[8:24] // a temp pointer
 
 	for i := 0; i < ScratchpadSize/8; i += 16 {
 		for j := 0; j < 16; j += 2 {
@@ -158,14 +161,14 @@ func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.H
 		tmp = cn.scratchpad[i : i+16]
 	}
 
-	copy(cn.finalState[8:24], tmp)
-	keccakF1600(&cn.finalState)
+	copy(cn.keccakState[8:24], tmp)
+	keccakF1600(&cn.keccakState)
 
 	var sum types.Hash
 
 	// #nosec G103 -- checked exact len
-	stateBuf := unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8)
-	finalHash(uint8(cn.finalState[0]), stateBuf, sum[:])
+	stateBuf := unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8)
+	finalHash(uint8(cn.keccakState[0]), stateBuf, sum[:])
 
 	return sum
 }
@@ -192,20 +195,20 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 		// trigger pad and permute
 		_, _ = utils.ReadNoEscape(hasher.(io.Reader), nil)
 		// #nosec G103 -- fixed length read
-		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), keccakStatePtr(hasher)[:])
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8), keccakStatePtr(hasher)[:])
 	} else {
-		if len(data) < len(cn.finalState)*8 {
+		if len(data) < len(cn.keccakState)*8 {
 			panic("cryptonight: state length too short")
 		}
 		// #nosec G103 -- fixed length read
-		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), data)
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8), data)
 	}
 
 	if variant == R {
-		r[0] = uint32(cn.finalState[12])
-		r[1] = uint32(cn.finalState[12] >> 32)
-		r[2] = uint32(cn.finalState[13])
-		r[3] = uint32(cn.finalState[13] >> 32)
+		r[0] = uint32(cn.keccakState[12])
+		r[1] = uint32(cn.keccakState[12] >> 32)
+		r[2] = uint32(cn.keccakState[13])
+		r[3] = uint32(cn.keccakState[13] >> 32)
 		if cn.codeHeight == 0 || cn.codeHeight != height {
 			r_init(&cn.code, height)
 			cn.codeHeight = height
@@ -213,8 +216,8 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 	}
 
 	// scratchpad init
-	aes_expand_key(cn.finalState[:4], &cn.roundKeys)
-	copy(cn.blocks[:], cn.finalState[8:24])
+	aes_expand_key(cn.keccakState[:4], &cn.roundKeys)
+	copy(cn.blocks[:], cn.keccakState[8:24])
 
 	for i := 0; i < ScratchpadSize/8; i += 16 {
 		for j := 0; j < 16; j += 2 {
@@ -224,15 +227,15 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 	}
 
 	// CNS008 sec.4 Memory-Hard Loop
-	a[0] = cn.finalState[0] ^ cn.finalState[4]
-	a[1] = cn.finalState[1] ^ cn.finalState[5]
-	b[0] = cn.finalState[2] ^ cn.finalState[6]
-	b[1] = cn.finalState[3] ^ cn.finalState[7]
+	a[0] = cn.keccakState[0] ^ cn.keccakState[4]
+	a[1] = cn.keccakState[1] ^ cn.keccakState[5]
+	b[0] = cn.keccakState[2] ^ cn.keccakState[6]
+	b[1] = cn.keccakState[3] ^ cn.keccakState[7]
 	if variant >= V2 {
-		e[0] = cn.finalState[8] ^ cn.finalState[10]
-		e[1] = cn.finalState[9] ^ cn.finalState[11]
-		divResult = cn.finalState[12]
-		sqrtResult = cn.finalState[13]
+		e[0] = cn.keccakState[8] ^ cn.keccakState[10]
+		e[1] = cn.keccakState[9] ^ cn.keccakState[11]
+		divResult = cn.keccakState[12]
+		sqrtResult = cn.keccakState[13]
 	}
 
 	for range 1 << 19 {
@@ -356,8 +359,8 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 	}
 
 	// CNS008 sec.5 Result Calculation
-	aes_expand_key(cn.finalState[4:8], &cn.roundKeys)
-	tmp := cn.finalState[8:24] // a temp pointer
+	aes_expand_key(cn.keccakState[4:8], &cn.roundKeys)
+	tmp := cn.keccakState[8:24] // a temp pointer
 
 	for i := 0; i < ScratchpadSize/8; i += 16 {
 		for j := 0; j < 16; j += 2 {
@@ -368,14 +371,14 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 		tmp = cn.scratchpad[i : i+16]
 	}
 
-	copy(cn.finalState[8:24], tmp)
-	keccakF1600(&cn.finalState)
+	copy(cn.keccakState[8:24], tmp)
+	keccakF1600(&cn.keccakState)
 
 	var sum types.Hash
 
 	// #nosec G103 -- checked exact len
-	stateBuf := unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8)
-	finalHash(uint8(cn.finalState[0]), stateBuf, sum[:])
+	stateBuf := unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8)
+	finalHash(uint8(cn.keccakState[0]), stateBuf, sum[:])
 
 	return sum
 }
