@@ -33,6 +33,28 @@ func (cn *State) Sum(data []byte, variant Variant, prehashed bool) types.Hash {
 	return cn.sum(data, variant, 0, prehashed)
 }
 
+// sum Computes the hash of <data> (which consists of <length> bytes), returning the
+// hash in <hash>.  The CryptoNight hash operates by first using Keccak 1600,
+// the 1600 bit variant of the Keccak hash used in SHA-3, to create a 200 byte
+// buffer of pseudorandom data by hashing the supplied data.  It then uses this
+// random data to fill a large 2MB buffer with pseudorandom data by iteratively
+// encrypting it using 10 rounds of AES per entry.  After this initialization,
+// it executes 524,288 rounds of mixing through the random 2MB buffer using
+// AES (typically provided in hardware on modern CPUs) and a 64 bit multiply.
+// Finally, it re-mixes this large buffer back into
+// the 200 byte "text" buffer, and then hashes this buffer using one of four
+// pseudorandomly selected hash functions (Blake, Groestl, JH, or Skein)
+// to populate the output.
+//
+// The 2MB buffer and choice of functions for mixing are designed to make the
+// algorithm "CPU-friendly" (and thus, reduce the advantage of GPU, FPGA,
+// or ASIC-based implementations):  the functions used are fast on modern
+// CPUs, and the 2MB size matches the typical amount of L3 cache available per
+// core on 2013-era CPUs.  When available, this implementation will use hardware
+// AES support on x86 CPUs.
+//
+// A diagram of the inner loop of this function can be found at
+// https://www.cs.cmu.edu/~dga/crypto/xmr/cryptonight.png
 func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool) types.Hash {
 	var (
 		// used in memory hard
@@ -41,14 +63,14 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		// for variant 1
 		v1Tweak uint64
 
-		// for variant 2
+		// for variant 2+
 		e          [2]uint64
+		_a         [2]uint64
 		divResult  uint64
 		sqrtResult uint64
 
-		// for variant 4
-		_a [2]uint64
-		r  [9]uint32
+		// for variant 4 / R
+		r [9]uint32
 	)
 
 	if !prehashed {
@@ -101,7 +123,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 	a[1] = cn.finalState[1] ^ cn.finalState[5]
 	b[0] = cn.finalState[2] ^ cn.finalState[6]
 	b[1] = cn.finalState[3] ^ cn.finalState[7]
-	if variant == V2 || variant == R {
+	if variant >= V2 {
 		e[0] = cn.finalState[8] ^ cn.finalState[10]
 		e[1] = cn.finalState[9] ^ cn.finalState[11]
 		divResult = cn.finalState[12]
@@ -115,7 +137,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		addr := (a[0] & 0x1ffff0) >> 3
 		aes_single_round(c[:2], cn.scratchpad[addr:addr+2], &a)
 
-		if variant == V2 || variant == R {
+		if variant >= V2 {
 			// since we use []uint64 instead of []uint8 as scratchpad, the offset applies too
 			offset0 := addr ^ 0x02
 			offset1 := addr ^ 0x04
@@ -154,7 +176,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		d[0] = cn.scratchpad[addr]
 		d[1] = cn.scratchpad[addr+1]
 
-		if variant == V2 {
+		if variant == V2 || variant == V3 {
 			// equivalent to VARIANT2_PORTABLE_INTEGER_MATH in slow-hash.c
 			// VARIANT2_INTEGER_MATH_DIVISION_STEP
 			d[0] ^= divResult ^ (sqrtResult << 32)
@@ -182,7 +204,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		// byteMul
 		hi, lo := bits.Mul64(c[0], d[0])
 
-		if variant == V2 || variant == R {
+		if variant >= V2 {
 			// shuffle again, it's the same process as above
 			offset0 := addr ^ 0x02
 			offset1 := addr ^ 0x04
@@ -196,7 +218,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 			chunk2_1 := cn.scratchpad[offset2+1]
 
 			// VARIANT2_2
-			if variant == V2 {
+			if variant == V2 || variant == V3 {
 
 				chunk0_0 ^= hi
 				chunk0_1 ^= lo

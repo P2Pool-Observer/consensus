@@ -19,9 +19,6 @@ func SWAP16(x *uint64) {
 func SWAP32(x *uint64) {
 	*x = ((*x) << 32) | ((*x) >> 32)
 }
-func SWAP64(x *uint64) {
-
-}
 
 func SS(m0, m1, m2, m3, m4, m5, m6, m7 *uint64, cc0, cc1 uint64) {
 	*m3 = ^*m3

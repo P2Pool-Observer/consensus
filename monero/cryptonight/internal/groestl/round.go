@@ -5,36 +5,29 @@ import (
 	"errors"
 )
 
-func buildColumns(data []byte, cols chan uint64) {
-	for i, l := 8, len(data); i <= l; i += 8 {
-		cols <- binary.BigEndian.Uint64(data[i-8 : i])
-	}
-	close(cols)
-}
-
 // Performs compression function. Returns nil on success, error otherwise.
 func (d *Digest) transform(data []byte) error {
-	if (len(data) % d.BlockSize()) != 0 {
+	if (len(data) % blockSize) != 0 {
 		return errors.New("data len in transform is not a multiple of BlockSize")
 	}
 
-	cols := make(chan uint64)
-	go buildColumns(data, cols)
+	cols := 0
 
-	eb := d.blocks + uint64(len(data)/d.BlockSize())
+	eb := d.blocks + uint64(len(data)/blockSize)
+
+	var m, hxm [columns]uint64
 	for d.blocks < eb {
-		m := make([]uint64, d.columns)
-		hxm := make([]uint64, d.columns)
 
-		for i := range d.columns {
-			m[i] = <-cols
+		for i := range columns {
+			m[i] = binary.BigEndian.Uint64(data[cols*8 : (cols+1)*8])
+			cols++
 			hxm[i] = d.chaining[i] ^ m[i]
 		}
 
-		hxm = round(d, hxm, 'P')
-		m = round(d, m, 'Q')
+		round(&hxm, 'p')
+		round(&m, 'q')
 
-		for i := range d.columns {
+		for i := range columns {
 			d.chaining[i] ^= hxm[i] ^ m[i]
 		}
 
@@ -47,15 +40,15 @@ func (d *Digest) transform(data []byte) error {
 // Performs last compression. After this function, data
 // is ready for truncation.
 func (d *Digest) finalTransform() {
-	h := make([]uint64, d.columns)
+	var h [columns]uint64
 
-	for i := range d.columns {
+	for i := range columns {
 		h[i] = d.chaining[i]
 	}
 
-	h = round(d, h, 'P')
+	round(&h, 'p')
 
-	for i := range d.columns {
+	for i := range columns {
 		d.chaining[i] ^= h[i]
 	}
 
@@ -65,44 +58,38 @@ func (d *Digest) finalTransform() {
 // Performs whole set of rounds on data provided in x. Variant denotes type
 // of permutation being performed. P and Q are for groestl-512
 // and lowercase are for groestl-256
-func round(d *Digest, x []uint64, variant rune) []uint64 {
-	if d.BlockSize() == 64 {
-		// for smaller blocksize change variant to lowercase letter
-		variant += 0x20
+func round(x *[columns]uint64, variant rune) {
+	for i := range rounds {
+		addRoundConstant(x, i, variant)
+		subBytes(x)
+		shiftBytes(x, variant)
+		mixBytes(x)
 	}
-
-	for i := range d.rounds {
-		x = addRoundConstant(x, i, variant)
-		x = subBytes(x)
-		x = shiftBytes(x, variant)
-		x = mixBytes(x)
-	}
-
-	return x
 }
 
 // AddRoundConstant transformation for data provided in x. Variant denotes type
 // of permutation being performed. P and Q are for groestl-512
 // and lowercase are for groestl-256
-func addRoundConstant(x []uint64, r int, variant rune) []uint64 {
+func addRoundConstant(x *[columns]uint64, r int, variant rune) {
 	switch variant {
-	case 'P', 'p':
+	case 'p':
 		for i, l := 0, len(x); i < l; i++ {
 			// byte from row 0: ((col >> (8*7)) & 0xFF)
 			// we want to xor the byte below with row 0
 			// therefore we have to shift it by 8*7 bits
 			x[i] ^= uint64((i<<4)^r) << (8 * 7)
 		}
-	case 'Q', 'q':
+	case 'q':
 		for i, l := 0, len(x); i < l; i++ {
 			x[i] ^= ^uint64(0) ^ uint64((i<<4)^r)
 		}
+	default:
+		panic("invalid variant")
 	}
-	return x
 }
 
 // SubBytes transformation for data provided in x.
-func subBytes(x []uint64) []uint64 {
+func subBytes(x *[columns]uint64) {
 	var newCol [8]byte
 	for i, l := 0, len(x); i < l; i++ {
 		for j := range 8 {
@@ -110,38 +97,36 @@ func subBytes(x []uint64) []uint64 {
 		}
 		x[i] = binary.BigEndian.Uint64(newCol[:])
 	}
-	return x
 }
+
+var shiftVectorp = [8]int{0, 1, 2, 3, 4, 5, 6, 7}
+var shiftVectorq = [8]int{1, 3, 5, 7, 0, 2, 4, 6}
 
 // ShiftBytes transformation for data provided in x. Variant denotes type
 // of permutation being performed. P and Q are for groestl-512
 // and lowercase are for groestl-256
-func shiftBytes(x []uint64, variant rune) []uint64 {
-	var shiftVector [8]int
+func shiftBytes(x *[columns]uint64, variant rune) {
+	var shiftVector *[8]int
 	switch variant {
 	case 'p':
-		shiftVector = [8]int{0, 1, 2, 3, 4, 5, 6, 7}
-	case 'P':
-		shiftVector = [8]int{0, 1, 2, 3, 4, 5, 6, 11}
+		shiftVector = &shiftVectorp
 	case 'q':
-		shiftVector = [8]int{1, 3, 5, 7, 0, 2, 4, 6}
-	case 'Q':
-		shiftVector = [8]int{1, 3, 5, 11, 0, 2, 4, 6}
+		shiftVector = &shiftVectorq
+	default:
+		panic("invalid variant")
 	}
-	l := len(x)
-	ret := make([]uint64, l)
-	for i := range l {
-		ret[i] = uint64(pickRow(x[(i+shiftVector[0])%l], 0))
+	old := *x
+	for i := range columns {
+		x[i] = uint64(pickRow(old[(i+shiftVector[0])%columns], 0))
 		for j := 1; j < 8; j++ {
-			ret[i] <<= 8
-			ret[i] ^= uint64(pickRow(x[(i+shiftVector[j])%l], j))
+			x[i] <<= 8
+			x[i] ^= uint64(pickRow(old[(i+shiftVector[j])%columns], j))
 		}
 	}
-	return ret
 }
 
 // MixBytes transformation for data provided in x.
-func mixBytes(x []uint64) []uint64 {
+func mixBytes(x *[columns]uint64) {
 	// this part is tricky
 	// so here comes yet another rough translation straight from reference implementation
 
@@ -166,7 +151,6 @@ func mixBytes(x []uint64) []uint64 {
 		}
 		x[i] = binary.BigEndian.Uint64(temp[:])
 	}
-	return x
 }
 
 func pickRow(col uint64, i int) byte {

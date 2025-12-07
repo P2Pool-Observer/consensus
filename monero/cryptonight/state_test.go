@@ -1,6 +1,8 @@
 package cryptonight
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"testing"
 
@@ -84,6 +86,26 @@ func TestSum(t *testing.T) {
 				if result != v.Output {
 					t.Errorf("Sum(...) = %x, want %x", result.Slice(), v.Output.Slice())
 				}
+			}
+		})
+	}
+}
+
+func BenchmarkSum(b *testing.B) {
+	for _, variant := range []Variant{V0, V1, V2, R} {
+		b.Run(fmt.Sprintf("V%d", variant), func(b *testing.B) {
+			b.ReportAllocs()
+
+			var state State
+
+			var input [64]byte
+			_, _ = rand.Read(input[:])
+
+			var iterations uint64
+			for b.Loop() {
+				binary.LittleEndian.PutUint64(input[35:], iterations)
+				iterations++
+				state.sum(input[:], variant, iterations, false)
 			}
 		})
 	}

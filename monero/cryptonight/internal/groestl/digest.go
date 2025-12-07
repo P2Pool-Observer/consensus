@@ -2,7 +2,6 @@ package groestl
 
 import (
 	"encoding/binary"
-	"hash"
 )
 
 // Digest is being used during algorithm execution. Provides easy
@@ -13,9 +12,10 @@ type Digest struct {
 	blocks     uint64
 	buf        [128]byte
 	nbuf       int
-	columns    int
-	rounds     int
 }
+
+const columns = 8
+const rounds = 10
 
 // Reset Equivalent to Init from reference implementation. Initiates values
 // for Digest struct, therefore determines exact type of groestl algorithm.
@@ -27,22 +27,11 @@ func (d *Digest) Reset() {
 	d.blocks = 0
 	d.nbuf = 0
 
-	if d.HashBitLen <= 256 {
-		d.columns = 8
-		d.rounds = 10
-	} else {
-		d.columns = 16
-		d.rounds = 14
+	if d.HashBitLen != 256 {
+		panic("unsupported")
 	}
 
-	d.chaining[d.columns-1] = uint64(d.HashBitLen)
-}
-
-func New224() *Digest {
-	d := new(Digest)
-	d.HashBitLen = 224
-	d.Reset()
-	return d
+	d.chaining[columns-1] = uint64(d.HashBitLen)
 }
 
 func New256() *Digest {
@@ -52,34 +41,14 @@ func New256() *Digest {
 	return d
 }
 
-func New384() *Digest {
-	d := new(Digest)
-	d.HashBitLen = 384
-	d.Reset()
-	return d
-}
-
-func New512() *Digest {
-	d := new(Digest)
-	d.HashBitLen = 512
-	d.Reset()
-	return d
-}
-
-func New() hash.Hash {
-	return New256()
-}
-
 func (d *Digest) Size() int {
 	return d.HashBitLen
 }
 
+const blockSize = 64
+
 func (d *Digest) BlockSize() int {
-	if d.HashBitLen <= 256 {
-		return 64
-	} else {
-		return 128
-	}
+	return blockSize
 }
 
 func (d *Digest) Write(p []byte) (n int, err error) {
@@ -87,8 +56,8 @@ func (d *Digest) Write(p []byte) (n int, err error) {
 	if d.nbuf > 0 {
 		nn := copy(d.buf[d.nbuf:], p)
 		d.nbuf += nn
-		if d.nbuf == d.BlockSize() {
-			err = d.transform(d.buf[:d.BlockSize()])
+		if d.nbuf == blockSize {
+			err = d.transform(d.buf[:blockSize])
 			if err != nil {
 				panic(err)
 			}
@@ -96,8 +65,8 @@ func (d *Digest) Write(p []byte) (n int, err error) {
 		}
 		p = p[nn:]
 	}
-	if len(p) >= d.BlockSize() {
-		nn := len(p) &^ (d.BlockSize() - 1)
+	if len(p) >= blockSize {
+		nn := len(p) &^ (blockSize - 1)
 		err = d.transform(p[:nn])
 		if err != nil {
 			panic(err)
@@ -111,21 +80,18 @@ func (d *Digest) Write(p []byte) (n int, err error) {
 }
 
 func (d *Digest) Sum(in []byte) []byte {
-	d0 := *d
-	hash := d0.checkSum()
-	return append(in, hash...)
+	return d.checkSum(in)
 }
 
-func (d *Digest) checkSum() []byte {
-	bs := d.BlockSize()
+func (d *Digest) checkSum(out []byte) []byte {
 	var tmp [128]byte
 	tmp[0] = 0x80
 
-	if d.nbuf > (bs - 8) {
-		_, _ = d.Write(tmp[:(bs - d.nbuf)])
-		_, _ = d.Write(tmp[8:bs])
+	if d.nbuf > (blockSize - 8) {
+		_, _ = d.Write(tmp[:(blockSize - d.nbuf)])
+		_, _ = d.Write(tmp[8:blockSize])
 	} else {
-		_, _ = d.Write(tmp[0:(bs - d.nbuf - 8)])
+		_, _ = d.Write(tmp[0:(blockSize - d.nbuf - 8)])
 	}
 
 	binary.BigEndian.PutUint64(tmp[:], d.blocks+1)
@@ -138,34 +104,16 @@ func (d *Digest) checkSum() []byte {
 	d.finalTransform()
 
 	// store chaining in output byteslice
-	hash := make([]byte, d.columns*4)
-	for i := range d.columns / 2 {
-		binary.BigEndian.PutUint64(hash[(i*8):(i+1)*8], d.chaining[i+(d.columns/2)])
+	var hash [columns * 4]byte
+	for i := range columns / 2 {
+		binary.BigEndian.PutUint64(hash[(i*8):(i+1)*8], d.chaining[i+(columns/2)])
 	}
-	hash = hash[(len(hash) - d.HashBitLen/8):]
-	return hash
-}
-
-func Sum224(data []byte) []byte {
-	d := New224()
-	_, _ = d.Write(data)
-	return d.checkSum()
+	out = append(out, hash[:]...)
+	return out
 }
 
 func Sum256(data []byte) []byte {
 	d := New256()
 	_, _ = d.Write(data)
-	return d.checkSum()
-}
-
-func Sum384(data []byte) []byte {
-	d := New384()
-	_, _ = d.Write(data)
-	return d.checkSum()
-}
-
-func Sum512(data []byte) []byte {
-	d := New512()
-	_, _ = d.Write(data)
-	return d.checkSum()
+	return d.checkSum(nil)
 }

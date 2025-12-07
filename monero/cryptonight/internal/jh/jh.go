@@ -154,16 +154,9 @@ func (s *State) f8() {
 	}
 }
 
-func (s *State) round(roundNumber, offset int, swap func(x *uint64)) {
-	for i := range 2 {
-		SS(&s.X[0][i], &s.X[2][i], &s.X[4][i], &s.X[6][i], &s.X[1][i], &s.X[3][i], &s.X[5][i], &s.X[7][i], e8BitsliceRoundconstant[roundNumber+offset][i], e8BitsliceRoundconstant[roundNumber+offset][i+2])
-		L(&s.X[0][i], &s.X[2][i], &s.X[4][i], &s.X[6][i], &s.X[1][i], &s.X[3][i], &s.X[5][i], &s.X[7][i])
-
-		swap(&s.X[1][i])
-		swap(&s.X[3][i])
-		swap(&s.X[5][i])
-		swap(&s.X[7][i])
-	}
+func (s *State) round(roundNumber, offset, i int) {
+	SS(&s.X[0][i], &s.X[2][i], &s.X[4][i], &s.X[6][i], &s.X[1][i], &s.X[3][i], &s.X[5][i], &s.X[7][i], e8BitsliceRoundconstant[roundNumber+offset][i], e8BitsliceRoundconstant[roundNumber+offset][i+2])
+	L(&s.X[0][i], &s.X[2][i], &s.X[4][i], &s.X[6][i], &s.X[1][i], &s.X[3][i], &s.X[5][i], &s.X[7][i])
 }
 
 // The bijective function E8, in bitslice form.
@@ -171,13 +164,45 @@ func (s *State) e8() {
 	var temp0 uint64
 
 	for round := 0; round < 42; round += 7 {
-		s.round(round, 0, SWAP1)
-		s.round(round, 1, SWAP2)
-		s.round(round, 2, SWAP4)
-		s.round(round, 3, SWAP8)
-		s.round(round, 4, SWAP16)
-		s.round(round, 5, SWAP32)
-		s.round(round, 6, SWAP64)
+		for i := range 2 {
+			s.round(round, 0, i)
+			for j := range 4 {
+				SWAP1(&s.X[j*2+1][i])
+			}
+		}
+		for i := range 2 {
+			s.round(round, 1, i)
+			for j := range 4 {
+				SWAP2(&s.X[j*2+1][i])
+			}
+		}
+		for i := range 2 {
+			s.round(round, 2, i)
+			for j := range 4 {
+				SWAP4(&s.X[j*2+1][i])
+			}
+		}
+		for i := range 2 {
+			s.round(round, 3, i)
+			for j := range 4 {
+				SWAP8(&s.X[j*2+1][i])
+			}
+		}
+		for i := range 2 {
+			s.round(round, 4, i)
+			for j := range 4 {
+				SWAP16(&s.X[j*2+1][i])
+			}
+		}
+		for i := range 2 {
+			s.round(round, 5, i)
+			for j := range 4 {
+				SWAP32(&s.X[j*2+1][i])
+			}
+		}
+		for i := range 2 {
+			s.round(round, 6, i)
+		}
 
 		// round 7*round+6: swapping layer
 		for i := 1; i < 8; i = i + 2 {
