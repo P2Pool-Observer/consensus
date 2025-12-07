@@ -463,7 +463,7 @@ func TestStratumServer_Genesis(t *testing.T) {
 		t.Run(fmt.Sprintf("V%d", uint8(version)), func(t *testing.T) {
 			consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 1, sidechain.SmallestMinimumDifficulty, 100, 20)
 			consensus.HardForks = []monero.HardFork{
-				{uint8(version), 0, 0, 0},
+				{Version: uint8(version)},
 			}
 			testFromGenesis(t, consensus, nil, n)
 		})
@@ -477,7 +477,7 @@ func TestStratumServer_Genesis(t *testing.T) {
 
 		consensus := sidechain.NewConsensus(sidechain.NetworkTestnet, "test", "", "", 1, 1, 60, 20)
 		consensus.HardForks = []monero.HardFork{
-			{uint8(sidechain.ShareVersion_V3), 0, 0, 0},
+			{Version: uint8(sidechain.ShareVersion_V3)},
 		}
 
 		// override!

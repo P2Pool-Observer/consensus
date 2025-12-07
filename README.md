@@ -125,6 +125,7 @@ The config is available in-tree at [.golangci.yml](.golangci.yml)
 ```shell
 cd path/to/project/consensus
 golangci-lint run
+go vet ./...
 ```
 
 ### Requirements
