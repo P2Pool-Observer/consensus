@@ -1,6 +1,6 @@
 module git.gammaspectra.live/P2Pool/consensus/v5
 
-go 1.25.5
+go 1.25
 
 // Internal or imported dependencies
 require (
