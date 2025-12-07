@@ -2,7 +2,6 @@ package cryptonight
 
 import (
 	"encoding/binary"
-	"math/bits"
 	"unsafe"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/cryptonight/internal/blake256"
@@ -54,13 +53,6 @@ const (
 	V4_SRC_INDEX_BITS = 3
 )
 
-type V4Instruction struct {
-	Opcode   V4Opcode
-	DstIndex uint8
-	SrcIndex uint8
-	C        uint32
-}
-
 // MUL is 3 cycles, 3-way addition and rotations are 2 cycles, SUB/XOR are 1 cycle
 // These latencies match real-life instruction latencies for Intel CPUs starting from Sandy Bridge and up to Skylake/Coffee lake
 //
@@ -79,7 +71,7 @@ var opALUs = [V4_OPS]int{V4_ALU_COUNT_MUL, V4_ALU_COUNT, V4_ALU_COUNT, V4_ALU_CO
 
 var pattern = [3]V4Opcode{V4_ROR, V4_MUL, V4_MUL}
 
-func r_init(code *[V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction, height uint64) uint32 {
+func r_init(code *[V4_NUM_INSTRUCTIONS_MAX + 1]op, height uint64, r [5]*uint32) uint32 {
 
 	var data [32]int8
 	// #nosec G103
@@ -235,10 +227,7 @@ func r_init(code *[V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction, height uint64) uin
 
 				instData[a] = codeSize + (uint32(opcode) << 8) + ((instData[b] & 255) << 16)
 
-				code[codeSize].Opcode = opcode
-				code[codeSize].DstIndex = dstIndex
-				code[codeSize].SrcIndex = srcIndex
-				code[codeSize].C = 0
+				code[codeSize] = r_op_emit(opcode, srcIndex, dstIndex, r)
 
 				if srcIndex == 8 {
 					r8Used = true
@@ -250,7 +239,7 @@ func r_init(code *[V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction, height uint64) uin
 
 					// ADD instruction requires 4 more random bytes for 32-bit constant "C" in "a = a + b + C"
 					dataIndex = r_check_data(dataIndex, 4, dataU8)
-					code[codeSize].C = binary.LittleEndian.Uint32(dataU8[dataIndex:])
+					code[codeSize].imm = binary.LittleEndian.Uint32(dataU8[dataIndex:])
 					dataIndex += 4
 				}
 
@@ -285,10 +274,7 @@ func r_init(code *[V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction, height uint64) uin
 			latency[minIdx] = latency[maxIdx] + opLatency[opcode]
 			asicLatency[minIdx] = asicLatency[maxIdx] + asicOpLatency[opcode]
 
-			code[codeSize].Opcode = opcode
-			code[codeSize].DstIndex = uint8(minIdx)
-			code[codeSize].SrcIndex = uint8(maxIdx)
-			code[codeSize].C = 0
+			code[codeSize] = r_op_emit(opcode, uint8(maxIdx), uint8(minIdx), r)
 			codeSize++
 		}
 
@@ -302,10 +288,7 @@ func r_init(code *[V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction, height uint64) uin
 
 	// It's guaranteed that NUM_INSTRUCTIONS_MIN <= code_size <= NUM_INSTRUCTIONS_MAX here
 	// Add final instruction to stop the interpreter
-	code[codeSize].Opcode = V4_RET
-	code[codeSize].DstIndex = 0
-	code[codeSize].SrcIndex = 0
-	code[codeSize].C = 0
+	code[codeSize] = r_op_emit(V4_RET, 0, 0, r)
 
 	return codeSize
 }
@@ -320,37 +303,4 @@ func r_check_data(dataIndex, needed int, data *[32]uint8) int {
 		dataIndex = 0
 	}
 	return dataIndex
-}
-
-//go:nosplit
-func r_interpreter(code *[V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction, r *[9]uint32) {
-	const REG_BITS = 4 * 8
-
-	var dst *uint32
-	var src uint32
-	for i := range code {
-		op := &code[i]
-
-		src = r[op.SrcIndex]
-		dst = &r[op.DstIndex]
-
-		switch op.Opcode {
-		case V4_MUL:
-			*dst *= src
-		case V4_ADD:
-			*dst += src + op.C
-		case V4_SUB:
-			*dst -= src
-		case V4_ROR:
-			*dst = bits.RotateLeft32(*dst, REG_BITS-int(src%REG_BITS))
-		case V4_ROL:
-			*dst = bits.RotateLeft32(*dst, int(src%REG_BITS))
-		case V4_XOR:
-			*dst ^= src
-		case V4_RET:
-			return
-		default:
-			panic("unreachable")
-		}
-	}
 }
