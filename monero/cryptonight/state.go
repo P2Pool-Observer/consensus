@@ -22,7 +22,15 @@ type State struct {
 	roundKeys [aesRounds * 4]uint32 // 10 rounds, instead of 14 as in standard AES-256
 }
 
-func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
+func (cn *State) SumR(data []byte, height uint64, prehashed bool) types.Hash {
+	return cn.sum(data, R, height, prehashed)
+}
+
+func (cn *State) Sum(data []byte, variant Variant, prehashed bool) types.Hash {
+	return cn.sum(data, variant, 0, prehashed)
+}
+
+func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool) types.Hash {
 	var (
 		// used in memory hard
 		a, b, c, d [2]uint64
@@ -34,6 +42,11 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 		e          [2]uint64
 		divResult  uint64
 		sqrtResult uint64
+
+		// for variant 4
+		_a   [2]uint64
+		r    [9]uint32
+		code [V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction
 	)
 
 	if !prehashed {
@@ -52,11 +65,19 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), data)
 	}
 
-	if variant == 1 {
+	if variant == V1 {
 		if len(data) < 43 {
 			panic("cryptonight: variant 2 requires at least 43 bytes of input")
 		}
 		v1Tweak = cn.finalState[24] ^ binary.LittleEndian.Uint64(data[35:43])
+	}
+
+	if variant == R {
+		r[0] = uint32(cn.finalState[12])
+		r[1] = uint32(cn.finalState[12] >> 32)
+		r[2] = uint32(cn.finalState[13])
+		r[3] = uint32(cn.finalState[13] >> 32)
+		r_init(&code, height)
 	}
 
 	// scratchpad init
@@ -75,7 +96,7 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 	a[1] = cn.finalState[1] ^ cn.finalState[5]
 	b[0] = cn.finalState[2] ^ cn.finalState[6]
 	b[1] = cn.finalState[3] ^ cn.finalState[7]
-	if variant == 2 {
+	if variant == V2 || variant == R {
 		e[0] = cn.finalState[8] ^ cn.finalState[10]
 		e[1] = cn.finalState[9] ^ cn.finalState[11]
 		divResult = cn.finalState[12]
@@ -83,10 +104,13 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 	}
 
 	for range 524288 {
+		_a[0] = a[0]
+		_a[1] = a[1]
+
 		addr := (a[0] & 0x1ffff0) >> 3
 		aes_single_round(c[:2], cn.scratchpad[addr:addr+2], &a)
 
-		if variant == 2 {
+		if variant == V2 || variant == R {
 			// since we use []uint64 instead of []uint8 as scratchpad, the offset applies too
 			offset0 := addr ^ 0x02
 			offset1 := addr ^ 0x04
@@ -101,16 +125,21 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 
 			cn.scratchpad[offset0+0] = chunk2_0 + e[0]
 			cn.scratchpad[offset0+1] = chunk2_1 + e[1]
-			cn.scratchpad[offset2+0] = chunk1_0 + a[0]
-			cn.scratchpad[offset2+1] = chunk1_1 + a[1]
+			cn.scratchpad[offset2+0] = chunk1_0 + _a[0]
+			cn.scratchpad[offset2+1] = chunk1_1 + _a[1]
 			cn.scratchpad[offset1+0] = chunk0_0 + b[0]
 			cn.scratchpad[offset1+1] = chunk0_1 + b[1]
+
+			if variant == R {
+				c[0] = (c[0] ^ chunk2_0) ^ (chunk0_0 ^ chunk1_0)
+				c[1] = (c[1] ^ chunk2_1) ^ (chunk0_1 ^ chunk1_1)
+			}
 		}
 
 		cn.scratchpad[addr+0] = b[0] ^ c[0]
 		cn.scratchpad[addr+1] = b[1] ^ c[1]
 
-		if variant == 1 {
+		if variant == V1 {
 			t := cn.scratchpad[addr+1] >> 24
 			t = ((^t)&1)<<4 | (((^t)&1)<<4&t)<<1 | (t&32)>>1
 			cn.scratchpad[addr+1] ^= t << 24
@@ -120,7 +149,7 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 		d[0] = cn.scratchpad[addr]
 		d[1] = cn.scratchpad[addr+1]
 
-		if variant == 2 {
+		if variant == V2 {
 			// equivalent to VARIANT2_PORTABLE_INTEGER_MATH in slow-hash.c
 			// VARIANT2_INTEGER_MATH_DIVISION_STEP
 			d[0] ^= divResult ^ (sqrtResult << 32)
@@ -133,10 +162,22 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 			sqrtResult = sqrt(sqrtInput)
 		}
 
+		if variant == R {
+			d[0] ^= uint64(r[0]+r[1]) | (uint64(r[2]+r[3]) << 32)
+
+			r[4], r[5] = uint32(a[0]), uint32(a[1])
+			r[6] = uint32(b[0])
+			r[7], r[8] = uint32(e[0]), uint32(e[1])
+			r_interpreter(&code, &r)
+
+			a[0] ^= uint64(r[2]) | ((uint64)(r[3]) << 32)
+			a[1] ^= uint64(r[0]) | ((uint64)(r[1]) << 32)
+		}
+
 		// byteMul
 		hi, lo := bits.Mul64(c[0], d[0])
 
-		if variant == 2 {
+		if variant == V2 || variant == R {
 			// shuffle again, it's the same process as above
 			offset0 := addr ^ 0x02
 			offset1 := addr ^ 0x04
@@ -150,21 +191,29 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 			chunk2_1 := cn.scratchpad[offset2+1]
 
 			// VARIANT2_2
-			chunk0_0 ^= hi
-			chunk0_1 ^= lo
-			hi ^= chunk1_0
-			lo ^= chunk1_1
+			if variant == V2 {
+
+				chunk0_0 ^= hi
+				chunk0_1 ^= lo
+				hi ^= chunk1_0
+				lo ^= chunk1_1
+			}
 
 			cn.scratchpad[offset0+0] = chunk2_0 + e[0]
 			cn.scratchpad[offset0+1] = chunk2_1 + e[1]
-			cn.scratchpad[offset2+0] = chunk1_0 + a[0]
-			cn.scratchpad[offset2+1] = chunk1_1 + a[1]
+			cn.scratchpad[offset2+0] = chunk1_0 + _a[0]
+			cn.scratchpad[offset2+1] = chunk1_1 + _a[1]
 			cn.scratchpad[offset1+0] = chunk0_0 + b[0]
 			cn.scratchpad[offset1+1] = chunk0_1 + b[1]
 
 			// re-assign higher-order of b
 			e[0] = b[0]
 			e[1] = b[1]
+
+			if variant == R {
+				c[0] = (c[0] ^ chunk2_0) ^ (chunk0_0 ^ chunk1_0)
+				c[1] = (c[1] ^ chunk2_1) ^ (chunk0_1 ^ chunk1_1)
+			}
 		}
 
 		// byteAdd
@@ -174,7 +223,7 @@ func (cn *State) Sum(data []byte, variant int, prehashed bool) types.Hash {
 		cn.scratchpad[addr+0] = a[0]
 		cn.scratchpad[addr+1] = a[1]
 
-		if variant == 1 {
+		if variant == V1 {
 			cn.scratchpad[addr+1] ^= v1Tweak
 		}
 
