@@ -4,6 +4,7 @@ package cryptonight
 
 import "math"
 
+//go:nosplit
 func v2_sqrt(in uint64) uint64 {
 	out := uint64(
 		math.Sqrt(

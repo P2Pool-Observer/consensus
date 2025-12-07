@@ -102,10 +102,18 @@ func BenchmarkSum(b *testing.B) {
 			_, _ = rand.Read(input[:])
 
 			var iterations uint64
-			for b.Loop() {
-				binary.LittleEndian.PutUint64(input[35:], iterations)
-				iterations++
-				state.sum(input[:], variant, iterations, false)
+			if variant == R {
+				for b.Loop() {
+					binary.LittleEndian.PutUint64(input[35:], iterations)
+					iterations++
+					state.SumR(input[:], iterations, false)
+				}
+			} else {
+				for b.Loop() {
+					binary.LittleEndian.PutUint64(input[35:], iterations)
+					iterations++
+					state.Sum(input[:], variant, false)
+				}
 			}
 		})
 	}

@@ -26,11 +26,14 @@ type State struct {
 }
 
 func (cn *State) SumR(data []byte, height uint64, prehashed bool) types.Hash {
-	return cn.sum(data, R, height, prehashed)
+	return cn.sum_v2_r(data, R, height, prehashed)
 }
 
 func (cn *State) Sum(data []byte, variant Variant, prehashed bool) types.Hash {
-	return cn.sum(data, variant, 0, prehashed)
+	if variant == V0 || variant == V1 {
+		return cn.sum_v0_v1(data, variant, prehashed)
+	}
+	return cn.sum_v2_r(data, variant, 0, prehashed)
 }
 
 // sum Computes the hash of <data> (which consists of <length> bytes), returning the
@@ -55,13 +58,122 @@ func (cn *State) Sum(data []byte, variant Variant, prehashed bool) types.Hash {
 //
 // A diagram of the inner loop of this function can be found at
 // https://www.cs.cmu.edu/~dga/crypto/xmr/cryptonight.png
-func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool) types.Hash {
+func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.Hash {
 	var (
 		// used in memory hard
 		a, b, c, d [2]uint64
 
 		// for variant 1
 		v1Tweak uint64
+	)
+
+	if !prehashed {
+		// CNS008 sec.3 Scratchpad Initialization
+		hasher := sha3.NewLegacyKeccak256()
+		_, _ = utils.WriteNoEscape(hasher, data)
+		// trigger pad and permute
+		_, _ = utils.ReadNoEscape(hasher.(io.Reader), nil)
+		// #nosec G103 -- fixed length read
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), keccakStatePtr(hasher)[:])
+	} else {
+		if len(data) < len(cn.finalState)*8 {
+			panic("cryptonight: state length too short")
+		}
+		// #nosec G103 -- fixed length read
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), data)
+	}
+
+	if variant == V1 {
+		if len(data) < 43 {
+			panic("cryptonight: variant 2 requires at least 43 bytes of input")
+		}
+		v1Tweak = cn.finalState[24] ^ binary.LittleEndian.Uint64(data[35:43])
+	}
+
+	// scratchpad init
+	aes_expand_key(cn.finalState[:4], &cn.roundKeys)
+	copy(cn.blocks[:], cn.finalState[8:24])
+
+	for i := 0; i < ScratchpadSize/8; i += 16 {
+		for j := 0; j < 16; j += 2 {
+			aes_rounds((*[2]uint64)(cn.blocks[j:j+2]), &cn.roundKeys)
+		}
+		copy(cn.scratchpad[i:i+16], cn.blocks[:16])
+	}
+
+	// CNS008 sec.4 Memory-Hard Loop
+	a[0] = cn.finalState[0] ^ cn.finalState[4]
+	a[1] = cn.finalState[1] ^ cn.finalState[5]
+	b[0] = cn.finalState[2] ^ cn.finalState[6]
+	b[1] = cn.finalState[3] ^ cn.finalState[7]
+
+	for range 1 << 19 {
+		addr := (a[0] & 0x1ffff0) >> 3
+		aes_single_round((*[2]uint64)(c[:2]), (*[2]uint64)(cn.scratchpad[addr:addr+2]), &a)
+
+		cn.scratchpad[addr+0] = b[0] ^ c[0]
+		cn.scratchpad[addr+1] = b[1] ^ c[1]
+
+		if variant == V1 {
+			t := cn.scratchpad[addr+1] >> 24
+			t = ((^t)&1)<<4 | (((^t)&1)<<4&t)<<1 | (t&32)>>1
+			cn.scratchpad[addr+1] ^= t << 24
+		}
+
+		addr = (c[0] & 0x1ffff0) >> 3
+		d[0] = cn.scratchpad[addr]
+		d[1] = cn.scratchpad[addr+1]
+
+		// byteMul
+		hi, lo := bits.Mul64(c[0], d[0])
+
+		// byteAdd
+		a[0] += hi
+		a[1] += lo
+
+		cn.scratchpad[addr+0] = a[0]
+		cn.scratchpad[addr+1] = a[1]
+
+		if variant == V1 {
+			cn.scratchpad[addr+1] ^= v1Tweak
+		}
+
+		a[0] ^= d[0]
+		a[1] ^= d[1]
+
+		b[0] = c[0]
+		b[1] = c[1]
+	}
+
+	// CNS008 sec.5 Result Calculation
+	aes_expand_key(cn.finalState[4:8], &cn.roundKeys)
+	tmp := cn.finalState[8:24] // a temp pointer
+
+	for i := 0; i < ScratchpadSize/8; i += 16 {
+		for j := 0; j < 16; j += 2 {
+			cn.scratchpad[i+j+0] ^= tmp[j+0]
+			cn.scratchpad[i+j+1] ^= tmp[j+1]
+			aes_rounds((*[2]uint64)(cn.scratchpad[i+j:i+j+2]), &cn.roundKeys)
+		}
+		tmp = cn.scratchpad[i : i+16]
+	}
+
+	copy(cn.finalState[8:24], tmp)
+	keccakF1600(&cn.finalState)
+
+	var sum types.Hash
+
+	// #nosec G103 -- checked exact len
+	stateBuf := unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8)
+	finalHash(uint8(cn.finalState[0]), stateBuf, sum[:])
+
+	return sum
+}
+
+func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed bool) types.Hash {
+	var (
+		// used in memory hard
+		a, b, c, d [2]uint64
 
 		// for variant 2+
 		e          [2]uint64
@@ -87,13 +199,6 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		}
 		// #nosec G103 -- fixed length read
 		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.finalState)), len(cn.finalState)*8), data)
-	}
-
-	if variant == V1 {
-		if len(data) < 43 {
-			panic("cryptonight: variant 2 requires at least 43 bytes of input")
-		}
-		v1Tweak = cn.finalState[24] ^ binary.LittleEndian.Uint64(data[35:43])
 	}
 
 	if variant == R {
@@ -131,13 +236,12 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 	}
 
 	for range 1 << 19 {
-		_a[0] = a[0]
-		_a[1] = a[1]
-
 		addr := (a[0] & 0x1ffff0) >> 3
 		aes_single_round((*[2]uint64)(c[:2]), (*[2]uint64)(cn.scratchpad[addr:addr+2]), &a)
 
 		if variant >= V2 {
+			_a = a
+
 			// since we use []uint64 instead of []uint8 as scratchpad, the offset applies too
 			offset0 := addr ^ 0x02
 			offset1 := addr ^ 0x04
@@ -165,12 +269,6 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 
 		cn.scratchpad[addr+0] = b[0] ^ c[0]
 		cn.scratchpad[addr+1] = b[1] ^ c[1]
-
-		if variant == V1 {
-			t := cn.scratchpad[addr+1] >> 24
-			t = ((^t)&1)<<4 | (((^t)&1)<<4&t)<<1 | (t&32)>>1
-			cn.scratchpad[addr+1] ^= t << 24
-		}
 
 		addr = (c[0] & 0x1ffff0) >> 3
 		d[0] = cn.scratchpad[addr]
@@ -249,10 +347,6 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 
 		cn.scratchpad[addr+0] = a[0]
 		cn.scratchpad[addr+1] = a[1]
-
-		if variant == V1 {
-			cn.scratchpad[addr+1] ^= v1Tweak
-		}
 
 		a[0] ^= d[0]
 		a[1] ^= d[1]

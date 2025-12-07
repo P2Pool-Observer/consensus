@@ -322,6 +322,7 @@ func r_check_data(dataIndex, needed int, data *[32]uint8) int {
 	return dataIndex
 }
 
+//go:nosplit
 func r_interpreter(code *[V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction, r *[9]uint32) {
 	const REG_BITS = 4 * 8
 
