@@ -20,6 +20,9 @@ type State struct {
 
 	blocks    [16]uint64            // temporary chunk/pointer of data
 	roundKeys [aesRounds * 4]uint32 // 10 rounds, instead of 14 as in standard AES-256
+
+	code       [V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction
+	codeHeight uint64
 }
 
 func (cn *State) SumR(data []byte, height uint64, prehashed bool) types.Hash {
@@ -44,9 +47,8 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		sqrtResult uint64
 
 		// for variant 4
-		_a   [2]uint64
-		r    [9]uint32
-		code [V4_NUM_INSTRUCTIONS_MAX + 1]V4Instruction
+		_a [2]uint64
+		r  [9]uint32
 	)
 
 	if !prehashed {
@@ -77,7 +79,10 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		r[1] = uint32(cn.finalState[12] >> 32)
 		r[2] = uint32(cn.finalState[13])
 		r[3] = uint32(cn.finalState[13] >> 32)
-		r_init(&code, height)
+		if cn.codeHeight == 0 || cn.codeHeight != height {
+			r_init(&cn.code, height)
+			cn.codeHeight = height
+		}
 	}
 
 	// scratchpad init
@@ -103,7 +108,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 		sqrtResult = cn.finalState[13]
 	}
 
-	for range 524288 {
+	for range 1 << 19 {
 		_a[0] = a[0]
 		_a[1] = a[1]
 
@@ -168,7 +173,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 			r[4], r[5] = uint32(a[0]), uint32(a[1])
 			r[6] = uint32(b[0])
 			r[7], r[8] = uint32(e[0]), uint32(e[1])
-			r_interpreter(&code, &r)
+			r_interpreter(&cn.code, &r)
 
 			a[0] ^= uint64(r[2]) | ((uint64)(r[3]) << 32)
 			a[1] ^= uint64(r[0]) | ((uint64)(r[1]) << 32)
