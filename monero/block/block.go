@@ -399,9 +399,20 @@ func (b *Block) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeightFunc) (
 	}
 }
 
+var correctHashBlock202612 = types.MustHashFromString("426d16cff04c71f8b16340b722dc4010a2dd3831c22041431f772547ba6e331a")
+var existingHashBlock202612 = types.MustHashFromString("bbd604d2ba11ba27935e006ed39c9bfdd99b76bf4a50654bc1e1e61217962698")
+
 func (b *Block) Id() types.Hash {
-	//cached by sidechain.Share
 	var varIntBuf [binary.MaxVarintLen64]byte
 	buf := b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength()))
-	return crypto.Keccak256Var(varIntBuf[:binary.PutUvarint(varIntBuf[:], uint64(len(buf)))], buf)
+	h := crypto.Keccak256Var(varIntBuf[:binary.PutUvarint(varIntBuf[:], uint64(len(buf)))], buf)
+	if b.Coinbase.GenHeight == 202612 {
+		if h == correctHashBlock202612 {
+			return existingHashBlock202612
+		} else if h == existingHashBlock202612 {
+			// make sure that we aren't looking at a block with the 202612 block id but not the correct blobdata
+			return types.ZeroHash
+		}
+	}
+	return h
 }
