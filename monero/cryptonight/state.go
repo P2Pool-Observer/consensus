@@ -186,7 +186,7 @@ func (cn *State) sum(data []byte, variant Variant, height uint64, prehashed bool
 
 			// VARIANT2_INTEGER_MATH_SQRT_STEP_FP64 and
 			// VARIANT2_INTEGER_MATH_SQRT_FIXUP
-			sqrtResult = sqrt(sqrtInput)
+			sqrtResult = v2_sqrt(sqrtInput)
 		}
 
 		if variant == R {

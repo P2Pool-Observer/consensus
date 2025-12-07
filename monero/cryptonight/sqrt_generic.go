@@ -1,8 +1,10 @@
+//go:build !amd64 || purego
+
 package cryptonight
 
 import "math"
 
-func sqrt(in uint64) uint64 {
+func v2_sqrt(in uint64) uint64 {
 	out := uint64(
 		math.Sqrt(
 			float64(in)+1<<64,
