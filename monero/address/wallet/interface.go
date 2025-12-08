@@ -34,7 +34,12 @@ type ViewWalletInterface[T curve25519.PointOperations] interface {
 	Track(ix address.SubaddressIndex) error
 	HasSpend(spendPub curve25519.PublicKeyBytes) (address.SubaddressIndex, bool)
 
+	// MatchCarrot matches a Carrot non-coinbase from a list of outputs. Returns the absolute index of the matched output, scan data, and eligible address index if available
+	// Slice outputs to continue scanning
 	MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
+
+	// MatchCarrotCoinbase matches a Carrot coinbase from a list of outputs. Returns the absolute index of the matched output, scan data, and eligible address index if available
+	// Slice outputs to continue scanning
 	MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
 }
 
@@ -54,6 +59,12 @@ type LegacyScan struct {
 type ViewWalletLegacyInterface[T curve25519.PointOperations] interface {
 	ViewWalletInterface[T]
 
-	// Match Only available in non-Carrot legacy implementation
+	// GetFromSpend Like Get, but allows unknown spendPub to be derived
+	GetFromSpend(spendPub *curve25519.PublicKey[T]) *address.Address
+
+	// Match matches a legacy / non-Carrot coinbase or non-coinbase from a list of outputs. Returns the absolute index of the matched output, scan data, and eligible address index if available
+	// Slice outputs to continue scanning
+	//
+	// Only available in non-Carrot legacy implementation
 	Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex)
 }

@@ -103,30 +103,37 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.
 			}
 
 			D := ephemeralPub.Subtract(&ephemeralPub, &sharedDataPub)
-			if ix, ok := w.HasSpend(D.AsBytes()); ok {
-				scan = &LegacyScan{
-					ExtensionG: extensionG,
-					// zero
-					ExtensionT: *new(curve25519.Scalar),
-					SpendPub:   D.AsBytes(),
-					//TODO: payment id
-				}
-				if len(commitments) > int(out.Index) {
-					c := commitments[int(out.Index)]
-					lc := c.Decode(curve25519.PrivateKeyBytes(extensionG.Bytes()), c.Mask == curve25519.ZeroPrivateKeyBytes)
-					if ringct.CalculateCommitment(new(curve25519.PublicKey[T]), lc).AsBytes() != c.Commitment {
-						// cannot match!
-						continue
-					}
-					scan.Amount = lc.Amount
-					copy(scan.AmountBlindingFactor[:], lc.Mask.Bytes())
-				} else if out.Amount > 0 {
-					// probably coinbase or old
-					scan.Amount = out.Amount
-					copy(scan.AmountBlindingFactor[:], ringct.CoinbaseAmountBlindingFactor.Bytes())
-				}
 
+			scan = &LegacyScan{
+				ExtensionG: extensionG,
+				// zero
+				ExtensionT: *new(curve25519.Scalar),
+				SpendPub:   D.AsBytes(),
+				//TODO: payment id
+			}
+
+			if len(commitments) > int(out.Index) {
+				c := commitments[int(out.Index)]
+				lc := c.Decode(curve25519.PrivateKeyBytes(extensionG.Bytes()), c.Mask == curve25519.ZeroPrivateKeyBytes)
+				if ringct.CalculateCommitment(new(curve25519.PublicKey[T]), lc).AsBytes() != c.Commitment {
+					// cannot match!
+					continue
+				}
+				scan.Amount = lc.Amount
+				copy(scan.AmountBlindingFactor[:], lc.Mask.Bytes())
+			} else if out.Amount > 0 {
+				// probably coinbase or old
+				scan.Amount = out.Amount
+				copy(scan.AmountBlindingFactor[:], ringct.CoinbaseAmountBlindingFactor.Bytes())
+			}
+
+			if ix, ok := w.HasSpend(scan.SpendPub); ok {
 				return int(out.Index), scan, ix
+			} else if len(commitments) > int(out.Index) {
+				// we checked commitment, this is probably it - shared data is fine, we just don't know the specific index
+				// return unknown index.
+				// we cannot do this for transparent outputs (coinbase, or pre-RingCT)
+				return int(out.Index), scan, address.UnknownSubaddressIndex
 			}
 		}
 	}
@@ -158,6 +165,8 @@ func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transacti
 			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
+				} else {
+					return int(out.Index), scan, address.UnknownSubaddressIndex
 				}
 			}
 		}
@@ -194,6 +203,8 @@ func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, out
 			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
+				} else {
+					return int(out.Index), scan, address.UnknownSubaddressIndex
 				}
 			}
 		}
@@ -204,6 +215,27 @@ func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, out
 func (w *ViewWallet[T]) HasSpend(spendPub curve25519.PublicKeyBytes) (address.SubaddressIndex, bool) {
 	ix, ok := w.spendMap[spendPub]
 	return ix, ok
+}
+
+func (w *ViewWallet[T]) GetFromSpend(spendPub *curve25519.PublicKey[T]) *address.Address {
+	if w.accountSpendPub.Equal(spendPub) == 1 {
+		return w.primaryAddress
+	}
+
+	var C curve25519.PublicKey[T]
+	// view pub
+	C.ScalarMult(&w.viewKeyScalar, spendPub)
+
+	switch w.primaryAddress.BaseNetwork() {
+	case monero.MainNetwork:
+		return address.FromRawAddress(monero.SubAddressMainNetwork, spendPub.AsBytes(), C.AsBytes())
+	case monero.TestNetwork:
+		return address.FromRawAddress(monero.SubAddressTestNetwork, spendPub.AsBytes(), C.AsBytes())
+	case monero.StageNetwork:
+		return address.FromRawAddress(monero.SubAddressStageNetwork, spendPub.AsBytes(), C.AsBytes())
+	default:
+		return nil
+	}
 }
 
 func (w *ViewWallet[T]) Get(index address.SubaddressIndex) *address.Address {

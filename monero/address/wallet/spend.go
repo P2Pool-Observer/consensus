@@ -130,6 +130,10 @@ func (w *SpendWallet[T]) HasSpend(spendPub curve25519.PublicKeyBytes) (address.S
 	return w.vw.HasSpend(spendPub)
 }
 
+func (w *SpendWallet[T]) GetFromSpend(spendPub *curve25519.PublicKey[T]) *address.Address {
+	return w.vw.GetFromSpend(spendPub)
+}
+
 func (w *SpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	return w.vw.MatchCarrot(firstKeyImage, outputs, commitments, txPubs)
 }

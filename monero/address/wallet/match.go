@@ -105,7 +105,7 @@ func MatchTransactionKey[T curve25519.PointOperations](
 		var scan *LegacyScan
 		for i != -1 && i < len(tx.Outputs()) {
 			if i, scan = matchTxKey(expectedPub, derivation, &spendPub, tx.Outputs()[i:], commitments, pubs); i != -1 {
-				legacyMatch(i, scan, address.ZeroSubaddressIndex)
+				legacyMatch(i, scan, address.UnknownSubaddressIndex)
 				i++
 			}
 		}
