@@ -53,14 +53,16 @@ func aes_expand_key(key []uint64, roundKeys *[aesRounds * 4]uint32) {
 	}
 }
 
-func aes_rounds_generic(state *[2]uint64, roundKeys *[aesRounds * 4]uint32) {
+func aes_rounds_generic(state *[16]uint64, roundKeys *[aesRounds * 4]uint32) {
 	// #nosec G103
-	state32 := (*[4]uint32)(unsafe.Pointer(state))
+	state32 := (*[8][4]uint32)(unsafe.Pointer(state))
 	// #nosec G103
 	rkey32 := (*[aesRounds][4]uint32)(unsafe.Pointer(roundKeys))
 
-	for r := range aesRounds {
-		soft_aesenc(state32, &rkey32[r])
+	for i := range state32 {
+		for r := range aesRounds {
+			soft_aesenc(&state32[i], &rkey32[r])
+		}
 	}
 }
 

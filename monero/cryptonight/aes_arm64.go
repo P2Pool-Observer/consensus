@@ -6,14 +6,14 @@ import "golang.org/x/sys/cpu"
 
 //go:nosplit
 //go:noescape
-func aes_rounds_internal(state *[2]uint64, roundKeys *[aesRounds * 4]uint32)
+func aes_rounds_internal(state *[16]uint64, roundKeys *[aesRounds * 4]uint32)
 
 //go:nosplit
 //go:noescape
 func aes_single_round_internal(dst, src *[2]uint64, roundKey *[2]uint64)
 
 //go:nosplit
-func aes_rounds(state *[2]uint64, roundKeys *[aesRounds * 4]uint32) {
+func aes_rounds(state *[16]uint64, roundKeys *[aesRounds * 4]uint32) {
 	if cpu.ARM64.HasAES {
 		aes_rounds_internal(state, roundKeys)
 		return

@@ -2,7 +2,7 @@
 
 package cryptonight
 
-func aes_rounds(state *[2]uint64, roundKeys *[aesRounds * 4]uint32) {
+func aes_rounds(state *[16]uint64, roundKeys *[aesRounds * 4]uint32) {
 	aes_rounds_generic(state, roundKeys)
 }
 

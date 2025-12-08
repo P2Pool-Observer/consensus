@@ -59,9 +59,7 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 	copy(cn.blocks[:], cn.keccakState[8:24])
 
 	for i := 0; i < ScratchpadSize/8; i += 16 {
-		for j := 0; j < 16; j += 2 {
-			aes_rounds((*[2]uint64)(cn.blocks[j:]), &cn.roundKeys)
-		}
+		aes_rounds(&cn.blocks, &cn.roundKeys)
 		copy(cn.scratchpad[i:i+16], cn.blocks[:16])
 	}
 
@@ -193,11 +191,10 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 	tmp := ([16]uint64)(cn.keccakState[8:]) // a temp pointer
 
 	for i := 0; i < ScratchpadSize/8; i += 16 {
-		for j := 0; j < 16; j += 2 {
-			cn.scratchpad[i+j+0] ^= tmp[j+0]
-			cn.scratchpad[i+j+1] ^= tmp[j+1]
-			aes_rounds((*[2]uint64)(cn.scratchpad[i+j:]), &cn.roundKeys)
+		for j := range tmp {
+			cn.scratchpad[i+j] ^= tmp[j]
 		}
+		aes_rounds((*[16]uint64)(cn.scratchpad[i:]), &cn.roundKeys)
 		tmp = ([16]uint64)(cn.scratchpad[i:])
 	}
 
