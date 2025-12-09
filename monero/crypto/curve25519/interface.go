@@ -1,6 +1,7 @@
 package curve25519
 
 import (
+	// required for go:linkname
 	_ "unsafe"
 )
 

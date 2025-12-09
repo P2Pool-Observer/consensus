@@ -32,7 +32,7 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 		hasher := sha3.NewLegacyKeccak256()
 		_, _ = utils.WriteNoEscape(hasher, data)
 		// trigger pad and permute
-		_, _ = utils.ReadNoEscape(hasher.(io.Reader), nil)
+		_, _ = utils.ReadNoEscape(hasher.(io.Reader), nil) //nolint:forcetypeassert
 		// #nosec G103 -- fixed length read
 		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8), keccakStatePtr(hasher)[:])
 	} else {
@@ -58,7 +58,7 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 	aes_expand_key(cn.keccakState[:4], &cn.roundKeys)
 	copy(cn.blocks[:], cn.keccakState[8:24])
 
-	for i := 0; i < ScratchpadSize/8; i += 16 {
+	for i := 0; i < len(cn.scratchpad); i += 16 {
 		aes_rounds(&cn.blocks, &cn.roundKeys)
 		copy(cn.scratchpad[i:i+16], cn.blocks[:16])
 	}
@@ -188,17 +188,17 @@ func (cn *State) sum_v2_r(data []byte, variant Variant, height uint64, prehashed
 
 	// CNS008 sec.5 Result Calculation
 	aes_expand_key(cn.keccakState[4:8], &cn.roundKeys)
-	tmp := ([16]uint64)(cn.keccakState[8:]) // a temp pointer
+	prev := (*[16]uint64)(cn.keccakState[8:])
 
-	for i := 0; i < ScratchpadSize/8; i += 16 {
-		for j := range tmp {
-			cn.scratchpad[i+j] ^= tmp[j]
+	for i := 0; i < len(cn.scratchpad); i += 16 {
+		for j := range prev {
+			cn.scratchpad[i+j] ^= prev[j]
 		}
 		aes_rounds((*[16]uint64)(cn.scratchpad[i:]), &cn.roundKeys)
-		tmp = ([16]uint64)(cn.scratchpad[i:])
+		prev = (*[16]uint64)(cn.scratchpad[i:])
 	}
 
-	copy(cn.keccakState[8:24], tmp[:])
+	copy(cn.keccakState[8:24], prev[:])
 	keccakF1600(&cn.keccakState)
 
 	var sum types.Hash

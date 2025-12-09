@@ -92,7 +92,7 @@ func TransactionWeightV1(inputs, outputs, extra int) int {
 	}
 	nrl += 6
 	bpWeight := 32*(6+2*nrl) + 2
-	bpWeight += 1 /*nbp*/
+	bpWeight++ /*nbp*/
 
 	// There's a few reasons why we treat n_tree_layers as a fixed value for weight calculation:
 	//     a. If we took n_tree_layers into account when calculating weight, then fee calculation

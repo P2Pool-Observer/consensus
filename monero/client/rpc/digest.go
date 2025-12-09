@@ -11,6 +11,8 @@ import (
 	"github.com/tmthrgd/go-hex"
 )
 
+const digestQOPAuth = "auth"
+
 type digest struct {
 	QOP       string
 	Algorithm string
@@ -54,7 +56,7 @@ func (d *digest) Auth(method, uri, user, password string, requestCounter uint32,
 	}
 
 	var ha2, response []byte
-	if len(d.QOP) == 0 || d.QOP == "auth" {
+	if len(d.QOP) == 0 || d.QOP == digestQOPAuth {
 		ha2 = d.Hash([]byte(method), []byte(uri))
 	} else {
 		return "", ErrUnsupportedQOP
@@ -66,7 +68,7 @@ func (d *digest) Auth(method, uri, user, password string, requestCounter uint32,
 
 	if len(d.QOP) == 0 {
 		response = d.Hash(ha1, []byte(d.Nonce), ha2)
-	} else if d.QOP == "auth" {
+	} else if d.QOP == digestQOPAuth {
 		response = d.Hash(ha1, []byte(d.Nonce), nc[:], []byte(clientNonce), []byte(d.QOP), ha2)
 	} else {
 		return "", ErrUnsupportedQOP
@@ -78,7 +80,7 @@ func (d *digest) Auth(method, uri, user, password string, requestCounter uint32,
 		elements = append(elements, "qop="+d.QOP)
 	}
 	elements = append(elements, "nc="+string(nc[:]))
-	if d.QOP == "auth" || strings.HasSuffix(d.Algorithm, "-sess") {
+	if d.QOP == digestQOPAuth || strings.HasSuffix(d.Algorithm, "-sess") {
 		elements = append(elements, fmt.Sprintf("cnonce=\"%s\"", clientNonce))
 	}
 	elements = append(elements, fmt.Sprintf("response=\"%s\"", response))

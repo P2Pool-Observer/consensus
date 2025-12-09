@@ -17,6 +17,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 
+	// required for go:linkname
 	_ "unsafe"
 )
 

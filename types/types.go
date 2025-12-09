@@ -153,9 +153,9 @@ func (h *Hash) UnmarshalJSON(b []byte) error {
 
 	if _, err := fasthex.Decode(h[:], b[1:len(b)-1]); err != nil {
 		return err
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 //nolint:recvcheck
@@ -182,9 +182,9 @@ func (b *Bytes) UnmarshalJSON(buf []byte) error {
 
 	if _, err := fasthex.Decode(*b, buf[1:len(buf)-1]); err != nil {
 		return err
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 //nolint:recvcheck
@@ -262,7 +262,7 @@ func (b *FixedBytes[T]) UnmarshalJSON(buf []byte) error {
 
 	if _, err := fasthex.Decode(b.Slice(), buf[1:len(buf)-1]); err != nil {
 		return err
-	} else {
-		return nil
 	}
+
+	return nil
 }

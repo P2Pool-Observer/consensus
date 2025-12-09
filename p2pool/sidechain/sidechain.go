@@ -152,10 +152,7 @@ func (c *SideChain) SetPruneMode(mode PruneMode) error {
 	defer c.sidechainLock.Unlock()
 
 	// always allow change
-	if len(c.blocksByTemplateId) == 0 {
-		c.pruneMode = mode
-		return nil
-	} else if c.pruneMode < mode {
+	if len(c.blocksByTemplateId) == 0 || c.pruneMode < mode {
 		// always allow pruning more
 		c.pruneMode = mode
 		return nil
@@ -1131,6 +1128,7 @@ func (c *SideChain) updateChainTip(block *PoolBlock) {
 				utils.Logf("SideChain", "SYNCHRONIZED to tip %x", block.SideTemplateId(c.Consensus()).Slice())
 
 				// run GC at the end of this function
+				//nolint:revive
 				defer runtime.GC()
 			}
 
@@ -1333,7 +1331,7 @@ func (c *SideChain) GetMissingBlocks() []types.Hash {
 	return missingBlocks
 }
 
-func (c *SideChain) Server() P2PoolInterface {
+func (c *SideChain) Server() P2PoolInterface { //nolint:ireturn
 	return c.server
 }
 

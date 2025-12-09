@@ -1256,7 +1256,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 						}()
 						defer func() {
 							if e := recover(); e != nil {
-								if err = e.(error); err == nil {
+								if errT, ok := e.(error); !ok || errT == nil {
 									err = utils.ErrorfNoEscape("panic called: %v", e)
 								}
 								s.CloseClient(client)
@@ -1274,9 +1274,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 									err = errors.New("invalid string id")
 									return
 								}
-							} else if _, ok := msg.Id.(gojson.Number); ok {
-
-							} else {
+							} else if _, ok := msg.Id.(gojson.Number); !ok {
 								err = errors.New("invalid id format")
 								return
 							}

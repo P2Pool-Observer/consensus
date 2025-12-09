@@ -259,7 +259,7 @@ func (c *Client) submitRawRequest(req *http.Request, n int, body []byte, respons
 			c.digest = nil
 			c.digestCounter = 0
 			for _, e := range auth {
-				if d := newDigest(e); d != nil && d.QOP == "auth" && d.Algorithm == "MD5" {
+				if d := newDigest(e); d != nil && d.QOP == digestQOPAuth && d.Algorithm == "MD5" {
 					c.digest = d
 					break
 				}

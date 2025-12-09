@@ -83,6 +83,7 @@ func NewPreAllocatedSharesPool[T uint64 | int](n T) *PreAllocatedSharesPool {
 }
 
 func (p *PreAllocatedSharesPool) Get() Shares {
+	//nolint:forcetypeassert
 	return p.pool.Get().(Shares)
 }
 

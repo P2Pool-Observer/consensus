@@ -6,6 +6,7 @@ import (
 	"hash"
 	"io"
 
+	// needed for go:linkname
 	_ "unsafe"
 )
 

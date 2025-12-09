@@ -31,7 +31,7 @@ func (d *Digest) transform(data []byte) error {
 			d.chaining[i] ^= hxm[i] ^ m[i]
 		}
 
-		d.blocks += 1
+		d.blocks++
 	}
 
 	return nil
@@ -52,7 +52,7 @@ func (d *Digest) finalTransform() {
 		d.chaining[i] ^= h[i]
 	}
 
-	d.blocks += 1
+	d.blocks++
 }
 
 // Performs whole set of rounds on data provided in x. Variant denotes type

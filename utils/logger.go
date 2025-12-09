@@ -34,6 +34,7 @@ func init() {
 }
 
 func getLogBuf() []byte {
+	//nolint:forcetypeassert
 	return logBufPool.Get().([]byte)[:0]
 }
 
@@ -62,6 +63,7 @@ func Fatalf(format string, v ...any) {
 	buf := getLogBuf()
 	defer returnLogBuf(buf)
 	_println(AppendfNoEscape(innerPrint(buf, "", "FATAL"), format, v...))
+	//nolint:revive
 	os.Exit(1)
 }
 

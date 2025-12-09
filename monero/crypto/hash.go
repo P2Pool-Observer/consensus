@@ -50,11 +50,14 @@ func (k KeccakHasher) BlockSize() int {
 
 //go:nosplit
 func NewKeccak256() KeccakHasher {
+	//nolint:forcetypeassert
 	return KeccakHasher{h: sha3.NewLegacyKeccak256().(HashReader)}
 }
 
+//nolint:ireturn
 //go:nosplit
 func newKeccak256() HashReader {
+	//nolint:forcetypeassert
 	return sha3.NewLegacyKeccak256().(HashReader)
 }
 

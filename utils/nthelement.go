@@ -46,7 +46,7 @@ func partition[S ~[]E, E cmp.Ordered](s S, pivot, left, right int) int {
 // k is the desired index value, where array[k] is the k+1 smallest element
 // values between s[0, k-1] are guaranteed <= to s[k]
 // values between s[k+1, len(s)] are guaranteed >= to s[k]
-func NthElementSliceFunc[S ~[]E, E any](s S, cmp func(a, b E) int, k int) {
+func NthElementSliceFunc[S ~[]E, E any](s S, cmpFunc func(a, b E) int, k int) {
 	left := 0
 	right := len(s) - 1
 	for {
@@ -54,7 +54,7 @@ func NthElementSliceFunc[S ~[]E, E any](s S, cmp func(a, b E) int, k int) {
 			return
 		}
 		pivotIndex := (left + right) >> 1 // Use middle point as pivot. This could probably use random index
-		pivotIndex = partitionFunc(s, cmp, pivotIndex, left, right)
+		pivotIndex = partitionFunc(s, cmpFunc, pivotIndex, left, right)
 		if k == pivotIndex {
 			return
 		} else if k < pivotIndex {
@@ -66,11 +66,11 @@ func NthElementSliceFunc[S ~[]E, E any](s S, cmp func(a, b E) int, k int) {
 }
 
 // partitionFunc Partition values into less than s[pivot] and greater than s[pivot]
-func partitionFunc[S ~[]E, E any](s S, cmp func(a, b E) int, pivot, left, right int) int {
+func partitionFunc[S ~[]E, E any](s S, cmpFunc func(a, b E) int, pivot, left, right int) int {
 	s[pivot], s[right] = s[right], s[pivot] // Move pivot to end
 	storeIndex := left
 	for i := left; i < right; i++ {
-		if cmp(s[i], s[right]) < 0 { // Compare to pivot value
+		if cmpFunc(s[i], s[right]) < 0 { // Compare to pivot value
 			s[storeIndex], s[i] = s[i], s[storeIndex]
 			storeIndex++
 		}

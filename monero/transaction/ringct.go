@@ -642,7 +642,7 @@ func pSigRangeProofHash[S any, RP any, pS pSig[S], pRP pRangeProof[RP]](sigs []S
 
 func pSigRangeProofBufferLength[S any, RP any, pS pSig[S], pRP pRangeProof[RP]](sigs []S, pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, signature bool) (n int) {
 	if !signature {
-		n += 1
+		n++
 		for i := range sigs {
 			n += pS(&sigs[i]).BufferLength()
 		}
@@ -822,7 +822,7 @@ func (p *PrunableFCMPPlusPlus) Hash(signature bool) types.Hash {
 
 func (p *PrunableFCMPPlusPlus) BufferLength(signature bool) (n int) {
 	if !signature {
-		n += 1
+		n++
 		n += utils.UVarInt64Size(p.ReferenceBlock) + 1 + len(p.FCMP_PP)
 		n += len(p.PseudoOuts) * curve25519.PublicKeySize
 	}

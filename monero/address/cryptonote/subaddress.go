@@ -89,7 +89,7 @@ func GetSubaddress(a *address.Address, viewKey *curve25519.Scalar, index address
 	}
 }
 
-func GetSubaddressFakeAddress(sa address.InterfaceSubaddress, viewKey *curve25519.Scalar) address.Interface {
+func GetSubaddressFakeAddress(sa address.InterfaceSubaddress, viewKey *curve25519.Scalar) address.Interface { //nolint:ireturn
 	if !sa.IsSubaddress() {
 		return sa
 	}

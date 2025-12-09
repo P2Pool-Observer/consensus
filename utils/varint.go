@@ -78,7 +78,7 @@ func UVarInt64SliceSize[T uint64 | int](v []T) (n int) {
 	for i := range v {
 		n += UVarInt64Size(v[i])
 	}
-	return
+	return n
 }
 
 func UVarInt64Size[T uint64 | int | uint8](v T) (n int) {

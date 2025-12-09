@@ -29,14 +29,10 @@ linters:
     - wrapcheck
 
     # General or pedantic ones
-    - revive
     - nonamedreturns
     - noinlineerr
     - gocritic
     - exhaustruct
-    - ireturn
-    - goconst
-    - forcetypeassert
 
     # Complexity and duplicity is fine
     - interfacebloat
@@ -54,6 +50,42 @@ linters:
     - gochecknoglobals
 
   settings:
+    revive:
+      rules:
+        - name: atomic
+        - name: blank-imports
+        - name: call-to-gc
+        - name: constant-logical-expr
+        - name: datarace
+        - name: deep-exit
+        - name: defer
+        - name: dot-imports
+        - name: identical-branches
+        - name: identical-ifelseif-branches
+        - name: identical-ifelseif-conditions
+        - name: identical-switch-conditions
+        - name: increment-decrement
+        - name: modifies-parameter
+        - name: modifies-value-receiver
+        - name: package-directory-mismatch
+        - name: redefines-builtin-id
+        - name: redundant-build-tag
+        - name: time-equal
+        - name: unconditional-recursion
+        - name: unexported-return
+        - name: waitgroup-by-value
+
+
+    ireturn:
+      allow:
+        - stdlib
+        - error
+        - generic
+        - "git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx.Hasher"
+        - "git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction.Proofs"
+        - "git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction.Transaction"
+        - "git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction.PrunedTransaction"
+
     staticcheck:
       checks:
         - "all"

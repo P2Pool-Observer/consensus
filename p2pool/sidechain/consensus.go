@@ -316,11 +316,7 @@ var torNodes = []p2pooltypes.OnionAddressV3{
 }
 
 func (c *Consensus) TorNodes() []p2pooltypes.OnionAddressV3 {
-	if c.IsNano() {
-		return torNodes
-	} else if c.IsMini() {
-		return torNodes
-	} else if c.IsDefault() {
+	if c.IsDefault() || c.IsMini() || c.IsNano() {
 		return torNodes
 	}
 	return nil

@@ -10,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"golang.org/x/sys/cpu"
 
+	// required for go:linkname
 	_ "unsafe"
 )
 

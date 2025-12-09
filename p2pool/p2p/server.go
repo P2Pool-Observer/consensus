@@ -249,9 +249,7 @@ func (s *Server) AddToPeerList(addressPort netip.AddrPort) {
 	}
 	addr := addressPort.Addr().Unmap()
 
-	if !s.useIPv4 && addr.Is4() {
-		return
-	} else if !s.useIPv6 && addr.Is6() {
+	if (!s.useIPv4 && addr.Is4()) || (!s.useIPv6 && addr.Is6()) {
 		return
 	}
 
@@ -277,9 +275,7 @@ func (s *Server) UpdateInPeerList(addressPort netip.AddrPort) {
 	}
 	addr := addressPort.Addr().Unmap()
 
-	if !s.useIPv4 && addr.Is4() {
-		return
-	} else if !s.useIPv6 && addr.Is6() {
+	if (!s.useIPv4 && addr.Is4()) || (!s.useIPv6 && addr.Is6()) {
 		return
 	}
 	s.peerListLock.Lock()
@@ -514,9 +510,7 @@ func (s *Server) UpdateClientConnections() {
 				}
 				e.LastSeenTimestamp.Store(p.LastSeen)
 				if ok, _ := s.IsBanned(addr); !ok {
-					if !s.useIPv4 && addr.Is4() {
-						continue
-					} else if !s.useIPv6 && addr.Is6() {
+					if (!s.useIPv4 && addr.Is4()) || (!s.useIPv6 && addr.Is6()) {
 						continue
 					}
 					s.moneroPeerList = append(s.moneroPeerList, e)
@@ -843,10 +837,11 @@ func (s *Server) DirectConnectHost(host string, port uint16, ourPeerId uint64, d
 	}
 }
 
-func (s *Server) DefaultDialer(ipv6 bool) proxy.ContextDialer {
+func (s *Server) DefaultDialer(ipv6 bool) proxy.ContextDialer { //nolint:ireturn
 	if p := s.proxy.Load(); p != nil {
 		d, err := proxy.FromURL(p, nil)
 		if err == nil {
+			//nolint:forcetypeassert
 			return d.(proxy.ContextDialer)
 		}
 	}

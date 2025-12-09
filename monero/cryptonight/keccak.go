@@ -3,6 +3,7 @@ package cryptonight
 import (
 	"hash"
 	"unsafe"
+	// required for go:linkname
 	_ "unsafe"
 
 	_ "golang.org/x/crypto/sha3" //nolint:depguard
