@@ -81,7 +81,8 @@ func TestViewWallet_GeneralFund_Match(t *testing.T) {
 		},
 	}
 
-	i, scan, ix := vw.Match(outputs, commitments, []curve25519.PublicKeyBytes{txPub})
+	// todo: payment id
+	i, scan, ix := vw.Match(outputs, commitments, []curve25519.PublicKeyBytes{txPub}, nil)
 	if i == -1 {
 		t.Fatal("expected to find output")
 	}

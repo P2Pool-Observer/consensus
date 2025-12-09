@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"git.gammaspectra.live/P2Pool/blake2b"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address/cryptonote"
@@ -33,8 +34,8 @@ func (w *CarrotSpendWallet[T]) HasSpend(spendPub curve25519.PublicKeyBytes) (add
 	return w.vw.HasSpend(spendPub)
 }
 
-func (w *CarrotSpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
-	return w.vw.MatchCarrot(firstKeyImage, outputs, commitments, txPubs)
+func (w *CarrotSpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+	return w.vw.MatchCarrot(firstKeyImage, outputs, commitments, txPubs, encryptedPaymentId)
 }
 
 func (w *CarrotSpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
@@ -134,16 +135,16 @@ func (w *SpendWallet[T]) GetFromSpend(spendPub *curve25519.PublicKey[T]) *addres
 	return w.vw.GetFromSpend(spendPub)
 }
 
-func (w *SpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
-	return w.vw.MatchCarrot(firstKeyImage, outputs, commitments, txPubs)
+func (w *SpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+	return w.vw.MatchCarrot(firstKeyImage, outputs, commitments, txPubs, encryptedPaymentId)
 }
 
 func (w *SpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	return w.vw.MatchCarrotCoinbase(blockIndex, outputs, txPubs)
 }
 
-func (w *SpendWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex) {
-	return w.vw.Match(outputs, commitments, txPubs)
+func (w *SpendWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex) {
+	return w.vw.Match(outputs, commitments, txPubs, encryptedPaymentId)
 }
 
 func (w *SpendWallet[T]) SpendKey() *curve25519.Scalar {
@@ -244,3 +245,10 @@ func CanOpenOneTimeAddress[T curve25519.PointOperations, SpendWallet SpendWallet
 	}
 	return nil
 }
+
+var _ SpendWalletInterface[curve25519.ConstantTimeOperations] = new(CarrotSpendWallet[curve25519.ConstantTimeOperations])
+var _ CarrotWalletInterface[curve25519.ConstantTimeOperations] = new(CarrotSpendWallet[curve25519.ConstantTimeOperations])
+var _ ViewWalletInterface[curve25519.ConstantTimeOperations] = new(CarrotSpendWallet[curve25519.ConstantTimeOperations])
+
+var _ SpendWalletLegacyInterface[curve25519.ConstantTimeOperations] = new(SpendWallet[curve25519.ConstantTimeOperations])
+var _ ViewWalletLegacyInterface[curve25519.ConstantTimeOperations] = new(SpendWallet[curve25519.ConstantTimeOperations])

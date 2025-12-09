@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 	"errors"
+	"slices"
 
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -93,7 +94,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 }
 
 // TryScanEnoteChecked try_scan_carrot_enote_external_normal_checked
-func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, senderReceiverUnctx curve25519.MontgomeryPoint, mainAddressSpendPub curve25519.PublicKeyBytes) (err error) {
+func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, encryptedPaymentId *[monero.PaymentIdSize]byte, senderReceiverUnctx curve25519.MontgomeryPoint, mainAddressSpendPubs ...curve25519.PublicKeyBytes) (err error) {
 	var hasher blake2b.Digest
 
 	// if vt' != vt, then FAIL
@@ -111,8 +112,7 @@ func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, sen
 		return ErrInvalidOneTimeAddress
 	}
 
-	// TODO: payment id
-	scanNonCoinbaseInfo(&hasher, scan, &oneTimeAddress, enote.AmountCommitment, enote.EncryptedAnchor, nil, senderReceiverSecret)
+	scanNonCoinbaseInfo(&hasher, scan, &oneTimeAddress, enote.AmountCommitment, enote.EncryptedAnchor, encryptedPaymentId, senderReceiverSecret)
 
 	var amountBlindingKey curve25519.Scalar
 	scan.Amount, scan.Type, err = tryGetCarrotAmount[curve25519.VarTimeOperations](&hasher, &amountBlindingKey, senderReceiverSecret, enote.EncryptedAmount, enote.OneTimeAddress, scan.SpendPub, enote.AmountCommitment)
@@ -121,8 +121,7 @@ func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, sen
 	}
 	scan.AmountBlindingFactor = curve25519.PrivateKeyBytes(amountBlindingKey.Bytes())
 
-	// todo: payment id!
-	if !verifyNormalJanusProtection[curve25519.VarTimeOperations](&hasher, scan.Randomness, inputContext, scan.SpendPub, scan.SpendPub != mainAddressSpendPub, [monero.PaymentIdSize]byte{}, enote.EphemeralPubKey) {
+	if !verifyNormalJanusProtectionAndConfirmPaymentId[curve25519.VarTimeOperations](&hasher, inputContext, scan.SpendPub, !slices.Contains(mainAddressSpendPubs, scan.SpendPub), enote.EphemeralPubKey, scan.Randomness, &scan.PaymentId) {
 		return ErrJanusProtectionFailed
 	}
 
@@ -194,6 +193,23 @@ func tryRecomputeCarrotAmountCommitment[T curve25519.PointOperations](hasher *bl
 	nominalAmountCommitment := makeAmountCommitment[T](nominalAmount, amountBlindingKeyOut)
 
 	return nominalAmountCommitment == amountCommitment
+}
+
+// verifyNormalJanusProtectionAndConfirmPaymentId verify_carrot_normal_janus_protection_and_confirm_pid
+func verifyNormalJanusProtectionAndConfirmPaymentId[T curve25519.PointOperations](hasher *blake2b.Digest, inputContext []byte, nominalSpendPub curve25519.PublicKeyBytes, isSubaddress bool, ephemeralPub curve25519.MontgomeryPoint, nominalAnchor [monero.JanusAnchorSize]byte, nominalPaymentId *[monero.PaymentIdSize]byte) bool {
+	// if can recompute D_e with pid', then PASS
+	if verifyNormalJanusProtection[T](hasher, nominalAnchor, inputContext, nominalSpendPub, isSubaddress, *nominalPaymentId, ephemeralPub) {
+		return true
+	}
+
+	// if it's already zero, FAIL
+	if *nominalPaymentId == [monero.PaymentIdSize]byte{} {
+		return false
+	}
+
+	// if can recompute D_e with null pid, then PASS
+	clear(nominalPaymentId[:])
+	return verifyNormalJanusProtection[T](hasher, nominalAnchor, inputContext, nominalSpendPub, isSubaddress, *nominalPaymentId, ephemeralPub)
 }
 
 // verifyNormalJanusProtection verify_carrot_normal_janus_protection

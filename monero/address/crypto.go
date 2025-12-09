@@ -106,6 +106,18 @@ func GetDerivation[T curve25519.PointOperations](out *curve25519.PublicKey[T], p
 	return out
 }
 
+const hashKeyEncryptedPaymentIdKey = 0x8d
+
+// CalculatePaymentIdEncodingKey Equivalent to device_default::encrypt_payment_id
+func CalculatePaymentIdEncodingKey(k curve25519.PrivateKeyBytes) curve25519.PrivateKeyBytes {
+	var key curve25519.PrivateKeyBytes
+	h := crypto.NewKeccak256()
+	_, _ = h.Write(k[:])
+	_, _ = h.Write([]byte{hashKeyEncryptedPaymentIdKey})
+	_, _ = h.Read(key[:])
+	return key
+}
+
 type SignatureVerifyResult int
 
 const (

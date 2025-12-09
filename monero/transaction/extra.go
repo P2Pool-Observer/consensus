@@ -22,6 +22,9 @@ const TxExtraTagMysteriousMinergate = 0xde
 const TxExtraPaddingMaxCount = 255
 const TxExtraNonceMaxCount = 255
 
+const TxExtraNoncePaymentId = 0x00
+const TxExtraNonceEncryptedPaymentId = 0x01
+
 const TxExtraTagMergeMiningMaxCount = types.HashSize + 9
 
 const TxExtraTemplateNonceSize = 4

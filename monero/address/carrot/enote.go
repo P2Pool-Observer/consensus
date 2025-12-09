@@ -58,7 +58,7 @@ const (
 )
 
 // makeEnoteEphemeralPrivateKey make_carrot_enote_ephemeral_privkey
-func makeEnoteEphemeralPrivateKey(hasher *blake2b.Digest, ephemeralPrivateKeyOut *curve25519.Scalar, anchor, inputContext []byte, spendPub curve25519.PublicKeyBytes, paymentId [8]byte) {
+func makeEnoteEphemeralPrivateKey(hasher *blake2b.Digest, ephemeralPrivateKeyOut *curve25519.Scalar, anchor, inputContext []byte, spendPub curve25519.PublicKeyBytes, paymentId [monero.PaymentIdSize]byte) {
 	// k_e = (H_64(anchor_norm, input_context, K^j_s, pid)) mod l
 	ScalarTranscript(
 		ephemeralPrivateKeyOut, hasher, nil,

@@ -154,7 +154,7 @@ func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs tra
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeInputContext(firstKeyImage)
 	scan = &carrot.ScanV1{}
 
@@ -180,7 +180,7 @@ func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyByte
 			}
 
 			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
-			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
+			if enote.TryScanEnoteChecked(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
 				}
@@ -236,3 +236,5 @@ func (w *CarrotViewWallet[T]) GenerateAddressSecret() types.Hash {
 func (w *CarrotViewWallet[T]) ViewIncomingKey() *curve25519.Scalar {
 	return &w.viewIncomingKeyScalar
 }
+
+var _ ViewWalletInterface[curve25519.ConstantTimeOperations] = new(CarrotViewWallet[curve25519.ConstantTimeOperations])

@@ -47,7 +47,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				out, _, _ := address.CalculateTransactionOutput[T](addrI, txKey, 0, amount)
 				out.Amount = 0
 
-				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, nil, []curve25519.PublicKeyBytes{txPub.AsBytes()})
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, nil, []curve25519.PublicKeyBytes{txPub.AsBytes()}, nil)
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
@@ -189,7 +189,8 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 					additionalPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 				}
 
-				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, []ringct.CommitmentEncryptedAmount{encryptedAmount}, []curve25519.PublicKeyBytes{txPub.AsBytes(), additionalPub.AsBytes()})
+				//todo: payment id
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, []ringct.CommitmentEncryptedAmount{encryptedAmount}, []curve25519.PublicKeyBytes{txPub.AsBytes(), additionalPub.AsBytes()}, nil)
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
@@ -219,6 +220,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 				Amount: amount,
 			}
 			_, _ = rand.Read(proposal.Randomness[:])
+			_, _ = rand.Read(proposal.Destination.PaymentId[:])
 
 			var firstKeyImage curve25519.PublicKeyBytes
 			_, _ = rand.Read(firstKeyImage[:])
@@ -236,6 +238,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 				EncryptedJanusAnchor: types.MakeFixed(enote.Enote.EncryptedAnchor),
 				ViewTag:              types.MakeFixed(enote.Enote.ViewTag),
 			}
+			//todo: payment id
 			i, scan, subaddressIndex := wallet.MatchCarrot(firstKeyImage,
 				transaction.Outputs{out},
 				[]ringct.CommitmentEncryptedAmount{
@@ -247,6 +250,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 					},
 				},
 				[]curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)},
+				&enote.EncryptedPaymentId,
 			)
 			if i != 0 {
 				t.Fatalf("got index %d, want 0", i)
