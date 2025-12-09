@@ -237,8 +237,7 @@ func (c *CoinbaseV2) AppendBinaryFlags(preAllocatedBuf []byte, pruned, containsA
 
 	buf = append(buf, c.Version())
 	buf = binary.AppendUvarint(buf, c.UnlockTime)
-	buf = append(buf, c.InputCount)
-	buf = append(buf, c.InputType)
+	buf = append(buf, c.InputCount, c.InputType)
 	buf = binary.AppendUvarint(buf, c.GenHeight)
 
 	extra := c.Extra
@@ -277,8 +276,7 @@ func (c *CoinbaseV2) SideChainHashingBlob(preAllocatedBuf []byte, majorVersion u
 
 	buf = append(buf, c.Version())
 	buf = binary.AppendUvarint(buf, c.UnlockTime)
-	buf = append(buf, c.InputCount)
-	buf = append(buf, c.InputType)
+	buf = append(buf, c.InputCount, c.InputType)
 	buf = binary.AppendUvarint(buf, c.GenHeight)
 
 	buf, _ = c.MinerOutputs.AppendBinary(buf)

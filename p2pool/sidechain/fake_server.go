@@ -101,7 +101,8 @@ func (s *FakeServer) DownloadMinimalBlockHeaders(currentHeight uint64) error {
 		s.headersLock.Lock()
 		defer s.headersLock.Unlock()
 
-		for _, header := range rangeResult.Headers {
+		for i := range rangeResult.Headers {
+			header := &rangeResult.Headers[i]
 			s.headers[header.Height] = &mainblock.Header{
 				MajorVersion: uint8(header.MajorVersion),
 				MinorVersion: uint8(header.MinorVersion),

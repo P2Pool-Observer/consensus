@@ -117,7 +117,8 @@ func (c *Client) GetTransactions(txIds ...types.Hash) (data [][]byte, jsonTx []*
 			jsonTx = jsonTxs
 		}
 
-		for _, tx := range result.Txs {
+		for i := range result.Txs {
+			tx := &result.Txs[i]
 			if len(tx.AsHex) > 0 {
 				data = append(data, tx.AsHex)
 			} else if len(tx.PrunableAsHex) > 0 {
@@ -171,7 +172,8 @@ func (c *Client) GetPrunedTransactions(txIds ...types.Hash) (data [][]byte, json
 			jsonTx = jsonTxs
 		}
 
-		for _, tx := range result.Txs {
+		for i := range result.Txs {
+			tx := &result.Txs[i]
 			if len(tx.AsHex) > 0 {
 				data = append(data, tx.AsHex)
 			} else if len(tx.PrunableAsHex) > 0 {

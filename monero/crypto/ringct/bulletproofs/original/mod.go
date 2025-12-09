@@ -381,16 +381,20 @@ func (ags AggregateRangeStatement[T]) Verify(verifier *BatchVerifier[T], proof *
 			verifier.H.Subtract(&verifier.H, new(curve25519.Scalar).Multiply(new(curve25519.Scalar).Multiply(&weight, &z[3+i]), &twosSum))
 		}
 
-		verifier.Other = append(verifier.Other, bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&weight, &x), P: T1})
-		verifier.Other = append(verifier.Other, bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&weight, new(curve25519.Scalar).Multiply(&x, &x)), P: T2})
+		verifier.Other = append(verifier.Other,
+			bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&weight, &x), P: T1},
+			bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&weight, new(curve25519.Scalar).Multiply(&x, &x)), P: T2},
+		)
 	}
 
 	var ipWeight curve25519.Scalar
 	curve25519.RandomScalar(&ipWeight, randomReader)
 
 	// 66
-	verifier.Other = append(verifier.Other, bulletproofs.ScalarPointPair[T]{S: ipWeight, P: A})
-	verifier.Other = append(verifier.Other, bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&ipWeight, &x), P: S})
+	verifier.Other = append(verifier.Other,
+		bulletproofs.ScalarPointPair[T]{S: ipWeight, P: A},
+		bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&ipWeight, &x), P: S},
+	)
 
 	// We can replace these with a g_sum, h_sum scalar in the batch verifier
 	// It'd trade `2 * ip_rows` scalar additions (per proof) for one scalar addition and an

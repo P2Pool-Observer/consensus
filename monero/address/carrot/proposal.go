@@ -87,7 +87,7 @@ func (p *PaymentProposalV1[T]) OutputPartial(hasher *blake2b.Digest, inputContex
 	}
 
 	// 3. make D_e and do external ECDH
-	ephemeralPubkey, senderReceiverUnctx = p.ECDHParts(hasher, inputContext[:], isCoinbase)
+	ephemeralPubkey, senderReceiverUnctx = p.ECDHParts(hasher, inputContext, isCoinbase)
 
 	// err on twisted view/spend pub
 	if ephemeralPubkey == curve25519.ZeroMontgomeryPoint || senderReceiverUnctx == curve25519.ZeroMontgomeryPoint {
@@ -95,7 +95,7 @@ func (p *PaymentProposalV1[T]) OutputPartial(hasher *blake2b.Digest, inputContex
 	}
 
 	// 4. build the output enote address pieces
-	secretSenderReceiver = MakeSenderReceiverSecret(hasher, senderReceiverUnctx, ephemeralPubkey, inputContext[:])
+	secretSenderReceiver = MakeSenderReceiverSecret(hasher, senderReceiverUnctx, ephemeralPubkey, inputContext)
 
 	return ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, nil
 }

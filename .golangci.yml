@@ -31,7 +31,6 @@ linters:
     # General or pedantic ones
     - nonamedreturns
     - noinlineerr
-    - gocritic
     - exhaustruct
 
     # Complexity and duplicity is fine
@@ -50,6 +49,17 @@ linters:
     - gochecknoglobals
 
   settings:
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+      disabled-checks:
+        - ifElseChain
+        - commentFormatting
+        - sloppyReassign
+        - appendAssign
+        - captLocal
+        - commentedOutCode
     revive:
       rules:
         - name: atomic

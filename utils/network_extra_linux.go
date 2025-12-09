@@ -204,7 +204,7 @@ func newAddr(ifam *syscall.IfAddrmsg, attrs []syscall.NetlinkRouteAttr) *Extende
 			return &ExtendedIPNet{IP: net.IPv4(a.Value[0], a.Value[1], a.Value[2], a.Value[3]), Mask: net.CIDRMask(int(ifam.Prefixlen), 8*net.IPv4len), Flags: flags}
 		case syscall.AF_INET6:
 			ifa := &ExtendedIPNet{IP: make(net.IP, net.IPv6len), Mask: net.CIDRMask(int(ifam.Prefixlen), 8*net.IPv6len), Flags: flags}
-			copy(ifa.IP, a.Value[:])
+			copy(ifa.IP, a.Value)
 			return ifa
 		}
 	}
@@ -274,7 +274,7 @@ func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) *net.Int
 				}
 			}
 			if nonzero {
-				ifi.HardwareAddr = a.Value[:]
+				ifi.HardwareAddr = a.Value
 			}
 		case syscall.IFLA_IFNAME:
 			ifi.Name = string(a.Value[:len(a.Value)-1])

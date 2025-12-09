@@ -63,7 +63,7 @@ func Fatalf(format string, v ...any) {
 	buf := getLogBuf()
 	defer returnLogBuf(buf)
 	_println(AppendfNoEscape(innerPrint(buf, "", "FATAL"), format, v...))
-	//nolint:revive
+	//nolint:revive,gocritic
 	os.Exit(1)
 }
 

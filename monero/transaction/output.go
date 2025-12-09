@@ -99,8 +99,8 @@ func (s *Outputs) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) 
 			}
 		case TxOutToCarrotV1:
 			data = append(data, o.EphemeralPublicKey[:]...)
-			data = append(data, o.ViewTag.Slice()[:]...)
-			data = append(data, o.EncryptedJanusAnchor.Slice()[:]...)
+			data = append(data, o.ViewTag.Slice()...)
+			data = append(data, o.EncryptedJanusAnchor.Slice()...)
 		default:
 			return nil, errors.New("unknown output type")
 		}

@@ -641,8 +641,8 @@ type GetBlockResultJSON struct {
 func (c *GetBlockResultJSON) MinerOutputs() uint64 {
 	res := uint64(0)
 
-	for _, vout := range c.MinerTx.Vout {
-		res += vout.Amount
+	for i := range c.MinerTx.Vout {
+		res += c.MinerTx.Vout[i].Amount
 	}
 
 	return res

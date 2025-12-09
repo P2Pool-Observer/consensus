@@ -72,7 +72,8 @@ func (c *MainChain) Listen(success func()) error {
 	err := c.p2pool.ClientZMQ().Listen(ctx,
 		zmq.Listeners{
 			zmq.TopicFullChainMain: zmq.DecoderFullChainMain(func(mains []zmq.FullChainMain) {
-				for _, fullChainMain := range mains {
+				for i := range mains {
+					fullChainMain := &mains[i]
 					if len(fullChainMain.MinerTx.Inputs) < 1 {
 						continue
 					}
@@ -417,7 +418,8 @@ func (c *MainChain) DownloadBlockHeaders(currentHeight uint64) error {
 	if rangeResult, err := c.p2pool.ClientRPC().GetBlockHeadersRangeResult(startHeight, currentHeight-1, c.p2pool.Context()); err != nil {
 		return utils.ErrorfNoEscape("couldn't download block headers range for height %d to %d: %s", startHeight, currentHeight-1, err)
 	} else {
-		for _, header := range rangeResult.Headers {
+		for i := range rangeResult.Headers {
+			header := &rangeResult.Headers[i]
 			c.HandleMainHeader(&mainblock.Header{
 				MajorVersion: uint8(header.MajorVersion),
 				MinorVersion: uint8(header.MinorVersion),

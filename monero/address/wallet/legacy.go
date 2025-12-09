@@ -109,7 +109,7 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.
 			scan = &LegacyScan{
 				ExtensionG: extensionG,
 				// zero
-				ExtensionT: *new(curve25519.Scalar),
+				ExtensionT: curve25519.Scalar{},
 				SpendPub:   D.AsBytes(),
 				//TODO: payment id
 			}

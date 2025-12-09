@@ -169,7 +169,7 @@ func matchTxKey[T curve25519.PointOperations](expectedPub, derivation curve25519
 				scan = &LegacyScan{
 					ExtensionG: extensionG,
 					// zero
-					ExtensionT: *new(curve25519.Scalar),
+					ExtensionT: curve25519.Scalar{},
 					SpendPub:   D.AsBytes(),
 				}
 				if len(commitments) > int(out.Index) {

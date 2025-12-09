@@ -313,8 +313,7 @@ func (b *Block) HeaderBlobBufferLength() int {
 
 func (b *Block) HeaderBlob(preAllocatedBuf []byte) []byte {
 	buf := preAllocatedBuf
-	buf = append(buf, b.MajorVersion)
-	buf = append(buf, b.MinorVersion)
+	buf = append(buf, b.MajorVersion, b.MinorVersion)
 	buf = binary.AppendUvarint(buf, b.Timestamp)
 	buf = append(buf, b.PreviousId[:]...)
 	buf = binary.LittleEndian.AppendUint32(buf, b.Nonce)
@@ -325,8 +324,7 @@ func (b *Block) HeaderBlob(preAllocatedBuf []byte) []byte {
 // SideChainHashingBlob Same as MarshalBinary but with nonce or template id set to 0
 func (b *Block) SideChainHashingBlob(preAllocatedBuf []byte, zeroTemplateId bool) (buf []byte, err error) {
 	buf = preAllocatedBuf
-	buf = append(buf, b.MajorVersion)
-	buf = append(buf, b.MinorVersion)
+	buf = append(buf, b.MajorVersion, b.MinorVersion)
 	buf = binary.AppendUvarint(buf, b.Timestamp)
 	buf = append(buf, b.PreviousId[:]...)
 	buf = binary.LittleEndian.AppendUint32(buf, 0) //replaced nonce

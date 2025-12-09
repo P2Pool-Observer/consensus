@@ -219,7 +219,8 @@ func (c *Client) GetNetStats(ctx context.Context) (*GetNetStatsResult, error) {
 func (r *GetTransactionsResult) GetTransactions() ([]*TransactionJSON, error) {
 	txns := make([]*TransactionJSON, len(r.Txs))
 
-	for idx, txn := range r.Txs {
+	for idx := range r.Txs {
+		txn := &r.Txs[idx]
 		if len(txn.AsJSON) == 0 {
 			return nil, fmt.Errorf("txn w/ empty `.as_json`: %s",
 				txn.TxHash)

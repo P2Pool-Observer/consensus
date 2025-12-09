@@ -23,9 +23,9 @@ type RingSignatureComm[T curve25519.PointOperations] struct {
 func (comm RingSignatureComm[T]) Scalar(out *curve25519.Scalar) *curve25519.Scalar {
 	buf := make([]byte, 0, types.HashSize+len(comm.AB)*curve25519.PublicKeySize*2)
 	buf = append(buf, comm.PrefixHash[:]...)
-	for _, ab := range comm.AB {
-		buf = append(buf, ab[0].Bytes()...)
-		buf = append(buf, ab[1].Bytes()...)
+	for i := range comm.AB {
+		buf = append(buf, comm.AB[i][0].Bytes()...)
+		buf = append(buf, comm.AB[i][1].Bytes()...)
 	}
 	return crypto.ScalarDeriveLegacy(out, buf)
 }

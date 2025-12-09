@@ -205,7 +205,7 @@ func (s *State) e8() {
 		}
 
 		// round 7*round+6: swapping layer
-		for i := 1; i < 8; i = i + 2 {
+		for i := 1; i < 8; i += 2 {
 			temp0 = s.X[i][0]
 			s.X[i][0] = s.X[i][1]
 			s.X[i][1] = temp0

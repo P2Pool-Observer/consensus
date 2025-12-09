@@ -189,8 +189,7 @@ func (c *GenericCoinbase) AppendBinary(preAllocatedBuf []byte) ([]byte, error) {
 
 	buf = append(buf, c.version)
 	buf = binary.AppendUvarint(buf, c.UnlockTime)
-	buf = append(buf, c.InputCount)
-	buf = append(buf, c.InputType)
+	buf = append(buf, c.InputCount, c.InputType)
 	buf = binary.AppendUvarint(buf, c.GenHeight)
 
 	buf, _ = c.MinerOutputs.AppendBinary(buf)

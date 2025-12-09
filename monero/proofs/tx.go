@@ -41,8 +41,7 @@ func (p TxProof[T]) String() string {
 	output[0] = utils.SprintfNoEscape("%sV%d", p.Type, p.Version)
 
 	for _, claim := range p.Claims {
-		output = append(output, string(base58.EncodeMoneroBase58(claim.SharedSecret.Bytes())))
-		output = append(output, string(base58.EncodeMoneroBase58(claim.Signature.Bytes())))
+		output = append(output, string(base58.EncodeMoneroBase58(claim.SharedSecret.Bytes())), string(base58.EncodeMoneroBase58(claim.Signature.Bytes())))
 	}
 	return strings.Join(output, "")
 }

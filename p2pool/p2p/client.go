@@ -1038,11 +1038,8 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 			_ = reader
 
-			switch InternalMessageId(internalMessageId) {
-			default:
-				c.Ban(DefaultBanTime, utils.ErrorfNoEscape("unknown InternalMessageId %d", internalMessageId))
-				return
-			}
+			c.Ban(DefaultBanTime, utils.ErrorfNoEscape("unknown InternalMessageId %d", internalMessageId))
+			return
 		default:
 			c.Ban(DefaultBanTime, utils.ErrorfNoEscape("unknown MessageId %d", messageId))
 			return
@@ -1121,14 +1118,11 @@ func (c *Client) SendMessage(message *ClientMessage) {
 		defer returnBuffer(buf)
 		buf[0] = byte(message.MessageId)
 		copy(buf[1:], message.Buffer)
-		//c.sendLock.Lock()
-		//defer c.sendLock.Unlock()
 		if err := c.Connection.SetWriteDeadline(time.Now().Add(time.Second * 5)); err != nil {
 			c.Close()
 		} else if _, err = c.Connection.Write(buf[:bufLen]); err != nil {
 			c.Close()
 		}
-		//_, _ = c.Write(message.Buffer)
 	}
 }
 

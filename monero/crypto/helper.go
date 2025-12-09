@@ -36,30 +36,33 @@ func EvilPointGenerator[T curve25519.PointOperations](sourceScalar *curve25519.S
 
 	image := GetKeyImage[T](new(curve25519.PublicKey[T]), keyPair)
 
-	pubs = append(pubs, EvilPoint[T]{keyPair.PublicKey, EvilKindBase})
-
-	// key image
-	pubs = append(pubs, EvilPoint[T]{*image, EvilKindDerivation | EvilKindKeyImage})
-
-	// cofactor mult
-	pubs = append(pubs, EvilPoint[T]{*new(curve25519.PublicKey[T]).MultByCofactor(&keyPair.PublicKey), EvilKindDerivation})
-
-	// generator derivation
-	pubs = append(pubs, EvilPoint[T]{*new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&keyPair.PrivateKey, GeneratorH), EvilKindDerivation | EvilKindGenerator})
-	pubs = append(pubs, EvilPoint[T]{*new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&keyPair.PrivateKey, GeneratorT), EvilKindDerivation | EvilKindGenerator})
-	pubs = append(pubs, EvilPoint[T]{*new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&keyPair.PrivateKey, GeneratorU), EvilKindDerivation | EvilKindGenerator})
-	pubs = append(pubs, EvilPoint[T]{*new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&keyPair.PrivateKey, GeneratorV), EvilKindDerivation | EvilKindGenerator})
+	pubs = append(pubs,
+		EvilPoint[T]{keyPair.PublicKey, EvilKindBase},
+		// key image
+		EvilPoint[T]{*image, EvilKindDerivation | EvilKindKeyImage},
+		// cofactor mult
+		EvilPoint[T]{*new(curve25519.PublicKey[T]).MultByCofactor(&keyPair.PublicKey), EvilKindDerivation},
+		// generator derivation
+		EvilPoint[T]{*new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&keyPair.PrivateKey, GeneratorH), EvilKindDerivation | EvilKindGenerator},
+		EvilPoint[T]{*new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&keyPair.PrivateKey, GeneratorT), EvilKindDerivation | EvilKindGenerator},
+		EvilPoint[T]{*new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&keyPair.PrivateKey, GeneratorU), EvilKindDerivation | EvilKindGenerator},
+		EvilPoint[T]{*new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&keyPair.PrivateKey, GeneratorV), EvilKindDerivation | EvilKindGenerator},
+	)
 
 	// add low order and torsioned points
 	for _, torsion := range edwards25519.EightTorsion[1:] {
-		pubs = append(pubs, EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(&keyPair.PublicKey, curve25519.FromPoint[T](torsion)), EvilKindBase | EvilKindDerivation | EvilKindTorsion})
-		pubs = append(pubs, EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(image, curve25519.FromPoint[T](torsion)), EvilKindDerivation | EvilKindTorsion | EvilKindKeyImage})
-		pubs = append(pubs, EvilPoint[T]{*curve25519.FromPoint[T](torsion), EvilKindLowOrder | EvilKindTorsion})
+		pubs = append(pubs,
+			EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(&keyPair.PublicKey, curve25519.FromPoint[T](torsion)), EvilKindBase | EvilKindDerivation | EvilKindTorsion},
+			EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(image, curve25519.FromPoint[T](torsion)), EvilKindDerivation | EvilKindTorsion | EvilKindKeyImage},
+			EvilPoint[T]{*curve25519.FromPoint[T](torsion), EvilKindLowOrder | EvilKindTorsion},
+		)
 	}
 
 	// special points
-	pubs = append(pubs, EvilPoint[T]{*curve25519.FromPoint[T](edwards25519.NewGeneratorPoint()), EvilKindGenerator})
-	pubs = append(pubs, EvilPoint[T]{*curve25519.FromPoint[T](edwards25519.NewIdentityPoint()), EvilKindLowOrder})
+	pubs = append(pubs,
+		EvilPoint[T]{*curve25519.FromPoint[T](edwards25519.NewGeneratorPoint()), EvilKindGenerator},
+		EvilPoint[T]{*curve25519.FromPoint[T](edwards25519.NewIdentityPoint()), EvilKindLowOrder},
+	)
 
 	// filter
 	for i := len(pubs) - 1; i >= 0; i-- {

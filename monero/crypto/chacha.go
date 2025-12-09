@@ -33,7 +33,7 @@ func ChaChaEncrypt(dst, src []byte, secretKey []byte, kdfRounds int) {
 		panic(err)
 	}
 	cipher.XORKeyStream(dst[ChaChaNonceSize:], src)
-	copy(dst[:], iv[4:])
+	copy(dst, iv[4:])
 }
 
 func ChaChaDecrypt(dst, src []byte, secretKey []byte, kdfRounds int) {

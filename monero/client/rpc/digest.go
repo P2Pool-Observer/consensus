@@ -75,20 +75,20 @@ func (d *digest) Auth(method, uri, user, password string, requestCounter uint32,
 	}
 
 	var elements []string
-	elements = append(elements, fmt.Sprintf("Digest username=\"%s\",realm=\"%s\",nonce=\"%s\",uri=\"%s\"", user, d.Realm, d.Nonce, uri))
+	elements = append(elements, fmt.Sprintf("Digest username=%q,realm=%q,nonce=%q,uri=%q", user, d.Realm, d.Nonce, uri))
 	if d.QOP != "" {
 		elements = append(elements, "qop="+d.QOP)
 	}
 	elements = append(elements, "nc="+string(nc[:]))
 	if d.QOP == digestQOPAuth || strings.HasSuffix(d.Algorithm, "-sess") {
-		elements = append(elements, fmt.Sprintf("cnonce=\"%s\"", clientNonce))
+		elements = append(elements, fmt.Sprintf("cnonce=%q", clientNonce))
 	}
-	elements = append(elements, fmt.Sprintf("response=\"%s\"", response))
+	elements = append(elements, fmt.Sprintf("response=%q", response))
 	if d.Algorithm != "" {
 		elements = append(elements, "algorithm="+d.Algorithm)
 	}
 	if d.Opaque != "" {
-		elements = append(elements, fmt.Sprintf("opaque=\"%s\"", d.Opaque))
+		elements = append(elements, fmt.Sprintf("opaque=%q", d.Opaque))
 	}
 
 	return strings.Join(elements, ","), nil

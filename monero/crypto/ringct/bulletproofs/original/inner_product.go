@@ -178,8 +178,10 @@ func (ips *InnerProductStatement[T]) Verify(verifier *BatchVerifier[T], ipRows i
 		L.MultByCofactor(&L)
 		R.MultByCofactor(&R)
 
-		verifier.Other = append(verifier.Other, bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&verifierWeight, new(curve25519.Scalar).Multiply(&x, &x)), P: L})
-		verifier.Other = append(verifier.Other, bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&verifierWeight, new(curve25519.Scalar).Multiply(&xInv, &xInv)), P: R})
+		verifier.Other = append(verifier.Other,
+			bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&verifierWeight, new(curve25519.Scalar).Multiply(&x, &x)), P: L},
+			bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(&verifierWeight, new(curve25519.Scalar).Multiply(&xInv, &xInv)), P: R},
+		)
 	}
 
 	productCache := bulletproofs.ChallengeProducts(challenges)

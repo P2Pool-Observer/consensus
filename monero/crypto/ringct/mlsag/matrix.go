@@ -36,8 +36,8 @@ func NewRingMatrix[T curve25519.PointOperations](rings ...ringct.Ring[T]) (RingM
 
 func NewRingMatrixFromSingle[T curve25519.PointOperations](ring ringct.CommitmentRing[T], pseudoOut *curve25519.PublicKey[T]) (RingMatrix[T], error) {
 	matrix := make([]ringct.Ring[T], 0, len(ring))
-	for _, member := range ring {
-		matrix = append(matrix, ringct.Ring[T]{member[0], *new(curve25519.PublicKey[T]).Subtract(&member[1], pseudoOut)})
+	for i := range ring {
+		matrix = append(matrix, ringct.Ring[T]{ring[i][0], *new(curve25519.PublicKey[T]).Subtract(&ring[i][1], pseudoOut)})
 	}
 	return NewRingMatrix(matrix...)
 }
@@ -71,9 +71,9 @@ func NewRingMatrixFromAggregateRings[T curve25519.PointOperations](fee uint64, c
 			return nil, ErrInvalidRing
 		}
 
-		for i, member := range ring {
-			keyRing[i] = append(keyRing[i], member[0])
-			amountsRing[i].Add(&amountsRing[i], &member[1])
+		for i := range ring {
+			keyRing[i] = append(keyRing[i], ring[i][0])
+			amountsRing[i].Add(&amountsRing[i], &ring[i][1])
 		}
 	}
 

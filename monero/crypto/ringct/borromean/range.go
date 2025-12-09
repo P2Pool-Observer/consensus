@@ -39,16 +39,16 @@ func (s *Range[T]) BufferLength() int {
 
 func (s *Range[T]) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
 	buf := preAllocatedBuf
-	for _, scalar := range s.Signatures.S0 {
-		buf = append(buf, scalar[:]...)
+	for i := range s.Signatures.S0 {
+		buf = append(buf, s.Signatures.S0[i][:]...)
 	}
-	for _, scalar := range s.Signatures.S1 {
-		buf = append(buf, scalar[:]...)
+	for i := range s.Signatures.S1 {
+		buf = append(buf, s.Signatures.S1[i][:]...)
 	}
 	buf = append(buf, s.Signatures.EE.Bytes()...)
 
-	for _, p := range s.Commitments {
-		buf = append(buf, p.Bytes()...)
+	for i := range s.Commitments {
+		buf = append(buf, s.Commitments[i].Bytes()...)
 	}
 
 	return buf, nil

@@ -38,7 +38,7 @@ var commitmentMaskKey = []byte("commitment_mask")
 
 // CalculateCommitmentMask Equivalent to rct::genCommitmentMask
 func CalculateCommitmentMask(out *curve25519.Scalar, k curve25519.PrivateKeyBytes) *curve25519.Scalar {
-	return crypto.ScalarDeriveLegacy(out, commitmentMaskKey[:], k[:])
+	return crypto.ScalarDeriveLegacy(out, commitmentMaskKey, k[:])
 }
 
 var encryptedAmountKey = []byte("amount")

@@ -31,19 +31,19 @@ type proofV2 struct {
 	Prunable Prunable
 }
 
-func (p proofV2) Verify(prefixHash types.Hash, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error {
+func (p *proofV2) Verify(prefixHash types.Hash, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error {
 	if p.Prunable == nil {
 		return errors.New("nil prunable")
 	}
-	return p.Prunable.Verify(prefixHash, p.Base, rings, images)
+	return p.Prunable.Verify(prefixHash, &p.Base, rings, images)
 }
 
-func (p proofV2) ProofType() ProofType {
+func (p *proofV2) ProofType() ProofType {
 	return p.Base.ProofType
 }
 
 func (tx *TransactionV2) Proofs() Proofs {
-	return proofV2{
+	return &proofV2{
 		Base:     tx.Base,
 		Prunable: tx.Prunable,
 	}

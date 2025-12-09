@@ -208,7 +208,7 @@ type s_comm_T struct {
 	Comm curve25519.PublicKeyBytes
 }
 
-func (comm s_comm_T) Bytes() []byte {
+func (comm *s_comm_T) Bytes() []byte {
 	buf := make([]byte, 0, types.HashSize+curve25519.PublicKeySize*2)
 	buf = append(buf, comm.Hash[:]...)
 	buf = append(buf, comm.Key[:]...)

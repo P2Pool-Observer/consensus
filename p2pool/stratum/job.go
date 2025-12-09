@@ -27,7 +27,7 @@ type Job struct {
 	MergeMiningExtra sidechain.MergeMiningExtra
 }
 
-func (j Job) Id() string {
+func (j *Job) Id() string {
 	buf := make([]byte, 0, utils.UVarInt64Size(j.TemplateCounter)+4*3+types.HashSize+1+len(j.MerkleProof)*types.HashSize+j.MergeMiningExtra.BufferLength())
 	buf = binary.AppendUvarint(buf, j.TemplateCounter)
 	buf = binary.LittleEndian.AppendUint32(buf, j.ExtraNonce)
@@ -52,17 +52,18 @@ func (j Job) Id() string {
 	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
-func JobFromString(s string) (j Job, err error) {
+func JobFromString(s string) (j *Job, err error) {
 	buf, err := base64.RawURLEncoding.DecodeString(s)
 	if err != nil {
-		return j, err
+		return nil, err
 	}
 	reader := bytes.NewReader(buf)
+	j = new(Job)
 	if j.TemplateCounter, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return j, err
 	}
 	if err = utils.ReadLittleEndianInteger(reader, &j.ExtraNonce); err != nil {
-		return j, err
+		return nil, err
 	}
 	if err = utils.ReadLittleEndianInteger(reader, &j.SideRandomNumber); err != nil {
 		return j, err
@@ -71,29 +72,29 @@ func JobFromString(s string) (j Job, err error) {
 		return j, err
 	}
 	if _, err = utils.ReadFullNoEscape(reader, j.MerkleRoot[:]); err != nil {
-		return j, err
+		return nil, err
 	}
 	merkleProofSize, err := reader.ReadByte()
 	if err != nil {
-		return j, err
+		return nil, err
 	}
 	if merkleProofSize > merge_mining.MaxChainsLog2 {
-		return j, utils.ErrorfNoEscape("merkle proof too large: %d > %d", merkleProofSize, merge_mining.MaxChainsLog2)
+		return nil, utils.ErrorfNoEscape("merkle proof too large: %d > %d", merkleProofSize, merge_mining.MaxChainsLog2)
 	} else if merkleProofSize > 0 {
 		// preallocate
 		j.MerkleProof = make(crypto.MerkleProof, merkleProofSize)
 
 		for i := range merkleProofSize {
 			if _, err = utils.ReadFullNoEscape(reader, j.MerkleProof[i][:]); err != nil {
-				return j, err
+				return nil, err
 			}
 		}
 	}
 	mergeMiningExtraSize, err := utils.ReadCanonicalUvarint(reader)
 	if err != nil {
-		return j, err
+		return nil, err
 	} else if mergeMiningExtraSize > merge_mining.MaxChains {
-		return j, utils.ErrorfNoEscape("merge mining data too big: %d > %d", mergeMiningExtraSize, merge_mining.MaxChains)
+		return nil, utils.ErrorfNoEscape("merge mining data too big: %d > %d", mergeMiningExtraSize, merge_mining.MaxChains)
 	} else if mergeMiningExtraSize > 0 {
 		// preallocate
 		j.MergeMiningExtra = make(sidechain.MergeMiningExtra, mergeMiningExtraSize)
@@ -101,32 +102,32 @@ func JobFromString(s string) (j Job, err error) {
 		var mergeMiningExtraDataSize uint64
 		for i := range mergeMiningExtraSize {
 			if _, err = utils.ReadFullNoEscape(reader, j.MergeMiningExtra[i].ChainId[:]); err != nil {
-				return j, err
+				return nil, err
 			} else if i > 0 && j.MergeMiningExtra[i-1].ChainId.Compare(j.MergeMiningExtra[i].ChainId) >= 0 {
 				// IDs must be ordered to avoid duplicates
-				return j, utils.ErrorfNoEscape("duplicate or not ordered merge mining data chain id: %s > %s", j.MergeMiningExtra[i-1].ChainId, j.MergeMiningExtra[i].ChainId)
+				return nil, utils.ErrorfNoEscape("duplicate or not ordered merge mining data chain id: %s > %s", j.MergeMiningExtra[i-1].ChainId, j.MergeMiningExtra[i].ChainId)
 			} else if mergeMiningExtraDataSize, err = utils.ReadCanonicalUvarint(reader); err != nil {
-				return j, err
+				return nil, err
 			} else if mergeMiningExtraDataSize > sidechain.PoolBlockMaxTemplateSize {
-				return j, utils.ErrorfNoEscape("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, sidechain.PoolBlockMaxTemplateSize)
+				return nil, utils.ErrorfNoEscape("merge mining data size too big: %d > %d", mergeMiningExtraDataSize, sidechain.PoolBlockMaxTemplateSize)
 			} else if mergeMiningExtraDataSize > 0 {
 				j.MergeMiningExtra[i].Data = make(types.Bytes, mergeMiningExtraDataSize)
 				if _, err = utils.ReadFullNoEscape(reader, j.MergeMiningExtra[i].Data); err != nil {
-					return j, err
+					return nil, err
 				}
 			}
 		}
 	}
 
 	if reader.Len() > 0 {
-		return j, errors.New("leftover bytes")
+		return nil, errors.New("leftover bytes")
 	}
 
 	return j, nil
 }
 
 // GetJobBlob Gets old job data based on returned id
-func (e *MinerTrackingEntry) GetJobBlob(c *Client, consensus *sidechain.Consensus, job Job, nonce uint32) []byte {
+func (e *MinerTrackingEntry) GetJobBlob(c *Client, consensus *sidechain.Consensus, job *Job, nonce uint32) []byte {
 	e.Lock.RLock()
 	defer e.Lock.RUnlock()
 

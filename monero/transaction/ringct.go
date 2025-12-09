@@ -67,7 +67,7 @@ func (b *Base) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
 	} else {
 		for _, ea := range b.EncryptedAmounts {
 			buf = append(buf, ea.Mask[:]...)
-			buf = append(buf, ea.Amount.Slice()[:]...)
+			buf = append(buf, ea.Amount.Slice()...)
 		}
 	}
 	for _, c := range b.Commitments {
@@ -128,7 +128,7 @@ func (b *Base) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outpu
 type Prunable interface {
 	SignatureHash() types.Hash
 	Hash(signature bool) types.Hash
-	Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error
+	Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error
 	BufferLength(signature bool) int
 	AppendBinary(preAllocatedBuf []byte, signature bool) (data []byte, err error)
 	// FromReader TODO: support signature arg
@@ -140,7 +140,7 @@ type PrunableAggregateMLSAGBorromean struct {
 	Borromean []borromean.Range[curve25519.VarTimeOperations]  `json:"rangeSigs"`
 }
 
-func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	commitments := make([]curve25519.VarTimePublicKey, len(p.Borromean))
 
 	// check range proof
@@ -234,7 +234,7 @@ type PrunableMLSAGBorromean struct {
 var ErrInvalidBorromeanProof = errors.New("invalid Borromean proof")
 var ErrUnbalancedAmounts = errors.New("unbalanced amounts")
 
-func (p *PrunableMLSAGBorromean) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func (p *PrunableMLSAGBorromean) Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var pseudoOut, sumInputs, sumOutputs, commitment curve25519.VarTimePublicKey
 	// init
 	sumInputs.Identity()
@@ -345,7 +345,7 @@ type PrunableMLSAGBulletproofs struct {
 	Bulletproof bp.AggregateRangeProof[curve25519.VarTimeOperations]
 }
 
-func (p *PrunableMLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func (p *PrunableMLSAGBulletproofs) Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	return pSigRangeProofVerifyMLSAG(p.MLSAG, p.PseudoOuts, &p.Bulletproof, prefixHash, base, rings, images)
 }
 
@@ -388,8 +388,8 @@ func (p *PrunableMLSAGBulletproofs) AppendBinary(preAllocatedBuf []byte, signatu
 				return nil, err
 			}
 		}
-		for _, e := range p.PseudoOuts {
-			if data, err = e.AppendBinary(data); err != nil {
+		for i := range p.PseudoOuts {
+			if data, err = p.PseudoOuts[i].AppendBinary(data); err != nil {
 				return nil, err
 			}
 		}
@@ -444,7 +444,7 @@ type PrunableMLSAGBulletproofsCompactAmount struct {
 	Bulletproof bp.AggregateRangeProof[curve25519.VarTimeOperations]
 }
 
-func (p *PrunableMLSAGBulletproofsCompactAmount) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func (p *PrunableMLSAGBulletproofsCompactAmount) Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	return pSigRangeProofVerifyMLSAG(p.MLSAG, p.PseudoOuts, &p.Bulletproof, prefixHash, base, rings, images)
 }
 
@@ -475,7 +475,7 @@ type PrunableCLSAGBulletproofs struct {
 	Bulletproof bp.AggregateRangeProof[curve25519.VarTimeOperations]
 }
 
-func (p *PrunableCLSAGBulletproofs) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func (p *PrunableCLSAGBulletproofs) Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	return pSigRangeProofVerifyCLSAG(p.CLSAG, p.PseudoOuts, &p.Bulletproof, prefixHash, base, rings, images)
 }
 
@@ -506,7 +506,7 @@ type PrunableCLSAGBulletproofsPlus struct {
 	Bulletproof bpp.AggregateRangeProof[curve25519.VarTimeOperations]
 }
 
-func (p *PrunableCLSAGBulletproofsPlus) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func (p *PrunableCLSAGBulletproofsPlus) Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	return pSigRangeProofVerifyCLSAG(p.CLSAG, p.PseudoOuts, &p.Bulletproof, prefixHash, base, rings, images)
 }
 
@@ -546,7 +546,7 @@ type pRangeProof[RP any] interface {
 
 var ErrInvalidRangeProof = errors.New("invalid range proof")
 
-func pSigRangeProofVerifyCLSAG[RP any, pRP pRangeProof[RP]](sigs []clsag.Signature[curve25519.VarTimeOperations], pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func pSigRangeProofVerifyCLSAG[RP any, pRP pRangeProof[RP]](sigs []clsag.Signature[curve25519.VarTimeOperations], pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
 	sumInputs.Identity()
@@ -582,7 +582,7 @@ func pSigRangeProofVerifyCLSAG[RP any, pRP pRangeProof[RP]](sigs []clsag.Signatu
 	return nil
 }
 
-func pSigRangeProofVerifyMLSAG[RP any, pRP pRangeProof[RP]](sigs []mlsag.Signature[curve25519.VarTimeOperations], pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func pSigRangeProofVerifyMLSAG[RP any, pRP pRangeProof[RP]](sigs []mlsag.Signature[curve25519.VarTimeOperations], pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
 	sumInputs.Identity()
@@ -667,8 +667,8 @@ func pSigRangeProofAppendBinary[S any, RP any, pS pSig[S], pRP pRangeProof[RP]](
 				return nil, err
 			}
 		}
-		for _, e := range pseudoOuts {
-			if data, err = e.AppendBinary(data); err != nil {
+		for i := range pseudoOuts {
+			if data, err = pseudoOuts[i].AppendBinary(data); err != nil {
 				return nil, err
 			}
 		}
@@ -765,7 +765,7 @@ type PrunableFCMPPlusPlus struct {
 	Bulletproof bpp.AggregateRangeProof[curve25519.VarTimeOperations]
 }
 
-func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
+func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
 	sumInputs.Identity()
@@ -843,8 +843,8 @@ func (p *PrunableFCMPPlusPlus) AppendBinary(preAllocatedBuf []byte, signature bo
 		data = append(data, p.NTreeLayers)
 		data = append(data, p.FCMP_PP...)
 
-		for _, e := range p.PseudoOuts {
-			if data, err = e.AppendBinary(data); err != nil {
+		for i := range p.PseudoOuts {
+			if data, err = p.PseudoOuts[i].AppendBinary(data); err != nil {
 				return nil, err
 			}
 		}

@@ -132,29 +132,28 @@ func (s *Server) CleanupMiners() {
 	for k, e := range s.miners {
 		if cleanupTime.Sub(e.LastJob) > time.Minute*5 {
 			delete(s.miners, k)
-		} else {
-			if len(e.Templates) > 0 {
-				var templateSideHeight uint64
-				for _, tpl := range e.Templates {
-					if tpl.SideHeight > templateSideHeight {
-						templateSideHeight = tpl.SideHeight
-					}
+		} else if len(e.Templates) > 0 {
+			var templateSideHeight uint64
+			for _, tpl := range e.Templates {
+				if tpl.SideHeight > templateSideHeight {
+					templateSideHeight = tpl.SideHeight
 				}
-
-				tipHeight := uint64(0)
-				if templateSideHeight > sidechain.UncleBlockDepth {
-					tipHeight = templateSideHeight - sidechain.UncleBlockDepth + 1
-				}
-				//Delete old templates further than uncle depth
-				for key, tpl := range e.Templates {
-					if tpl.SideHeight < tipHeight {
-						delete(e.Templates, key)
-					}
-				}
-
-				// TODO: Prevent long-term leaks by re-allocating templates if capacity grew too much
 			}
+
+			tipHeight := uint64(0)
+			if templateSideHeight > sidechain.UncleBlockDepth {
+				tipHeight = templateSideHeight - sidechain.UncleBlockDepth + 1
+			}
+			//Delete old templates further than uncle depth
+			for key, tpl := range e.Templates {
+				if tpl.SideHeight < tipHeight {
+					delete(e.Templates, key)
+				}
+			}
+
+			// TODO: Prevent long-term leaks by re-allocating templates if capacity grew too much
 		}
+
 	}
 }
 
@@ -1447,10 +1446,10 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 										return errors.New("unauthenticated"), true
 									}
 									var err error
-									var jobId Job
 									var resultHash types.Hash
 									var nonce uint32
 									if m, ok := msg.Params.(map[string]any); ok {
+										var jobId *Job
 										if str, ok := m["job_id"].(string); ok {
 											if jobId, err = JobFromString(str); err != nil {
 												return err, true

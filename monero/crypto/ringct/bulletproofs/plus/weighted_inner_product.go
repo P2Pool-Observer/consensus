@@ -332,8 +332,11 @@ func (wips WeightedInnerProductStatement[T]) Verify(verifier *BatchVerifier[T], 
 		eISquare.Multiply(&eI, &eI)
 		invEISquare.Multiply(&invEI, &invEI)
 
-		verifier.Other = append(verifier.Other, bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(negESquare, &eISquare), P: L})
-		verifier.Other = append(verifier.Other, bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(negESquare, &invEISquare), P: R})
+		verifier.Other = append(verifier.Other,
+			bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(negESquare, &eISquare), P: L},
+			bulletproofs.ScalarPointPair[T]{S: *new(curve25519.Scalar).Multiply(negESquare, &invEISquare), P: R},
+		)
+
 	}
 
 	productCache := bulletproofs.ChallengeProducts(challenges)

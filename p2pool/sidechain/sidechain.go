@@ -368,10 +368,8 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		if !block.Side.MerkleProof.Verify(templateId, int(auxiliarySlot), int(mmTag.NumberAuxiliaryChains), mmTag.RootHash) {
 			return nil, utils.ErrorfNoEscape("could not verify template id %x merkle proof against merkle tree root hash %x (number of chains = %d, nonce = %d, auxiliary slot = %d)", templateId.Slice(), mmTag.RootHash.Slice(), mmTag.NumberAuxiliaryChains, mmTag.Nonce, auxiliarySlot), true
 		}
-	} else {
-		if templateId != types.HashFromBytes(block.CoinbaseExtra(SideIdentifierHash)) {
-			return nil, utils.ErrorfNoEscape("invalid template id %x, expected %x", block.SideTemplateId(c.Consensus()).Slice(), templateId.Slice()), true
-		}
+	} else if templateId != types.HashFromBytes(block.CoinbaseExtra(SideIdentifierHash)) {
+		return nil, utils.ErrorfNoEscape("invalid template id %x, expected %x", block.SideTemplateId(c.Consensus()).Slice(), templateId.Slice()), true
 	}
 
 	if extraNonce := block.CoinbaseExtra(SideExtraNonce); extraNonce == nil {

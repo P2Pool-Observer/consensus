@@ -37,13 +37,13 @@ func core[T curve25519.PointOperations, T2 mode[T]](prefixHash types.Hash, ring 
 	P := make([]curve25519.PublicKey[T], len(ring))
 	C := make([]curve25519.PublicKey[T], len(ring))
 
-	for i, member := range ring {
-		P[i] = member[0]
-		data = append(data, member[0].Bytes()...)
+	for i := range ring {
+		P[i] = ring[i][0]
+		data = append(data, ring[i][0].Bytes()...)
 	}
-	for i, member := range ring {
-		C[i].Subtract(&member[1], pseudoOut)
-		data = append(data, member[1].Bytes()...)
+	for i := range ring {
+		C[i].Subtract(&ring[i][1], pseudoOut)
+		data = append(data, ring[i][1].Bytes()...)
 	}
 
 	data = append(data, I.Bytes()...)

@@ -38,7 +38,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 	var hasher blake2b.Digest
 
 	// if vt' != vt, then FAIL
-	nominalViewTag := makeViewTag(&hasher, senderReceiverUnctx, inputContext[:], enote.OneTimeAddress)
+	nominalViewTag := makeViewTag(&hasher, senderReceiverUnctx, inputContext, enote.OneTimeAddress)
 	if nominalViewTag != enote.ViewTag.Value() {
 		// no match
 		return ErrMismatchedViewTag
@@ -98,7 +98,7 @@ func (enote *EnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []byte, enc
 	var hasher blake2b.Digest
 
 	// if vt' != vt, then FAIL
-	nominalViewTag := makeViewTag(&hasher, senderReceiverUnctx, inputContext[:], enote.OneTimeAddress)
+	nominalViewTag := makeViewTag(&hasher, senderReceiverUnctx, inputContext, enote.OneTimeAddress)
 	if nominalViewTag != enote.ViewTag {
 		// no match
 		return ErrMismatchedViewTag
