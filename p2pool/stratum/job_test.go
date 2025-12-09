@@ -23,7 +23,7 @@ func TestJobRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(job, j2) {
+	if !reflect.DeepEqual(job, *j2) {
 		t.Fatalf("job %+v does not match job %+v", job, j2)
 	}
 
