@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"github.com/hashicorp/golang-lru/v2"
 	"sync"
 	"sync/atomic"
+
+	"github.com/hashicorp/golang-lru/v2" //nolint:goimports
 )
 
 type Cache[K comparable, T any] interface {

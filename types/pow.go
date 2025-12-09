@@ -2,9 +2,10 @@ package types
 
 import (
 	"encoding/binary"
-	"lukechampine.com/uint128"
 	"math"
 	"math/bits"
+
+	"lukechampine.com/uint128"
 )
 
 func DifficultyFromPoW(powHash Hash) Difficulty {

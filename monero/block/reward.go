@@ -1,10 +1,11 @@
 package block
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
-	"lukechampine.com/uint128"
 	"math"
 	"math/bits"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
+	"lukechampine.com/uint128"
 )
 
 func GetBaseReward(alreadyGeneratedCounts uint64) uint64 {

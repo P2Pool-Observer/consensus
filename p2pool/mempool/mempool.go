@@ -1,13 +1,14 @@
 package mempool
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"lukechampine.com/uint128"
 	"math"
 	"math/bits"
 	"slices"
 	"time"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	"lukechampine.com/uint128"
 )
 
 type Entry struct {

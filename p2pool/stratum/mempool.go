@@ -1,9 +1,10 @@
 package stratum
 
 import (
+	"time"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"time"
 )
 
 type MiningMempool map[types.Hash]*mempool.Entry

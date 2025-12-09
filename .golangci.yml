@@ -197,6 +197,11 @@ linters:
     paths:
       - "monero/client/levin/*"
 
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
 
 severity:
   default: error
