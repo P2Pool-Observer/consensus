@@ -151,7 +151,6 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-//nolint:dupl
 func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 	scan = &carrot.ScanV1{}
