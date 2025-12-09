@@ -12,7 +12,7 @@ const ScratchpadSize = 2 * 1024 * 1024
 type State struct {
 	scratchpad  [ScratchpadSize / 8]uint64
 	keccakState [25]uint64
-	_           [8 + 16]byte // padded to keep 32-byte align (0x2000d0)
+	_           [8]byte // padded to keep 64-byte align (0x2000d0)
 
 	blocks    [16]uint64            // temporary chunk/pointer of data
 	roundKeys [aesRounds * 4]uint32 // 10 rounds, instead of 14 as in standard AES-256

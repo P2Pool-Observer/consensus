@@ -10,7 +10,7 @@ func aes_rounds_internal(state *[16]uint64, roundKeys *[aesRounds * 4]uint32)
 
 //go:nosplit
 //go:noescape
-func aes_rounds_internal_avx2(state *[16]uint64, roundKeys *[aesRounds * 4]uint32)
+func aes_rounds_internal_avx512(state *[16]uint64, roundKeys *[aesRounds * 4]uint32)
 
 //go:nosplit
 //go:noescape
@@ -19,8 +19,8 @@ func aes_single_round_internal(dst, src *[2]uint64, roundKey *[2]uint64)
 //go:nosplit
 func aes_rounds(state *[16]uint64, roundKeys *[aesRounds * 4]uint32) {
 	if cpu.X86.HasAES {
-		if cpu.X86.HasAVX2 {
-			aes_rounds_internal_avx2(state, roundKeys)
+		if cpu.X86.HasAVX512 && cpu.X86.HasAVX512VAES {
+			aes_rounds_internal_avx512(state, roundKeys)
 			return
 		} else {
 			aes_rounds_internal(state, roundKeys)
