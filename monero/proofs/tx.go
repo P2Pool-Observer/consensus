@@ -50,7 +50,7 @@ func (p TxProof[T]) Verify(prefixHash types.Hash, viewPub, spendPub *curve25519.
 	if p.Type == OutProof {
 		for i, pub := range txPubs {
 			if len(p.Claims) <= i {
-				return
+				return -1, false
 			}
 			if VerifyTxProof(prefixHash, &pub, viewPub, spendPub, &p.Claims[i].SharedSecret, p.Claims[i].Signature, p.Version) {
 				return i, true
@@ -59,7 +59,7 @@ func (p TxProof[T]) Verify(prefixHash types.Hash, viewPub, spendPub *curve25519.
 	} else if p.Type == InProof {
 		for i, pub := range txPubs {
 			if len(p.Claims) <= i {
-				return
+				return -1, false
 			}
 			if VerifyTxProof(prefixHash, viewPub, &pub, spendPub, &p.Claims[i].SharedSecret, p.Claims[i].Signature, p.Version) {
 				return i, true

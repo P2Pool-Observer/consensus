@@ -11,7 +11,9 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/proofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 func txPubs(extra transaction.ExtraTags) (pubs []curve25519.PublicKeyBytes) {
@@ -43,6 +45,119 @@ func txPaymentId(extra transaction.ExtraTags) (paymentId, encryptedPaymentId *[m
 	return nil, nil
 }
 
+func MatchTransactionProof[T curve25519.PointOperations](
+	addr address.InterfaceSubaddress,
+	proof proofs.TxProof[T], message string,
+	legacyMatch func(index int, scan *LegacyScan, _ address.SubaddressIndex),
+	carrotMatch func(index int, scan *carrot.ScanV1, _ address.SubaddressIndex),
+	txId types.Hash,
+	tx transaction.PrunedTransaction,
+) error {
+	if len(tx.Outputs()) == 0 {
+		return nil
+	}
+
+	extra := tx.ExtraTags()
+	if len(extra) == 0 {
+		return errors.New("no extra tags")
+	}
+	pubs := txPubs(tx.ExtraTags())
+	if len(pubs) == 0 {
+		return errors.New("no valid public keys")
+	}
+
+	if len(tx.Outputs()) == 0 {
+		return errors.New("no valid outputs")
+	}
+
+	encryptedPaymentId, paymentId := txPaymentId(extra)
+
+	var commitments []ringct.CommitmentEncryptedAmount
+
+	// is coinbase check
+	isCoinbase := len(tx.Inputs()) == 0
+	var blockIndex uint64
+
+	if isCoinbase {
+		if txv2, ok := tx.(*transaction.CoinbaseV2); ok {
+			blockIndex = txv2.GenHeight
+		} else if genTx, ok := tx.(*transaction.GenericCoinbase); ok {
+			blockIndex = genTx.GenHeight
+		} else {
+			return errors.New("cannot get coinbase block height")
+		}
+	} else {
+		if txv2, ok := tx.(*transaction.TransactionV2); ok {
+			commitments = make([]ringct.CommitmentEncryptedAmount, len(txv2.Outputs()))
+			for i := range txv2.Outputs() {
+				commitments[i].Commitment = txv2.Commitments[i]
+				commitments[i].EncryptedAmount = txv2.EncryptedAmounts[i]
+			}
+		}
+		// txv1 do not have commitments
+	}
+
+	var spendPub, viewPub curve25519.PublicKey[T]
+	if _, err := spendPub.SetBytes(addr.SpendPublicKey()[:]); err != nil {
+		return err
+	}
+	if _, err := viewPub.SetBytes(addr.ViewPublicKey()[:]); err != nil {
+		return err
+	}
+
+	switch tx.Outputs()[0].Type {
+	case transaction.TxOutToCarrotV1:
+		if carrotMatch == nil {
+			return nil
+		}
+
+		_ = blockIndex
+
+		// TODO!
+	case transaction.TxOutToKey, transaction.TxOutToTaggedKey:
+		if legacyMatch == nil {
+			return nil
+		}
+		var i int
+		var scan *LegacyScan
+		for i != -1 && i < len(tx.Outputs()) {
+			if i, scan = matchTxProof(proof, txId, message, addr, &spendPub, tx.Outputs()[i:], commitments, pubs, encryptedPaymentId); i != -1 {
+				if paymentId != nil {
+					scan.PaymentId = *paymentId
+				}
+				legacyMatch(i, scan, address.UnknownSubaddressIndex)
+				i++
+			}
+		}
+	}
+	return nil
+}
+func matchTxProof[T curve25519.PointOperations](proof proofs.TxProof[T], txId types.Hash, message string, a address.InterfaceSubaddress, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
+	var err error
+
+	pubs := make([]curve25519.PublicKey[T], len(txPubs))
+	for i := range txPubs {
+		if _, err = pubs[i].SetBytes(txPubs[i][:]); err != nil {
+			return -1, nil
+		}
+	}
+
+	index, ok := address.VerifyTxProof(proof, a, txId, &pubs[0], message, pubs[1:]...)
+	if !ok {
+		return -1, nil
+	}
+
+	derivation := new(curve25519.PublicKey[T]).MultByCofactor(&proof.Claims[index].SharedSecret).AsBytes()
+
+	for i := range outputs {
+		if index, scan = matchDerivation(derivation, spendPub, &outputs[i], commitments, encryptedPaymentId); index != -1 {
+			return index, scan
+		}
+	}
+
+	return -1, nil
+}
+
 func MatchTransactionKey[T curve25519.PointOperations](
 	addr address.InterfaceSubaddress,
 	txKey *curve25519.Scalar,
@@ -61,6 +176,10 @@ func MatchTransactionKey[T curve25519.PointOperations](
 	pubs := txPubs(tx.ExtraTags())
 	if len(pubs) == 0 {
 		return errors.New("no valid public keys")
+	}
+
+	if len(tx.Outputs()) == 0 {
+		return errors.New("no valid outputs")
 	}
 
 	encryptedPaymentId, paymentId := txPaymentId(extra)
@@ -134,66 +253,73 @@ func MatchTransactionKey[T curve25519.PointOperations](
 	return nil
 }
 
-func matchTxKey[T curve25519.PointOperations](expectedPub, derivation curve25519.PublicKeyBytes, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
-	var sharedDataPub, ephemeralPub curve25519.PublicKey[T]
-	var err error
+func matchDerivation[T curve25519.PointOperations](derivation curve25519.PublicKeyBytes, spendPub *curve25519.PublicKey[T], out *transaction.Output, commitments []ringct.CommitmentEncryptedAmount, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
+	if out.Type != transaction.TxOutToKey && out.Type != transaction.TxOutToTaggedKey {
+		return -1, nil
+	}
+
 	var extensionG curve25519.Scalar
 
+	_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&extensionG, derivation, out.Index)
+	if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag.Slice()[0] {
+		return -1, nil
+	}
+	var sharedDataPub, ephemeralPub curve25519.PublicKey[T]
+
+	sharedDataPub.ScalarBaseMult(&extensionG)
+
+	_, err := ephemeralPub.P().SetBytes(out.EphemeralPublicKey[:])
+	if err != nil {
+		return -1, nil
+	}
+
+	D := ephemeralPub.Subtract(&ephemeralPub, &sharedDataPub)
+	if D.Equal(spendPub) == 1 {
+
+		extensionGBytes := curve25519.PrivateKeyBytes(extensionG.Bytes())
+
+		scan = &LegacyScan{
+			ExtensionG: extensionG,
+			// zero
+			ExtensionT: curve25519.Scalar{},
+			SpendPub:   D.AsBytes(),
+		}
+		if len(commitments) > int(out.Index) {
+			c := commitments[int(out.Index)]
+			lc := c.Decode(extensionGBytes, c.Mask == curve25519.ZeroPrivateKeyBytes)
+			if ringct.CalculateCommitment(new(curve25519.PublicKey[T]), lc).AsBytes() != c.Commitment {
+				// cannot match!
+				return -1, nil
+			}
+			scan.Amount = lc.Amount
+			copy(scan.AmountBlindingFactor[:], lc.Mask.Bytes())
+		} else if out.Amount > 0 {
+			// probably coinbase or old
+			scan.Amount = out.Amount
+			copy(scan.AmountBlindingFactor[:], ringct.CoinbaseAmountBlindingFactor.Bytes())
+		}
+
+		if encryptedPaymentId != nil {
+			// restore payment id if any
+			paymentIdKey := address.CalculatePaymentIdEncodingKey(extensionGBytes)
+			subtle.XORBytes(scan.PaymentId[:], encryptedPaymentId[:], paymentIdKey[:])
+		}
+
+		return int(out.Index), scan
+	}
+
+	return -1, nil
+}
+
+func matchTxKey[T curve25519.PointOperations](expectedPub, derivation curve25519.PublicKeyBytes, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
 	for _, pub := range txPubs {
 		if expectedPub != pub {
 			continue
 		}
 
-		for _, out := range outputs {
-			if out.Type != transaction.TxOutToKey && out.Type != transaction.TxOutToTaggedKey {
-				continue
-			}
-
-			_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&extensionG, derivation, out.Index)
-			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag.Slice()[0] {
-				continue
-			}
-
-			sharedDataPub.ScalarBaseMult(&extensionG)
-
-			_, err = ephemeralPub.P().SetBytes(out.EphemeralPublicKey[:])
-			if err != nil {
-				return -1, nil
-			}
-
-			D := ephemeralPub.Subtract(&ephemeralPub, &sharedDataPub)
-			if D.Equal(spendPub) == 1 {
-
-				extensionGBytes := curve25519.PrivateKeyBytes(extensionG.Bytes())
-
-				scan = &LegacyScan{
-					ExtensionG: extensionG,
-					// zero
-					ExtensionT: curve25519.Scalar{},
-					SpendPub:   D.AsBytes(),
-				}
-				if len(commitments) > int(out.Index) {
-					c := commitments[int(out.Index)]
-					lc := c.Decode(extensionGBytes, c.Mask == curve25519.ZeroPrivateKeyBytes)
-					if ringct.CalculateCommitment(new(curve25519.PublicKey[T]), lc).AsBytes() != c.Commitment {
-						// cannot match!
-						continue
-					}
-					scan.Amount = lc.Amount
-					copy(scan.AmountBlindingFactor[:], lc.Mask.Bytes())
-				} else if out.Amount > 0 {
-					// probably coinbase or old
-					scan.Amount = out.Amount
-					copy(scan.AmountBlindingFactor[:], ringct.CoinbaseAmountBlindingFactor.Bytes())
-				}
-
-				if encryptedPaymentId != nil {
-					// restore payment id if any
-					paymentIdKey := address.CalculatePaymentIdEncodingKey(extensionGBytes)
-					subtle.XORBytes(scan.PaymentId[:], encryptedPaymentId[:], paymentIdKey[:])
-				}
-
-				return int(out.Index), scan
+		for i := range outputs {
+			if index, scan = matchDerivation(derivation, spendPub, &outputs[i], commitments, encryptedPaymentId); index != -1 {
+				return index, scan
 			}
 		}
 	}
