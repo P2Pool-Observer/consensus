@@ -117,7 +117,7 @@ func TransactionWeightV1(inputs, outputs, extra int) int {
 	// for many decades at the current tx volume.
 	const fake_n_tree_layers = 7
 
-	fcmpWeight := MembershipProofSize(1, fake_n_tree_layers)
+	fcmpWeight := MembershipProofSize(inputs, fake_n_tree_layers)
 	rctSigPrunableWeight := bpWeight + totalSALWeight + miscFCMPPlusPlusWeight + fcmpWeight
 
 	return unprunableWeight + rctSigPrunableWeight
