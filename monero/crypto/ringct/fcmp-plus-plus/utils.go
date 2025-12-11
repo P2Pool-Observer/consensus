@@ -80,7 +80,7 @@ func TransactionWeightV1(inputs, outputs, extra int) int {
 	const max_block_index_varint_len = binary.MaxVarintLen32            // size of varint storing CRYPTONOTE_MAX_BLOCK_NUMBER
 	const rerandomized_output_weight = FCMP_PP_INPUT_TUPLE_SIZE_V1 + 32 /*C~ AKA pseudoOut*/
 
-	totalSALWeight := inputs * (rerandomized_output_weight * FCMP_PP_SAL_PROOF_SIZE_V1)
+	totalSALWeight := inputs * (rerandomized_output_weight + FCMP_PP_SAL_PROOF_SIZE_V1)
 	const miscFCMPPlusPlusWeight = max_block_index_varint_len + 1
 
 	// Calculate deterministic bulletproofs size (assumes canonical BP format)
