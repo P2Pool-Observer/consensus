@@ -111,7 +111,6 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.
 				// zero
 				ExtensionT: curve25519.Scalar{},
 				SpendPub:   D.AsBytes(),
-				//TODO: payment id
 			}
 
 			extensionGBytes := curve25519.PrivateKeyBytes(extensionG.Bytes())

@@ -16,35 +16,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
-func txPubs(extra transaction.ExtraTags) (pubs []curve25519.PublicKeyBytes) {
-
-	if txPubExtra := extra.GetTag(transaction.TxExtraTagPubKey); txPubExtra != nil && len(txPubExtra.Data) == curve25519.PublicKeySize {
-		// #nosec G103 -- verified public key size for data
-		return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubExtra.Data))), 1)
-	}
-
-	if txPubsExtra := extra.GetTag(transaction.TxExtraTagAdditionalPubKeys); txPubsExtra != nil && len(txPubsExtra.Data) > 0 && len(txPubsExtra.Data)%curve25519.PublicKeySize == 0 {
-		// #nosec G103 -- verified public key size for data, and that it's modulo the data, and it's longer than 0
-		return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubsExtra.Data))), len(txPubsExtra.Data)/curve25519.PublicKeySize)
-	}
-
-	return nil
-}
-
-func txPaymentId(extra transaction.ExtraTags) (paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte) {
-	nonce := extra.GetTag(transaction.TxExtraTagNonce)
-	if nonce == nil || len(nonce.Data) != monero.PaymentIdSize+1 {
-		return nil, nil
-	}
-
-	if nonce.Data[0] == transaction.TxExtraNoncePaymentId {
-		return (*[monero.PaymentIdSize]byte)(nonce.Data[1:]), nil
-	} else if nonce.Data[1] == transaction.TxExtraNonceEncryptedPaymentId {
-		return nil, (*[monero.PaymentIdSize]byte)(nonce.Data[1:])
-	}
-	return nil, nil
-}
-
 func MatchTransactionProof[T curve25519.PointOperations](
 	addr address.InterfaceSubaddress,
 	proof proofs.TxProof[T], message string,
@@ -53,48 +24,9 @@ func MatchTransactionProof[T curve25519.PointOperations](
 	txId types.Hash,
 	tx transaction.PrunedTransaction,
 ) error {
-	if len(tx.Outputs()) == 0 {
-		return nil
-	}
-
-	extra := tx.ExtraTags()
-	if len(extra) == 0 {
-		return errors.New("no extra tags")
-	}
-	pubs := txPubs(tx.ExtraTags())
-	if len(pubs) == 0 {
-		return errors.New("no valid public keys")
-	}
-
-	if len(tx.Outputs()) == 0 {
-		return errors.New("no valid outputs")
-	}
-
-	encryptedPaymentId, paymentId := txPaymentId(extra)
-
-	var commitments []ringct.CommitmentEncryptedAmount
-
-	// is coinbase check
-	isCoinbase := len(tx.Inputs()) == 0
-	var blockIndex uint64
-
-	if isCoinbase {
-		if txv2, ok := tx.(*transaction.CoinbaseV2); ok {
-			blockIndex = txv2.GenHeight
-		} else if genTx, ok := tx.(*transaction.GenericCoinbase); ok {
-			blockIndex = genTx.GenHeight
-		} else {
-			return errors.New("cannot get coinbase block height")
-		}
-	} else {
-		if txv2, ok := tx.(*transaction.TransactionV2); ok {
-			commitments = make([]ringct.CommitmentEncryptedAmount, len(txv2.Outputs()))
-			for i := range txv2.Outputs() {
-				commitments[i].Commitment = txv2.Commitments[i]
-				commitments[i].EncryptedAmount = txv2.EncryptedAmounts[i]
-			}
-		}
-		// txv1 do not have commitments
+	pubs, encryptedPaymentId, paymentId, commitments, _, _, err := matchTxPreamble(tx)
+	if err != nil {
+		return err
 	}
 
 	var spendPub, viewPub curve25519.PublicKey[T]
@@ -110,8 +42,6 @@ func MatchTransactionProof[T curve25519.PointOperations](
 		if carrotMatch == nil {
 			return nil
 		}
-
-		_ = blockIndex
 
 		// TODO!
 	case transaction.TxOutToKey, transaction.TxOutToTaggedKey:
@@ -165,48 +95,9 @@ func MatchTransactionKey[T curve25519.PointOperations](
 	carrotMatch func(index int, scan *carrot.ScanV1, _ address.SubaddressIndex),
 	tx transaction.PrunedTransaction,
 ) error {
-	if len(tx.Outputs()) == 0 {
-		return nil
-	}
-
-	extra := tx.ExtraTags()
-	if len(extra) == 0 {
-		return errors.New("no extra tags")
-	}
-	pubs := txPubs(tx.ExtraTags())
-	if len(pubs) == 0 {
-		return errors.New("no valid public keys")
-	}
-
-	if len(tx.Outputs()) == 0 {
-		return errors.New("no valid outputs")
-	}
-
-	encryptedPaymentId, paymentId := txPaymentId(extra)
-
-	var commitments []ringct.CommitmentEncryptedAmount
-
-	// is coinbase check
-	isCoinbase := len(tx.Inputs()) == 0
-	var blockIndex uint64
-
-	if isCoinbase {
-		if txv2, ok := tx.(*transaction.CoinbaseV2); ok {
-			blockIndex = txv2.GenHeight
-		} else if genTx, ok := tx.(*transaction.GenericCoinbase); ok {
-			blockIndex = genTx.GenHeight
-		} else {
-			return errors.New("cannot get coinbase block height")
-		}
-	} else {
-		if txv2, ok := tx.(*transaction.TransactionV2); ok {
-			commitments = make([]ringct.CommitmentEncryptedAmount, len(txv2.Outputs()))
-			for i := range txv2.Outputs() {
-				commitments[i].Commitment = txv2.Commitments[i]
-				commitments[i].EncryptedAmount = txv2.EncryptedAmounts[i]
-			}
-		}
-		// txv1 do not have commitments
+	pubs, encryptedPaymentId, paymentId, commitments, _, _, err := matchTxPreamble(tx)
+	if err != nil {
+		return err
 	}
 
 	var expectedPub curve25519.PublicKeyBytes
@@ -230,8 +121,6 @@ func MatchTransactionKey[T curve25519.PointOperations](
 		if carrotMatch == nil {
 			return nil
 		}
-
-		_ = blockIndex
 
 		// TODO!
 	case transaction.TxOutToKey, transaction.TxOutToTaggedKey:
@@ -333,44 +222,9 @@ func MatchTransaction[T curve25519.PointOperations, ViewWallet ViewWalletInterfa
 	carrotMatch func(index int, scan *carrot.ScanV1, ix address.SubaddressIndex),
 	tx transaction.PrunedTransaction,
 ) error {
-	if len(tx.Outputs()) == 0 {
-		return nil
-	}
-
-	extra := tx.ExtraTags()
-	if len(extra) == 0 {
-		return errors.New("no extra tags")
-	}
-	pubs := txPubs(tx.ExtraTags())
-	if len(pubs) == 0 {
-		return errors.New("no valid public keys")
-	}
-
-	encryptedPaymentId, paymentId := txPaymentId(extra)
-
-	var commitments []ringct.CommitmentEncryptedAmount
-
-	// is coinbase check
-	isCoinbase := len(tx.Inputs()) == 0
-	var blockIndex uint64
-
-	if isCoinbase {
-		if txv2, ok := tx.(*transaction.CoinbaseV2); ok {
-			blockIndex = txv2.GenHeight
-		} else if genTx, ok := tx.(*transaction.GenericCoinbase); ok {
-			blockIndex = genTx.GenHeight
-		} else {
-			return errors.New("cannot get coinbase block height")
-		}
-	} else {
-		if txv2, ok := tx.(*transaction.TransactionV2); ok {
-			commitments = make([]ringct.CommitmentEncryptedAmount, len(txv2.Outputs()))
-			for i := range txv2.Outputs() {
-				commitments[i].Commitment = txv2.Commitments[i]
-				commitments[i].EncryptedAmount = txv2.EncryptedAmounts[i]
-			}
-		}
-		// txv1 do not have commitments
+	pubs, encryptedPaymentId, paymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
+	if err != nil {
+		return err
 	}
 
 	switch tx.Outputs()[0].Type {
@@ -417,4 +271,76 @@ func MatchTransaction[T curve25519.PointOperations, ViewWallet ViewWalletInterfa
 
 	}
 	return nil
+}
+
+var ErrNoOutputs = errors.New("no transaction outputs")
+
+func txPubs(extra transaction.ExtraTags) (pubs []curve25519.PublicKeyBytes) {
+
+	if txPubExtra := extra.GetTag(transaction.TxExtraTagPubKey); txPubExtra != nil && len(txPubExtra.Data) == curve25519.PublicKeySize {
+		// #nosec G103 -- verified public key size for data
+		return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubExtra.Data))), 1)
+	}
+
+	if txPubsExtra := extra.GetTag(transaction.TxExtraTagAdditionalPubKeys); txPubsExtra != nil && len(txPubsExtra.Data) > 0 && len(txPubsExtra.Data)%curve25519.PublicKeySize == 0 {
+		// #nosec G103 -- verified public key size for data, and that it's modulo the data, and it's longer than 0
+		return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubsExtra.Data))), len(txPubsExtra.Data)/curve25519.PublicKeySize)
+	}
+
+	return nil
+}
+
+func txPaymentId(extra transaction.ExtraTags) (paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte) {
+	nonce := extra.GetTag(transaction.TxExtraTagNonce)
+	if nonce == nil || len(nonce.Data) != monero.PaymentIdSize+1 {
+		return nil, nil
+	}
+
+	if nonce.Data[0] == transaction.TxExtraNoncePaymentId {
+		return (*[monero.PaymentIdSize]byte)(nonce.Data[1:]), nil
+	} else if nonce.Data[1] == transaction.TxExtraNonceEncryptedPaymentId {
+		return nil, (*[monero.PaymentIdSize]byte)(nonce.Data[1:])
+	}
+	return nil, nil
+}
+
+func matchTxPreamble(tx transaction.PrunedTransaction) (pubs []curve25519.PublicKeyBytes, paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte, commitments []ringct.CommitmentEncryptedAmount, isCoinbase bool, blockIndex uint64, err error) {
+	if len(tx.Outputs()) == 0 {
+		return nil, nil, nil, nil, false, 0, ErrNoOutputs
+	}
+
+	extra := tx.ExtraTags()
+	if len(extra) == 0 {
+		return nil, nil, nil, nil, false, 0, errors.New("no extra tags")
+	}
+	pubs = txPubs(tx.ExtraTags())
+	if len(pubs) == 0 {
+		return nil, nil, nil, nil, false, 0, errors.New("no valid public keys")
+	}
+
+	encryptedPaymentId, paymentId = txPaymentId(extra)
+
+	// is coinbase check
+	isCoinbase = len(tx.Inputs()) == 0
+
+	if isCoinbase {
+		if txv2, ok := tx.(*transaction.CoinbaseV2); ok {
+			blockIndex = txv2.GenHeight
+		} else if genTx, ok := tx.(*transaction.GenericCoinbase); ok {
+			blockIndex = genTx.GenHeight
+		} else {
+			return nil, nil, nil, nil, true, 0, errors.New("cannot get coinbase block height")
+		}
+	} else {
+		if txv2, ok := tx.(*transaction.TransactionV2); ok {
+			commitments = make([]ringct.CommitmentEncryptedAmount, len(txv2.Outputs()))
+			for i := range txv2.Outputs() {
+				commitments[i].Commitment = txv2.Commitments[i]
+				commitments[i].EncryptedAmount = txv2.EncryptedAmounts[i]
+			}
+		}
+		// txv1 do not have commitments
+	}
+
+	return pubs, paymentId, encryptedPaymentId, commitments, isCoinbase, blockIndex, nil
 }
