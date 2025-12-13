@@ -1440,10 +1440,15 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 							*/
 							case "submit":
 								if submitError, ban := func() (error, bool) {
-									client.Lock.RLock()
-									defer client.Lock.RUnlock()
-									if !client.Login {
-										return errors.New("unauthenticated"), true
+									if err := func() error {
+										client.Lock.RLock()
+										defer client.Lock.RUnlock()
+										if !client.Login {
+											return errors.New("unauthenticated")
+										}
+										return nil
+									}(); err != nil {
+										return err, true
 									}
 									var err error
 									var resultHash types.Hash
