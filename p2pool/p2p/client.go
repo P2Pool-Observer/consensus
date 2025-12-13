@@ -980,7 +980,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			}
 
 			minerData := c.Owner.MainChain().GetMinerDataTip()
-			if b.Coinbase.UnlockTime < minerData.Height {
+			if b.Coinbase.MinerUnlockTime < minerData.Height {
 				// outdated monero block
 				break
 			}

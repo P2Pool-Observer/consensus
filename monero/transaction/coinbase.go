@@ -14,17 +14,21 @@ import (
 type GenericCoinbase struct {
 	version uint8
 
-	// UnlockTime would be here
+	// MinerUnlockTime would be here
 	InputCount uint8 `json:"input_count"`
 	InputType  uint8 `json:"input_type"`
-	// UnlockTime re-arranged here to improve memory layout space
-	UnlockTime   uint64  `json:"unlock_time"`
-	GenHeight    uint64  `json:"gen_height"`
-	MinerOutputs Outputs `json:"vout"`
+	// MinerUnlockTime re-arranged here to improve memory layout space
+	MinerUnlockTime uint64  `json:"unlock_time"`
+	GenHeight       uint64  `json:"gen_height"`
+	MinerOutputs    Outputs `json:"vout"`
 
 	Extra types.Bytes `json:"extra"`
 
 	ExtraBaseRCT uint8 `json:"extra_base_rct,omitempty"`
+}
+
+func (c *GenericCoinbase) UnlockTime() uint64 {
+	return c.MinerUnlockTime
 }
 
 func (c *GenericCoinbase) Version() uint8 {
@@ -58,6 +62,10 @@ func (c *GenericCoinbase) PrunedBufferLength() int {
 
 func (c *GenericCoinbase) AppendPrunedBinary(preAllocatedBuf []byte) (data []byte, err error) {
 	return c.AppendBinary(preAllocatedBuf)
+}
+
+func (c *GenericCoinbase) ExtraData() []byte {
+	return c.Extra
 }
 
 // ExtraTags Returns a transaction extra decoded. This can err on corrupt blocks
@@ -102,7 +110,7 @@ func (c *GenericCoinbase) FromReader(reader utils.ReaderAndByteReader) (err erro
 		return errors.New("version not supported")
 	}
 
-	if c.UnlockTime, err = utils.ReadCanonicalUvarint(reader); err != nil {
+	if c.MinerUnlockTime, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 
@@ -126,7 +134,7 @@ func (c *GenericCoinbase) FromReader(reader utils.ReaderAndByteReader) (err erro
 		return err
 	}
 
-	if c.UnlockTime != (c.GenHeight + monero.MinerRewardUnlockTime) {
+	if c.MinerUnlockTime != (c.GenHeight + monero.MinerRewardUnlockTime) {
 		return errors.New("invalid unlock time")
 	}
 
@@ -169,7 +177,7 @@ func (c *GenericCoinbase) Weight() int {
 
 func (c *GenericCoinbase) BufferLength() int {
 	n := 1 +
-		utils.UVarInt64Size(c.UnlockTime) +
+		utils.UVarInt64Size(c.MinerUnlockTime) +
 		1 + 1 +
 		utils.UVarInt64Size(c.GenHeight) +
 		c.MinerOutputs.BufferLength() +
@@ -188,7 +196,7 @@ func (c *GenericCoinbase) AppendBinary(preAllocatedBuf []byte) ([]byte, error) {
 	buf := preAllocatedBuf
 
 	buf = append(buf, c.version)
-	buf = binary.AppendUvarint(buf, c.UnlockTime)
+	buf = binary.AppendUvarint(buf, c.MinerUnlockTime)
 	buf = append(buf, c.InputCount, c.InputType)
 	buf = binary.AppendUvarint(buf, c.GenHeight)
 

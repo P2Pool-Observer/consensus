@@ -18,6 +18,10 @@ type TransactionV2 struct {
 	Prunable `json:"rctsig_prunable"`
 }
 
+func (tx *TransactionV2) UnlockTime() uint64 {
+	return tx.Prefix.UnlockTime
+}
+
 func (tx *TransactionV2) Inputs() Inputs {
 	return tx.Prefix.Inputs
 }
@@ -96,6 +100,10 @@ func (tx *TransactionV2) SignatureHash() (out types.Hash) {
 	}
 	crypto.TransactionIdHash(&out, tx.PrefixHash(), tx.Base.Hash(), tx.Prunable.SignatureHash())
 	return out
+}
+
+func (tx *TransactionV2) ExtraData() []byte {
+	return tx.Extra
 }
 
 func (tx *TransactionV2) ExtraTags() ExtraTags {

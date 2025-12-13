@@ -12,13 +12,13 @@ import (
 )
 
 type CoinbaseV2 struct {
-	// UnlockTime would be here
+	// MinerUnlockTime would be here
 	InputCount uint8 `json:"input_count"`
 	InputType  uint8 `json:"input_type"`
-	// UnlockTime re-arranged here to improve memory layout space
-	UnlockTime   uint64  `json:"unlock_time"`
-	GenHeight    uint64  `json:"gen_height"`
-	MinerOutputs Outputs `json:"outputs"`
+	// MinerUnlockTime re-arranged here to improve memory layout space
+	MinerUnlockTime uint64  `json:"unlock_time"`
+	GenHeight       uint64  `json:"gen_height"`
+	MinerOutputs    Outputs `json:"outputs"`
 
 	Extra ExtraTags `json:"extra"`
 
@@ -52,12 +52,24 @@ func (c *CoinbaseV2) UnmarshalBinary(data []byte, canBePruned, containsAuxiliary
 
 var ErrInvalidTransactionExtra = errors.New("invalid transaction extra")
 
+func (c *CoinbaseV2) UnlockTime() uint64 {
+	return c.MinerUnlockTime
+}
+
 func (c *CoinbaseV2) Fee() uint64 {
 	return 0
 }
 
 func (c *CoinbaseV2) Weight() int {
 	return c.BufferLength()
+}
+
+func (c *CoinbaseV2) ExtraData() []byte {
+	buf, err := c.Extra.MarshalBinary()
+	if err != nil {
+		return nil
+	}
+	return buf
 }
 
 func (c *CoinbaseV2) ExtraTags() ExtraTags {
@@ -98,7 +110,7 @@ func (c *CoinbaseV2) FromVersionReader(reader utils.ReaderAndByteReader, canBePr
 	c.AuxiliaryData.TotalReward = 0
 	c.AuxiliaryData.OutputsBlobSize = 0
 
-	if c.UnlockTime, err = utils.ReadCanonicalUvarint(reader); err != nil {
+	if c.MinerUnlockTime, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	}
 
@@ -122,7 +134,7 @@ func (c *CoinbaseV2) FromVersionReader(reader utils.ReaderAndByteReader, canBePr
 		return err
 	}
 
-	if c.UnlockTime != (c.GenHeight + monero.MinerRewardUnlockTime) {
+	if c.MinerUnlockTime != (c.GenHeight + monero.MinerRewardUnlockTime) {
 		return errors.New("invalid unlock time")
 	}
 
@@ -213,7 +225,7 @@ func (c *CoinbaseV2) PrunedBufferLength() int {
 
 func (c *CoinbaseV2) BufferLength() int {
 	return 1 +
-		utils.UVarInt64Size(c.UnlockTime) +
+		utils.UVarInt64Size(c.MinerUnlockTime) +
 		1 + 1 +
 		utils.UVarInt64Size(c.GenHeight) +
 		c.MinerOutputs.BufferLength() +
@@ -236,7 +248,7 @@ func (c *CoinbaseV2) AppendBinaryFlags(preAllocatedBuf []byte, pruned, containsA
 	buf := preAllocatedBuf
 
 	buf = append(buf, c.Version())
-	buf = binary.AppendUvarint(buf, c.UnlockTime)
+	buf = binary.AppendUvarint(buf, c.MinerUnlockTime)
 	buf = append(buf, c.InputCount, c.InputType)
 	buf = binary.AppendUvarint(buf, c.GenHeight)
 
@@ -275,7 +287,7 @@ func (c *CoinbaseV2) SideChainHashingBlob(preAllocatedBuf []byte, majorVersion u
 	buf := preAllocatedBuf
 
 	buf = append(buf, c.Version())
-	buf = binary.AppendUvarint(buf, c.UnlockTime)
+	buf = binary.AppendUvarint(buf, c.MinerUnlockTime)
 	buf = append(buf, c.InputCount, c.InputType)
 	buf = binary.AppendUvarint(buf, c.GenHeight)
 

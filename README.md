@@ -35,7 +35,7 @@ Reports will be reviewed and answered to. There are no bug bounties at this time
 | monero/address                         | ✅&#160;Supported             |                [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/monero/address)                 | Implements Monero Cryptonote address decoding/encoding, and generation of Transaction Proofs                                                                                                                                                                                                                                                                            |
 | monero/address/carrot                  | 🛠️&#160;In&#160;development |             [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/monero/address/carrot)             | Implements [Carrot](https://github.com/jeffro256/carrot/blob/master/carrot.md) addressing protocol.                                                                                                                                                                                                                                                                     |
 | monero/address/cryptonote              | 🛠️&#160;In&#160;development |           [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/monero/address/cryptonote)           | Implements legacy [CryptoNote subaddress protocol](https://www.getmonero.org/resources/research-lab/pubs/MRL-0006.pdf).                                                                                                                                                                                                                                                 |
-| monero/address/wallet                  | Semi-Internal                |             [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/monero/address/wallet)             | Implements generic View Wallet and Spend Wallet for Legacy Cryptonote and Carrot addressing protocols.                                                                                                                                                                                                                                                                  |
+| monero/address/wallet                  | Semi-Internal                |             [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/monero/address/wallet)             | Implements generic View Wallet and Spend Wallet for Legacy Cryptonote and Carrot addressing protocols.<br/>Includes Tx match helpers for wallets, tx keys or tx proofs.                                                                                                                                                                                                 |
 | monero/block                           | ✅&#160;Supported             |                 [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/monero/block)                  | Supports decoding/encoding Monero Blocks with V2 Coinbase Transactions, calculating RandomX proof of work, calculating rewards.                                                                                                                                                                                                                                         |
 | monero/client                          | ✅&#160;Supported             |                 [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/monero/client)                 | High level Monero Daemon RPC client wrapper.                                                                                                                                                                                                                                                                                                                            |
 | monero/client/rpc                      | ✅&#160;Supported             |               [![Go Reference](https://pkg.go.dev/badge/git.gammaspectra.live/P2Pool/consensus/v5.svg)](https://pkg.go.dev/git.gammaspectra.live/P2Pool/consensus/v5/monero/client/rpc)               | Monero Daemon RPC client.                                                                                                                                                                                                                                                                                                                                               |
@@ -72,7 +72,7 @@ Reports will be reviewed and answered to. There are no bug bounties at this time
 * **❌ Unsupported**: Not supported. Package may be deprecated or not currently developed.
 
 > **Note:** Project is automatically tested under Linux for _amd64_ and _arm64_ architectures, with normal, _purego_, and _cgo_ flavors. 
-> Other platforms are tested manually. 32-bit platforms are not supported, but may receive fixes.
+> Other platforms are tested manually. 32-bit platforms should work but are not supported, but may receive fixes as needed.
 
 ## Other maintained external libraries
 
@@ -97,6 +97,13 @@ You can also use the OpenAlias `p2pool.observer` directly on the GUI.
 
 ### Running tests
 
+```shell
+cd path/to/project/consensus
+MONEROD_RPC_URL=http://127.0.0.1:18081
+MONEROD_ZMQ_URL=tcp://127.0.0.1:18083
+go test -v ./...
+```
+
 #### Initialize test data
 
 Several test data is provided outside the repository tree, but is verified with saved hashes.
@@ -107,13 +114,6 @@ Monero crypto tests and P2Pool crypto and sidechain tests will be downloaded. Re
 ```shell
 cd path/to/project/consensus
 ./testdata/setup.sh
-```
-
-```shell
-cd path/to/project/consensus
-MONEROD_RPC_URL=http://127.0.0.1:18081
-MONEROD_ZMQ_URL=tcp://127.0.0.1:18083
-go test -v ./...
 ```
 
 ### Running linters
@@ -132,7 +132,7 @@ go vet ./...
 
 Go 1.25
 
-By default `CGO_ENABLED=0` is not necessary. You may use the `purego` build flag to disable any assembly or architecture specific optimizations.
+By default CGO is not necessary, so `CGO_ENABLED=0` is default. You may use the `purego` build flag to disable any assembly or architecture specific optimizations.
 
 This library supports both [go-RandomX library](https://git.gammaspectra.live/P2Pool/go-randomx) and the [C++ RandomX reference counterpart](https://github.com/tevador/RandomX).
 

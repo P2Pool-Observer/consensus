@@ -599,7 +599,7 @@ type GetBlockResultJSON struct {
 		//
 		Version int `json:"version"`
 
-		// UnlockTime is the block height when the coinbase transaction
+		// MinerUnlockTime is the block height when the coinbase transaction
 		// becomes spendable.
 		//
 		UnlockTime int `json:"unlock_time"`

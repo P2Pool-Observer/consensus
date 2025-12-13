@@ -18,6 +18,10 @@ type TransactionV1 struct {
 	fee        uint64
 }
 
+func (tx *TransactionV1) UnlockTime() uint64 {
+	return tx.Prefix.UnlockTime
+}
+
 func (tx *TransactionV1) Inputs() Inputs {
 	return tx.Prefix.Inputs
 }
@@ -56,6 +60,10 @@ func (tx *TransactionV1) PrefixHash() types.Hash {
 
 func (tx *TransactionV1) SignatureHash() (out types.Hash) {
 	return tx.PrefixHash()
+}
+
+func (tx *TransactionV1) ExtraData() []byte {
+	return tx.Extra
 }
 
 func (tx *TransactionV1) ExtraTags() ExtraTags {

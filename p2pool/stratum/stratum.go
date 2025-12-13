@@ -762,12 +762,12 @@ func (s *Server) coinbaseTransactionWeight(shareVersion sidechain.ShareVersion, 
 	txOutputsSize := txOutputSize*len(rewards) + int(rewardAmountsWeight)
 
 	tx := transaction.CoinbaseV2{
-		UnlockTime:   s.minerData.Height + monero.MinerRewardUnlockTime,
-		InputCount:   1,
-		InputType:    transaction.TxInGen,
-		GenHeight:    s.minerData.Height,
-		Extra:        nil,
-		ExtraBaseRCT: 0,
+		MinerUnlockTime: s.minerData.Height + monero.MinerRewardUnlockTime,
+		InputCount:      1,
+		InputType:       transaction.TxInGen,
+		GenHeight:       s.minerData.Height,
+		Extra:           nil,
+		ExtraBaseRCT:    0,
 	}
 
 	// buffer size minus size of outputs, size of extra tags
@@ -805,10 +805,10 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 	}
 
 	tx = transaction.CoinbaseV2{
-		UnlockTime: s.minerData.Height + monero.MinerRewardUnlockTime,
-		InputCount: 1,
-		InputType:  transaction.TxInGen,
-		GenHeight:  s.minerData.Height,
+		MinerUnlockTime: s.minerData.Height + monero.MinerRewardUnlockTime,
+		InputCount:      1,
+		InputType:       transaction.TxInGen,
+		GenHeight:       s.minerData.Height,
 		AuxiliaryData: transaction.CoinbaseTransactionAuxiliaryData{
 			TotalReward: func() (v uint64) {
 				for i := range rewards {

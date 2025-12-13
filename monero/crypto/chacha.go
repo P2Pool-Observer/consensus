@@ -8,7 +8,28 @@ import (
 	"golang.org/x/crypto/chacha20"
 )
 
-func generateChaChaKey(data []byte, kdfRounds int, prehashed bool) types.Hash {
+func DeriveChaChaKey(baseKey types.Hash) types.Hash {
+	const HASH_KEY_MEMORY = 'k'
+	var input [types.HashSize + 1]byte
+
+	copy(input[:], baseKey[:])
+	input[types.HashSize] = HASH_KEY_MEMORY
+	return GenerateChaChaKey(input[:], 1, false)
+}
+
+func ChaChaKeyStream(baseKey types.Hash, iv [chacha20.NonceSize]byte, data []byte) []byte {
+	key := DeriveChaChaKey(baseKey)
+
+	cipher, err := chacha20.NewUnauthenticatedCipher(key[:], iv[:])
+	if err != nil {
+		panic(err)
+	}
+	clear(data)
+	cipher.XORKeyStream(data, data)
+	return data
+}
+
+func GenerateChaChaKey(data []byte, kdfRounds int, prehashed bool) types.Hash {
 	var state cryptonight.State
 	pwdHash := state.Sum(data, 0, prehashed)
 	for i := 1; i < kdfRounds; i++ {
@@ -23,7 +44,7 @@ func ChaChaEncrypt(dst, src []byte, secretKey []byte, kdfRounds int) {
 	if len(dst) != len(src)+ChaChaNonceSize {
 		panic("chacha20: buffer size mismatch")
 	}
-	key := generateChaChaKey(secretKey, kdfRounds, false)
+	key := GenerateChaChaKey(secretKey, kdfRounds, false)
 
 	var iv [chacha20.NonceSize]byte
 	_, _ = rand.Read(iv[4:])
@@ -40,7 +61,7 @@ func ChaChaDecrypt(dst, src []byte, secretKey []byte, kdfRounds int) {
 	if len(dst) != len(src)-ChaChaNonceSize {
 		panic("chacha20: buffer size mismatch")
 	}
-	key := generateChaChaKey(secretKey, kdfRounds, false)
+	key := GenerateChaChaKey(secretKey, kdfRounds, false)
 
 	var iv [chacha20.NonceSize]byte
 	copy(iv[4:], src)

@@ -215,10 +215,12 @@ type PrunableTransaction interface { //nolint:iface
 type PrunedTransaction interface {
 	Version() uint8
 	PrefixHash() types.Hash
+	UnlockTime() uint64
 	Fee() uint64
 	Inputs() Inputs
 	Outputs() Outputs
 	Proofs() Proofs
+	ExtraData() []byte
 	ExtraTags() ExtraTags
 	PrunedBufferLength() int
 	AppendPrunedBinary(preAllocatedBuf []byte) (data []byte, err error)

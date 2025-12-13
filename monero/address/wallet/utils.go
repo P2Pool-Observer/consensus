@@ -8,8 +8,27 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
+
+func DeriveCacheKey(baseKey types.Hash, domainSeparator uint8) types.Hash {
+	var input [types.HashSize + 1]byte
+
+	copy(input[:], baseKey[:])
+	input[types.HashSize] = domainSeparator
+	return crypto.Keccak256(input[:])
+}
+
+func GenerateChaChaKeyFromKeys(spendKey, viewKey curve25519.PrivateKeyBytes, kdfRounds int) types.Hash {
+	const HASH_KEY_WALLET = 0x8c
+	var input [curve25519.PrivateKeySize*2 + 1]byte
+
+	copy(input[:], spendKey[:])
+	copy(input[curve25519.PrivateKeySize:], viewKey[:])
+	input[curve25519.PrivateKeySize*2] = HASH_KEY_WALLET
+	return crypto.GenerateChaChaKey(input[:], kdfRounds, false)
+}
 
 func Encrypt(data []byte, key *curve25519.Scalar, kdfRounds int, authenticated bool) []byte {
 	size := len(data) + crypto.ChaChaNonceSize
@@ -55,9 +74,7 @@ type KeyImageExport[T curve25519.PointOperations] struct {
 	SpendPub curve25519.PublicKey[T]
 	ViewPub  curve25519.PublicKey[T]
 
-	Images  []SignedKeyImage[T]
-	Spent   uint64
-	Unspent uint64
+	Images []SignedKeyImage[T]
 }
 
 func DecryptKeyImages[T curve25519.PointOperations](data []byte, key *curve25519.Scalar, kdfRounds int) (*KeyImageExport[T], error) {
