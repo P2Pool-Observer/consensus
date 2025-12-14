@@ -266,7 +266,7 @@ func (s *UnreducedScalar) naf5() (naf [256]int8) {
 		b := s[pos/8] >> uint(pos&7)
 
 		// #nosec G602
-		naf[pos] = int8(b)
+		naf[pos] = int8(b & 1)
 	}
 
 	for i := range naf {
@@ -274,7 +274,7 @@ func (s *UnreducedScalar) naf5() (naf [256]int8) {
 			// if the bit is a one, work our way up through the window
 			// combining the bits with this bit.
 			for b := 1; b < 6; b++ {
-				if (i + b) > bits {
+				if (i + b) >= bits {
 					// if we are at the length of the array then break out
 					// the loop.
 					break
@@ -322,12 +322,14 @@ func (s *UnreducedScalar) VarTimeScalar(out *Scalar) *Scalar {
 
 	out.Set(zeroScalar)
 	//TODO: add tests for unreduced ones
-	for _, n := range s.naf5() {
+	naf5 := s.naf5()
+	for i := len(naf5) - 1; i >= 0; i-- {
+		n := naf5[i]
 		out.Add(out, out)
 		if n > 0 {
-			out.Add(out, precomputedScalars[n])
+			out.Add(out, precomputedScalars[n/2])
 		} else if n < 0 {
-			out.Subtract(out, precomputedScalars[-n])
+			out.Subtract(out, precomputedScalars[(-n)/2])
 		}
 	}
 	return out
