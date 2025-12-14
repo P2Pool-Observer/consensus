@@ -7,20 +7,19 @@ require (
 	git.gammaspectra.live/P2Pool/blake2b v0.42.1
 	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251206112811-c233ac191587
 	git.gammaspectra.live/P2Pool/go-json v0.0.0-20250621110326-6e32b22271c3
-	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.6.1
+	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.7.0
 	git.gammaspectra.live/P2Pool/helioselene v0.0.0-20251201070947-26d62186ee7f
 	git.gammaspectra.live/P2Pool/monero-base58 v1.0.0
 	git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0
-	git.gammaspectra.live/P2Pool/softfloat64 v1.0.2 // indirect
 	git.gammaspectra.live/P2Pool/zmq4 v0.99.0
 )
 
 // Go x packages dependencies
 require (
-	golang.org/x/crypto v0.45.0
-	golang.org/x/net v0.47.0
-	golang.org/x/sync v0.18.0
-	golang.org/x/sys v0.38.0
+	golang.org/x/crypto v0.46.0
+	golang.org/x/net v0.48.0
+	golang.org/x/sync v0.19.0
+	golang.org/x/sys v0.39.0
 )
 
 // External dependencies
