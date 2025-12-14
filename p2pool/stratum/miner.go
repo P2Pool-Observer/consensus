@@ -22,7 +22,7 @@ type MinerTrackingEntry struct {
 
 type Client struct {
 	Lock       sync.RWMutex
-	Conn       *net.TCPConn
+	Conn       net.Conn
 	encoder    *gojson.Encoder
 	decoder    *gojson.Decoder
 	Agent      string

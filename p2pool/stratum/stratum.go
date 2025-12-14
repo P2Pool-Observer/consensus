@@ -1188,7 +1188,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 		var idCounter atomic.Uint64
 
 		for {
-			if conn, err := tcpListener.AcceptTCP(); err != nil {
+			if conn, err := tcpListener.Accept(); err != nil {
 				return err
 			} else {
 				var addrPort netip.AddrPort

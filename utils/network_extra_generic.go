@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !purego && gc && !tinygo
 
 package utils
 

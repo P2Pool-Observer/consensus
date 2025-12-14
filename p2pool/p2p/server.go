@@ -607,39 +607,49 @@ func (s *Server) Listen() (err error) {
 		defer s.listener.Close()
 
 		var wg sync.WaitGroup
-		wg.Go(func() {
-			for range utils.ContextTick(s.ctx, time.Second*5) {
-				s.UpdatePeerList()
-				s.UpdateClientConnections()
-			}
-		})
-		wg.Go(func() {
-			for range utils.ContextTick(s.ctx, time.Second) {
-				if s.SideChain().PreCalcFinished() {
-					s.ClearCachedBlocks()
-					break
+		{
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for range utils.ContextTick(s.ctx, time.Second*5) {
+					s.UpdatePeerList()
+					s.UpdateClientConnections()
 				}
+			}()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for range utils.ContextTick(s.ctx, time.Second) {
+					if s.SideChain().PreCalcFinished() {
+						s.ClearCachedBlocks()
+						break
+					}
 
-				s.DownloadMissingBlocks()
-			}
-			// Slow down updates for missing blocks after sync
-			for range utils.ContextTick(s.ctx, time.Minute*2) {
-				s.DownloadMissingBlocks()
-			}
-		})
-		wg.Go(func() {
-			for range utils.ContextTick(s.ctx, time.Hour) {
-				s.RefreshOutgoingIPv6()
-			}
-		})
-		wg.Go(func() {
-			for range utils.ContextTick(s.ctx, time.Minute*5) {
-				s.CleanupBanList()
-			}
-		})
+					s.DownloadMissingBlocks()
+				}
+				// Slow down updates for missing blocks after sync
+				for range utils.ContextTick(s.ctx, time.Minute*2) {
+					s.DownloadMissingBlocks()
+				}
+			}()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for range utils.ContextTick(s.ctx, time.Hour) {
+					s.RefreshOutgoingIPv6()
+				}
+			}()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for range utils.ContextTick(s.ctx, time.Minute*5) {
+					s.CleanupBanList()
+				}
+			}()
+		}
 
 		for !s.close.Load() {
-			if conn, err := s.listener.AcceptTCP(); err != nil {
+			if conn, err := s.listener.Accept(); err != nil {
 				utils.Errorf("P2PServer", "Connection accept failed %s", err.Error())
 				continue
 			} else {

@@ -6,7 +6,9 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"flag"
 	"io"
+	"math/bits"
 	unsafeRandom "math/rand/v2"
 	"os"
 	"path"
@@ -23,23 +25,6 @@ import (
 	"git.gammaspectra.live/P2Pool/go-json"
 	"github.com/ulikunitz/xz"
 )
-
-func init() {
-	utils.GlobalLogLevel = 0
-
-	_, filename, _, _ := runtime.Caller(0)
-	// The ".." may change depending on you folder structure
-	dir := path.Join(path.Dir(filename), "../..")
-	err := os.Chdir(dir)
-	if err != nil {
-		panic(err)
-	}
-
-	_ = ConsensusDefault.InitHasher(2)
-	_ = ConsensusMini.InitHasher(2)
-	_ = ConsensusNano.InitHasher(2)
-	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
-}
 
 type TestSideChainData struct {
 	Name       string
@@ -947,11 +932,36 @@ var benchLoadedSideChain *SideChain
 
 func TestMain(m *testing.M) {
 
+	utils.GlobalLogLevel = 0
+
+	_, filename, _, _ := runtime.Caller(0)
+	// The ".." may change depending on you folder structure
+	dir := path.Join(path.Dir(filename), "../..")
+	err := os.Chdir(dir)
+	if err != nil {
+		panic(err)
+	}
+
+	client.SetDefaultClientSettings(os.Getenv("MONEROD_RPC_URL"))
+
 	var isBenchmark bool
 	for _, arg := range os.Args {
 		if arg == "-test.bench" {
 			isBenchmark = true
 		}
+	}
+
+	flag.Parse()
+
+	// reduce memory usage on short tests or 32-bit machines
+	if testing.Short() || bits.UintSize == 32 {
+		_ = ConsensusDefault.InitHasher(1)
+		_ = ConsensusMini.InitHasher(1)
+		_ = ConsensusNano.InitHasher(1)
+	} else {
+		_ = ConsensusDefault.InitHasher(2)
+		_ = ConsensusMini.InitHasher(2)
+		_ = ConsensusNano.InitHasher(2)
 	}
 
 	if isBenchmark {

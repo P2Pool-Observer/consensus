@@ -49,6 +49,11 @@ linters:
     - gochecknoglobals
 
   settings:
+    modernize:
+      disable:
+        # todo: remove when TinyGo supports wg.Go
+        - waitgroup
+
     gocritic:
       enabled-tags:
         - diagnostic

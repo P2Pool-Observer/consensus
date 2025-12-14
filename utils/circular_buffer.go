@@ -14,7 +14,7 @@ type CircularBuffer[T comparable] struct {
 }
 
 func NewCircularBuffer[T comparable](size int) *CircularBuffer[T] {
-	if size > math.MaxUint32 {
+	if size > math.MaxInt32 {
 		return nil
 	}
 	return &CircularBuffer[T]{

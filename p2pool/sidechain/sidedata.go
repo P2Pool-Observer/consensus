@@ -207,7 +207,7 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 	}
 
 	if b.Height > PoolBlockMaxSideChainHeight {
-		return utils.ErrorfNoEscape("side block height too high (%d > %d)", b.Height, PoolBlockMaxSideChainHeight)
+		return utils.ErrorfNoEscape("side block height too high (%d > %d)", b.Height, uint64(PoolBlockMaxSideChainHeight))
 	}
 
 	{

@@ -207,7 +207,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 				}
 
 				if scan.Amount != amount {
-					t.Fatalf("got amount %d, want %d", scan.Amount, amount)
+					t.Fatalf("got amount %d, want %d", scan.Amount, uint64(amount))
 				}
 			})
 		}

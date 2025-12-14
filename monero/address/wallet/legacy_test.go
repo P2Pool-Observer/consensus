@@ -93,7 +93,7 @@ func TestViewWallet_GeneralFund_Match(t *testing.T) {
 
 	const expected = 3284260000
 	if scan.Amount != expected {
-		t.Fatalf("expected %d, got %d", expected, scan.Amount)
+		t.Fatalf("expected %d, got %d", uint64(expected), scan.Amount)
 	}
 
 	var txPubPoint curve25519.VarTimePublicKey
