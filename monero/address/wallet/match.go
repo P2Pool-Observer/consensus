@@ -276,18 +276,23 @@ func MatchTransaction[T curve25519.PointOperations, ViewWallet ViewWalletInterfa
 var ErrNoOutputs = errors.New("no transaction outputs")
 
 func txPubs(extra transaction.ExtraTags) (pubs []curve25519.PublicKeyBytes) {
-
 	if txPubExtra := extra.GetTag(transaction.TxExtraTagPubKey); txPubExtra != nil && len(txPubExtra.Data) == curve25519.PublicKeySize {
 		// #nosec G103 -- verified public key size for data
-		return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubExtra.Data))), 1)
+		pubs = unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubExtra.Data))), 1)
 	}
 
 	if txPubsExtra := extra.GetTag(transaction.TxExtraTagAdditionalPubKeys); txPubsExtra != nil && len(txPubsExtra.Data) > 0 && len(txPubsExtra.Data)%curve25519.PublicKeySize == 0 {
 		// #nosec G103 -- verified public key size for data, and that it's modulo the data, and it's longer than 0
-		return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubsExtra.Data))), len(txPubsExtra.Data)/curve25519.PublicKeySize)
+		additionalPubs := unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubsExtra.Data))), len(txPubsExtra.Data)/curve25519.PublicKeySize)
+		if pubs != nil {
+			pubs = append(make([]curve25519.PublicKeyBytes, 0, len(pubs)+len(additionalPubs)), pubs...)
+			pubs = append(pubs, additionalPubs...)
+		} else {
+			pubs = additionalPubs
+		}
 	}
 
-	return nil
+	return pubs
 }
 
 func txPaymentId(extra transaction.ExtraTags) (paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte) {
