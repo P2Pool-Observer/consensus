@@ -7,7 +7,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/edwards25519"       //nolint:depguard
 	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
 
 // MontgomeryPoint A Curve25519 u coordinate (Montgomery)

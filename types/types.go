@@ -9,7 +9,7 @@ import (
 	"unsafe"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
 
 const HashSize = 32

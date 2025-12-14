@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"github.com/tmthrgd/go-hex"
+	"git.gammaspectra.live/P2Pool/go-hex"
 )
 
 type testVector struct {

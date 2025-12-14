@@ -9,7 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
 
 type Point = edwards25519.Point

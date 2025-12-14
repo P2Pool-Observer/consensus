@@ -9,7 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
 
 var privateKey = new(curve25519.Scalar)

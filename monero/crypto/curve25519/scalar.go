@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
 
 type Scalar = edwards25519.Scalar

@@ -8,7 +8,7 @@ import (
 	"hash"
 	"strings"
 
-	"github.com/tmthrgd/go-hex"
+	"git.gammaspectra.live/P2Pool/go-hex"
 )
 
 const digestQOPAuth = "auth"

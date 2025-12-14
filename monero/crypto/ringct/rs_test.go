@@ -14,7 +14,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/edwards25519"
-	"github.com/tmthrgd/go-hex"
+	"git.gammaspectra.live/P2Pool/go-hex"
 )
 
 func init() {

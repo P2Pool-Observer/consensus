@@ -13,7 +13,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"github.com/tmthrgd/go-hex"
+	"git.gammaspectra.live/P2Pool/go-hex"
 )
 
 func init() {

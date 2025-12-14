@@ -173,7 +173,7 @@ linters:
             - pkg: "encoding/json$"
               desc: use git.gammaspectra.live/P2Pool/go-json
             - pkg: "encoding/hex"
-              desc: use github.com/tmthrgd/go-hex
+              desc: use git.gammaspectra.live/P2Pool/go-hex
             - pkg: "golang.org/x/crypto/blake2b"
               desc: use git.gammaspectra.live/P2Pool/blake2b
             - pkg: "golang.org/x/crypto/sha3"

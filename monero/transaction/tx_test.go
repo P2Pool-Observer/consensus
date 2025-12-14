@@ -9,7 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"github.com/tmthrgd/go-hex"
+	"git.gammaspectra.live/P2Pool/go-hex"
 )
 
 func init() {

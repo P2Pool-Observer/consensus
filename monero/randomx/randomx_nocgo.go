@@ -13,8 +13,8 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 	"git.gammaspectra.live/P2Pool/go-randomx/v4"
-	fasthex "github.com/tmthrgd/go-hex"
 )
 
 type hasherCollection struct {

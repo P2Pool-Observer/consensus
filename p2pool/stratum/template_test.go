@@ -9,7 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
 
 func TestTemplate(t *testing.T) {

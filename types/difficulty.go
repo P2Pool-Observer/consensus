@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 	"lukechampine.com/uint128"
 )
 

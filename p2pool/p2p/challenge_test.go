@@ -2,10 +2,11 @@ package p2p
 
 import (
 	"crypto/rand"
-	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
-	fasthex "github.com/tmthrgd/go-hex"
 	"sync/atomic"
 	"testing"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
 
 func TestFindChallengeSolution(t *testing.T) {

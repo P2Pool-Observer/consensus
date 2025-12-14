@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"errors"
 
-	fasthex "github.com/tmthrgd/go-hex"
+	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
 
 const PrivateKeySize = 32
