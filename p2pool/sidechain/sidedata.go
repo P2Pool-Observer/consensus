@@ -23,7 +23,7 @@ type SideData struct {
 	PublicKey    address.PackedAddress `json:"public_key"`
 	IsSubaddress bool                  `json:"is_subaddress,omitempty"`
 
-	CoinbasePrivateKeySeed types.Hash `json:"coinbase_private_key_seed,omitempty"`
+	CoinbasePrivateKeySeed types.Hash `json:"coinbase_private_key_seed,omitzero"`
 	// CoinbasePrivateKey filled or calculated on decoding,
 	CoinbasePrivateKey curve25519.PrivateKeyBytes `json:"coinbase_private_key"`
 	// Parent Template Id of the parent of this share, or zero if genesis

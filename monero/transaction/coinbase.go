@@ -24,7 +24,7 @@ type GenericCoinbase struct {
 
 	Extra types.Bytes `json:"extra"`
 
-	ExtraBaseRCT uint8 `json:"extra_base_rct,omitempty"`
+	ExtraBaseRCT uint8 `json:"extra_base_rct,omitzero"`
 }
 
 func (c *GenericCoinbase) UnlockTime() uint64 {

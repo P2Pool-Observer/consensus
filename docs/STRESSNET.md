@@ -6,8 +6,8 @@
 ### New fields
 Blocks contain two additional fields after `tx_hashes`:
 ```go
-FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
-FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
+FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitzero"`
+FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitzero"`
 ```
 These fields are serialized directly after `tx_hashes` as uint8 and hash, no varint is required.
 

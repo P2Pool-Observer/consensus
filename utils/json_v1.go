@@ -1,4 +1,4 @@
-//go:build purego && !goexperiment.jsonv2
+//go:build !goexperiment.jsonv2
 
 package utils
 

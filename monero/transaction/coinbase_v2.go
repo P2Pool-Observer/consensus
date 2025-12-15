@@ -35,7 +35,7 @@ type CoinbaseTransactionAuxiliaryData struct {
 	TotalReward uint64 `json:"total_reward"`
 	// TemplateId Required by sidechain.GetOutputs to speed up repeated broadcasts from different peers
 	// This must be filled when preprocessing
-	TemplateId types.Hash `json:"template_id,omitempty"`
+	TemplateId types.Hash `json:"template_id,omitzero"`
 }
 
 func (c *CoinbaseV2) UnmarshalBinary(data []byte, canBePruned, containsAuxiliaryTemplateId bool) error {

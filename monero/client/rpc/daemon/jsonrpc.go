@@ -140,20 +140,20 @@ func (c *Client) GetVersion(ctx context.Context) (*GetVersionResult, error) {
 type GenerateBlocksRequestParameters struct {
 	// AmountOfBlocks is the number of blocks to be generated.
 	//
-	AmountOfBlocks uint64 `json:"amount_of_blocks,omitempty"`
+	AmountOfBlocks uint64 `json:"amount_of_blocks,omitzero"`
 
 	// WalletAddress is the address of the wallet that will get the rewards
 	// of the coinbase transaction for such the blocks generates.
 	//
-	WalletAddress string `json:"wallet_address,omitempty"`
+	WalletAddress string `json:"wallet_address,omitzero"`
 
 	// PreviousBlock TODO
 	//
-	PreviousBlock string `json:"prev_block,omitempty"`
+	PreviousBlock string `json:"prev_block,omitzero"`
 
 	// StartingNonce TODO
 	//
-	StartingNonce uint32 `json:"starting_nonce,omitempty"`
+	StartingNonce uint32 `json:"starting_nonce,omitzero"`
 }
 
 // GenerateBlocks combines functionality from `GetBlockTemplate` and
@@ -381,8 +381,8 @@ func (c *Client) GetBlockHeaderByHash(
 // GetBlockRequestParameters represents the set of possible parameters that can
 // be used for submitting a call to the `get_block` jsonrpc method.
 type GetBlockRequestParameters struct {
-	Height uint64     `json:"height,omitempty"`
-	Hash   types.Hash `json:"hash,omitempty"`
+	Height uint64     `json:"height,omitzero"`
+	Hash   types.Hash `json:"hash,omitzero"`
 }
 
 // GetBlock fetches full block information from a block at a particular hash OR

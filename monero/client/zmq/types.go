@@ -68,8 +68,8 @@ type FullChainMain struct {
 	} `json:"miner_tx"`
 	TxHashes []types.Hash `json:"tx_hashes"`
 
-	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
-	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitzero"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitzero"`
 }
 
 type FullTxPoolAdd struct {
@@ -126,6 +126,6 @@ type FullMinerData struct {
 	MedianTimestamp       uint64           `json:"median_timestamp"`
 	TxBacklog             []*mempool.Entry `json:"tx_backlog"`
 
-	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
-	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitzero"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitzero"`
 }

@@ -34,8 +34,8 @@ type Block struct {
 	// TransactionParentIndices amount of reward existing MinerOutputs. Used by p2pool serialized compact broadcasted blocks in protocol >= 1.1, filled only in compact blocks or by pre-processing.
 	TransactionParentIndices []uint64 `json:"transaction_parent_indices,omitempty"`
 
-	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
-	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitzero"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitzero"`
 }
 
 type Header struct {

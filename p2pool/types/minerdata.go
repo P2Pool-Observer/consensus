@@ -9,7 +9,7 @@ import (
 
 type MinerData struct {
 	MajorVersion          uint8            `json:"major_version"`
-	MinorVersion          uint8            `json:"minor_version,omitempty"`
+	MinorVersion          uint8            `json:"minor_version,omitzero"`
 	Height                uint64           `json:"height"`
 	PrevId                types.Hash       `json:"prev_id"`
 	SeedHash              types.Hash       `json:"seed_hash"`
@@ -19,13 +19,13 @@ type MinerData struct {
 	MedianTimestamp       uint64           `json:"median_timestamp"`
 	TxBacklog             mempool.Mempool  `json:"tx_backlog"`
 
-	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
-	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitzero"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitzero"`
 
 	TimeReceived time.Time `json:"time_received"`
 
 	AuxiliaryChains []AuxiliaryChainData `json:"aux_chains,omitempty"`
-	AuxiliaryNonce  uint32               `json:"aux_nonce,omitempty"`
+	AuxiliaryNonce  uint32               `json:"aux_nonce,omitzero"`
 }
 
 type AuxiliaryChainData struct {

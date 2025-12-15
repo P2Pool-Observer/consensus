@@ -180,7 +180,7 @@ func (c *Client) GetOuts(
 
 	params := struct {
 		Outputs []GetOutsInput `json:"outputs"`
-		GetTxID bool           `json:"get_txid,omitempty"`
+		GetTxID bool           `json:"get_txid,omitzero"`
 	}{
 		Outputs: outputs,
 		GetTxID: gettxid,

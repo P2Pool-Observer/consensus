@@ -13,7 +13,7 @@ import (
 type DestinationV1 struct {
 	Address address.PackedAddressWithSubaddress `json:"address"`
 
-	PaymentId [monero.PaymentIdSize]byte `json:"payment_id,omitempty"`
+	PaymentId [monero.PaymentIdSize]byte `json:"payment_id,omitzero"`
 }
 
 // MakeDestinationMainAddress make_carrot_main_address_v1

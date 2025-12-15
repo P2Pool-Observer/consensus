@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	unsafeRandom "math/rand/v2"
 	"net/netip"
 	"os"
@@ -25,7 +26,9 @@ func testPoolBlock(b *PoolBlock, t *testing.T, expectedBufferLength int, majorVe
 
 	powHash := b.PowHash(ConsensusDefault.GetHasher(), func(height uint64) (hash types.Hash) {
 		seedHeight := randomx.SeedHeight(height)
+
 		if h, err := client.GetDefaultClient().GetBlockByHeight(seedHeight, context.Background()); err != nil {
+			fmt.Printf("%v %d\n", err, height)
 			return types.ZeroHash
 		} else {
 			return h.BlockHeader.Hash
@@ -55,12 +58,11 @@ func testPoolBlock(b *PoolBlock, t *testing.T, expectedBufferLength int, majorVe
 	}
 
 	if b.MainId() != mainId {
-		t.Logf("%s != %s", b.MainId(), mainId)
-		t.Fatal()
+		t.Fatalf("%s != %s", b.MainId(), mainId)
 	}
 
 	if powHash != expectedPowHash {
-		t.Fatal()
+		t.Fatalf("%s != %s", powHash, expectedPowHash)
 	}
 
 	if !b.IsProofHigherThanDifficulty(ConsensusDefault.GetHasher(), func(height uint64) (hash types.Hash) {

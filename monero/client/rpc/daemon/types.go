@@ -21,7 +21,7 @@ type RPCResultFooter struct {
 	// Credits indicates the number of credits available to the requesting
 	// client, if payment for RPC is enabled, otherwise, 0.
 	//
-	Credits uint64 `json:"credits,omitempty"`
+	Credits uint64 `json:"credits,omitzero"`
 
 	// TopHash is the hash of the highest block in the chain, If payment
 	// for RPC is enabled, otherwise, empty.
@@ -298,8 +298,8 @@ type GetMinerDataResult struct {
 	MedianTimestamp       uint64           `json:"median_timestamp"`
 	TxBacklog             mempool.Mempool  `json:"tx_backlog"`
 
-	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
-	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitzero"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitzero"`
 }
 
 // SubmitBlockResult is the result of a call to the SubmitBlock RPC
@@ -524,7 +524,7 @@ type BlockHeader struct {
 	// PrevHash is the hash of the block immediately preceding this
 	// block in the chain.
 	//
-	PrevHash types.Hash `json:"prev_hash,omitempty"`
+	PrevHash types.Hash `json:"prev_hash,omitzero"`
 
 	// Reward the amount of new atomic-units generated in this
 	// block and rewarded to the miner (1XMR = 1e12 atomic units).
@@ -634,8 +634,8 @@ type GetBlockResultJSON struct {
 	//
 	TxHashes []types.Hash `json:"tx_hashes"`
 
-	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitempty"`
-	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitempty"`
+	FCMPTreeLayers uint8      `json:"fcmp_pp_n_tree_layers,omitzero"`
+	FCMPTreeRoot   types.Hash `json:"fcmp_pp_tree_root,omitzero"`
 }
 
 func (c *GetBlockResultJSON) MinerOutputs() uint64 {

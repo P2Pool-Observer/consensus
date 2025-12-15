@@ -104,7 +104,7 @@ type PoolBlockReceptionMetadata struct {
 	// If the peer specified a listen port, the port will be that instead of current connection one
 	AddressPort netip.AddrPort `json:"address_port"`
 	// PeerId The peer id of the peer who broadcasted or sent us this block
-	PeerId uint64 `json:"peer_id,omitempty"`
+	PeerId uint64 `json:"peer_id,omitzero"`
 
 	SoftwareId      uint32 `json:"software_id"`
 	SoftwareVersion uint32 `json:"software_version"`
