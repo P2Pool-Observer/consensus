@@ -14,7 +14,7 @@ func CalculateTransactionPrivateKeySeed(main, side []byte) (result types.Hash) {
 	_, _ = h.Write(transactionPrivateKeySeedDomain)
 	_, _ = h.Write(main)
 	_, _ = h.Write(side)
-	h.Hash(&result)
+	_, _ = h.Read(result[:])
 
 	return result
 }

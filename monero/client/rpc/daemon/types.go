@@ -820,7 +820,7 @@ type TransactionJSON struct {
 		} `json:"key"`
 	} `json:"vin"`
 	Vout          []TransactionOut `json:"vout"`
-	Extra         []byte           `json:"extra"`
+	Extra         []int            `json:"extra"`
 	Signatures    []types.Bytes    `json:"signatures"`
 	RctSignatures struct {
 		Type     int    `json:"type"`

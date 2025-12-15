@@ -2,13 +2,12 @@ package cryptonight
 
 import (
 	"encoding/binary"
-	"io"
 	"math/bits"
 	"unsafe"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"golang.org/x/crypto/sha3" //nolint:depguard
 )
 
 func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.Hash {
@@ -27,9 +26,9 @@ func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.H
 		hasher := sha3.NewLegacyKeccak256()
 		_, _ = utils.WriteNoEscape(hasher, data)
 		// trigger pad and permute
-		_, _ = utils.ReadNoEscape(hasher.(io.Reader), nil) //nolint:forcetypeassert
+		_, _ = utils.ReadNoEscape(hasher, nil)
 		// #nosec G103 -- fixed length read
-		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8), keccakStatePtr(hasher)[:])
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&cn.keccakState)), len(cn.keccakState)*8), hasher.MainState()[:])
 	} else {
 		if len(data) < len(cn.keccakState)*8 {
 			panic("cryptonight: state length too short")
@@ -109,7 +108,8 @@ func (cn *State) sum_v0_v1(data []byte, variant Variant, prehashed bool) types.H
 	}
 
 	copy(cn.keccakState[8:24], prev[:])
-	keccakF1600(&cn.keccakState)
+	// #nosec G103 -- same size cast
+	sha3.KeccakF1600((*[200]byte)(unsafe.Pointer(&cn.keccakState)))
 
 	var sum types.Hash
 

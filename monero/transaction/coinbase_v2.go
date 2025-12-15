@@ -330,7 +330,7 @@ func (c *CoinbaseV2) Hash() (hash types.Hash) {
 
 	hasher.Reset()
 	_, _ = hasher.Write(txHashingBlob[:])
-	hasher.Hash(&hash)
+	_, _ = hasher.Read(hash[:])
 
 	return hash
 }

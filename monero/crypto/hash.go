@@ -6,9 +6,9 @@ import (
 
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"golang.org/x/crypto/sha3" //nolint:depguard
 )
 
 type HashReader interface {
@@ -16,53 +16,13 @@ type HashReader interface {
 	io.Reader
 }
 
-type KeccakHasher struct {
-	h HashReader
-}
-
-func (k KeccakHasher) Read(p []byte) (n int, err error) {
-	return utils.ReadNoEscape(k.h, p)
-}
-
-func (k KeccakHasher) Write(p []byte) (n int, err error) {
-	return utils.WriteNoEscape(k.h, p)
-}
-
-func (k KeccakHasher) Sum(b []byte) []byte {
-	return utils.SumNoEscape(k.h, b)
-}
-
-func (k KeccakHasher) Hash(h *types.Hash) {
-	_, _ = utils.ReadNoEscape(k.h, h[:])
-}
-
-func (k KeccakHasher) Reset() {
-	utils.ResetNoEscape(k.h)
-}
-
-func (k KeccakHasher) Size() int {
-	return k.h.Size()
-}
-
-func (k KeccakHasher) BlockSize() int {
-	return k.h.BlockSize()
-}
-
 //go:nosplit
-func NewKeccak256() KeccakHasher {
-	//nolint:forcetypeassert
-	return KeccakHasher{h: sha3.NewLegacyKeccak256().(HashReader)}
-}
-
-//nolint:ireturn
-//go:nosplit
-func newKeccak256() HashReader {
-	//nolint:forcetypeassert
-	return sha3.NewLegacyKeccak256().(HashReader)
+func NewKeccak256() *sha3.Digest {
+	return sha3.NewLegacyKeccak256()
 }
 
 func Keccak256Var[T ~string | ~[]byte](data ...T) (result types.Hash) {
-	h := newKeccak256()
+	h := NewKeccak256()
 	for _, b := range data {
 		_, _ = utils.WriteNoEscape(h, []byte(b))
 	}
@@ -72,7 +32,7 @@ func Keccak256Var[T ~string | ~[]byte](data ...T) (result types.Hash) {
 }
 
 func Keccak256[T ~string | ~[]byte](data T) (result types.Hash) {
-	h := newKeccak256()
+	h := NewKeccak256()
 	_, _ = utils.WriteNoEscape(h, []byte(data))
 	_, _ = utils.ReadNoEscape(h, result[:types.HashSize])
 
@@ -80,7 +40,7 @@ func Keccak256[T ~string | ~[]byte](data T) (result types.Hash) {
 }
 
 func TransactionIdHash(dst *types.Hash, coinbaseBlobMinusBaseRTC, baseRTC, prunableRTC types.Hash) {
-	h := newKeccak256()
+	h := NewKeccak256()
 	_, _ = utils.WriteNoEscape(h, coinbaseBlobMinusBaseRTC[:])
 	_, _ = utils.WriteNoEscape(h, baseRTC[:])
 	_, _ = utils.WriteNoEscape(h, prunableRTC[:])
@@ -88,7 +48,7 @@ func TransactionIdHash(dst *types.Hash, coinbaseBlobMinusBaseRTC, baseRTC, pruna
 }
 
 func SignableFCMPTransactionHash(dst *types.Hash, coinbaseBlobMinusBaseRTC, baseRTC types.Hash) {
-	h := newKeccak256()
+	h := NewKeccak256()
 	_, _ = utils.WriteNoEscape(h, coinbaseBlobMinusBaseRTC[:])
 	_, _ = utils.WriteNoEscape(h, baseRTC[:])
 	_, _ = utils.ReadNoEscape(h, dst[:])

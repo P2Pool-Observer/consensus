@@ -3,6 +3,7 @@ package stratum
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json" //nolint:depguard
 	"errors"
 	"math"
 	unsafeRandom "math/rand/v2" //nolint:depguard
@@ -28,7 +29,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	fasthex "git.gammaspectra.live/P2Pool/go-hex"
-	gojson "git.gammaspectra.live/P2Pool/go-json"
 )
 
 // HighFeeValue 0.006 XMR
@@ -1273,7 +1273,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 									err = errors.New("invalid string id")
 									return
 								}
-							} else if _, ok := msg.Id.(gojson.Number); !ok {
+							} else if _, ok := msg.Id.(json.Number); !ok {
 								err = errors.New("invalid id format")
 								return
 							}
@@ -1654,7 +1654,7 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 		job.Params.Algo = ""
 	}
 
-	if err = c.encoder.EncodeWithOption(job, utils.JsonEncodeOptions...); err != nil {
+	if err = c.encoder.Encode(job); err != nil {
 		return
 	}
 	return nil
@@ -1729,7 +1729,7 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 		job.Result.Job.Algo = ""
 	}
 
-	if err = c.encoder.EncodeWithOption(job, utils.JsonEncodeOptions...); err != nil {
+	if err = c.encoder.Encode(job); err != nil {
 		return
 	}
 	return nil

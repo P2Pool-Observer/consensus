@@ -2,11 +2,11 @@ package types
 
 import (
 	"bytes"
-	"crypto/sha3" //nolint:depguard
 	"encoding/base32"
 	"errors"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
 )
 
 var onionBase32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567")

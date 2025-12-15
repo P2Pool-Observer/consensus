@@ -10,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
@@ -271,7 +272,7 @@ func (tpl *Template) TemplateId(preAllocatedBuffer []byte, consensus *sidechain.
 	_, _ = hasher.Write(buf)
 	_, _ = hasher.Write(consensus.Id[:])
 
-	hasher.Hash(result)
+	_, _ = hasher.Read(result[:])
 	hasher.Reset()
 }
 
@@ -314,13 +315,13 @@ func (tpl *Template) CoinbaseBlobId(preAllocatedBuffer []byte, extraNonce uint32
 	hasher := crypto.NewKeccak256()
 	buf := tpl.CoinbaseBlob(preAllocatedBuffer, extraNonce, templateId)
 	_, _ = hasher.Write(buf[:len(buf)-1])
-	hasher.Hash(result)
+	_, _ = hasher.Read(result[:])
 	hasher.Reset()
 
 	CoinbaseTransactionIdHash(result, hasher, *result)
 }
 
-func (tpl *Template) CoinbaseId(hasher crypto.KeccakHasher, extraNonce uint32, merkleRoot types.Hash, result *types.Hash) {
+func (tpl *Template) CoinbaseId(hasher *sha3.Digest, extraNonce uint32, merkleRoot types.Hash, result *types.Hash) {
 
 	var extraNonceBuf [4]byte
 
@@ -335,7 +336,7 @@ func (tpl *Template) CoinbaseId(hasher crypto.KeccakHasher, extraNonce uint32, m
 
 	_, _ = hasher.Write(tpl.Buffer[tpl.MerkleRootOffset+types.HashSize : tpl.TransactionsOffset-1])
 
-	hasher.Hash(result)
+	_, _ = hasher.Read(result[:])
 	hasher.Reset()
 
 	CoinbaseTransactionIdHash(result, hasher, *result)
@@ -343,13 +344,13 @@ func (tpl *Template) CoinbaseId(hasher crypto.KeccakHasher, extraNonce uint32, m
 
 var zeroExtraBaseRCTHash = crypto.Keccak256([]byte{0})
 
-func CoinbaseTransactionIdHash(dst *types.Hash, hasher crypto.KeccakHasher, coinbaseBlobMinusBaseRTC types.Hash) {
+func CoinbaseTransactionIdHash(dst *types.Hash, hasher *sha3.Digest, coinbaseBlobMinusBaseRTC types.Hash) {
 	_, _ = hasher.Write(coinbaseBlobMinusBaseRTC[:])
 	// Base RCT, single 0 byte in miner tx
 	_, _ = hasher.Write(zeroExtraBaseRCTHash[:])
 	// Prunable RCT, empty in miner tx
 	_, _ = hasher.Write(types.ZeroHash[:])
-	hasher.Hash(dst)
+	_, _ = hasher.Read(dst[:])
 	hasher.Reset()
 }
 
@@ -375,7 +376,7 @@ func (tpl *Template) HashingBlob(preAllocatedBuffer []byte, nonce, extraNonce ui
 		for i := range tpl.MerkleTreeMainBranch {
 			_, _ = hasher.Write(rootHash[:])
 			_, _ = hasher.Write(tpl.MerkleTreeMainBranch[i][:])
-			hasher.Hash(&rootHash)
+			_, _ = hasher.Read(rootHash[:])
 			hasher.Reset()
 		}
 	} else {
@@ -383,13 +384,13 @@ func (tpl *Template) HashingBlob(preAllocatedBuffer []byte, nonce, extraNonce ui
 		} else if numTransactions < 2 {
 			_, _ = hasher.Write(rootHash[:])
 			_, _ = hasher.Write(tpl.Buffer[tpl.TransactionsOffset+n : tpl.TransactionsOffset+n+types.HashSize])
-			hasher.Hash(&rootHash)
+			_, _ = hasher.Read(rootHash[:])
 			hasher.Reset()
 		} else {
 			for i := range tpl.MerkleTreeMainBranch {
 				_, _ = hasher.Write(rootHash[:])
 				_, _ = hasher.Write(tpl.MerkleTreeMainBranch[i][:])
-				hasher.Hash(&rootHash)
+				_, _ = hasher.Read(rootHash[:])
 				hasher.Reset()
 			}
 		}

@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -8,7 +9,7 @@ import (
 // MerkleTree Used for block merkle root and similar
 type MerkleTree []types.Hash
 
-func leafHash(data []types.Hash, hasher KeccakHasher) (rootHash types.Hash) {
+func leafHash(data []types.Hash, hasher *sha3.Digest) (rootHash types.Hash) {
 	switch len(data) {
 	case 0:
 		panic("unsupported length")
@@ -19,12 +20,12 @@ func leafHash(data []types.Hash, hasher KeccakHasher) (rootHash types.Hash) {
 		hasher.Reset()
 		_, _ = hasher.Write(data[0][:])
 		_, _ = hasher.Write(data[1][:])
-		hasher.Hash(&rootHash)
+		_, _ = hasher.Read(rootHash[:])
 		return rootHash
 	}
 }
 
-func pairHash(index int, h, p types.Hash, hasher KeccakHasher) (out types.Hash) {
+func pairHash(index int, h, p types.Hash, hasher *sha3.Digest) (out types.Hash) {
 	hasher.Reset()
 
 	if index&1 > 0 {
@@ -35,7 +36,7 @@ func pairHash(index int, h, p types.Hash, hasher KeccakHasher) (out types.Hash) 
 		_, _ = hasher.Write(p[:])
 	}
 
-	hasher.Hash(&out)
+	_, _ = hasher.Read(out[:])
 	return out
 }
 

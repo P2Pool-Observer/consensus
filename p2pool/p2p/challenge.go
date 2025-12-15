@@ -34,7 +34,7 @@ func FindChallengeSolution(challenge HandshakeChallenge, consensusId types.Hash,
 		h.Reset()
 		binary.LittleEndian.PutUint64(buf[types.HashSize+HandshakeChallengeSize:], salt)
 		_, _ = h.Write(buf[:])
-		h.Hash(&sum)
+		_, _ = h.Read(sum[:])
 
 		//check if we have been asked to stop
 		if stop.Load() {

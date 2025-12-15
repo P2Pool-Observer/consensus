@@ -247,7 +247,7 @@ func (c *Consensus) CalculateSideTemplateIdPreAllocated(share *PoolBlock, buf []
 	buf, _ = share.Side.AppendBinary(buf[:0], share.Main.MajorVersion, share.ShareVersion())
 	_, _ = h.Write(buf)
 	_, _ = h.Write(c.Id[:])
-	h.Hash(&result)
+	_, _ = h.Read(result[:])
 	return result
 }
 
@@ -259,7 +259,7 @@ func (c *Consensus) CalculateSideChainIdFromBlobs(mainBlob, sideBlob []byte) (re
 
 	_, _ = h.Write(c.Id[:])
 
-	h.Hash(&result)
+	_, _ = h.Read(result[:])
 	return result
 }
 

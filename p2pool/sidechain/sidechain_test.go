@@ -22,7 +22,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/go-json"
 	"github.com/ulikunitz/xz"
 )
 
@@ -226,7 +225,7 @@ func TestSideChainFullSync(t *testing.T) {
 
 	if os.Getenv("CI") == "" {
 		// set full hasher
-		consensusBuf, err := json.Marshal(sideChain.Consensus)
+		consensusBuf, err := utils.MarshalJSON(sideChain.Consensus)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -341,7 +340,7 @@ func TestSideChainLightSync(t *testing.T) {
 
 	if os.Getenv("CI") == "" {
 		// set full hasher
-		consensusBuf, err := json.Marshal(sideChain.Consensus)
+		consensusBuf, err := utils.MarshalJSON(sideChain.Consensus)
 		if err != nil {
 			t.Fatal(err)
 		}

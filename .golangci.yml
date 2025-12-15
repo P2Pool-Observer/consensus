@@ -171,15 +171,17 @@ linters:
             - pkg: "math/rand$"
               desc: use math/rand/v2
             - pkg: "encoding/json$"
-              desc: use git.gammaspectra.live/P2Pool/go-json
+              desc: use utils JSON
+            - pkg: "git.gammaspectra.live/P2Pool/go-json$"
+              desc: use utils JSON
             - pkg: "encoding/hex"
               desc: use git.gammaspectra.live/P2Pool/go-hex
             - pkg: "golang.org/x/crypto/blake2b"
               desc: use git.gammaspectra.live/P2Pool/blake2b
             - pkg: "golang.org/x/crypto/sha3"
-              desc: use monero/crypto/NewKeccak256
+              desc: use monero/crypto/NewKeccak256 or git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3
             - pkg: "crypto/sha3"
-              desc: use monero/crypto/NewKeccak256
+              desc: use monero/crypto/NewKeccak256 or git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3
         unsafeRandom:
           list-mode: lax
           deny:

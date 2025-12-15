@@ -3,12 +3,11 @@ package crypto
 import (
 	"crypto/subtle"
 	"encoding/binary"
-	"unsafe"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"golang.org/x/sys/cpu"
 
 	// required for go:linkname
 	_ "unsafe"
@@ -20,7 +19,7 @@ func DeterministicScalar(k *curve25519.Scalar, entropy []byte) *curve25519.Scala
 	var counter uint32
 	var nonce [4]byte
 
-	h := newKeccak256()
+	h := NewKeccak256()
 	var hash types.Hash
 
 	for {
@@ -44,10 +43,6 @@ func DeterministicScalar(k *curve25519.Scalar, entropy []byte) *curve25519.Scala
 
 const rateK512 = (1600 - 512) / 8
 
-//go:noescape
-//go:linkname keccakF1600 golang.org/x/crypto/sha3.keccakF1600
-func keccakF1600(a *[25]uint64)
-
 // DeterministicTestGenerator Implements a deterministic generator as written on Monero's random.c
 // Useful for passing tests
 type DeterministicTestGenerator struct {
@@ -64,24 +59,7 @@ func NewDeterministicTestGenerator() *DeterministicTestGenerator {
 }
 
 func (g *DeterministicTestGenerator) permute() {
-	var a *[25]uint64
-	if cpu.IsBigEndian {
-		a = new([25]uint64)
-		for i := range a {
-			a[i] = binary.LittleEndian.Uint64(g.state[i*8:])
-		}
-	} else {
-		// #nosec G103
-		a = (*[25]uint64)(unsafe.Pointer(&g.state))
-	}
-
-	keccakF1600(a)
-
-	if cpu.IsBigEndian {
-		for i := range a {
-			binary.LittleEndian.PutUint64(g.state[i*8:], a[i])
-		}
-	}
+	sha3.KeccakF1600(&g.state)
 	g.permutations++
 }
 

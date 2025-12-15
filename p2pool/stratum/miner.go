@@ -9,7 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
-	gojson "git.gammaspectra.live/P2Pool/go-json"
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 type MinerTrackingEntry struct {
@@ -23,8 +23,8 @@ type MinerTrackingEntry struct {
 type Client struct {
 	Lock       sync.RWMutex
 	Conn       net.Conn
-	encoder    *gojson.Encoder
-	decoder    *gojson.Decoder
+	encoder    *utils.JSONEncoder
+	decoder    *utils.JSONDecoder
 	Agent      string
 	Login      bool
 	Extensions struct {
