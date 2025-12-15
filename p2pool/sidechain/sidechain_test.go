@@ -22,7 +22,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"github.com/ulikunitz/xz"
 )
 
 type TestSideChainData struct {
@@ -84,10 +83,6 @@ func gzipDecompress(r io.ReadCloser) (io.Reader, error) {
 	return gzip.NewReader(r)
 }
 
-func xzDecompress(r io.ReadCloser) (io.Reader, error) {
-	return xz.NewReader(r)
-}
-
 var DefaultTestSideChainData = getTestSideChain("Default_V4_2")
 var MiniTestSideChainData = getTestSideChain("Mini_V4_2")
 
@@ -103,8 +98,7 @@ func getTestSideChain(name string) TestSideChainData {
 var testSideChains = []TestSideChainData{
 	{
 		Name:          "Default_V4_2",
-		Path:          "testdata/v4_2_sidechain_dump.dat.xz",
-		Decompress:    xzDecompress,
+		Path:          "testdata/v4_2_sidechain_dump.dat",
 		Consensus:     ConsensusDefault,
 		TipSideHeight: 11704382,
 		TipMainHeight: 3456189,
@@ -142,8 +136,7 @@ var testSideChains = []TestSideChainData{
 
 	{
 		Name:          "Mini_V4_2",
-		Path:          "testdata/v4_2_sidechain_dump_mini.dat.xz",
-		Decompress:    xzDecompress,
+		Path:          "testdata/v4_2_sidechain_dump_mini.dat",
 		Consensus:     ConsensusMini,
 		TipSideHeight: 11207082,
 		TipMainHeight: 3456189,
@@ -188,8 +181,7 @@ var testSideChains = []TestSideChainData{
 
 	{
 		Name:          "Nano_V4_2",
-		Path:          "testdata/v4_2_sidechain_dump_nano.dat.xz",
-		Decompress:    xzDecompress,
+		Path:          "testdata/v4_2_sidechain_dump_nano.dat",
 		Consensus:     ConsensusNano,
 		TipSideHeight: 188542,
 		TipMainHeight: 3456189,

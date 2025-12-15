@@ -26,6 +26,5 @@ require (
 // External dependencies
 require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/ulikunitz/xz v0.5.15
 	lukechampine.com/uint128 v1.3.0
 )

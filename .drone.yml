@@ -40,7 +40,7 @@ steps:
   - name: init-tests
     image: alpine
     commands:
-      - apk add --no-cache curl bash
+      - apk add --no-cache curl bash xz
       - ./testdata/setup.sh
   - name: build-sources
     image: alpine
@@ -123,7 +123,7 @@ steps:
   - name: init-tests
     image: alpine
     commands:
-      - apk add --no-cache curl bash
+      - apk add --no-cache curl bash xz
       - ./testdata/setup.sh
   - name: build-sources
     image: alpine

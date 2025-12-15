@@ -65,6 +65,11 @@ download_test_v4_2 sidechain_dump.dat.xz
 download_test_v4_2 sidechain_dump_mini.dat.xz
 download_test_v4_2 sidechain_dump_nano.dat.xz
 
+xz -dc v4_2_sidechain_dump.dat.xz > v4_2_sidechain_dump.dat
+xz -dc v4_2_sidechain_dump_mini.dat.xz > v4_2_sidechain_dump_mini.dat
+xz -dc v4_2_sidechain_dump.dat_nano.xz > v4_2_sidechain_dump_nano.dat
+
+
 download_test_v4 block.dat
 download_test_v4 sidechain_dump.dat.gz
 download_test_v4 sidechain_dump_mini.dat.gz

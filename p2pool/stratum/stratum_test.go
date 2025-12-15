@@ -24,7 +24,6 @@ import (
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"github.com/ulikunitz/xz"
 )
 
 var preLoadedMiniSideChain *sidechain.SideChain
@@ -113,18 +112,13 @@ func TestMain(m *testing.M) {
 
 	preLoadedMiniSideChain = sidechain.NewSideChain(sidechain.GetFakeTestServer(sidechain.ConsensusMini))
 
-	f, err := os.Open("testdata/v4_2_sidechain_dump_mini.dat.xz")
+	f, err := os.Open("testdata/v4_2_sidechain_dump_mini.dat")
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
 
-	r, err := xz.NewReader(f)
-	if err != nil {
-		panic(err)
-	}
-
-	if blocks, err := sidechain.LoadSideChainTestData(preLoadedMiniSideChain.Consensus(), preLoadedMiniSideChain.DerivationCache(), r); err != nil {
+	if blocks, err := sidechain.LoadSideChainTestData(preLoadedMiniSideChain.Consensus(), preLoadedMiniSideChain.DerivationCache(), f); err != nil {
 		panic(err)
 	} else {
 		for _, b := range blocks {
