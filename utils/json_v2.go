@@ -10,11 +10,16 @@ import (
 )
 
 type JSONEncoder struct {
-	w io.Writer
+	w      io.Writer
+	indent string
+}
+
+func (e *JSONEncoder) SetIndent(_, indent string) {
+	e.indent = indent
 }
 
 func (e *JSONEncoder) Encode(val interface{}) error {
-	return json.MarshalWrite(e.w, val, json.OmitZeroStructFields(true))
+	return json.MarshalWrite(e.w, val, json.OmitZeroStructFields(true), jsontext.WithIndent(e.indent))
 }
 
 type JSONDecoder = jsonv1.Decoder
