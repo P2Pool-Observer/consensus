@@ -5,7 +5,7 @@ go 1.25
 // Internal or imported dependencies
 require (
 	git.gammaspectra.live/P2Pool/blake2b v0.42.1
-	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251206112811-c233ac191587
+	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20251223090545-0a9ae297f83b
 	git.gammaspectra.live/P2Pool/go-hex v0.0.0-20251214231021-098f65fc1214
 	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.7.0
 	git.gammaspectra.live/P2Pool/helioselene v0.0.0-20251201070947-26d62186ee7f
