@@ -553,7 +553,7 @@ func SplitReward(preAllocatedRewards []uint64, reward uint64, shares Shares) (re
 		totalWeight = totalWeight.Add(shares[i].Weight)
 	}
 
-	if totalWeight.Equals64(0) {
+	if totalWeight.IsZero() {
 		//TODO: err
 		return nil
 	}

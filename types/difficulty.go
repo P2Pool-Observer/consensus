@@ -31,10 +31,6 @@ func (d Difficulty) Equals(v Difficulty) bool {
 	return uint128.Uint128(d).Equals(uint128.Uint128(v))
 }
 
-func (d Difficulty) Equals64(v uint64) bool {
-	return uint128.Uint128(d).Equals64(v)
-}
-
 func (d Difficulty) Cmp(v Difficulty) int {
 	if d == v {
 		return 0
@@ -47,30 +43,6 @@ func (d Difficulty) Cmp(v Difficulty) int {
 
 func (d Difficulty) Cmp64(v uint64) int {
 	return uint128.Uint128(d).Cmp64(v)
-}
-
-func (d Difficulty) And(v Difficulty) Difficulty {
-	return Difficulty(uint128.Uint128(d).And(uint128.Uint128(v)))
-}
-
-func (d Difficulty) And64(v uint64) Difficulty {
-	return Difficulty(uint128.Uint128(d).And64(v))
-}
-
-func (d Difficulty) Or(v Difficulty) Difficulty {
-	return Difficulty(uint128.Uint128(d).Or(uint128.Uint128(v)))
-}
-
-func (d Difficulty) Or64(v uint64) Difficulty {
-	return Difficulty(uint128.Uint128(d).Or64(v))
-}
-
-func (d Difficulty) Xor(v Difficulty) Difficulty {
-	return Difficulty(uint128.Uint128(d).Xor(uint128.Uint128(v)))
-}
-
-func (d Difficulty) Xor64(v uint64) Difficulty {
-	return Difficulty(uint128.Uint128(d).Xor64(v))
 }
 
 // Add All calls can wrap
@@ -115,75 +87,12 @@ func (d Difficulty) Div64(v uint64) Difficulty {
 	return Difficulty(uint128.Uint128(d).Div64(v))
 }
 
-func (d Difficulty) QuoRem(v Difficulty) (q, r Difficulty) {
-	qq, rr := uint128.Uint128(d).QuoRem(uint128.Uint128(v))
-	return Difficulty(qq), Difficulty(rr)
-}
-
-func (d Difficulty) QuoRem64(v uint64) (q Difficulty, r uint64) {
-	qq, rr := uint128.Uint128(d).QuoRem64(v)
-	return Difficulty(qq), rr
-}
-
-func (d Difficulty) Mod(v Difficulty) (r Difficulty) {
-	return Difficulty(uint128.Uint128(d).Mod(uint128.Uint128(v)))
-}
-
-func (d Difficulty) Mod64(v uint64) (r uint64) {
-	return uint128.Uint128(d).Mod64(v)
-}
-
-func (d Difficulty) Lsh(n uint) (s Difficulty) {
-	return Difficulty(uint128.Uint128(d).Lsh(n))
-}
-
-func (d Difficulty) Rsh(n uint) (s Difficulty) {
-	return Difficulty(uint128.Uint128(d).Rsh(n))
-}
-
-func (d Difficulty) LeadingZeros() int {
-	return uint128.Uint128(d).LeadingZeros()
-}
-
-func (d Difficulty) TrailingZeros() int {
-	return uint128.Uint128(d).TrailingZeros()
-}
-
-func (d Difficulty) OnesCount() int {
-	return uint128.Uint128(d).OnesCount()
-}
-
-func (d Difficulty) RotateLeft(k int) Difficulty {
-	return Difficulty(uint128.Uint128(d).RotateLeft(k))
-}
-
-func (d Difficulty) RotateRight(k int) Difficulty {
-	return Difficulty(uint128.Uint128(d).RotateRight(k))
-}
-
-func (d Difficulty) Reverse() Difficulty {
-	return Difficulty(uint128.Uint128(d).Reverse())
-}
-
-func (d Difficulty) ReverseBytes() Difficulty {
-	return Difficulty(uint128.Uint128(d).ReverseBytes())
-}
-
-func (d Difficulty) Len() int {
-	return uint128.Uint128(d).Len()
-}
-
 func (d Difficulty) PutBytes(b []byte) {
 	uint128.Uint128(d).PutBytes(b)
 }
 
 func (d Difficulty) PutBytesBE(b []byte) {
 	uint128.Uint128(d).PutBytesBE(b)
-}
-
-// Big returns u as a *big.Int.
-func (d Difficulty) Big() *big.Int {
-	return uint128.Uint128(d).Big()
 }
 
 func (d Difficulty) Float64() float64 {
