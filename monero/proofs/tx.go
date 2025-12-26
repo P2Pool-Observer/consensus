@@ -3,7 +3,6 @@ package proofs
 import (
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"strings"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
@@ -26,7 +25,7 @@ const (
 )
 
 type TxProofClaim[T curve25519.PointOperations] struct {
-	SharedSecret curve25519.PublicKey[T]
+	SharedSecret curve25519.PublicKeyBytes
 	Signature    crypto.Signature[T]
 }
 type TxProof[T curve25519.PointOperations] struct {
@@ -41,18 +40,24 @@ func (p TxProof[T]) String() string {
 	output[0] = utils.SprintfNoEscape("%sV%d", p.Type, p.Version)
 
 	for _, claim := range p.Claims {
-		output = append(output, string(base58.EncodeMoneroBase58(claim.SharedSecret.Bytes())), string(base58.EncodeMoneroBase58(claim.Signature.Bytes())))
+		output = append(output, string(base58.EncodeMoneroBase58(claim.SharedSecret[:])), string(base58.EncodeMoneroBase58(claim.Signature.Bytes())))
 	}
 	return strings.Join(output, "")
 }
 
 func (p TxProof[T]) Verify(prefixHash types.Hash, viewPub, spendPub *curve25519.PublicKey[T], txPubs ...curve25519.PublicKey[T]) (index int, ok bool) {
+	var sharedSecret curve25519.PublicKey[T]
 	if p.Type == OutProof {
 		for i, pub := range txPubs {
 			if len(p.Claims) <= i {
 				return -1, false
 			}
-			if VerifyTxProof(prefixHash, &pub, viewPub, spendPub, &p.Claims[i].SharedSecret, p.Claims[i].Signature, p.Version) {
+
+			if _, err := sharedSecret.SetBytes(p.Claims[i].SharedSecret[:]); err != nil {
+				return -1, false
+			}
+
+			if VerifyTxProof(prefixHash, &pub, viewPub, spendPub, &sharedSecret, p.Claims[i].Signature, p.Version) {
 				return i, true
 			}
 		}
@@ -61,7 +66,12 @@ func (p TxProof[T]) Verify(prefixHash types.Hash, viewPub, spendPub *curve25519.
 			if len(p.Claims) <= i {
 				return -1, false
 			}
-			if VerifyTxProof(prefixHash, viewPub, &pub, spendPub, &p.Claims[i].SharedSecret, p.Claims[i].Signature, p.Version) {
+
+			if _, err := sharedSecret.SetBytes(p.Claims[i].SharedSecret[:]); err != nil {
+				return -1, false
+			}
+
+			if VerifyTxProof(prefixHash, viewPub, &pub, spendPub, &sharedSecret, p.Claims[i].Signature, p.Version) {
 				return i, true
 			}
 		}
@@ -73,6 +83,26 @@ func (p TxProof[T]) Verify(prefixHash types.Hash, viewPub, spendPub *curve25519.
 }
 
 func NewTxProofFromSharedSecretSignaturePairs[T curve25519.PointOperations](t TxProofType, version uint8, sharedSecrets []curve25519.PublicKey[T], signatures []crypto.Signature[T]) TxProof[T] {
+	proof := TxProof[T]{
+		Type:    t,
+		Version: version,
+		Claims:  make([]TxProofClaim[T], 0, len(sharedSecrets)),
+	}
+
+	if len(sharedSecrets) != len(signatures) {
+		return TxProof[T]{}
+	}
+
+	for i := range sharedSecrets {
+		proof.Claims = append(proof.Claims, TxProofClaim[T]{
+			SharedSecret: sharedSecrets[i].AsBytes(),
+			Signature:    signatures[i],
+		})
+	}
+	return proof
+}
+
+func NewTxProofFromSharedSecretBytesSignaturePairs[T curve25519.PointOperations](t TxProofType, version uint8, sharedSecrets []curve25519.PublicKeyBytes, signatures []crypto.Signature[T]) TxProof[T] {
 	proof := TxProof[T]{
 		Type:    t,
 		Version: version,
@@ -138,12 +168,8 @@ func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T],
 	proof.Claims = make([]TxProofClaim[T], 0, numSigs)
 	for i := offset; i < len(str); i += recordSize {
 		sharedSecretBuf := base58.DecodeMoneroBase58([]byte(str[i : i+encodedB58SecretSize]))
-		if sharedSecretBuf == nil {
+		if sharedSecretBuf == nil || len(sharedSecretBuf) != curve25519.PublicKeySize {
 			return TxProof[T]{}, errors.New("invalid tx proof: invalid shared secret encoding")
-		}
-		var sharedSecret curve25519.PublicKey[T]
-		if _, err := sharedSecret.SetBytes(sharedSecretBuf); err != nil {
-			return TxProof[T]{}, fmt.Errorf("invalid tx proof: invalid shared secret: %w", err)
 		}
 
 		signatureBuf := base58.DecodeMoneroBase58([]byte(str[i+encodedB58SecretSize : i+encodedB58SecretSize+encodedB58SignatureSize]))
@@ -157,7 +183,7 @@ func NewTxProofFromString[T curve25519.PointOperations](str string) (TxProof[T],
 		}
 
 		proof.Claims = append(proof.Claims, TxProofClaim[T]{
-			SharedSecret: sharedSecret,
+			SharedSecret: curve25519.PublicKeyBytes(sharedSecretBuf),
 			Signature:    *signature,
 		})
 	}

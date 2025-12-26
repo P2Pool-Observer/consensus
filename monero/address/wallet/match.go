@@ -77,7 +77,11 @@ func matchTxProof[T curve25519.PointOperations](proof proofs.TxProof[T], txId ty
 		return -1, nil
 	}
 
-	derivation := new(curve25519.PublicKey[T]).MultByCofactor(&proof.Claims[index].SharedSecret).AsBytes()
+	// checked above
+	var sharedSecret curve25519.PublicKey[T]
+	_, _ = sharedSecret.SetBytes(proof.Claims[index].SharedSecret[:])
+
+	derivation := new(curve25519.PublicKey[T]).MultByCofactor(&sharedSecret).AsBytes()
 
 	for i := range outputs {
 		if index, scan = matchDerivation(derivation, spendPub, &outputs[i], commitments, encryptedPaymentId); index != -1 {
