@@ -22,7 +22,7 @@ type CarrotWalletInterface[T curve25519.PointOperations] interface {
 	ViewWallet() *CarrotViewWallet[T]
 }
 
-type SpendWalletLegacyInterface[T curve25519.PointOperations] interface {
+type LegacyWalletInterface[T curve25519.PointOperations] interface {
 	SpendWalletInterface[T]
 	ViewWalletLegacyInterface[T]
 

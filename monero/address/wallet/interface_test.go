@@ -29,13 +29,16 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
 
+				var txId types.Hash
+				_, _ = rand.Read(txId[:])
+
 				txKey := curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)
 
 				txPub := new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 
 				var addrI address.Interface
 				if addr.IsSubaddress() {
-					if vw, ok := wallet.(SpendWalletLegacyInterface[T]); ok {
+					if vw, ok := wallet.(LegacyWalletInterface[T]); ok {
 						addrI = cryptonote.GetSubaddressFakeAddress(addr, vw.ViewWallet().ViewKey())
 					} else {
 						t.Skip("not supported")
@@ -53,6 +56,24 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				}
 				if subaddressIndex != ix {
 					t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+				}
+
+				{
+					proof := address.GetOutProof[T](addrI, txId, txKey, "", 2)
+					if i, ok := address.VerifyTxProof(proof, addrI, txId, txPub, ""); !ok || i != 0 {
+						t.Fatalf("Tx OutProof: Not OK")
+					} else {
+						t.Log("Tx OutProof: OK")
+					}
+				}
+
+				if lw, ok := wallet.(LegacyWalletInterface[T]); ok {
+					proof := address.GetInProof[T](addr, txId, lw.ViewWallet().ViewKey(), txPub, "", 2)
+					if i, ok := address.VerifyTxProof(proof, addr, txId, txPub, ""); !ok || i != 0 {
+						t.Fatalf("Tx InProof: Not OK")
+					} else {
+						t.Log("Tx InProof: OK")
+					}
 				}
 
 				// check spendability
@@ -76,6 +97,9 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				Amount: amount,
 			}
 			_, _ = rand.Read(proposal.Randomness[:])
+
+			var txId types.Hash
+			_, _ = rand.Read(txId[:])
 
 			var enote carrot.CoinbaseEnoteV1
 			const blockIndex = 123456
@@ -110,6 +134,31 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 			}
 			if subaddressIndex != ix {
 				t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+			}
+
+			{
+				proof := carrot.GetTxProofNormal[T](addr, txId, "", proposal.CoinbaseEphemeralPrivateKey(blockIndex))
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx OutProof: Not OK")
+				} else {
+					t.Log("Tx OutProof: OK")
+				}
+			}
+
+			if cw, ok := wallet.(CarrotWalletInterface[T]); ok {
+				proof := carrot.GetTxProofReceiver[T](addr, txId, "", cw.ViewWallet().ViewIncomingKey(), enote.EphemeralPubKey)
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx InProof: Not OK")
+				} else {
+					t.Log("Tx InProof: OK")
+				}
+			} else if lw, ok := wallet.(LegacyWalletInterface[T]); ok {
+				proof := carrot.GetTxProofReceiver[T](addr, txId, "", lw.ViewWallet().ViewKey(), enote.EphemeralPubKey)
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx InProof: Not OK")
+				} else {
+					t.Log("Tx InProof: OK")
+				}
 			}
 
 			// check spendability
@@ -174,9 +223,12 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 	t.Run(fmt.Sprintf("Payment/#%d,%d", ix.Account, ix.Offset), func(t *testing.T) {
 		const amount = monero.TailEmissionReward
 
-		if lw, ok := wallet.(SpendWalletLegacyInterface[T]); ok {
+		if lw, ok := wallet.(LegacyWalletInterface[T]); ok {
 			// test legacy
 			t.Run("Legacy", func(t *testing.T) {
+
+				var txId types.Hash
+				_, _ = rand.Read(txId[:])
 
 				txKey := curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)
 
@@ -197,6 +249,24 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 
 				if subaddressIndex != ix {
 					t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+				}
+
+				{
+					proof := address.GetOutProof[T](addr, txId, txKey, "", 2)
+					if i, ok := address.VerifyTxProof(proof, addr, txId, additionalPub, ""); !ok || i != 0 {
+						t.Fatalf("Tx OutProof: Not OK")
+					} else {
+						t.Log("Tx OutProof: OK")
+					}
+				}
+
+				if lw, ok := wallet.(LegacyWalletInterface[T]); ok {
+					proof := address.GetInProof[T](addr, txId, lw.ViewWallet().ViewKey(), additionalPub, "", 2)
+					if i, ok := address.VerifyTxProof(proof, addr, txId, additionalPub, ""); !ok || i != 0 {
+						t.Fatalf("Tx InProof: Not OK")
+					} else {
+						t.Log("Tx InProof: OK")
+					}
 				}
 
 				// check spendability
@@ -222,8 +292,11 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 			_, _ = rand.Read(proposal.Randomness[:])
 			_, _ = rand.Read(proposal.Destination.PaymentId[:])
 
+			var txId types.Hash
 			var firstKeyImage curve25519.PublicKeyBytes
 			_, _ = rand.Read(firstKeyImage[:])
+			_, _ = rand.Read(txId[:])
+
 			var enote carrot.RCTEnoteProposal
 
 			err := proposal.Output(&enote, firstKeyImage)
@@ -272,6 +345,31 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 			}
 			if subaddressIndex != ix {
 				t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+			}
+
+			{
+				proof := carrot.GetTxProofNormal[T](addr, txId, "", proposal.EphemeralPrivateKey(firstKeyImage))
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.Enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx OutProof: Not OK")
+				} else {
+					t.Log("Tx OutProof: OK")
+				}
+			}
+
+			if cw, ok := wallet.(CarrotWalletInterface[T]); ok {
+				proof := carrot.GetTxProofReceiver[T](addr, txId, "", cw.ViewWallet().ViewIncomingKey(), enote.Enote.EphemeralPubKey)
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.Enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx InProof: Not OK")
+				} else {
+					t.Log("Tx InProof: OK")
+				}
+			} else if lw, ok := wallet.(LegacyWalletInterface[T]); ok {
+				proof := carrot.GetTxProofReceiver[T](addr, txId, "", lw.ViewWallet().ViewKey(), enote.Enote.EphemeralPubKey)
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.Enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx InProof: Not OK")
+				} else {
+					t.Log("Tx InProof: OK")
+				}
 			}
 
 			// check spendability

@@ -250,5 +250,5 @@ var _ SpendWalletInterface[curve25519.ConstantTimeOperations] = new(CarrotSpendW
 var _ CarrotWalletInterface[curve25519.ConstantTimeOperations] = new(CarrotSpendWallet[curve25519.ConstantTimeOperations])
 var _ ViewWalletInterface[curve25519.ConstantTimeOperations] = new(CarrotSpendWallet[curve25519.ConstantTimeOperations])
 
-var _ SpendWalletLegacyInterface[curve25519.ConstantTimeOperations] = new(SpendWallet[curve25519.ConstantTimeOperations])
+var _ LegacyWalletInterface[curve25519.ConstantTimeOperations] = new(SpendWallet[curve25519.ConstantTimeOperations])
 var _ ViewWalletLegacyInterface[curve25519.ConstantTimeOperations] = new(SpendWallet[curve25519.ConstantTimeOperations])

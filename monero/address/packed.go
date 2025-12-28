@@ -134,6 +134,20 @@ func (p *PackedAddressWithSubaddress) IsSubaddress() bool {
 	return p[curve25519.PublicKeySize*2] == 1
 }
 
+func (p *PackedAddressWithSubaddress) ToPackedAddress() PackedAddress {
+	return *p.PackedAddress()
+}
+
+func (p *PackedAddressWithSubaddress) Compare(b Interface) int {
+	// TODO: subaddress
+	return p.PackedAddress().Compare(b)
+}
+
+func (p *PackedAddressWithSubaddress) ToAddress(network uint8, err ...error) *Address {
+	// TODO: subaddress
+	return p.PackedAddress().ToAddress(network, err...)
+}
+
 func (p *PackedAddressWithSubaddress) PackedAddress() *PackedAddress {
 	// #nosec G103
 	return (*PackedAddress)(unsafe.Pointer(p))

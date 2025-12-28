@@ -164,6 +164,20 @@ func (p *PaymentProposalV1[T]) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex
 	return nil
 }
 
+func (p *PaymentProposalV1[T]) CoinbaseEphemeralPrivateKey(blockIndex uint64) curve25519.Scalar {
+	inputContext := MakeCoinbaseInputContext(blockIndex)
+	var ephemeralPrivateKey curve25519.Scalar
+	makeEnoteEphemeralPrivateKey(&blake2b.Digest{}, &ephemeralPrivateKey, p.Randomness[:], inputContext[:], *p.Destination.Address.SpendPublicKey(), p.Destination.PaymentId)
+	return ephemeralPrivateKey
+}
+
+func (p *PaymentProposalV1[T]) EphemeralPrivateKey(firstKeyImage curve25519.PublicKeyBytes) curve25519.Scalar {
+	inputContext := MakeInputContext(firstKeyImage)
+	var ephemeralPrivateKey curve25519.Scalar
+	makeEnoteEphemeralPrivateKey(&blake2b.Digest{}, &ephemeralPrivateKey, p.Randomness[:], inputContext[:], *p.Destination.Address.SpendPublicKey(), p.Destination.PaymentId)
+	return ephemeralPrivateKey
+}
+
 // Output Make a normal payment output, non-change
 func (p *PaymentProposalV1[T]) Output(out *RCTEnoteProposal, firstKeyImage curve25519.PublicKeyBytes) (err error) {
 

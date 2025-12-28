@@ -35,7 +35,8 @@ func TestConverge(t *testing.T) {
 
 	// tests from Carrot convergence testing
 	// https://github.com/seraphis-migration/monero/pull/121
-	// todo: update as needed
+	// https://github.com/seraphis-migration/monero/pull/245
+	// https://github.com/seraphis-migration/monero/pull/250
 
 	t.Run("make_carrot_enote_ephemeral_privkey", func(t *testing.T) {
 		var result curve25519.Scalar
