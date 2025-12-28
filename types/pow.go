@@ -9,11 +9,11 @@ import (
 )
 
 func DifficultyFromPoW(powHash Hash) Difficulty {
-	if powHash == ZeroHash {
-		return ZeroDifficulty
+	v := uint128.FromBytes(powHash[16:])
+	if v.Equals64(0) {
+		return MaxDifficulty
 	}
-
-	return Difficulty(uint128.Max.Div(uint128.FromBytes(powHash[16:])))
+	return Difficulty(uint128.Max.Div(v))
 }
 
 func (d Difficulty) CheckPoW(pow Hash) bool {

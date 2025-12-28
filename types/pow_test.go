@@ -87,25 +87,46 @@ func TestDifficulty_CheckPoW_Native(t *testing.T) {
 }
 
 func BenchmarkDifficulty_CheckPoW(b *testing.B) {
-	b.ReportAllocs()
 
-	b.RunParallel(func(pb *testing.PB) {
+	b.Run("Uint128", func(b *testing.B) {
+		b.ReportAllocs()
 		var result bool
-		for pb.Next() {
+		for b.Loop() {
 			result = moneroDifficulty.CheckPoW(powHash)
+		}
+		runtime.KeepAlive(result)
+	})
+
+	b.Run("Native", func(b *testing.B) {
+		b.ReportAllocs()
+		var result bool
+		for b.Loop() {
+			result = moneroDifficulty.CheckPoW_Native(powHash)
 		}
 		runtime.KeepAlive(result)
 	})
 }
 
-func BenchmarkDifficulty_CheckPoW_Native(b *testing.B) {
-	b.ReportAllocs()
+func FuzzDifficulty_CheckPoW(f *testing.F) {
+	f.Add(powHash[:], sidechainDifficulty.Lo, sidechainDifficulty.Hi)
+	f.Add(powHash[:], powDifficulty.Lo, powDifficulty.Hi)
+	f.Add(powHash[:], moneroDifficulty.Lo, moneroDifficulty.Hi)
+	f.Add(ZeroHash[:], uint64(0), uint64(0))
 
-	b.RunParallel(func(pb *testing.PB) {
-		var result bool
-		for pb.Next() {
-			result = moneroDifficulty.CheckPoW_Native(powHash)
+	f.Fuzz(func(t *testing.T, hash []byte, lo, hi uint64) {
+		if len(hash) != HashSize {
+			t.SkipNow()
 		}
-		runtime.KeepAlive(result)
+
+		d := NewDifficulty(lo, hi)
+
+		h := Hash(hash)
+
+		result := d.CheckPoW(h)
+		result2 := d.CheckPoW_Native(h)
+
+		if result != result2 {
+			t.Fatalf("%s diff lo,hi = %d, %d result mismatch: %v vs native %v", h.String(), lo, hi, result, result2)
+		}
 	})
 }
