@@ -227,9 +227,9 @@ func verifyNormalJanusProtection[T curve25519.PointOperations](hasher *blake2b.D
 		}
 
 		// D_e' ?= D_e
-		return ephemeralPub == makeEnoteEphemeralPublicKeySubaddress(&ephemeralPrivateKey, &spendPub)
+		return ephemeralPub == MakeEnoteEphemeralPublicKeySubaddress(&ephemeralPrivateKey, &spendPub)
 	} else {
 		// D_e' ?= D_e
-		return ephemeralPub == makeEnoteEphemeralPublicKeyCryptonote[T](&ephemeralPrivateKey)
+		return ephemeralPub == MakeEnoteEphemeralPublicKeyCryptonote[T](&ephemeralPrivateKey)
 	}
 }

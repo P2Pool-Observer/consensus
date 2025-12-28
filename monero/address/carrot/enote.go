@@ -66,17 +66,17 @@ func makeEnoteEphemeralPrivateKey(hasher *blake2b.Digest, ephemeralPrivateKeyOut
 	)
 }
 
-// makeEnoteEphemeralPublicKeySubaddress make_carrot_enote_ephemeral_pubkey_subaddress
+// MakeEnoteEphemeralPublicKeySubaddress make_carrot_enote_ephemeral_pubkey_subaddress
 // Precondition: spendPub is torsion free
-func makeEnoteEphemeralPublicKeySubaddress[T curve25519.PointOperations](key *curve25519.Scalar, spendKey *curve25519.PublicKey[T]) (out curve25519.MontgomeryPoint) {
+func MakeEnoteEphemeralPublicKeySubaddress[T curve25519.PointOperations](key *curve25519.Scalar, spendPub *curve25519.PublicKey[T]) (out curve25519.MontgomeryPoint) {
 	// K_e = d_e K^j_s
 	var K_e curve25519.PublicKey[T]
 	// D_e = ConvertPointE(K_e)
-	return K_e.ScalarMult(key, spendKey).Montgomery()
+	return K_e.ScalarMult(key, spendPub).Montgomery()
 }
 
-// makeEnoteEphemeralPublicKeyCryptonote make_carrot_enote_ephemeral_pubkey_cryptonote
-func makeEnoteEphemeralPublicKeyCryptonote[T curve25519.PointOperations](key *curve25519.Scalar) (out curve25519.MontgomeryPoint) {
+// MakeEnoteEphemeralPublicKeyCryptonote make_carrot_enote_ephemeral_pubkey_cryptonote
+func MakeEnoteEphemeralPublicKeyCryptonote[T curve25519.PointOperations](key *curve25519.Scalar) (out curve25519.MontgomeryPoint) {
 	// D_e = d_e B
 	curve25519.MontgomeryScalarBaseMult[T](&out, key)
 
@@ -89,18 +89,18 @@ func MakeUncontextualizedSharedKeyReceiver(viewPriv *curve25519.Scalar, ephemera
 	return senderReceiverUnctx
 }
 
-// makeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
+// MakeUncontextualizedSharedKeySender make_carrot_uncontextualized_shared_key_sender
 // Precondition: viewPub is torsion free
-func makeUncontextualizedSharedKeySender[T curve25519.PointOperations](ephemeralPrivKey *curve25519.Scalar, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.MontgomeryPoint) {
+func MakeUncontextualizedSharedKeySender[T curve25519.PointOperations](ephemeralPrivKey *curve25519.Scalar, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.MontgomeryPoint) {
 	// s_sr = d_e ConvertPointE(K^j_v)
 	viewPubkeyX25519 := viewPub.Montgomery()
 	senderReceiverUnctx.ScalarMult(ephemeralPrivKey, &viewPubkeyX25519)
 	return senderReceiverUnctx
 }
 
-// makeUncontextualizedSharedKeySenderVarTime
-// VarTime implementation of makeUncontextualizedSharedKeySender
-func makeUncontextualizedSharedKeySenderVarTime[T curve25519.PointOperations](ephemeralPrivKey *curve25519.Scalar, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.MontgomeryPoint) {
+// MakeUncontextualizedSharedKeySenderVarTime
+// VarTime implementation of MakeUncontextualizedSharedKeySender
+func MakeUncontextualizedSharedKeySenderVarTime[T curve25519.PointOperations](ephemeralPrivKey *curve25519.Scalar, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.MontgomeryPoint) {
 	// s_sr = ConvertPointE(d_e * K^j_v)
 	var tmp curve25519.PublicKey[T]
 	return tmp.ScalarMult(ephemeralPrivKey, viewPub).Montgomery()

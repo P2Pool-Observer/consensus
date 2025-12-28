@@ -3,7 +3,6 @@ package carrot
 import (
 	"crypto/subtle"
 
-	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
@@ -12,11 +11,11 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 )
 
-func GetTxProofNormal[T curve25519.PointOperations](a address.Interface, txId types.Hash, message string, inputContext []byte, proposal *PaymentProposalV1[T]) proofs.TxProof[T] {
+func GetTxProofNormal[T curve25519.PointOperations](a address.Interface, txId types.Hash, message string, ephemeralPrivateKeys ...curve25519.Scalar) proofs.TxProof[T] {
 	prefixHash := proofs.TxPrefixHash(txId, message)
 
-	sharedSecret := make([]curve25519.PublicKeyBytes, 1)
-	signature := make([]crypto.Signature[T], 1)
+	sharedSecret := make([]curve25519.PublicKeyBytes, len(ephemeralPrivateKeys))
+	signature := make([]crypto.Signature[T], len(ephemeralPrivateKeys))
 
 	var spendPub, viewPub curve25519.PublicKey[T]
 	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
@@ -25,18 +24,16 @@ func GetTxProofNormal[T curve25519.PointOperations](a address.Interface, txId ty
 	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil {
 		panic(err)
 	}
-	var hasher blake2b.Digest
-	var ephemeralPrivateKey curve25519.Scalar
 
-	makeEnoteEphemeralPrivateKey(&hasher, &ephemeralPrivateKey, proposal.Randomness[:], inputContext, *a.SpendPublicKey(), proposal.Destination.PaymentId)
+	for i := range ephemeralPrivateKeys {
+		senderReceiverUnctx := MakeUncontextualizedSharedKeySender[T](&ephemeralPrivateKeys[i], &viewPub)
 
-	senderReceiverUnctx := makeUncontextualizedSharedKeySender[T](&ephemeralPrivateKey, &viewPub)
-
-	sharedSecret[0] = curve25519.PublicKeyBytes(senderReceiverUnctx)
-	if sa, ok := a.(address.InterfaceSubaddress); ok && sa.IsSubaddress() {
-		signature[0] = GenerateTxProofNormal(prefixHash, &viewPub, &spendPub, &ephemeralPrivateKey)
-	} else {
-		signature[0] = GenerateTxProofNormal(prefixHash, &viewPub, nil, &ephemeralPrivateKey)
+		sharedSecret[i] = curve25519.PublicKeyBytes(senderReceiverUnctx)
+		if sa, ok := a.(address.InterfaceSubaddress); ok && sa.IsSubaddress() {
+			signature[i] = GenerateTxProofNormal(prefixHash, &viewPub, &spendPub, &ephemeralPrivateKeys[i])
+		} else {
+			signature[i] = GenerateTxProofNormal(prefixHash, &viewPub, nil, &ephemeralPrivateKeys[i])
+		}
 	}
 
 	return proofs.NewTxProofFromSharedSecretBytesSignaturePairs(proofs.OutProof, 2, sharedSecret, signature)
@@ -65,24 +62,26 @@ func GenerateTxProofNormal[T curve25519.PointOperations](prefixHash types.Hash, 
 	return proofs.GenerateTxProof(prefixHash, &R, A, B, &D, r, 2)
 }
 
-func GetTxProofReceiver[T curve25519.PointOperations](a address.Interface, txId types.Hash, message string, inputContext []byte, ephemeralPubKey curve25519.MontgomeryPoint, viewIncoming *curve25519.Scalar) proofs.TxProof[T] {
+func GetTxProofReceiver[T curve25519.PointOperations](a address.Interface, txId types.Hash, message string, viewIncoming *curve25519.Scalar, ephemeralPubKeys ...curve25519.MontgomeryPoint) proofs.TxProof[T] {
 	prefixHash := proofs.TxPrefixHash(txId, message)
 
-	sharedSecret := make([]curve25519.PublicKeyBytes, 1)
-	signature := make([]crypto.Signature[T], 1)
+	sharedSecret := make([]curve25519.PublicKeyBytes, len(ephemeralPubKeys))
+	signature := make([]crypto.Signature[T], len(ephemeralPubKeys))
 
 	var spendPub curve25519.PublicKey[T]
 	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
 		panic(err)
 	}
 
-	senderReceiverUnctx := MakeUncontextualizedSharedKeyReceiver(viewIncoming, &ephemeralPubKey)
+	for i := range ephemeralPubKeys {
+		senderReceiverUnctx := MakeUncontextualizedSharedKeyReceiver(viewIncoming, &ephemeralPubKeys[i])
 
-	sharedSecret[0] = curve25519.PublicKeyBytes(senderReceiverUnctx)
-	if sa, ok := a.(address.InterfaceSubaddress); ok && sa.IsSubaddress() {
-		signature[0] = GenerateTxProofReceiver[T](prefixHash, ephemeralPubKey, &spendPub, viewIncoming)
-	} else {
-		signature[0] = GenerateTxProofReceiver[T](prefixHash, ephemeralPubKey, nil, viewIncoming)
+		sharedSecret[i] = curve25519.PublicKeyBytes(senderReceiverUnctx)
+		if sa, ok := a.(address.InterfaceSubaddress); ok && sa.IsSubaddress() {
+			signature[i] = GenerateTxProofReceiver[T](prefixHash, ephemeralPubKeys[i], &spendPub, viewIncoming)
+		} else {
+			signature[i] = GenerateTxProofReceiver[T](prefixHash, ephemeralPubKeys[i], nil, viewIncoming)
+		}
 	}
 
 	return proofs.NewTxProofFromSharedSecretBytesSignaturePairs(proofs.InProof, 2, sharedSecret, signature)
@@ -113,4 +112,24 @@ func GenerateTxProofReceiver[T curve25519.PointOperations](prefixHash types.Hash
 	D.ScalarMult(a, &R_ed25519)
 
 	return proofs.GenerateTxProof(prefixHash, &A, &R_ed25519, B, &D, a, 2)
+}
+
+func VerifyTxProof[T curve25519.PointOperations](proof proofs.TxProof[T], a address.Interface, txId types.Hash, message string, ephemeralPubKeys ...curve25519.MontgomeryPoint) (index int, ok bool) {
+	prefixHash := proofs.TxPrefixHash(txId, message)
+
+	var viewPub curve25519.PublicKey[T]
+	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil {
+		return -1, false
+	}
+
+	if sa, ok := a.(address.InterfaceSubaddress); ok && sa.IsSubaddress() {
+		var spendPub curve25519.PublicKey[T]
+		if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
+			return -1, false
+		}
+
+		return proof.VerifyCarrot(prefixHash, &viewPub, &spendPub, ephemeralPubKeys...)
+	} else {
+		return proof.VerifyCarrot(prefixHash, &viewPub, nil, ephemeralPubKeys...)
+	}
 }

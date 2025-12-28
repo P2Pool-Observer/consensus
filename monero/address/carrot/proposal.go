@@ -57,9 +57,9 @@ func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []
 
 	// 3. s_sr = d_e ConvertPointE(K^j_v)
 	if isCoinbase {
-		senderReceiverUnctx = makeUncontextualizedSharedKeySenderVarTime(&ephemeralPrivateKey, &viewPub)
+		senderReceiverUnctx = MakeUncontextualizedSharedKeySenderVarTime(&ephemeralPrivateKey, &viewPub)
 	} else {
-		senderReceiverUnctx = makeUncontextualizedSharedKeySender(&ephemeralPrivateKey, &viewPub)
+		senderReceiverUnctx = MakeUncontextualizedSharedKeySender(&ephemeralPrivateKey, &viewPub)
 	}
 
 	return ephemeralPubkey, senderReceiverUnctx
@@ -68,10 +68,10 @@ func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []
 func (p *PaymentProposalV1[T]) ephemeralPublicKey(key *curve25519.Scalar, spendPub *curve25519.PublicKey[T]) (out curve25519.MontgomeryPoint) {
 	if p.Destination.Address.IsSubaddress() {
 		// D_e = d_e ConvertPointE(K^j_s)
-		return makeEnoteEphemeralPublicKeySubaddress(key, spendPub)
+		return MakeEnoteEphemeralPublicKeySubaddress(key, spendPub)
 	} else {
 		// D_e = d_e B
-		return makeEnoteEphemeralPublicKeyCryptonote[T](key)
+		return MakeEnoteEphemeralPublicKeyCryptonote[T](key)
 	}
 }
 

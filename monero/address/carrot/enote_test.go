@@ -53,7 +53,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_enote_ephemeral_pubkey_cryptonote", func(t *testing.T) {
-		result := makeEnoteEphemeralPublicKeyCryptonote[curve25519.VarTimeOperations](
+		result := MakeEnoteEphemeralPublicKeyCryptonote[curve25519.VarTimeOperations](
 			testEphemeralPriv.Scalar(),
 		)
 		if result != testEphemeralPubCryptonote {
@@ -62,7 +62,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_enote_ephemeral_pubkey_subaddress", func(t *testing.T) {
-		result := makeEnoteEphemeralPublicKeySubaddress(
+		result := MakeEnoteEphemeralPublicKeySubaddress(
 			testEphemeralPriv.Scalar(),
 			testSubaddress.SpendPublicKey().PointVarTime(),
 		)
@@ -82,7 +82,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_uncontextualized_shared_key_sender", func(t *testing.T) {
-		result := makeUncontextualizedSharedKeySender(
+		result := MakeUncontextualizedSharedKeySender(
 			testEphemeralPriv.Scalar(),
 			testSubaddress.ViewPublicKey().PointVarTime(),
 		)
@@ -90,7 +90,7 @@ func TestConverge(t *testing.T) {
 			t.Fatalf("expected: %x, got: %x", testSenderReceiverUnctx, result)
 		}
 
-		result2 := makeUncontextualizedSharedKeySenderVarTime(
+		result2 := MakeUncontextualizedSharedKeySenderVarTime(
 			testEphemeralPriv.Scalar(),
 			testSubaddress.ViewPublicKey().PointVarTime(),
 		)

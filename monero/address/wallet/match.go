@@ -24,7 +24,7 @@ func MatchTransactionProof[T curve25519.PointOperations](
 	txId types.Hash,
 	tx transaction.PrunedTransaction,
 ) error {
-	pubs, encryptedPaymentId, paymentId, commitments, _, _, err := matchTxPreamble(tx)
+	pubs, encryptedPaymentId, paymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,26 @@ func MatchTransactionProof[T curve25519.PointOperations](
 		if carrotMatch == nil {
 			return nil
 		}
+		var inputContext [1 + types.HashSize]byte
+		if isCoinbase {
+			inputContext = carrot.MakeCoinbaseInputContext(blockIndex)
+		} else if len(tx.Inputs()) > 0 {
+			inputContext = carrot.MakeInputContext(tx.Inputs()[0].KeyImage)
+		} else {
+			return nil
+		}
 
-		// TODO!
+		var i int
+		var scan *carrot.ScanV1
+		for i != -1 && i < len(tx.Outputs()) {
+			if i, scan = matchTxProofCarrot(proof, txId, message, addr, tx.Outputs()[i:], commitments, pubs, encryptedPaymentId, isCoinbase, inputContext[:]); i != -1 {
+				if paymentId != nil {
+					scan.PaymentId = *paymentId
+				}
+				carrotMatch(i, scan, address.UnknownSubaddressIndex)
+				i++
+			}
+		}
 	case transaction.TxOutToKey, transaction.TxOutToTaggedKey:
 		if legacyMatch == nil {
 			return nil
@@ -62,6 +80,23 @@ func MatchTransactionProof[T curve25519.PointOperations](
 	}
 	return nil
 }
+
+func matchTxProofCarrot[T curve25519.PointOperations](proof proofs.TxProof[T], txId types.Hash, message string, a address.InterfaceSubaddress, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte, isCoinbase bool, inputContext []byte) (index int, scan *carrot.ScanV1) {
+	// #nosec G103 -- Conversion between same underlying types and length
+	pubIndex, ok := carrot.VerifyTxProof(proof, a, txId, message, unsafe.Slice((*curve25519.MontgomeryPoint)(unsafe.SliceData(txPubs)), len(txPubs))...)
+	if !ok {
+		return -1, nil
+	}
+
+	for i := range outputs {
+		if index, scan = matchDerivationCarrot(a, curve25519.MontgomeryPoint(proof.Claims[pubIndex].SharedSecret), curve25519.MontgomeryPoint(txPubs[pubIndex]), &outputs[i], commitments, encryptedPaymentId, isCoinbase, inputContext); index != -1 {
+			return index, scan
+		}
+	}
+
+	return -1, nil
+}
+
 func matchTxProof[T curve25519.PointOperations](proof proofs.TxProof[T], txId types.Hash, message string, a address.InterfaceSubaddress, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
 	var err error
 
@@ -99,38 +134,73 @@ func MatchTransactionKey[T curve25519.PointOperations](
 	carrotMatch func(index int, scan *carrot.ScanV1, _ address.SubaddressIndex),
 	tx transaction.PrunedTransaction,
 ) error {
-	pubs, encryptedPaymentId, paymentId, commitments, _, _, err := matchTxPreamble(tx)
+	pubs, encryptedPaymentId, paymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
 	if err != nil {
 		return err
 	}
-
-	var expectedPub curve25519.PublicKeyBytes
-	var spendPub, viewPub curve25519.PublicKey[T]
-	if _, err := spendPub.SetBytes(addr.SpendPublicKey()[:]); err != nil {
-		return err
-	}
-	if _, err := viewPub.SetBytes(addr.ViewPublicKey()[:]); err != nil {
-		return err
-	}
-	if addr.IsSubaddress() {
-		expectedPub = new(curve25519.PublicKey[T]).ScalarMult(txKey, &spendPub).AsBytes()
-	} else {
-		expectedPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey).AsBytes()
-	}
-
-	derivation := address.GetDerivation(new(curve25519.PublicKey[T]), &viewPub, txKey).AsBytes()
 
 	switch tx.Outputs()[0].Type {
 	case transaction.TxOutToCarrotV1:
 		if carrotMatch == nil {
 			return nil
 		}
+		var inputContext [1 + types.HashSize]byte
+		if isCoinbase {
+			inputContext = carrot.MakeCoinbaseInputContext(blockIndex)
+		} else if len(tx.Inputs()) > 0 {
+			inputContext = carrot.MakeInputContext(tx.Inputs()[0].KeyImage)
+		} else {
+			return nil
+		}
 
-		// TODO!
+		var expectedPub curve25519.MontgomeryPoint
+		var spendPub, viewPub curve25519.PublicKey[T]
+		if _, err := spendPub.SetBytes(addr.SpendPublicKey()[:]); err != nil {
+			return err
+		}
+		if _, err := viewPub.SetBytes(addr.ViewPublicKey()[:]); err != nil {
+			return err
+		}
+		if addr.IsSubaddress() {
+			expectedPub = carrot.MakeEnoteEphemeralPublicKeySubaddress[T](txKey, &spendPub)
+		} else {
+			expectedPub = carrot.MakeEnoteEphemeralPublicKeyCryptonote[T](txKey)
+		}
+
+		senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeySenderVarTime(txKey, &viewPub)
+
+		var i int
+		var scan *carrot.ScanV1
+		for i != -1 && i < len(tx.Outputs()) {
+			if i, scan = matchTxKeyCarrot(addr, expectedPub, senderReceiverUnctx, tx.Outputs()[i:], commitments, pubs, encryptedPaymentId, isCoinbase, inputContext[:]); i != -1 {
+				if paymentId != nil {
+					scan.PaymentId = *paymentId
+				}
+				carrotMatch(i, scan, address.UnknownSubaddressIndex)
+				i++
+			}
+		}
 	case transaction.TxOutToKey, transaction.TxOutToTaggedKey:
 		if legacyMatch == nil {
 			return nil
 		}
+
+		var expectedPub curve25519.PublicKeyBytes
+		var spendPub, viewPub curve25519.PublicKey[T]
+		if _, err := spendPub.SetBytes(addr.SpendPublicKey()[:]); err != nil {
+			return err
+		}
+		if _, err := viewPub.SetBytes(addr.ViewPublicKey()[:]); err != nil {
+			return err
+		}
+		if addr.IsSubaddress() {
+			expectedPub = new(curve25519.PublicKey[T]).ScalarMult(txKey, &spendPub).AsBytes()
+		} else {
+			expectedPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey).AsBytes()
+		}
+
+		derivation := address.GetDerivation(new(curve25519.PublicKey[T]), &viewPub, txKey).AsBytes()
+
 		var i int
 		var scan *LegacyScan
 		for i != -1 && i < len(tx.Outputs()) {
@@ -144,6 +214,58 @@ func MatchTransactionKey[T curve25519.PointOperations](
 		}
 	}
 	return nil
+}
+
+func matchDerivationCarrot(a address.InterfaceSubaddress, senderReceiverUnctx, ephemeralPub curve25519.MontgomeryPoint, out *transaction.Output, commitments []ringct.CommitmentEncryptedAmount, encryptedPaymentId *[monero.PaymentIdSize]byte, isCoinbase bool, inputContext []byte) (index int, scan *carrot.ScanV1) {
+	if out.Type != transaction.TxOutToCarrotV1 {
+		return -1, nil
+	}
+
+	var mainSpendPubs []curve25519.PublicKeyBytes
+	if !a.IsSubaddress() {
+		mainSpendPubs = append(mainSpendPubs, *a.SpendPublicKey())
+	}
+
+	if isCoinbase {
+		enote := carrot.CoinbaseEnoteV1{
+			OneTimeAddress:  out.EphemeralPublicKey,
+			Amount:          out.Amount,
+			EncryptedAnchor: out.EncryptedJanusAnchor,
+			ViewTag:         out.ViewTag,
+			EphemeralPubKey: ephemeralPub,
+
+			// not used here
+			BlockIndex: 0,
+		}
+
+		scan = &carrot.ScanV1{}
+		if enote.TryScanEnoteChecked(scan, inputContext, senderReceiverUnctx, mainSpendPubs...) == nil {
+			return int(out.Index), scan
+		}
+	} else {
+		if len(commitments) < int(out.Index) {
+			return -1, nil
+		}
+
+		enote := carrot.EnoteV1{
+			OneTimeAddress:   out.EphemeralPublicKey,
+			EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
+			EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[out.Index].Amount[:]),
+			AmountCommitment: commitments[out.Index].Commitment,
+			ViewTag:          out.ViewTag.Value(),
+			EphemeralPubKey:  ephemeralPub,
+
+			//not used here
+			FirstKeyImage: curve25519.ZeroPublicKeyBytes,
+		}
+
+		scan = &carrot.ScanV1{}
+		if enote.TryScanEnoteChecked(scan, inputContext, encryptedPaymentId, senderReceiverUnctx, mainSpendPubs...) == nil {
+			return int(out.Index), scan
+		}
+	}
+
+	return -1, nil
 }
 
 func matchDerivation[T curve25519.PointOperations](derivation curve25519.PublicKeyBytes, spendPub *curve25519.PublicKey[T], out *transaction.Output, commitments []ringct.CommitmentEncryptedAmount, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
@@ -199,6 +321,22 @@ func matchDerivation[T curve25519.PointOperations](derivation curve25519.PublicK
 		}
 
 		return int(out.Index), scan
+	}
+
+	return -1, nil
+}
+
+func matchTxKeyCarrot(a address.InterfaceSubaddress, expectedPub, senderReceiverUnctx curve25519.MontgomeryPoint, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte, isCoinbase bool, inputContext []byte) (index int, scan *carrot.ScanV1) {
+	for _, pub := range txPubs {
+		if expectedPub != curve25519.MontgomeryPoint(pub) {
+			continue
+		}
+
+		for i := range outputs {
+			if index, scan = matchDerivationCarrot(a, senderReceiverUnctx, expectedPub, &outputs[i], commitments, encryptedPaymentId, isCoinbase, inputContext); index != -1 {
+				return index, scan
+			}
+		}
 	}
 
 	return -1, nil

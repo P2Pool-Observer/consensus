@@ -9,6 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 )
 
@@ -25,6 +26,7 @@ const (
 )
 
 type TxProofClaim[T curve25519.PointOperations] struct {
+	// SharedSecret ECDH result, curve25519.PublicKey for legacy, curve25519.MontgomeryPoint in Carrot
 	SharedSecret curve25519.PublicKeyBytes
 	Signature    crypto.Signature[T]
 }
@@ -77,6 +79,53 @@ func (p TxProof[T]) Verify(prefixHash types.Hash, viewPub, spendPub *curve25519.
 		}
 	} else {
 		return -1, false
+	}
+
+	return -1, false
+}
+
+func (p TxProof[T]) VerifyCarrot(prefixHash types.Hash, viewPub, spendPub *curve25519.PublicKey[T], txPubs ...curve25519.MontgomeryPoint) (index int, ok bool) {
+	if p.Version != 2 {
+		return -1, false
+	}
+
+	var ephemeralPub, sharedSecret curve25519.PublicKey[T]
+	var u field.Element
+	for i, pub := range txPubs {
+		if len(p.Claims) <= i {
+			return -1, false
+		}
+
+		if _, err := u.SetBytes(pub[:]); err != nil {
+			continue
+		}
+		if _, err := curve25519.DecodeMontgomeryPoint(&ephemeralPub, &u, 0); err != nil {
+			continue
+		}
+
+		if _, err := u.SetBytes(p.Claims[i].SharedSecret[:]); err != nil {
+			continue
+		}
+		if _, err := curve25519.DecodeMontgomeryPoint(&sharedSecret, &u, 0); err != nil {
+			continue
+		}
+
+		for range 2 {
+			if p.Type == OutProof {
+				if VerifyTxProof(prefixHash, &ephemeralPub, viewPub, spendPub, &sharedSecret, p.Claims[i].Signature, p.Version) {
+					return i, true
+				}
+			} else if p.Type == InProof {
+				if VerifyTxProof(prefixHash, viewPub, &ephemeralPub, spendPub, &sharedSecret, p.Claims[i].Signature, p.Version) {
+					return i, true
+				}
+			} else {
+				return -1, false
+			}
+
+			// try negate
+			sharedSecret.Negate(&sharedSecret)
+		}
 	}
 
 	return -1, false
