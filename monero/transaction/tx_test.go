@@ -50,6 +50,9 @@ var testTransactions = []types.Hash{
 	types.MustHashFromString("81e80ad39374105ab94363bc1315a96fd52cc3f8f81e0425c718df164a72975c"),
 	types.MustHashFromString("32e66dcf37b87703ebff69a0bd93a3cdc8fb919463085778d046bdda900efe52"),
 
+	// mordinals
+	types.MustHashFromString("04a69ae5e9fb51327997f1a809604b4992ab9561680bab47e2f967f5c6129d72"),
+
 	// fcmp++ testnet tx
 	types.MustHashFromString("3091f6a54c204545d84c1b4c25b28997666665070de5a643bce2e30cdc54d2b1"),
 }
@@ -110,6 +113,10 @@ func TestTransactions(t *testing.T) {
 				t.Fatalf("expected %s, got %s", txId, calculatedId)
 			}
 
+			if tags := tx.ExtraTags(); tags == nil {
+				t.Error("missing extra tags")
+			}
+
 			rings, images, err := GetTransactionInputsData(tx, rpc.GetOuts)
 			if err != nil {
 				t.Fatal(err)
@@ -127,15 +134,6 @@ func TestTransactions(t *testing.T) {
 					t.Fatalf("tx proof failed: %v", err)
 				}
 			}
-
-			/*
-				jsonBuf, err := utils.MarshalJSONIndent(tx, " ")
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				t.Logf("JSON: %s", string(jsonBuf))
-			*/
 		})
 	}
 }
@@ -189,6 +187,10 @@ func TestPrunedTransactions(t *testing.T) {
 			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
 			t.Logf("inputs  = %d", len(tx.Inputs()))
 			t.Logf("outputs = %d", len(tx.Outputs()))
+
+			if tags := tx.ExtraTags(); tags == nil {
+				t.Error("missing extra tags")
+			}
 
 			rings, images, err := GetTransactionInputsData(tx, rpc.GetOuts)
 			if err != nil {

@@ -17,6 +17,7 @@ const TxExtraTagPubKey = 0x01
 const TxExtraTagNonce = 0x02
 const TxExtraTagMergeMining = 0x03
 const TxExtraTagAdditionalPubKeys = 0x04
+const TxExtraTagOrdinals = 0x10
 const TxExtraTagMysteriousMinergate = 0xde
 
 const TxExtraPaddingMaxCount = 255
@@ -250,7 +251,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 				return err
 			}
 		}
-	case TxExtraTagMergeMining, TxExtraTagMysteriousMinergate:
+	case TxExtraTagMergeMining, TxExtraTagOrdinals, TxExtraTagMysteriousMinergate:
 		t.HasVarInt = true
 		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err
