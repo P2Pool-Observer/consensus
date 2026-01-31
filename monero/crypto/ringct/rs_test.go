@@ -160,7 +160,7 @@ func TestGenerateRingSignature(t *testing.T) {
 			keyPair := crypto.NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](secret.Scalar())
 
 			// derive key image
-			image := crypto.GetKeyImage(new(curve25519.ConstantTimePublicKey), keyPair)
+			image := crypto.GetBiasedKeyImage(new(curve25519.ConstantTimePublicKey), keyPair)
 			if image.Equal(keyImage) == 0 {
 				return fmt.Errorf("expected key image %s, got %s", keyImage, image)
 			}
@@ -237,7 +237,7 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 		ring = append(ring, *new(curve25519.ConstantTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rng)))
 	}
 
-	keyImage := crypto.GetKeyImage(new(curve25519.ConstantTimePublicKey), keyPair)
+	keyImage := crypto.GetBiasedKeyImage(new(curve25519.ConstantTimePublicKey), keyPair)
 	if !rs.Sign(types.ZeroHash, ring, keyPair, rng) {
 		t.Fatal("error signing")
 	}

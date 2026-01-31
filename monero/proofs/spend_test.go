@@ -58,7 +58,7 @@ func testSpendProof[T curve25519.PointOperations](decoys, n, version int, random
 	var keyImages []curve25519.PublicKey[T]
 
 	for _, keyPair := range keyPairs {
-		keyImages = append(keyImages, *crypto.GetKeyImage(new(curve25519.PublicKey[T]), keyPair))
+		keyImages = append(keyImages, *crypto.GetBiasedKeyImage(new(curve25519.PublicKey[T]), keyPair))
 	}
 
 	if !proof.Verify(TxPrefixHash(txId, ""), keyImages, rings) {

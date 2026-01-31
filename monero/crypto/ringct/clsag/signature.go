@@ -110,7 +110,7 @@ func Sign[T curve25519.PointOperations](prefixHash types.Hash, inputs []Input[T]
 			return nil, ErrInvalidKey
 		}
 
-		// can't use crypto.GetKeyImage as we need to store the generator
+		// can't use crypto.GetBiasedKeyImage as we need to store the generator
 		crypto.BiasedHashToPoint(&keyImageGenerators[i], key.Bytes())
 		keyImages[i].ScalarMult(&input.KeyPair.PrivateKey, &keyImageGenerators[i])
 	}

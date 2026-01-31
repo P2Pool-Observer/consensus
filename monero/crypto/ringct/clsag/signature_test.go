@@ -91,7 +91,7 @@ func testCLSAG[T curve25519.PointOperations](t *testing.T, randomReader io.Reade
 			clsag := result[0].Signature
 			pseudoOut := result[0].PseudoOut
 
-			image := crypto.GetKeyImage(new(curve25519.PublicKey[T]), keyPair)
+			image := crypto.GetBiasedKeyImage(new(curve25519.PublicKey[T]), keyPair)
 
 			if err := clsag.Verify(prefixHash, decoys.Ring, image, &pseudoOut); err != nil {
 				t.Fatalf("real %d: verify failed: %s", realIndex, err)

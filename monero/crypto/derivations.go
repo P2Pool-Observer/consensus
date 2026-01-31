@@ -29,7 +29,13 @@ func GetDerivationSharedDataAndViewTagForOutputIndex(k *curve25519.Scalar, deriv
 	return pK, Keccak256Var(viewTagDomain, derivation[:], varIntBuf[:n])[0]
 }
 
-func GetKeyImage[T curve25519.PointOperations](out *curve25519.PublicKey[T], pair *KeyPair[T]) *curve25519.PublicKey[T] {
+func GetUnbiasedKeyImage[T curve25519.PointOperations](out *curve25519.PublicKey[T], pair *KeyPair[T]) *curve25519.PublicKey[T] {
+	hP := UnbiasedHashToPoint(out, pair.PublicKey.Bytes())
+	hP.ScalarMult(&pair.PrivateKey, hP)
+	return hP
+}
+
+func GetBiasedKeyImage[T curve25519.PointOperations](out *curve25519.PublicKey[T], pair *KeyPair[T]) *curve25519.PublicKey[T] {
 	hP := BiasedHashToPoint(out, pair.PublicKey.Bytes())
 	hP.ScalarMult(&pair.PrivateKey, hP)
 	return hP

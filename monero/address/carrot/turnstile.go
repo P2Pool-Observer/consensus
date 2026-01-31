@@ -94,7 +94,7 @@ func (pqt PQTurnstile[T]) VerifyCoinbase(
 	outputPubPrivate.Add(&generateImageKey, &senderExtensionG)
 
 	var ki curve25519.PublicKey[T]
-	crypto.GetKeyImage(&ki, &crypto.KeyPair[T]{PublicKey: outputPub, PrivateKey: outputPubPrivate})
+	crypto.GetUnbiasedKeyImage(&ki, &crypto.KeyPair[T]{PublicKey: outputPub, PrivateKey: outputPubPrivate})
 
 	// step 13
 	if pqt.IsKeyImageSpent(ki.AsBytes()) {
@@ -192,7 +192,7 @@ func (pqt PQTurnstile[T]) Verify(
 	outputPubPrivate.Add(&generateImageKey, &senderExtensionG)
 
 	var ki curve25519.PublicKey[T]
-	crypto.GetKeyImage(&ki, &crypto.KeyPair[T]{PublicKey: outputPub, PrivateKey: outputPubPrivate})
+	crypto.GetUnbiasedKeyImage(&ki, &crypto.KeyPair[T]{PublicKey: outputPub, PrivateKey: outputPubPrivate})
 
 	// step 16
 	if pqt.IsKeyImageSpent(ki.AsBytes()) {

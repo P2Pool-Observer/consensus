@@ -141,7 +141,7 @@ func GetSpendProof[T curve25519.PointOperations](txId types.Hash, message string
 		}
 		keyPair := ephemeralKeyPairs[i]
 
-		crypto.GetKeyImage(&keyImage, keyPair)
+		crypto.GetBiasedKeyImage(&keyImage, keyPair)
 		var rs ringct.RingSignature[T]
 		if !rs.Sign(prefixHash, ring, keyPair, randomReader) {
 			return SpendProof[T]{}, errors.New("error signing")

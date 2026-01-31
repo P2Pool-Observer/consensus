@@ -102,7 +102,7 @@ func (s *RingSignature[T]) Sign(prefixHash types.Hash, ring Ring[T], keyPair *cr
 	if keyIndex := ring.Index(&keyPair.PublicKey); keyIndex == -1 {
 		return false
 	} else {
-		keyImage := crypto.GetKeyImage(new(curve25519.PublicKey[T]), keyPair)
+		keyImage := crypto.GetBiasedKeyImage(new(curve25519.PublicKey[T]), keyPair)
 		return s.sign(prefixHash, ring, keyImage, &keyPair.PrivateKey, keyIndex, randomReader)
 	}
 }

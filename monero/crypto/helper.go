@@ -34,12 +34,14 @@ func EvilPointGenerator[T curve25519.PointOperations](sourceScalar *curve25519.S
 	// random point to do tests with
 	keyPair := NewKeyPairFromPrivate[T](sourceScalar)
 
-	image := GetKeyImage[T](new(curve25519.PublicKey[T]), keyPair)
+	biasedImage := GetBiasedKeyImage[T](new(curve25519.PublicKey[T]), keyPair)
+	unbiasedImage := GetUnbiasedKeyImage[T](new(curve25519.PublicKey[T]), keyPair)
 
 	pubs = append(pubs,
 		EvilPoint[T]{keyPair.PublicKey, EvilKindBase},
-		// key image
-		EvilPoint[T]{*image, EvilKindDerivation | EvilKindKeyImage},
+		// key images
+		EvilPoint[T]{*biasedImage, EvilKindDerivation | EvilKindKeyImage},
+		EvilPoint[T]{*unbiasedImage, EvilKindDerivation | EvilKindKeyImage},
 		// cofactor mult
 		EvilPoint[T]{*new(curve25519.PublicKey[T]).MultByCofactor(&keyPair.PublicKey), EvilKindDerivation},
 		// generator derivation
@@ -53,7 +55,8 @@ func EvilPointGenerator[T curve25519.PointOperations](sourceScalar *curve25519.S
 	for _, torsion := range edwards25519.EightTorsion[1:] {
 		pubs = append(pubs,
 			EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(&keyPair.PublicKey, curve25519.FromPoint[T](torsion)), EvilKindBase | EvilKindDerivation | EvilKindTorsion},
-			EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(image, curve25519.FromPoint[T](torsion)), EvilKindDerivation | EvilKindTorsion | EvilKindKeyImage},
+			EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(biasedImage, curve25519.FromPoint[T](torsion)), EvilKindDerivation | EvilKindTorsion | EvilKindKeyImage},
+			EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(unbiasedImage, curve25519.FromPoint[T](torsion)), EvilKindDerivation | EvilKindTorsion | EvilKindKeyImage},
 			EvilPoint[T]{*curve25519.FromPoint[T](torsion), EvilKindLowOrder | EvilKindTorsion},
 		)
 	}
