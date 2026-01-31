@@ -24,9 +24,10 @@ func GetBlockReward(medianWeight, currentBlockWeight, alreadyGeneratedCoins uint
 	const EMISSION_SPEED_FACTOR_PER_MINUTE = 20
 	const FINAL_SUBSIDY_PER_MINUTE = 300000000000 // 3 * pow(10, 11)
 	const MONEY_SUPPLY = math.MaxUint64
-	const CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V1 = 20000  //size of block (bytes) after which reward for block calculated using block size - before first fork
-	const CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V2 = 60000  //size of block (bytes) after which reward for block calculated using block size
-	const CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V5 = 300000 //size of block (bytes) after which reward for block calculated using block size - second change, from v5
+	const CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V1 = 20000   //size of block (bytes) after which reward for block calculated using block size - before first fork
+	const CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V2 = 60000   //size of block (bytes) after which reward for block calculated using block size
+	const CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V5 = 300000  //size of block (bytes) after which reward for block calculated using block size - second change, from v5
+	const CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V17 = 625000 //size of block (bytes) after which reward for block calculated using block size - second change, from v17
 
 	target := uint64(DIFFICULTY_TARGET_V2)
 	if version < 2 {
@@ -50,7 +51,10 @@ func GetBlockReward(medianWeight, currentBlockWeight, alreadyGeneratedCoins uint
 		if version < 5 {
 			return CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V2
 		}
-		return CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V5
+		if version < monero.HardFork2026Scaling {
+			return CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V5
+		}
+		return CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE_V17
 	}(version)
 
 	//make it soft

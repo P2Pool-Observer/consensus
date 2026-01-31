@@ -8,6 +8,7 @@ const (
 	HardForkCarrotVersion          = 17
 	HardForkRejectLargeExtra       = 17
 	HardForkRejectManyMinerOutputs = 17
+	HardFork2026Scaling            = 17
 
 	HardForkMinimumSupportedVersion = 14
 	HardForkSupportedVersion        = 18
