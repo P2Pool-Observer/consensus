@@ -624,6 +624,22 @@ func (b *PoolBlock) consensusMergeMiningTag() (err error) {
 	return nil
 }
 
+func (b *PoolBlock) consensusExtraNonceTag() error {
+	t := b.Main.Coinbase.Extra.GetTag(uint8(SideExtraNonce))
+	if t == nil {
+		return errors.New("missing extra nonce")
+	}
+	if len(t.Data) < SideExtraNonceSize || len(t.Data) > SideExtraNonceMaxSize {
+		return errors.New("invalid extra nonce size")
+	}
+	for _, c := range t.Data[SideExtraNonceSize:] {
+		if c != 0 {
+			return errors.New("non-zero extra nonce padding bytes")
+		}
+	}
+	return nil
+}
+
 func (b *PoolBlock) consensusCheckTagOrder() (err error) {
 	// verify number and order of tags
 	if b.Main.MajorVersion >= monero.HardForkCarrotVersion {
@@ -680,6 +696,10 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 	}
 
 	if err = b.consensusMergeMiningTag(); err != nil {
+		return err
+	}
+
+	if err = b.consensusExtraNonceTag(); err != nil {
 		return err
 	}
 
