@@ -372,6 +372,13 @@ func (c *Client) IsGood() bool {
 }
 
 func (c *Client) OnConnection(ourPeerId uint64) {
+	defer func() {
+		if e := recover(); e != nil {
+			c.Ban(DefaultBanTime, utils.ErrorfNoEscape("recovered from panic: %v", e))
+			return
+		}
+	}()
+
 	c.LastActiveTimestamp.Store(time.Now().Unix())
 
 	c.sendHandshakeChallenge()
@@ -574,6 +581,9 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 					c.SendPeerListRequest()
 				}
 				break
+			} else if blockSize > sidechain.PoolBlockMaxTemplateSize {
+				c.Ban(DefaultBanTime, utils.ErrorfNoEscape("block size %d exceeds maximum %d", blockSize, sidechain.PoolBlockMaxTemplateSize))
+				return
 			} else {
 				reader := bufio.NewReader(utils.LimitByteReader(c, int64(blockSize)))
 				if err = block.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
@@ -659,6 +669,9 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				//NOT found
 				//TODO log
 				break
+			} else if blockSize > sidechain.PoolBlockMaxTemplateSize {
+				c.Ban(DefaultBanTime, utils.ErrorfNoEscape("block size %d exceeds maximum %d", blockSize, sidechain.PoolBlockMaxTemplateSize))
+				return
 			} else if messageId == MessageBlockBroadcastCompact {
 				reader := bufio.NewReader(utils.LimitByteReader(c, int64(blockSize)))
 				if err = poolBlock.FromCompactReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
