@@ -122,7 +122,8 @@ type MerkleProof []types.Hash
 // Verify Verifies a merkle proof with the slot index and chain count
 // Equivalent to verify_merkle_proof(aux_hash, merkle_proof, get_aux_slot(unique_id, aux_nonce, n_aux_chains), n_aux_chains, merkle_root_hash)
 func (proof MerkleProof) Verify(h types.Hash, index, count int, rootHash types.Hash) bool {
-	return proof.GetRoot(h, index, count) == rootHash
+	root, ok := proof.GetRoot(h, index, count)
+	return ok && root == rootHash
 }
 
 // VerifyPath Verifies a merkle proof with the path bitmap
@@ -131,20 +132,20 @@ func (proof MerkleProof) VerifyPath(h types.Hash, path uint32, rootHash types.Ha
 	return proof.GetRootPath(h, path) == rootHash
 }
 
-func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
+func (proof MerkleProof) GetRoot(h types.Hash, index, count int) (root types.Hash, ok bool) {
 	if count == 1 {
-		return h
+		return h, len(proof) == 0
 	}
 
 	if index >= count {
-		return types.ZeroHash
+		return types.ZeroHash, false
 	}
 
 	hasher := NewKeccak256()
 
 	if count == 2 {
-		if len(proof) == 0 {
-			return types.ZeroHash
+		if len(proof) != 1 {
+			return types.ZeroHash, false
 		}
 
 		h = pairHash(index, h, proof[0], hasher)
@@ -158,7 +159,7 @@ func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
 			index -= k
 
 			if len(proof) == 0 {
-				return types.ZeroHash
+				return types.ZeroHash, false
 			}
 
 			h = pairHash(index, h, proof[0], hasher)
@@ -170,14 +171,18 @@ func (proof MerkleProof) GetRoot(h types.Hash, index, count int) types.Hash {
 
 		for ; pow2cnt >= 2; proofIndex, index, pow2cnt = proofIndex+1, index>>1, pow2cnt>>1 {
 			if proofIndex >= len(proof) {
-				return types.ZeroHash
+				return types.ZeroHash, false
 			}
 
 			h = pairHash(index, h, proof[proofIndex], hasher)
 		}
+
+		if proofIndex != len(proof) {
+			return types.ZeroHash, false
+		}
 	}
 
-	return h
+	return h, true
 }
 
 func (proof MerkleProof) GetRootPath(h types.Hash, path uint32) types.Hash {
