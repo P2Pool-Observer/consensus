@@ -227,7 +227,7 @@ func (b *PoolBlock) FillTransactionsFromTransactionParentIndices(consensus *Cons
 				if parentIndex != 0 {
 					// p2pool stores coinbase transaction hash as well, decrease
 					actualIndex := parentIndex - 1
-					if actualIndex > uint64(len(parent.Main.Transactions)) {
+					if actualIndex >= uint64(len(parent.Main.Transactions)) {
 						return errors.New("index of parent transaction out of bounds")
 					}
 					if parent.Main.Transactions[actualIndex] == types.ZeroHash {

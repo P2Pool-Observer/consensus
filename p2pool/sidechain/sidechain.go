@@ -386,7 +386,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	if otherBlock := c.GetPoolBlockByTemplateId(templateId); otherBlock != nil {
 		//already added
 		newMainId := block.MainId()
-		oldMainId := block.MainId()
+		oldMainId := otherBlock.MainId()
 		utils.Logf("SideChain", "add_external_block: block id = %x is already added. New main id = %x, old main id = %x", templateId.Slice(), newMainId.Slice(), oldMainId.Slice())
 		if newMainId != oldMainId && otherBlock.Verified.Load() && !otherBlock.Invalid.Load() {
 			//other sections have been verified already, check PoW for new Main blocks
