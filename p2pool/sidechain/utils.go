@@ -584,6 +584,12 @@ func SplitReward(preAllocatedRewards []uint64, reward uint64, shares Shares) (re
 		}
 	}
 
+	for i := range rewards {
+		if rewards[i] > MaxTxOutputReward {
+			return nil
+		}
+	}
+
 	// Double check that we gave out the exact amount
 	if rewardGiven != reward {
 		return nil
