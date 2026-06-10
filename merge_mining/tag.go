@@ -37,7 +37,7 @@ func (t *Tag) FromReader(reader utils.ReaderAndByteReader) error {
 func (t *Tag) MarshalTreeData() uint64 {
 	nBits := uint32(1)
 
-	for (1<<nBits) >= t.NumberAuxiliaryChains && nBits < 8 {
+	for (1<<nBits) < t.NumberAuxiliaryChains && nBits < 8 {
 		nBits++
 	}
 	merkleTreeData := (uint64(nBits) - 1) | (uint64(t.NumberAuxiliaryChains-1) << 3) | (uint64(t.Nonce) << (3 + nBits))
