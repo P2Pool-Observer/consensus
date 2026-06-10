@@ -20,6 +20,39 @@ func TestDifficultyFromPoW(t *testing.T) {
 	}
 }
 
+func TestDifficulty_CheckPoW_Quick(t *testing.T) {
+
+	if !moneroDifficulty.CheckPoW_Quick(powHash) {
+		t.Errorf("%s does not pass PoW %s", powHash, moneroDifficulty)
+	}
+
+	if !sidechainDifficulty.CheckPoW_Quick(powHash) {
+		t.Errorf("%s does not pass PoW %s", powHash, sidechainDifficulty)
+	}
+
+	if !powDifficulty.CheckPoW_Quick(powHash) {
+		t.Errorf("%s does not pass PoW %s", powHash, powDifficulty)
+	}
+
+	powHash2 := powHash
+	powHash2[len(powHash2)-1]++
+
+	if moneroDifficulty.CheckPoW_Quick(powHash2) {
+		t.Errorf("%s does pass PoW %s incorrectly", powHash2, moneroDifficulty)
+	}
+
+	if sidechainDifficulty.CheckPoW_Quick(powHash2) {
+		t.Errorf("%s does pass PoW %s incorrectly", powHash2, sidechainDifficulty)
+	}
+
+	powHash3 := powHash
+	powHash3[len(powHash2)-9]++
+
+	if powDifficulty.CheckPoW_Quick(powHash3) {
+		t.Errorf("%s does pass PoW %s incorrectly", powHash3, powDifficulty)
+	}
+}
+
 func TestDifficulty_CheckPoW(t *testing.T) {
 
 	if !moneroDifficulty.CheckPoW(powHash) {
@@ -53,46 +86,13 @@ func TestDifficulty_CheckPoW(t *testing.T) {
 	}
 }
 
-func TestDifficulty_CheckPoW_Native(t *testing.T) {
-
-	if !moneroDifficulty.CheckPoW_Native(powHash) {
-		t.Errorf("%s does not pass PoW %s", powHash, moneroDifficulty)
-	}
-
-	if !sidechainDifficulty.CheckPoW_Native(powHash) {
-		t.Errorf("%s does not pass PoW %s", powHash, sidechainDifficulty)
-	}
-
-	if !powDifficulty.CheckPoW_Native(powHash) {
-		t.Errorf("%s does not pass PoW %s", powHash, powDifficulty)
-	}
-
-	powHash2 := powHash
-	powHash2[len(powHash2)-1]++
-
-	if moneroDifficulty.CheckPoW_Native(powHash2) {
-		t.Errorf("%s does pass PoW %s incorrectly", powHash2, moneroDifficulty)
-	}
-
-	if sidechainDifficulty.CheckPoW_Native(powHash2) {
-		t.Errorf("%s does pass PoW %s incorrectly", powHash2, sidechainDifficulty)
-	}
-
-	powHash3 := powHash
-	powHash3[len(powHash2)-9]++
-
-	if powDifficulty.CheckPoW_Native(powHash3) {
-		t.Errorf("%s does pass PoW %s incorrectly", powHash3, powDifficulty)
-	}
-}
-
 func BenchmarkDifficulty_CheckPoW(b *testing.B) {
 
 	b.Run("Uint128", func(b *testing.B) {
 		b.ReportAllocs()
 		var result bool
 		for b.Loop() {
-			result = moneroDifficulty.CheckPoW(powHash)
+			result = moneroDifficulty.CheckPoW_Quick(powHash)
 		}
 		runtime.KeepAlive(result)
 	})
@@ -101,7 +101,7 @@ func BenchmarkDifficulty_CheckPoW(b *testing.B) {
 		b.ReportAllocs()
 		var result bool
 		for b.Loop() {
-			result = moneroDifficulty.CheckPoW_Native(powHash)
+			result = moneroDifficulty.CheckPoW(powHash)
 		}
 		runtime.KeepAlive(result)
 	})
@@ -122,8 +122,8 @@ func FuzzDifficulty_CheckPoW(f *testing.F) {
 
 		h := Hash(hash)
 
-		result := d.CheckPoW(h)
-		result2 := d.CheckPoW_Native(h)
+		result := d.CheckPoW_Quick(h)
+		result2 := d.CheckPoW(h)
 
 		if result != result2 {
 			t.Fatalf("%s diff lo,hi = %d, %d result mismatch: %v vs native %v", h.String(), lo, hi, result, result2)

@@ -16,11 +16,11 @@ func DifficultyFromPoW(powHash Hash) Difficulty {
 	return Difficulty(uint128.Max.Div(v))
 }
 
-func (d Difficulty) CheckPoW(pow Hash) bool {
+func (d Difficulty) CheckPoW_Quick(pow Hash) bool {
 	return DifficultyFromPoW(pow).Cmp(d) >= 0
 }
 
-func (d Difficulty) CheckPoW_Native(pow Hash) bool {
+func (d Difficulty) CheckPoW(pow Hash) bool {
 	// P2Pool similar code
 	var result [6]uint64
 	var product [6]uint64
@@ -69,7 +69,7 @@ func (d Difficulty) CheckPoW_Native(pow Hash) bool {
 
 // Target Finds a 64-bit target for mining (target = 2^64 / difficulty) and rounds up the result of division
 // Because of that, there's a very small chance that miners will find a hash that meets the target but is still wrong (hash * difficulty >= 2^256)
-// A proper difficulty check is in CheckPoW / CheckPoW_Native
+// A proper difficulty check is in CheckPoW / CheckPoW_Quick
 func (d Difficulty) Target() uint64 {
 	if d.Hi > 0 {
 		return 1
