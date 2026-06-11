@@ -9,7 +9,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
 )
 
-var onionBase32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567")
+var onionBase32Encoding = base32.NewEncoding("abcdefghijklmnopqrstuvwxyz234567").WithPadding(base32.NoPadding)
 
 const OnionPort = 28722
 

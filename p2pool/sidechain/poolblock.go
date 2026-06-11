@@ -926,14 +926,29 @@ func (b *PoolBlock) GetMergeMineExtraSubaddress() *address.PackedAddressWithSuba
 
 func (b *PoolBlock) GetOnionAddressV3() *p2pooltypes.OnionAddressV3 {
 	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeyOnionAddressV3); ok && len(d) == curve25519.PublicKeySize+2 {
-		var pubkey p2pooltypes.OnionAddressV3
-		copy(pubkey[:], d[:curve25519.PublicKeySize])
-		d = d[curve25519.PublicKeySize:]
+		var addr p2pooltypes.OnionAddressV3
+		copy(addr[:], d[:len(addr)])
+		d = d[len(addr):]
 		if d[0] != 0 || d[1] != 0 {
 			return nil
 		}
 
-		return &pubkey
+		return &addr
+	}
+
+	return nil
+}
+
+func (b *PoolBlock) GetI2PAddressB32() *p2pooltypes.I2PAddressB32 {
+	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeyI2PAddressB32); ok && len(d) == curve25519.PublicKeySize+2 {
+		var addr p2pooltypes.I2PAddressB32
+		copy(addr[:], d[:len(addr)])
+		d = d[len(addr):]
+		if d[0] != 0 || d[1] != 0 {
+			return nil
+		}
+
+		return &addr
 	}
 
 	return nil

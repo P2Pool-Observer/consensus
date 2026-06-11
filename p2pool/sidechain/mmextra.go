@@ -17,6 +17,10 @@ var ExtraChainKeySubaddressViewPub = crypto.Keccak256([]byte("subaddress_viewpub
 // https://spec.torproject.org/rend-spec/encoding-onion-addresses.html
 var ExtraChainKeyOnionAddressV3 = crypto.Keccak256([]byte("onion_address_v3"))
 
+// ExtraChainKeyI2PAddressB32 Format PublicKeyBytes (PUBKEY) | varint(0) | varint(0)
+// https://github.com/i2p/i2p.website/blob/main/content/en/docs/overview/naming.md#base32-names
+var ExtraChainKeyI2PAddressB32 = crypto.Keccak256([]byte("i2p_b32_address"))
+
 func (d MergeMiningExtra) Sort() {
 	slices.SortStableFunc(d, func(a, b MergeMiningExtraData) int {
 		return a.ChainId.Compare(b.ChainId)

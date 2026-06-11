@@ -294,18 +294,15 @@ func (c *Consensus) SeedNode() string {
 var seedNodesDefault = []string{
 	"seeds.p2pool.io",
 	"main.p2poolpeers.net",
-	"main.gupax.io",
 }
 var seedNodesMini = []string{
 	"seeds-mini.p2pool.io",
 	"mini.p2poolpeers.net",
-	"mini.gupax.io",
 }
 
 var seedNodesNano = []string{
 	"seeds-nano.p2pool.io",
 	"nano.p2poolpeers.net",
-	"nano.gupax.io",
 }
 
 var torNodes = []p2pooltypes.OnionAddressV3{
@@ -318,6 +315,22 @@ var torNodes = []p2pooltypes.OnionAddressV3{
 func (c *Consensus) TorNodes() []p2pooltypes.OnionAddressV3 {
 	if c.IsDefault() || c.IsMini() || c.IsNano() {
 		return torNodes
+	}
+	return nil
+}
+
+var i2pNodes = []p2pooltypes.I2PAddressB32{
+	// p2pool.io
+	p2pooltypes.MustI2PAddressB32FromString("p2pseeds2ggmpw62wdua6ll27awcndorshcg7nsbinc5xlhp6tqa.b32.i2p"),
+	p2pooltypes.MustI2PAddressB32FromString("p2pse3irgfuks5eazbcwkcijsv6u3qtffl6zudct4t4kn2sinotq.b32.i2p"),
+	p2pooltypes.MustI2PAddressB32FromString("h6jrh53yvlvzqqyy7abzjp2t4kidtheee7e7nfbynecroc7yvbjq.b32.i2p"),
+	// p2pool.observer
+	p2pooltypes.MustI2PAddressB32FromString("p2pz7uiuhfijlj3pho6jx2t7fegnxouu34xjyiyhulvouux4knkq.b32.i2p"),
+}
+
+func (c *Consensus) I2PNodes() []p2pooltypes.I2PAddressB32 {
+	if c.IsDefault() || c.IsMini() || c.IsNano() {
+		return i2pNodes
 	}
 	return nil
 }
