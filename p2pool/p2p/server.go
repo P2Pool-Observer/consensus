@@ -107,6 +107,7 @@ type Server struct {
 
 	listenAddress      netip.AddrPort
 	externalListenPort uint16
+	localSubnet        netip.Prefix
 
 	useIPv4 bool
 	useIPv6 bool
@@ -243,8 +244,12 @@ func (s *Server) AddToOnionPeerList(addr p2pooltypes.OnionAddressV3, port uint16
 	}
 }
 
+func (s *Server) AddrIsLocal(addr netip.Addr) bool {
+	return addr.IsLoopback() || (s.localSubnet.IsValid() && s.localSubnet.Contains(addr))
+}
+
 func (s *Server) AddToPeerList(addressPort netip.AddrPort) {
-	if addressPort.Addr().IsLoopback() {
+	if s.AddrIsLocal(addressPort.Addr()) {
 		return
 	}
 	addr := addressPort.Addr().Unmap()
@@ -270,7 +275,7 @@ func (s *Server) AddToPeerList(addressPort netip.AddrPort) {
 }
 
 func (s *Server) UpdateInPeerList(addressPort netip.AddrPort) {
-	if addressPort.Addr().IsLoopback() {
+	if s.AddrIsLocal(addressPort.Addr()) {
 		return
 	}
 	addr := addressPort.Addr().Unmap()
@@ -659,8 +664,8 @@ func (s *Server) Listen() (err error) {
 					}
 					if addrPort, err := netip.ParseAddrPort(conn.RemoteAddr().String()); err != nil {
 						return err
-					} else if !addrPort.Addr().IsLoopback() {
-						if clients := s.GetAddressConnected(addrPort.Addr().String()); !addrPort.Addr().IsLoopback() && len(clients) != 0 {
+					} else if !s.AddrIsLocal(addrPort.Addr()) {
+						if clients := s.GetAddressConnected(addrPort.Addr().String()); !s.AddrIsLocal(addrPort.Addr()) && len(clients) != 0 {
 							return errors.New("peer is already connected as " + clients[0].HostPort.String())
 						}
 
@@ -803,7 +808,7 @@ func (s *Server) DirectConnect(addrPort netip.AddrPort, ourPeerId uint64, dialCo
 		return nil, errors.New("peer is IPv6 but we do not allow it")
 	}
 
-	if clients := s.GetAddressConnected(addrPort.Addr().String()); !addrPort.Addr().IsLoopback() && len(clients) != 0 {
+	if clients := s.GetAddressConnected(addrPort.Addr().String()); !s.AddrIsLocal(addrPort.Addr()) && len(clients) != 0 {
 		return nil, errors.New("peer is already connected as " + clients[0].HostPort.String())
 	}
 
@@ -876,6 +881,10 @@ func (s *Server) DefaultDialer(ipv6 bool) proxy.ContextDialer { //nolint:ireturn
 	}
 }
 
+func (s *Server) SetLocalSubnet(subnet netip.Prefix) {
+	s.localSubnet = subnet
+}
+
 func (s *Server) SetOnionProxy(uri *url.URL) {
 	s.onionProxy.Store(uri)
 }
@@ -891,7 +900,7 @@ func (s *Server) Clients() []*Client {
 }
 
 func (s *Server) IsBanned(ip netip.Addr) (bool, *BanEntry) {
-	if ip.IsLoopback() {
+	if s.AddrIsLocal(ip) {
 		return false, nil
 	}
 	ip = ip.Unmap()
@@ -934,7 +943,7 @@ func (s *Server) Ban(ip netip.Addr, duration time.Duration, err error) {
 	}
 
 	utils.Logf("P2PServer", "Banned %s for %s: %s", ip.String(), duration.String(), err.Error())
-	if !ip.IsLoopback() {
+	if !s.AddrIsLocal(ip) {
 		ip = ip.Unmap()
 		var prefix netip.Prefix
 		if ip.Is6() {
