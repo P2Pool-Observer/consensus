@@ -17,7 +17,11 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
-const MaxUncleCount = uint64(math.MaxUint64) / types.HashSize
+var Mini10629010MaxUncleCountExceptionHash = types.MustHashFromString("f5e99944d898579c4436ecacebadf9f3f995e7ce726c19cba90c007c070288f2")
+
+const MaxUncleCount = 5
+
+const MaxEncodedUncleCount = uint64(math.MaxUint64) / types.HashSize
 
 type SideData struct {
 	PublicKey    address.PackedAddress `json:"public_key"`
@@ -188,8 +192,8 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 
 	if uncleCount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
-	} else if uncleCount > MaxUncleCount {
-		return utils.ErrorfNoEscape("uncle count too large: %d > %d", uncleCount, MaxUncleCount)
+	} else if uncleCount > MaxEncodedUncleCount {
+		return utils.ErrorfNoEscape("uncle count too large: %d > %d", uncleCount, MaxEncodedUncleCount)
 	} else if uncleCount > 0 {
 		// preallocate for append, with 64 as soft limit
 		b.Uncles = make([]types.Hash, 0, min(64, uncleCount))

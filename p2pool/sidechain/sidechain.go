@@ -770,6 +770,13 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			return nil, utils.ErrorfNoEscape("wrong height, expected %d", expectedHeight)
 		}
 
+		if len(block.Side.Uncles) > MaxUncleCount {
+			// check uncle limit, with exception for one Mini block, which has 11 uncles
+			if !(block.Side.Height == 10629010 && block.MainId() == Mini10629010MaxUncleCountExceptionHash && len(block.Side.Uncles) == 11) {
+				return nil, errors.New("too many uncles")
+			}
+		}
+
 		// Uncle hashes must be sorted in the ascending order to prevent cheating when the same hash is repeated multiple times
 		for i, uncleId := range block.Side.Uncles {
 			if i == 0 {

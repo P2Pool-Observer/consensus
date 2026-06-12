@@ -221,6 +221,11 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			_, unclePenalty := s.sidechain.Consensus().ApplyUnclePenalty(u.Side.Difficulty)
 			s.newTemplateData.Weight = s.newTemplateData.Weight.Add(unclePenalty)
 			s.newTemplateData.CumulativeDifficulty = s.newTemplateData.CumulativeDifficulty.Add(u.Side.Difficulty)
+
+			// stop at limit
+			if len(s.newTemplateData.Uncles) >= sidechain.MaxUncleCount {
+				break
+			}
 		}
 	} else {
 		s.newTemplateData.PreviousTemplateId = types.ZeroHash
