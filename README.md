@@ -85,6 +85,15 @@ Reports will be reviewed and answered to. There are no bug bounties at this time
 | [monero-base58](https://git.gammaspectra.live/P2Pool/monero-base58) |       ✅&#160;Supported       | Efficient Monero's Base58 encoder/decoder.                                                                                                                                                                                                                                                                |
 
 
+## SemVer and usage in other projects
+
+This package follows [SemVer v2](https://semver.org/spec/v2.0.0.html) from _v5.x.x_ onwards, with the following additions or exceptions:
+
+* MINOR version of 0 indicates an in-development version. In this case, PATCH indicates API changes, additions, or breakage. Once MINOR version is increased to one, normal SemVer resumes.
+* Untagged or development branches are not covered by SemVer versions.
+* Security releases MAY break backwards compatibility.
+* **❌ Unsupported**, **🛠️ In Development** or **Semi-Internal** or **Internal** subpackages are not covered by the SemVer version.
+
 ## Donations
 This project is provided for everyone to use, for free. Any support is appreciated.
 
@@ -132,7 +141,7 @@ go vet ./...
 
 Go 1.25
 
-By default CGO is not necessary, so `CGO_ENABLED=0` is default. You may use the `purego` build flag to disable any assembly or architecture specific optimizations.
+By default, CGO is not necessary, so `CGO_ENABLED=0` is recommended. You may use the `purego` build flag to disable any assembly or architecture specific optimizations.
 
 This library supports both [go-RandomX library](https://git.gammaspectra.live/P2Pool/go-randomx) and the [C++ RandomX reference counterpart](https://github.com/tevador/RandomX).
 
