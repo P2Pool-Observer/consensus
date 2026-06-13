@@ -56,9 +56,9 @@ type JsonRpcResponseJob struct {
 }
 
 type jsonRpcResponseJobResult struct {
-	Id         string           `json:"id,omitempty"`
+	Id         string           `json:"id,omitzero"`
 	Job        jsonRpcJobParams `json:"job"`
-	Extensions []string         `json:"extensions,omitempty"`
+	Extensions []string         `json:"extensions,omitzero"`
 	Status     string           `json:"status"`
 }
 

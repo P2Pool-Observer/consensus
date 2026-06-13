@@ -19,7 +19,15 @@ func (e *JSONEncoder) SetIndent(_, indent string) {
 }
 
 func (e *JSONEncoder) Encode(val interface{}) error {
-	return json.MarshalWrite(e.w, val, json.OmitZeroStructFields(true), jsontext.WithIndent(e.indent))
+	//TODO: use streaming encoder
+	defer func() {
+		e.w.Write([]byte{'\n'})
+	}()
+	if e.indent != "" {
+		return json.MarshalWrite(e.w, val, json.OmitZeroStructFields(true), jsontext.WithIndent(e.indent))
+	}
+
+	return json.MarshalWrite(e.w, val, json.OmitZeroStructFields(true))
 }
 
 type JSONDecoder = jsonv1.Decoder
