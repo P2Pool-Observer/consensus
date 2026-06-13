@@ -740,7 +740,7 @@ func (s *Server) Connect(addrPort netip.AddrPort) (*Client, error) {
 		return nil, fmt.Errorf("peer is banned: %w", b.Error)
 	}
 
-	return s.DirectConnect(addrPort, s.PeerId(), s.DefaultDialer(addrPort.Addr().Unmap().Is6()).DialContext)
+	return s.DirectConnect(addrPort, s.PeerId(), s.DefaultDialer(addrPort.Addr().Unmap()).DialContext)
 }
 
 func (s *Server) ConnectOnion(addr p2pooltypes.OnionAddressV3, port uint16) (*Client, error) {
@@ -780,7 +780,7 @@ func (s *Server) ConnectHost(host string, port uint16) (*Client, error) {
 			return nil, errors.New("peer is already connected as " + clients[0].HostPort.String())
 		}
 
-		return s.DirectConnectHost(host, port, s.PeerId(), s.DefaultDialer(false).DialContext)
+		return s.DirectConnectHost(host, port, s.PeerId(), s.DefaultDialer(netip.Addr{}).DialContext)
 	}
 }
 
@@ -852,8 +852,8 @@ func (s *Server) DirectConnectHost(host string, port uint16, ourPeerId uint64, d
 	}
 }
 
-func (s *Server) DefaultDialer(ipv6 bool) proxy.ContextDialer { //nolint:ireturn
-	if p := s.proxy.Load(); p != nil {
+func (s *Server) DefaultDialer(addr netip.Addr) proxy.ContextDialer { //nolint:ireturn
+	if p := s.proxy.Load(); p != nil && !s.AddrIsLocal(addr) {
 		d, err := proxy.FromURL(p, nil)
 		if err == nil {
 			//nolint:forcetypeassert
@@ -864,7 +864,7 @@ func (s *Server) DefaultDialer(ipv6 bool) proxy.ContextDialer { //nolint:ireturn
 	var localAddr net.Addr
 
 	//select IPv6 outgoing address
-	if ipv6 {
+	if addr.Is6() {
 		addrs := s.GetOutgoingIPv6()
 		if len(addrs) > 1 {
 			// #nosec G404
