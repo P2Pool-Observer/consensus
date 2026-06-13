@@ -172,9 +172,13 @@ func (c *CoinbaseV2) FromVersionReader(reader utils.ReaderAndByteReader, canBePr
 		}
 
 		if containsAuxiliaryTemplateId {
-			// Required by sidechain.get_outputs_blob() to speed up repeated broadcasts from different peers
+			// Required by sidechain.GetOutputs to speed up repeated broadcasts from different peers
 			if _, err = utils.ReadFullNoEscape(reader, c.AuxiliaryData.TemplateId[:]); err != nil {
 				return err
+			}
+
+			if c.AuxiliaryData.TemplateId == types.ZeroHash {
+				return errors.New("invalid template id")
 			}
 		}
 	}
