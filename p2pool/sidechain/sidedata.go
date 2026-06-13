@@ -238,6 +238,10 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 		return utils.ErrorfNoEscape("side block cumulative difficulty too large (%s > %s)", b.CumulativeDifficulty.StringNumeric(), PoolBlockMaxCumulativeDifficulty.StringNumeric())
 	}
 
+	if b.Difficulty.Cmp(b.CumulativeDifficulty) > 0 {
+		return utils.ErrorfNoEscape("side block difficulty larger than cumulative difficulty (%s > %s)", b.Difficulty.StringNumeric(), b.CumulativeDifficulty.StringNumeric())
+	}
+
 	// Read merkle proof list of hashes. Only on ShareVersion_V3 and above
 	if version >= ShareVersion_V3 {
 		if merkleProofSize, err = utils.ReadByteNoEscape(reader); err != nil {
