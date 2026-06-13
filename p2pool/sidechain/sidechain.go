@@ -1231,8 +1231,7 @@ func (c *SideChain) pruneOldBlocks() {
 		}
 
 		// loop backwards for proper deletions
-		for i := len(v) - 1; i >= 0; i-- {
-			block := v[i]
+		for i, block := range slices.Backward(v) {
 			if block.Depth.Load() > pruneDistance || curTime.Compare(block.Metadata.LocalTime) >= 0 {
 				templateId := block.SideTemplateId(c.Consensus())
 				if _, ok := c.blocksByTemplateId[templateId]; ok {

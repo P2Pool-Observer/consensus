@@ -1,5 +1,7 @@
 package curve
 
+import "slices"
+
 // BatchInvert Sets v to sum(inv(inputs...)), sets each input element to its inverse
 // If any input element is zero, it is unchanged
 //
@@ -33,9 +35,7 @@ func BatchInvert[F any, FE BasicField[F]](v *F, inputs ...*F) *F {
 	FE(v).Set(&acc)
 
 	// Pass through the vector backwards to compute the inverses in place
-	for i := len(inputs) - 1; i >= 0; i-- {
-		p := inputs[i]
-
+	for i, p := range slices.Backward(inputs) {
 		// input <- acc * scratch, then acc <- tmp
 		FE(&tmp).Multiply(&scratch[i], &acc)
 

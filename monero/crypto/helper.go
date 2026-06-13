@@ -68,7 +68,7 @@ func EvilPointGenerator[T curve25519.PointOperations](sourceScalar *curve25519.S
 	)
 
 	// filter
-	for i := len(pubs) - 1; i >= 0; i-- {
+	for i := range slices.Backward(pubs) {
 		var remove bool
 		for _, mask := range kindsMask {
 			if pubs[i].Kind&mask == mask {

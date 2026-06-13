@@ -24,6 +24,7 @@ linters:
 
     # Magic numbers in a lot of binary places
     - mnd
+    - goconst
 
     # No wrap checks
     - wrapcheck
@@ -53,6 +54,7 @@ linters:
       disable:
         # todo: remove when TinyGo supports wg.Go
         - waitgroup
+        - waitgroupgo
 
     gocritic:
       enabled-tags:

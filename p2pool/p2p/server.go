@@ -317,8 +317,7 @@ func (s *Server) PeerList() PeerList {
 func (s *Server) RemoveFromOnionPeerList(addr p2pooltypes.OnionAddressV3) {
 	s.peerListLock.Lock()
 	defer s.peerListLock.Unlock()
-	for i := len(s.onionPeerList) - 1; i >= 0; i-- {
-		a := s.onionPeerList[i]
+	for i, a := range slices.Backward(s.onionPeerList) {
 		if a.Host == addr {
 			s.onionPeerList = slices.Delete(s.onionPeerList, i, i+1)
 			return
@@ -343,8 +342,7 @@ func (s *Server) RemoveFromPeerList(ip netip.Addr) {
 	ip = ip.Unmap()
 	s.peerListLock.Lock()
 	defer s.peerListLock.Unlock()
-	for i := len(s.peerList) - 1; i >= 0; i-- {
-		a := s.peerList[i]
+	for i, a := range slices.Backward(s.peerList) {
 		if a.AddressPort.Addr().Compare(ip) == 0 {
 			s.peerList = slices.Delete(s.peerList, i, i+1)
 			return

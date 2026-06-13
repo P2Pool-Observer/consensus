@@ -80,9 +80,8 @@ func GetInProof[T curve25519.PointOperations](a Interface, txId types.Hash, view
 func VerifyTxProof[T curve25519.PointOperations](proof proofs.TxProof[T], a Interface, txId types.Hash, txPubKey *curve25519.PublicKey[T], message string, additionalTxPubKeys ...curve25519.PublicKey[T]) (index int, ok bool) {
 	prefixHash := proofs.TxPrefixHash(txId, message)
 
-	pubs := []curve25519.PublicKey[T]{
-		*txPubKey,
-	}
+	pubs := make([]curve25519.PublicKey[T], 1, 1+len(additionalTxPubKeys))
+	pubs[0] = *txPubKey
 	pubs = append(pubs, additionalTxPubKeys...)
 
 	var viewPub curve25519.PublicKey[T]
