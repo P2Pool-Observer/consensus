@@ -1165,13 +1165,13 @@ func (c *SideChain) pruneOldBlocks() {
 		}
 		return
 	case PruneModeDefault:
-		// Leave 2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
-		pruneDistance = (c.Consensus().ChainWindowSize-1)*2 + UncleBlockDepth*2 + monero.BlockTime/c.Consensus().TargetBlockTime
+		// Leave >2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
+		pruneDistance = (c.Consensus().ChainWindowSize-1)*2 + UncleBlockDepth*2 + monero.BlockTime/c.Consensus().TargetBlockTime + 1
 		// Remove old blocks from alternative unconnected chains after long enough time
 		pruneDelay = time.Duration(c.Consensus().ChainWindowSize*4*c.Consensus().TargetBlockTime) * time.Second
 	case PruneModeThin:
-		// Leave 2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
-		pruneDistance = (c.Consensus().ChainWindowSize-1)*2 + UncleBlockDepth*2 + monero.BlockTime/c.Consensus().TargetBlockTime
+		// Leave >2 minutes worth of spare blocks in addition to 2xPPLNS window for lagging nodes which need to sync
+		pruneDistance = (c.Consensus().ChainWindowSize-1)*2 + UncleBlockDepth*2 + monero.BlockTime/c.Consensus().TargetBlockTime + 1
 		// Remove old blocks from alternative unconnected chains after long enough time
 		pruneDelay = time.Duration(c.Consensus().ChainWindowSize*4*c.Consensus().TargetBlockTime) * time.Second
 
@@ -1233,7 +1233,7 @@ func (c *SideChain) pruneOldBlocks() {
 		// loop backwards for proper deletions
 		for i := len(v) - 1; i >= 0; i-- {
 			block := v[i]
-			if block.Depth.Load() >= pruneDistance || curTime.Compare(block.Metadata.LocalTime) >= 0 {
+			if block.Depth.Load() > pruneDistance || curTime.Compare(block.Metadata.LocalTime) >= 0 {
 				templateId := block.SideTemplateId(c.Consensus())
 				if _, ok := c.blocksByTemplateId[templateId]; ok {
 					delete(c.blocksByTemplateId, templateId)
@@ -1269,7 +1269,7 @@ func (c *SideChain) pruneOldBlocks() {
 	}
 
 	if numBlocksPruned > 0 {
-		utils.Logf("SideChain", "pruned %d old blocks at heights <= %d", numBlocksPruned, h)
+		utils.Logf("SideChain", "pruned %d old blocks at heights < %d", numBlocksPruned, h)
 		if !c.precalcFinished.Swap(true) {
 			c.derivationCache.Clear()
 			/*if c.pruneMode == PruneModeThin {
