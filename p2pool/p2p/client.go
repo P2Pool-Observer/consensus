@@ -631,6 +631,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 						break
 					}
 					if missingBlocks, err, ban := c.Owner.SideChain().AddPoolBlockExternal(block); err != nil {
+						c.Owner.SideChain().BlockUnsee(block)
 						if ban {
 							c.Ban(DefaultBanTime, err)
 							return
@@ -758,6 +759,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 				poolBlock.WantBroadcast.Store(true)
 				if missingBlocks, err, ban := c.Owner.SideChain().AddPoolBlockExternal(poolBlock); err != nil {
+					c.Owner.SideChain().BlockUnsee(poolBlock)
 					if ban {
 						c.Ban(DefaultBanTime, err)
 					} else {

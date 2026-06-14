@@ -817,10 +817,14 @@ func (b *PoolBlock) PreProcessBlockWithOutputs(consensus *Consensus, getTemplate
 		}
 	}
 
-	if b.ShareVersion() >= ShareVersion_V3 && b.Main.Coinbase.AuxiliaryData.TemplateId == types.ZeroHash {
-		// Fill template id for pruned broadcasts
+	if b.ShareVersion() >= ShareVersion_V3 {
 		templateId := b.SideTemplateId(consensus)
-		b.Main.Coinbase.AuxiliaryData.TemplateId = templateId
+		if b.Main.Coinbase.AuxiliaryData.TemplateId == types.ZeroHash {
+			// Fill template id for pruned broadcasts
+			b.Main.Coinbase.AuxiliaryData.TemplateId = templateId
+		} else if b.Main.Coinbase.AuxiliaryData.TemplateId != templateId {
+			return nil, errors.New("invalid auxiliary template id")
+		}
 	}
 
 	return nil, nil
