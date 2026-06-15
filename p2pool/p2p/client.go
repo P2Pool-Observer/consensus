@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -632,7 +633,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 					}
 					if missingBlocks, err, ban := c.Owner.SideChain().AddPoolBlockExternal(block); err != nil {
 						c.Owner.SideChain().BlockUnsee(block)
-						if ban {
+						if ban && !strings.Contains(err.Error(), "merkle proof against merkle tree root hash") {
 							c.Ban(DefaultBanTime, err)
 							return
 						} else {
@@ -760,7 +761,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				poolBlock.WantBroadcast.Store(true)
 				if missingBlocks, err, ban := c.Owner.SideChain().AddPoolBlockExternal(poolBlock); err != nil {
 					c.Owner.SideChain().BlockUnsee(poolBlock)
-					if ban {
+					if ban && !strings.Contains(err.Error(), "merkle proof against merkle tree root hash") {
 						c.Ban(DefaultBanTime, err)
 					} else {
 						utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.HostPort.String(), tipHash, poolBlock.Side.Height, poolBlock.Main.Coinbase.GenHeight, poolBlock.Main.Timestamp)
