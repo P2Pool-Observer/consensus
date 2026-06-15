@@ -116,7 +116,7 @@ type Output struct {
 	Amount uint64 `json:"amount"`
 	// Type would be here
 	EphemeralPublicKey   curve25519.PublicKeyBytes                       `json:"ephemeral_public_key"`
-	EncryptedJanusAnchor types.FixedBytes[[monero.JanusAnchorSize]uint8] `json:"encrypted_janus_anchor"`
+	EncryptedJanusAnchor types.FixedBytes[[monero.JanusAnchorSize]uint8] `json:"encrypted_janus_anchor,omitzero"`
 
 	// Type re-arranged here to improve memory layout space
 	Type uint8 `json:"type"`
