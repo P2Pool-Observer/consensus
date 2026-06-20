@@ -266,7 +266,7 @@ func (c *Client) SendMissingBlockRequest(hash types.Hash) {
 		}
 	}
 
-	c.SendBlockRequest(hash)
+	c.SendUniqueBlockRequest(hash)
 }
 
 func (c *Client) SendUniqueBlockRequest(hash types.Hash) {
@@ -763,10 +763,11 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 					c.Owner.SideChain().BlockUnsee(poolBlock)
 					if ban && !strings.Contains(err.Error(), "merkle proof against merkle tree root hash") {
 						c.Ban(DefaultBanTime, err)
+						return
 					} else {
 						utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.HostPort.String(), tipHash, poolBlock.Side.Height, poolBlock.Main.Coinbase.GenHeight, poolBlock.Main.Timestamp)
+						break
 					}
-					return
 				} else {
 					for _, id := range missingBlocks {
 						c.SendMissingBlockRequest(id)
