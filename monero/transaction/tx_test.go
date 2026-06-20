@@ -138,6 +138,51 @@ func TestTransactions(t *testing.T) {
 	}
 }
 
+func FuzzTransactionRoundTrip(f *testing.F) {
+	rpc := client.GetDefaultClient()
+
+	for _, txId := range testTransactions {
+		var data []byte
+		if buf, ok := testTransactionsData[txId]; ok {
+			data = buf
+		} else {
+			result, _, err := rpc.GetTransactions(txId)
+			if err != nil {
+				f.Fatal(err)
+			}
+			data = result[0]
+		}
+		f.Add(data)
+	}
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		tx, err := NewTransactionFromBytes(data)
+		if err != nil {
+			t.Skipf("leftover error: %s", err)
+		}
+
+		if tags := tx.ExtraTags(); tags == nil {
+			t.Skipf("missing extra tags")
+		}
+
+		_ = tx.PrefixHash()
+		_ = tx.Hash()
+
+		bufLength := tx.BufferLength()
+
+		buf, err := tx.AppendBinary(make([]byte, 0, bufLength))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bufLength != len(buf) {
+			t.Fatalf("expected %d, got %d", bufLength, len(buf))
+		}
+		if bytes.Compare(data[:len(buf)], buf) != 0 {
+			t.Fatal("tx buffer data mismatch")
+		}
+	})
+}
+
 func TestPrunedTransactions(t *testing.T) {
 	rpc := client.GetDefaultClient()
 

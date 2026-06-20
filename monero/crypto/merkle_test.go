@@ -1,9 +1,10 @@
 package crypto
 
 import (
-	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"runtime"
 	"testing"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
 var coinbaseHash = types.MustHashFromString("ee753e41e8184a46b0745259a8747178f5363a8a1a3f74fe678484ea15c7bd71")
@@ -214,6 +215,35 @@ func TestBinaryTreeHash_RootHash(t *testing.T) {
 
 	if txTreeHash != expectedHash {
 		t.Errorf("root hash %s does not match %s", txTreeHash, expectedHash)
+	}
+}
+
+func TestMerkleProof_Verify(t *testing.T) {
+	leaf := types.MustHashFromString("cddf2384a4932a197abc550cdd5ad6c95d672cebb83160abf19924dc997e8edf")
+	sibling := types.MustHashFromString("79d787da728f4af551316dde20778d6f48da7cbd04ec225c5b95e2d73f6e5f6f")
+
+	root := pairHash(0, leaf, sibling, NewKeccak256())
+
+	if !(MerkleProof{sibling}).Verify(leaf, 0, 2, root) {
+		t.Fatal("expected valid proof to verify")
+	}
+
+	var emptyProof MerkleProof
+	if emptyProof.Verify(leaf, 0, 2, types.ZeroHash) {
+		t.Fatal("empty proof verified against zero root")
+	}
+	if emptyProof.Verify(types.ZeroHash, 0, 3, types.ZeroHash) {
+		t.Fatal("empty proof verified against zero root")
+	}
+	if emptyProof.Verify(root, 1, 4, types.ZeroHash) {
+		t.Fatal("empty proof verified against zero root")
+	}
+
+	if (MerkleProof{sibling}).Verify(leaf, 0, 1, leaf) {
+		t.Fatal("proof accepted for single leaf")
+	}
+	if (MerkleProof{sibling, sibling}).Verify(leaf, 0, 2, root) {
+		t.Fatal("over-depth proof verified")
 	}
 }
 

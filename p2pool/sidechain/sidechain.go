@@ -188,6 +188,9 @@ func (c *SideChain) PreprocessBlock(block *PoolBlock) (missingBlocks []types.Has
 }
 
 func (c *SideChain) isWatched(block *PoolBlock) bool {
+	if c.watchBlockPossibleId == types.ZeroHash {
+		return false
+	}
 	if block.ShareVersion() >= ShareVersion_V3 {
 		return c.watchBlockPossibleId == block.MergeMiningTag().RootHash
 	} else {
@@ -607,6 +610,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 		}
 
 		if verification, invalid := c.verifyBlock(block); invalid != nil {
+			invalid = fmt.Errorf("at depth %d: %w", block.Depth.Load(), invalid)
 			utils.Errorf("SideChain", "block at height = %d, id = %x, mainchain height = %d, mined by %s is invalid: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), invalid.Error())
 			block.Invalid.Store(true)
 			block.Verified.Store(verification == nil)
@@ -615,6 +619,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 				err = invalid
 			}
 		} else if verification != nil {
+			verification = fmt.Errorf("at depth %d: %w", block.Depth.Load(), verification)
 			// specific check here to prevent format calls
 			if utils.IsLogLevelDebug() {
 				utils.Debugf("SideChain", "can't verify block at height = %d, id = %x, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), verification.Error())
@@ -747,10 +752,10 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 	}
 
 	if parent := c.getParent(block); parent != nil {
-		// If it's invalid then this block is also invalid
 		if !parent.Verified.Load() {
 			return ErrParentNotVerified, nil
 		}
+		// If it's invalid then this block is also invalid
 		if parent.Invalid.Load() {
 			return nil, ErrParentInvalid
 		}
@@ -978,7 +983,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 		// All checks passed
 		return nil, nil //nolint:nilnil
 	} else {
-		return errors.New("parent does not exist"), nil
+		return utils.ErrorfNoEscape("parent %s does not exist", block.Side.Parent), nil
 	}
 }
 
