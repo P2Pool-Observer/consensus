@@ -679,6 +679,7 @@ func pSigRangeProofAppendBinary[S any, RP any, pS pSig[S], pRP pRangeProof[RP]](
 func pSigRangeProofFromReaderCLSAG[RP any, pRP pRangeProof[RP]](sigs *[]clsag.Signature[curve25519.VarTimeOperations], pseudoOuts *[]curve25519.VarTimePublicKey, rangeProof *RP, reader utils.ReaderAndByteReader, inputs Inputs, signature bool) (err error) {
 	var n uint8
 	if !signature {
+		//TODO: varint?
 		if n, err = reader.ReadByte(); err != nil {
 			return err
 		}
@@ -856,6 +857,7 @@ func (p *PrunableFCMPPlusPlus) FromReader(reader utils.ReaderAndByteReader, inpu
 
 	var n uint8
 	if !signature {
+		//TODO: varint?
 		if n, err = reader.ReadByte(); err != nil {
 			return err
 		}

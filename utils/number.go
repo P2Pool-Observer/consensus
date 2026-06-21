@@ -20,6 +20,13 @@ func NextPowerOfTwo[T ~uint | ~uint64](x T) int {
 	return 1 << bits.Len64(uint64(x)-1)
 }
 
+// DivCeil Calculates the quotient of self and rhs, rounding the result towards positive infinity.
+// a and b must be positive
+// Can overflow on high a values
+func DivCeil[T ~int | ~uint | ~uint64](a, b T) T {
+	return (a + b - 1) / b
+}
+
 // ParseUint64 parses uint64 from s.
 //
 // It is equivalent to strconv.ParseUint(s, 10, 64), but is faster.

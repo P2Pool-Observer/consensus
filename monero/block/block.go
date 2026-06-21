@@ -212,7 +212,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		}
 
 		if b.MajorVersion >= monero.HardForkRejectManyMinerOutputs {
-			// TODO: check this on pruned?
+			//TODO: check this on pruned p2pool blocks?
 
 			if len(b.Coinbase.MinerOutputs) > monero.MaxMinerOutputs {
 				return utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.MinerOutputs), monero.MaxMinerOutputs)
@@ -220,7 +220,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		}
 
 		if b.MajorVersion >= monero.HardForkRejectLargeExtra {
-			// TODO: check this on pruned?
+			//TODO: check this on pruned p2pool blocks?
 
 			// Scale extra limit by number of outputs since Carrot requires 1 32-byte ephemeral pubkey per output (for Janus).
 			maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.MinerOutputs)*monero.MinerTxExtraSizePerOutput
