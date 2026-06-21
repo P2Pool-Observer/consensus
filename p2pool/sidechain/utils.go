@@ -3,6 +3,7 @@ package sidechain
 import (
 	"bytes"
 	"errors"
+	"math"
 	"math/bits"
 	"slices"
 
@@ -643,40 +644,68 @@ func IsLongerChain(block, candidate *PoolBlock, consensus *Consensus, getByTempl
 
 	var moneroBlocksReserve = consensus.ChainWindowSize * consensus.TargetBlockTime * 2 / monero.BlockTime
 	currentChainMoneroBlocks, candidateChainMoneroBlocks := make([]types.Hash, 0, moneroBlocksReserve), make([]types.Hash, 0, moneroBlocksReserve)
+	candidateTimestamps := make([]uint64, 0, consensus.ChainWindowSize*2)
+	var candidateTimestampDeviation uint64
 
 	for i := uint64(0); i < consensus.ChainWindowSize && (oldChain != nil || newChain != nil); i++ {
 		if oldChain != nil {
+			addMoneroBlock := func(id types.Hash) {
+				if !slices.Contains(currentChainMoneroBlocks, id) && getChainMainByHash(id) != nil {
+					currentChainMoneroBlocks = append(currentChainMoneroBlocks, id)
+				}
+			}
+
 			blockTotalDiff = blockTotalDiff.Add(oldChain.Side.Difficulty)
 			_ = oldChain.iteratorUncles(getByTemplateId, func(uncle *PoolBlock) {
 				if block.Side.Height-uncle.Side.Height < consensus.ChainWindowSize {
 					blockTotalDiff = blockTotalDiff.Add(uncle.Side.Difficulty)
+					addMoneroBlock(uncle.Main.PreviousId)
 				}
 			})
-			if !slices.Contains(currentChainMoneroBlocks, oldChain.Main.PreviousId) && getChainMainByHash(oldChain.Main.PreviousId) != nil {
-				currentChainMoneroBlocks = append(currentChainMoneroBlocks, oldChain.Main.PreviousId)
-			}
+
+			addMoneroBlock(oldChain.Main.PreviousId)
 			oldChain = oldChain.iteratorGetParent(getByTemplateId)
 		}
 
 		if newChain != nil {
+			addMoneroBlock := func(id types.Hash, timestamp uint64) {
+				if data := getChainMainByHash(id); data != nil {
+
+					if data.Timestamp > 0 {
+						var diff uint64
+						if timestamp > data.Timestamp {
+							diff = timestamp - data.Timestamp
+						} else {
+							diff = data.Timestamp - timestamp
+						}
+
+						candidateTimestampDeviation = max(candidateTimestampDeviation, diff)
+					}
+
+					if !slices.Contains(currentChainMoneroBlocks, id) {
+						candidateChainMoneroBlocks = append(candidateChainMoneroBlocks, id)
+						candidateMainchainHeight = max(candidateMainchainHeight, data.Height)
+					}
+				}
+			}
+
 			if candidateMainchainMinHeight != 0 {
 				candidateMainchainMinHeight = min(candidateMainchainMinHeight, newChain.Main.Coinbase.GenHeight)
 			} else {
 				candidateMainchainMinHeight = newChain.Main.Coinbase.GenHeight
 			}
 			candidateTotalDiff = candidateTotalDiff.Add(newChain.Side.Difficulty)
+			candidateTimestamps = append(candidateTimestamps, newChain.Main.Timestamp)
 			_ = newChain.iteratorUncles(getByTemplateId, func(uncle *PoolBlock) {
 				if candidate.Side.Height-uncle.Side.Height < consensus.ChainWindowSize {
+					candidateMainchainMinHeight = min(candidateMainchainMinHeight, uncle.Main.Coinbase.GenHeight)
 					candidateTotalDiff = candidateTotalDiff.Add(uncle.Side.Difficulty)
+					candidateTimestamps = append(candidateTimestamps, uncle.Main.Timestamp)
+					addMoneroBlock(uncle.Main.PreviousId, uncle.Main.Timestamp)
 				}
 			})
-			if !slices.Contains(candidateChainMoneroBlocks, newChain.Main.PreviousId) {
-				if data := getChainMainByHash(newChain.Main.PreviousId); data != nil {
-					candidateChainMoneroBlocks = append(candidateChainMoneroBlocks, newChain.Main.PreviousId)
-					candidateMainchainHeight = max(candidateMainchainHeight, data.Height)
-				}
-			}
 
+			addMoneroBlock(newChain.Main.PreviousId, newChain.Main.Timestamp)
 			newChain = newChain.iteratorGetParent(getByTemplateId)
 		}
 	}
@@ -699,8 +728,53 @@ func IsLongerChain(block, candidate *PoolBlock, consensus *Consensus, getByTempl
 		}
 
 		// Candidate chain must have been mined on top of at least half as many known Monero blocks, compared to the current chain
-		if len(candidateChainMoneroBlocks)*2 < len(currentChainMoneroBlocks) {
+		if len(candidateChainMoneroBlocks)*2 < len(currentChainMoneroBlocks) || (candidateMainchainHeight < candidateMainchainMinHeight) {
 			utils.Logf("SideChain", "Received a longer alternative chain but it wasn't mined on current Monero blockchain: only %d / %d blocks found", len(candidateChainMoneroBlocks), len(currentChainMoneroBlocks))
+			return false, true
+		}
+
+		// Candidate chain's timestamps must not be altered to fake a high-difficulty chain
+		if candidateTimestampDeviation > 3600*3 {
+			utils.Logf("SideChain", "Received a longer alternative chain but it was mined with fake timestamps: max deviation is %d seconds", candidateTimestampDeviation)
+			return false, true
+
+		}
+
+		// Returns "90th percentile value - 10th percentile value" of a given vector when the values are sorted in non-decreasing order
+		span80 := func(v []uint64) uint64 {
+			// Handle a degenerate case
+			if len(v) == 0 {
+				return 0
+			}
+
+			cutSize := (len(v) + 9) / 10
+			pos1 := cutSize - 1
+			pos2 := len(v) - cutSize
+
+			// Handle the rest of degenerate cases
+			if pos1 >= pos2 {
+				return 0
+			}
+
+			utils.NthElementSlice(v, pos1)
+			v1 := v[pos1]
+
+			utils.NthElementSlice(v, pos2)
+			v2 := v[pos2]
+
+			return v2 - v1
+		}
+
+		// Candidate's span is based on timestamps
+		candidateSpan := span80(candidateTimestamps)
+
+		// Monero's span is based on blockchain heights and block time (also reduced to 80%).
+		// This is to anchor the span to the most recent Monero block in candidate's chain
+		candidateMoneroSpan := (candidateMainchainHeight + 1 - candidateMainchainMinHeight) * monero.BlockTime * 8 / 10
+
+		// Candidate's timestamps span must be between 2/3 and 4/3 of Monero's timestamps span
+		if candidateSpan > math.MaxUint64/3 || (candidateSpan*3 < candidateMoneroSpan*2) || (candidateSpan*3 > candidateMoneroSpan*4) {
+			utils.Logf("SideChain", "Received a longer alternative chain but it was mined with fake timestamps: span %d vs Monero span %d", candidateSpan, candidateMoneroSpan)
 			return false, true
 		}
 

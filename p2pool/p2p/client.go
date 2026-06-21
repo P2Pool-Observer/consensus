@@ -968,7 +968,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				//TODO warn
 				c.Ban(DefaultBanTime, err)
 				return
-			} else if dataSize == 0 {
+			} else if dataSize == 0 || dataSize > sidechain.PoolBlockMaxTemplateSize {
 				break
 			}
 
