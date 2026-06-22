@@ -29,4 +29,7 @@ func TestCarrotViewWallet_Match(t *testing.T) {
 
 	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
 	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
+
+	testScanSelfSend[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
+	testScanSelfSend[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
 }

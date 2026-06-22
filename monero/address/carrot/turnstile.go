@@ -186,7 +186,7 @@ func (pqt PQTurnstile[T]) Verify(
 
 	// step 15
 	var senderExtensionG curve25519.Scalar
-	makeCarrotSenderExtensionGCoinbase(&hasher, &senderExtensionG, senderReceiverSecret, amount, accountSpendPub.AsBytes())
+	makeCarrotSenderExtensionG(&hasher, &senderExtensionG, senderReceiverSecret, amountCommitmentBytes)
 
 	var outputPubPrivate curve25519.Scalar
 	outputPubPrivate.Add(&generateImageKey, &senderExtensionG)

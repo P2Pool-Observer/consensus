@@ -34,6 +34,7 @@ func NewCarrotViewWalletFromViewBalanceSecret[T curve25519.PointOperations](part
 		&generateImage,
 		&viewIncoming,
 		generateAddressSecret,
+		viewBalanceSecret,
 		accountDepth,
 		indexDepth,
 	)
@@ -46,6 +47,7 @@ type CarrotViewWallet[T curve25519.PointOperations] struct {
 	viewIncomingKeyScalar  curve25519.Scalar
 	viewIncomingKey        curve25519.PrivateKeyBytes
 
+	viewBalanceSecret     types.Hash
 	generateAddressSecret types.Hash
 
 	// carrot public keys (minus K^0_v, which is shared with legacy K^0_v)
@@ -57,7 +59,7 @@ type CarrotViewWallet[T curve25519.PointOperations] struct {
 }
 
 // NewCarrotViewWallet Creates a new CarrotViewWallet with the specified account and index depth. The main address is always tracked
-func NewCarrotViewWallet[T curve25519.PointOperations](primaryAddress *address.Address, generateImageKey, viewIncomingKey *curve25519.Scalar, generateAddressSecret types.Hash, accountDepth, indexDepth int) (*CarrotViewWallet[T], error) {
+func NewCarrotViewWallet[T curve25519.PointOperations](primaryAddress *address.Address, generateImageKey, viewIncomingKey *curve25519.Scalar, generateAddressSecret, viewBalanceSecret types.Hash, accountDepth, indexDepth int) (*CarrotViewWallet[T], error) {
 	if primaryAddress == nil || primaryAddress.IsSubaddress() || !primaryAddress.Valid() {
 		return nil, errors.New("address must be a main valid one")
 	}
@@ -88,6 +90,7 @@ func NewCarrotViewWallet[T curve25519.PointOperations](primaryAddress *address.A
 		viewIncomingKeyScalar:  *viewIncomingKey,
 		viewIncomingKey:        curve25519.PrivateKeyBytes(viewIncomingKey.Bytes()),
 		generateAddressSecret:  generateAddressSecret,
+		viewBalanceSecret:      viewBalanceSecret,
 		spendMap:               make(map[curve25519.PublicKeyBytes]address.SubaddressIndex),
 	}
 
@@ -178,8 +181,16 @@ func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyByte
 				FirstKeyImage:    firstKeyImage,
 			}
 
+			if w.viewBalanceSecret != types.ZeroHash {
+				if enote.TryScanEnoteInternalReceiver(scan, inputContext[:], w.viewBalanceSecret, w.primaryAddress.SpendPub) == nil {
+					if ix, ok := w.HasSpend(scan.SpendPub); ok {
+						return int(out.Index), scan, ix
+					}
+				}
+			}
+
 			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
-			if enote.TryScanEnoteChecked(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
+			if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewIncomingKey, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
 				}
@@ -230,6 +241,10 @@ func (w *CarrotViewWallet[T]) GenerateImageKey() *curve25519.Scalar {
 
 func (w *CarrotViewWallet[T]) GenerateAddressSecret() types.Hash {
 	return w.generateAddressSecret
+}
+
+func (w *CarrotViewWallet[T]) ViewBalanceSecret() types.Hash {
+	return w.viewBalanceSecret
 }
 
 func (w *CarrotViewWallet[T]) ViewIncomingKey() *curve25519.Scalar {

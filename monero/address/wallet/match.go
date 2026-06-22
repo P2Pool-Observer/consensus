@@ -260,7 +260,7 @@ func matchDerivationCarrot(a address.InterfaceSubaddress, senderReceiverUnctx, e
 		}
 
 		scan = &carrot.ScanV1{}
-		if enote.TryScanEnoteChecked(scan, inputContext, encryptedPaymentId, senderReceiverUnctx, mainSpendPubs...) == nil {
+		if enote.TryScanEnoteExternalSender(scan, inputContext, encryptedPaymentId, senderReceiverUnctx, mainSpendPubs...) == nil {
 			return int(out.Index), scan
 		}
 	}
@@ -445,7 +445,7 @@ func txPaymentId(extra transaction.ExtraTags) (paymentId, encryptedPaymentId *[m
 
 	if nonce.Data[0] == transaction.TxExtraNoncePaymentId {
 		return (*[monero.PaymentIdSize]byte)(nonce.Data[1:]), nil
-	} else if nonce.Data[1] == transaction.TxExtraNonceEncryptedPaymentId {
+	} else if nonce.Data[0] == transaction.TxExtraNonceEncryptedPaymentId {
 		return nil, (*[monero.PaymentIdSize]byte)(nonce.Data[1:])
 	}
 	return nil, nil

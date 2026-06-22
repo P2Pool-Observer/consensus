@@ -107,7 +107,7 @@ func MakeUncontextualizedSharedKeySenderVarTime[T curve25519.PointOperations](ep
 }
 
 // MakeSenderReceiverSecret make_carrot_sender_receiver_secret
-func MakeSenderReceiverSecret(hasher *blake2b.Digest, senderReceiverUnctx, ephemeralPubKey curve25519.MontgomeryPoint, inputContext []byte) (out types.Hash) {
+func MakeSenderReceiverSecret[T1 ~[32]byte](hasher *blake2b.Digest, senderReceiverUnctx T1, ephemeralPubKey curve25519.MontgomeryPoint, inputContext []byte) (out types.Hash) {
 	// 1. s^ctx_sr = H_32(s_sr, D_e, input_context)
 	HashedTranscript(
 		out[:], hasher, senderReceiverUnctx[:],
@@ -139,10 +139,7 @@ func makeOneTimeAddress[T curve25519.PointOperations](hasher *blake2b.Digest, se
 	var senderExtensionPubkey curve25519.PublicKey[T]
 	makeOneTimeSenderExtensionPub(hasher, &senderExtensionPubkey, secretSenderReceiver, amountCommitment)
 
-	// Ko = K^j_s + K^o_ext
-	var Ko curve25519.PublicKey[T]
-	Ko.Add(spendPub, &senderExtensionPubkey)
-	return Ko.AsBytes()
+	return deriveFromExtension(spendPub, &senderExtensionPubkey)
 }
 
 // makeOneTimeAddressCoinbase make_carrot_onetime_address_coinbase
@@ -151,9 +148,13 @@ func makeOneTimeAddressCoinbase[T curve25519.PointOperations](hasher *blake2b.Di
 	// K^o_ext = k^o_g G + k^o_t T
 	makeOneTimeSenderExtensionPubCoinbase(hasher, &senderExtensionPubkey, secretSenderReceiver, amount, mainSpendPub.AsBytes())
 
-	// Ko = K^0_s + K^o_ext
+	return deriveFromExtension(mainSpendPub, &senderExtensionPubkey)
+}
+
+func deriveFromExtension[T curve25519.PointOperations](spendPub, senderExtensionPubkey *curve25519.PublicKey[T]) curve25519.PublicKeyBytes {
+	// Ko = K^j_s + K^o_ext
 	var Ko curve25519.PublicKey[T]
-	Ko.Add(mainSpendPub, &senderExtensionPubkey)
+	Ko.Add(spendPub, senderExtensionPubkey)
 	return Ko.AsBytes()
 }
 
@@ -186,7 +187,7 @@ func makeOneTimeSenderExtensionPubCoinbase[T curve25519.PointOperations](hasher 
 }
 
 // makeViewTag make_carrot_view_tag
-func makeViewTag(hasher *blake2b.Digest, senderReceiverUnctx curve25519.MontgomeryPoint, inputContext []byte, oneTimeAddress curve25519.PublicKeyBytes) (out [monero.CarrotViewTagSize]byte) {
+func makeViewTag[T1 ~[32]byte](hasher *blake2b.Digest, senderReceiverUnctx T1, inputContext []byte, oneTimeAddress curve25519.PublicKeyBytes) (out [monero.CarrotViewTagSize]byte) {
 	// vt = H_3(s_sr || input_context || Ko)
 
 	HashedTranscript(
@@ -227,9 +228,6 @@ func makePaymentIdEncryptionMask(hasher *blake2b.Digest, secretSenderReceiver ty
 }
 
 // makeJanusAnchorSpecial make_carrot_janus_anchor_special
-// todo: implement ProposalSelfSendV1 / SpecialOutput
-//
-//nolint:unused
 func makeJanusAnchorSpecial(hasher *blake2b.Digest, ephemeralPubKey curve25519.MontgomeryPoint, inputContext []byte, oneTimeAddress curve25519.PublicKeyBytes, viewSecret curve25519.PrivateKeyBytes) (out [monero.JanusAnchorSize]byte) {
 	// anchor_sp = H_16(D_e, input_context, Ko, k_v)
 	HashedTranscript(

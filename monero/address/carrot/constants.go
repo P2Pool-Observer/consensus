@@ -37,6 +37,7 @@ const (
 )
 
 const (
+	DomainSeparatorSpendProofPrefix   = "Carrot spend proof prefix"
 	DomainSeparatorReserveProofPrefix = "Carrot reserve proof prefix"
 )
 

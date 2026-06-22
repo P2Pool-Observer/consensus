@@ -208,7 +208,7 @@ func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, out
 			}
 
 			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewKeyScalar, &enote.EphemeralPubKey)
-			if enote.TryScanEnoteChecked(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
+			if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewKey, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
 				} else {

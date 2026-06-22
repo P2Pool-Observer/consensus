@@ -430,3 +430,287 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 		})
 	})
 }
+
+func testScanSelfSend[T curve25519.PointOperations](t *testing.T, wallet SpendWalletInterface[T], ix address.SubaddressIndex) {
+	addr := wallet.Get(ix)
+	if addr == nil {
+		t.Fatal("got nil address")
+	}
+
+	t.Run(fmt.Sprintf("SelfSend_Special/#%d,%d", ix.Account, ix.Offset), func(t *testing.T) {
+		const amount = monero.TailEmissionReward
+
+		t.Run("Carrot", func(t *testing.T) {
+			proposal := carrot.PaymentProposalSelfSendV1[T]{
+				DestinationSpendPub: addr.SpendPub,
+				Amount:              amount,
+				EnoteType:           carrot.EnoteTypeChange,
+				EnoteEphemeralPub:   new(curve25519.RandomPoint[T](new(curve25519.PublicKey[T]), rand.Reader).Montgomery()),
+			}
+
+			var txId types.Hash
+			var firstKeyImage curve25519.PublicKeyBytes
+			_, _ = rand.Read(firstKeyImage[:])
+			_, _ = rand.Read(txId[:])
+
+			var enote carrot.RCTEnoteProposal
+
+			var viewIncomingSecret curve25519.PrivateKeyBytes
+
+			if cw, ok := wallet.(*CarrotSpendWallet[T]); ok {
+				viewIncomingSecret = curve25519.PrivateKeyBytes(cw.ViewWallet().ViewIncomingKey().Bytes())
+			} else if w, ok := wallet.(*SpendWallet[T]); ok {
+				viewIncomingSecret = curve25519.PrivateKeyBytes(w.ViewWallet().ViewKey().Bytes())
+			}
+
+			err := proposal.SpecialOutput(&enote, firstKeyImage, viewIncomingSecret, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			out := transaction.Output{
+				Type:                 transaction.TxOutToCarrotV1,
+				Amount:               amount,
+				EphemeralPublicKey:   enote.Enote.OneTimeAddress,
+				EncryptedJanusAnchor: types.MakeFixed(enote.Enote.EncryptedAnchor),
+				ViewTag:              types.MakeFixed(enote.Enote.ViewTag),
+			}
+
+			i, scan, subaddressIndex := wallet.MatchCarrot(firstKeyImage,
+				transaction.Outputs{out},
+				[]ringct.CommitmentEncryptedAmount{
+					{
+						EncryptedAmount: ringct.EncryptedAmount{
+							Amount: curve25519.PrivateKeyBytes(append(append(make([]byte, 0, curve25519.PrivateKeySize), enote.Enote.EncryptedAmount[:]...), make([]byte, curve25519.PrivateKeySize-monero.EncryptedAmountSize)...)),
+						},
+						Commitment: enote.Enote.AmountCommitment,
+					},
+				},
+				[]curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)},
+				&enote.EncryptedPaymentId,
+			)
+			if i != 0 {
+				t.Fatalf("got index %d, want 0", i)
+			}
+			if scan.SpendPub != addr.SpendPub {
+				t.Fatalf("got spend pub %s, want %s", scan.SpendPub.String(), addr.SpendPub.String())
+			}
+			if scan.AmountBlindingFactor != enote.AmountBlindingFactor {
+				t.Fatalf("got randomnness %x, want %x", scan.AmountBlindingFactor[:], enote.AmountBlindingFactor[:])
+			}
+			if scan.Amount != proposal.Amount {
+				t.Fatalf("got amount %d, want %d", scan.Amount, proposal.Amount)
+			}
+			if subaddressIndex != ix {
+				t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+			}
+
+			if cw, ok := wallet.(CarrotWalletInterface[T]); ok {
+				proof := carrot.GetTxProofReceiver[T](addr, txId, "", cw.ViewWallet().ViewIncomingKey(), enote.Enote.EphemeralPubKey)
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.Enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx InProof: Not OK")
+				} else {
+					t.Log("Tx InProof: OK")
+				}
+			} else if lw, ok := wallet.(LegacyWalletInterface[T]); ok {
+				proof := carrot.GetTxProofReceiver[T](addr, txId, "", lw.ViewWallet().ViewKey(), enote.Enote.EphemeralPubKey)
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.Enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx InProof: Not OK")
+				} else {
+					t.Log("Tx InProof: OK")
+				}
+			}
+
+			// check spendability
+			if err := CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())); err != nil {
+				t.Fatalf("Spend Opening: cannot spend: %s", err)
+			} else {
+				t.Log("Spend Opening: OK")
+			}
+
+			if cw, ok := wallet.(*CarrotSpendWallet[T]); ok {
+				// check PQ turnstile
+				var migrationTxSignableHash types.Hash
+				_, _ = rand.Reader.Read(migrationTxSignableHash[:])
+
+				sig := carrot.CreateSignatureT[T](migrationTxSignableHash, cw.ProveSpendKey(), rand.Reader)
+
+				var senderReceiverSecret types.Hash
+
+				{
+					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey(), &enote.Enote.EphemeralPubKey)
+
+					inputContext := carrot.MakeInputContext(firstKeyImage)
+
+					senderReceiverSecret = carrot.MakeSenderReceiverSecret(&blake2b.Digest{}, senderReceiverUnctx, enote.Enote.EphemeralPubKey, inputContext[:])
+				}
+
+				addressIndexPreimage1 := carrot.MakeAddressIndexPreimage1(&blake2b.Digest{}, cw.ViewWallet().GenerateAddressSecret(), ix)
+				addressIndexPreimage2 := carrot.MakeAddressIndexPreimage2(&blake2b.Digest{}, addressIndexPreimage1, cw.ViewWallet().AccountSpendPub().AsBytes(), cw.ViewWallet().AccountViewPub().AsBytes(), ix)
+
+				pqt := carrot.PQTurnstile[T]{
+					FetchOutput: func(id types.Hash, outputIndex int) (pub curve25519.PublicKeyBytes, commitment curve25519.PublicKeyBytes, err error) {
+						return enote.Enote.OneTimeAddress, enote.Enote.AmountCommitment, nil
+					},
+					IsKeyImageSpent: func(ki curve25519.PublicKeyBytes) bool {
+						return false
+					},
+				}
+
+				if err := pqt.Verify(
+					types.ZeroHash, 0,
+					cw.PartialSpendPub(),
+					cw.GenerateImagePreimageSecret(),
+					addr.IsSubaddress(),
+					addressIndexPreimage2,
+					senderReceiverSecret,
+					proposal.Amount,
+					proposal.EnoteType,
+					migrationTxSignableHash,
+					sig,
+				); err != nil {
+					t.Fatalf("PQ Turnstile: cannot verify: %s", err)
+				} else {
+					t.Log("PQ Turnstile: OK")
+				}
+			} else {
+				t.Log("PQ Turnstile: Not Carrot")
+			}
+		})
+	})
+
+	if _, ok := wallet.(LegacyWalletInterface[T]); !ok {
+
+		t.Run(fmt.Sprintf("SelfSend_Internal/#%d,%d", ix.Account, ix.Offset), func(t *testing.T) {
+			const amount = monero.TailEmissionReward
+
+			t.Run("Carrot", func(t *testing.T) {
+				cw, ok := wallet.(*CarrotSpendWallet[T])
+				if !ok {
+					t.Skip("not supported")
+				}
+
+				proposal := carrot.PaymentProposalSelfSendV1[T]{
+					DestinationSpendPub: addr.SpendPub,
+					Amount:              amount,
+					EnoteType:           carrot.EnoteTypeChange,
+					EnoteEphemeralPub:   new(curve25519.RandomPoint[T](new(curve25519.PublicKey[T]), rand.Reader).Montgomery()),
+					InternalMessage:     new([monero.JanusAnchorSize]byte),
+				}
+				_, _ = rand.Read(proposal.InternalMessage[:])
+
+				var txId types.Hash
+				var firstKeyImage curve25519.PublicKeyBytes
+				_, _ = rand.Read(firstKeyImage[:])
+				_, _ = rand.Read(txId[:])
+
+				var enote carrot.RCTEnoteProposal
+				err := proposal.InternalOutput(&enote, firstKeyImage, cw.ViewWallet().ViewBalanceSecret(), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				out := transaction.Output{
+					Type:                 transaction.TxOutToCarrotV1,
+					Amount:               amount,
+					EphemeralPublicKey:   enote.Enote.OneTimeAddress,
+					EncryptedJanusAnchor: types.MakeFixed(enote.Enote.EncryptedAnchor),
+					ViewTag:              types.MakeFixed(enote.Enote.ViewTag),
+				}
+
+				i, scan, subaddressIndex := wallet.MatchCarrot(firstKeyImage,
+					transaction.Outputs{out},
+					[]ringct.CommitmentEncryptedAmount{
+						{
+							EncryptedAmount: ringct.EncryptedAmount{
+								Amount: curve25519.PrivateKeyBytes(append(append(make([]byte, 0, curve25519.PrivateKeySize), enote.Enote.EncryptedAmount[:]...), make([]byte, curve25519.PrivateKeySize-monero.EncryptedAmountSize)...)),
+							},
+							Commitment: enote.Enote.AmountCommitment,
+						},
+					},
+					[]curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)},
+					&enote.EncryptedPaymentId,
+				)
+				if i != 0 {
+					t.Fatalf("got index %d, want 0", i)
+				}
+				if scan.SpendPub != addr.SpendPub {
+					t.Fatalf("got spend pub %s, want %s", scan.SpendPub.String(), addr.SpendPub.String())
+				}
+				if scan.AmountBlindingFactor != enote.AmountBlindingFactor {
+					t.Fatalf("got randomnness %x, want %x", scan.AmountBlindingFactor[:], enote.AmountBlindingFactor[:])
+				}
+				if scan.Randomness != *proposal.InternalMessage {
+					t.Fatalf("got internal message %x, want %x", scan.Randomness[:], proposal.InternalMessage[:])
+				}
+				if scan.Amount != proposal.Amount {
+					t.Fatalf("got amount %d, want %d", scan.Amount, proposal.Amount)
+				}
+				if subaddressIndex != ix {
+					t.Fatalf("got subaddress index %+v, want %+v", subaddressIndex, ix)
+				}
+
+				proof := carrot.GetTxProofReceiver[T](addr, txId, "", cw.ViewWallet().ViewIncomingKey(), enote.Enote.EphemeralPubKey)
+				if i, ok := carrot.VerifyTxProof(proof, addr, txId, "", enote.Enote.EphemeralPubKey); !ok || i != 0 {
+					t.Fatalf("Tx InProof: Not OK")
+				} else {
+					t.Log("Tx InProof: OK")
+				}
+
+				// check spendability
+				if err := CanOpenOneTimeAddress(wallet, curve25519.To[T](scan.SpendPub.Point()), &scan.ExtensionG, &scan.ExtensionT, curve25519.To[T](out.EphemeralPublicKey.Point())); err != nil {
+					t.Fatalf("Spend Opening: cannot spend: %s", err)
+				} else {
+					t.Log("Spend Opening: OK")
+				}
+
+				if cw, ok := wallet.(*CarrotSpendWallet[T]); ok {
+					// check PQ turnstile
+					var migrationTxSignableHash types.Hash
+					_, _ = rand.Reader.Read(migrationTxSignableHash[:])
+
+					sig := carrot.CreateSignatureT[T](migrationTxSignableHash, cw.ProveSpendKey(), rand.Reader)
+
+					var senderReceiverSecret types.Hash
+
+					{
+						inputContext := carrot.MakeInputContext(firstKeyImage)
+
+						senderReceiverSecret = carrot.MakeSenderReceiverSecret(&blake2b.Digest{}, cw.ViewWallet().ViewBalanceSecret(), enote.Enote.EphemeralPubKey, inputContext[:])
+					}
+
+					addressIndexPreimage1 := carrot.MakeAddressIndexPreimage1(&blake2b.Digest{}, cw.ViewWallet().GenerateAddressSecret(), ix)
+					addressIndexPreimage2 := carrot.MakeAddressIndexPreimage2(&blake2b.Digest{}, addressIndexPreimage1, cw.ViewWallet().AccountSpendPub().AsBytes(), cw.ViewWallet().AccountViewPub().AsBytes(), ix)
+
+					pqt := carrot.PQTurnstile[T]{
+						FetchOutput: func(id types.Hash, outputIndex int) (pub curve25519.PublicKeyBytes, commitment curve25519.PublicKeyBytes, err error) {
+							return enote.Enote.OneTimeAddress, enote.Enote.AmountCommitment, nil
+						},
+						IsKeyImageSpent: func(ki curve25519.PublicKeyBytes) bool {
+							return false
+						},
+					}
+
+					if err := pqt.Verify(
+						types.ZeroHash, 0,
+						cw.PartialSpendPub(),
+						cw.GenerateImagePreimageSecret(),
+						addr.IsSubaddress(),
+						addressIndexPreimage2,
+						senderReceiverSecret,
+						proposal.Amount,
+						proposal.EnoteType,
+						migrationTxSignableHash,
+						sig,
+					); err != nil {
+						t.Fatalf("PQ Turnstile: cannot verify: %s", err)
+					} else {
+						t.Log("PQ Turnstile: OK")
+					}
+				} else {
+					t.Log("PQ Turnstile: Not Carrot")
+				}
+			})
+		})
+	}
+}
