@@ -686,7 +686,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				}
 			} else {
 				reader := bufio.NewReader(utils.LimitByteReader(c, int64(blockSize)))
-				if err = poolBlock.FromReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
+				if err = poolBlock.FromPrunedReader(c.Owner.Consensus(), c.Owner.SideChain().DerivationCache(), reader); err != nil {
 					//TODO warn
 					c.Ban(DefaultBanTime, err)
 					return

@@ -526,7 +526,7 @@ func (b *PoolBlock) UnmarshalBinary(consensus *Consensus, derivationCache Deriva
 		return errors.New("buffer too large")
 	}
 	reader := bytes.NewReader(data)
-	err := b.FromReader(consensus, derivationCache, reader)
+	err := b.FromPrunedReader(consensus, derivationCache, reader)
 	if err != nil {
 		return err
 	}
@@ -564,6 +564,14 @@ func (b *PoolBlock) AppendBinaryFlags(preAllocatedBuf []byte, pruned, compact bo
 }
 
 func (b *PoolBlock) FromReader(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
+	if err = b.Main.FromReader(reader, false, nil); err != nil {
+		return err
+	}
+
+	return b.consensusDecode(consensus, derivationCache, reader)
+}
+
+func (b *PoolBlock) FromPrunedReader(consensus *Consensus, derivationCache DerivationCacheInterface, reader utils.ReaderAndByteReader) (err error) {
 	if err = b.Main.FromReader(reader, true, func() (containsAuxiliaryTemplateId bool) {
 		return b.CalculateShareVersion(consensus) >= ShareVersion_V3
 	}); err != nil {

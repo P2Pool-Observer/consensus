@@ -520,7 +520,7 @@ func FuzzSideChain_AddPoolBlockExternal(f *testing.F) {
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &PoolBlock{}
 		reader := bytes.NewReader(buf)
-		if err := b.FromReader(s.Consensus(), &NilDerivationCache{}, reader); err != nil {
+		if err := b.FromPrunedReader(s.Consensus(), &NilDerivationCache{}, reader); err != nil {
 			t.Skipf("leftover error: %s", err)
 		}
 		if reader.Len() > 0 {

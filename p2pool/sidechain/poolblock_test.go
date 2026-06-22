@@ -227,7 +227,7 @@ func FuzzPoolBlockRoundTrip(f *testing.F) {
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &PoolBlock{}
 		reader := bytes.NewReader(buf)
-		err := b.FromReader(ConsensusDefault, &NilDerivationCache{}, reader)
+		err := b.FromPrunedReader(ConsensusDefault, &NilDerivationCache{}, reader)
 		if err != nil {
 			t.Skipf("leftover error: %s", err)
 		}
@@ -272,7 +272,7 @@ func FuzzPoolBlockRoundTripJSON(f *testing.F) {
 	f.Fuzz(func(t *testing.T, buf []byte) {
 		b := &PoolBlock{}
 		reader := bytes.NewReader(buf)
-		err := b.FromReader(ConsensusDefault, &NilDerivationCache{}, reader)
+		err := b.FromPrunedReader(ConsensusDefault, &NilDerivationCache{}, reader)
 		if err != nil {
 			t.Skipf("leftover error: %s", err)
 		}
