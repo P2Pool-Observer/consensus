@@ -165,7 +165,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		return errors.New("no main data present")
 	}
 
-	if s.minerData.MajorVersion < monero.HardForkMinimumSupportedVersion || s.minerData.MajorVersion > monero.HardForkSupportedVersion {
+	if s.minerData.MajorVersion < monero.HardForkMinimumP2PoolSupportedVersion || s.minerData.MajorVersion > monero.HardForkSupportedVersion {
 		return utils.ErrorfNoEscape("unsupported hardfork version %d", s.minerData.MajorVersion)
 	}
 

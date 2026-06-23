@@ -10,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	fcmp_pp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/fcmp-plus-plus"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/cryptonight"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -29,7 +30,8 @@ type Block struct {
 	PreviousId types.Hash `json:"previous_id"`
 	//Nonce would be here
 
-	Coinbase transaction.CoinbaseV2 `json:"coinbase"`
+	GenericCoinbase *transaction.GenericCoinbase `json:"generic_coinbase,omitempty"`
+	Coinbase        transaction.CoinbaseV2       `json:"coinbase"`
 
 	Transactions []types.Hash `json:"transactions,omitempty"`
 	// TransactionParentIndices amount of reward existing MinerOutputs. Used by p2pool serialized compact broadcasted blocks in protocol >= 1.1, filled only in compact blocks or by pre-processing.
@@ -64,8 +66,14 @@ func (b *Block) BufferLength() int {
 		utils.UVarInt64Size(b.Timestamp) +
 		types.HashSize +
 		4 +
-		b.Coinbase.BufferLength() +
 		utils.UVarInt64Size(len(b.Transactions)) + types.HashSize*len(b.Transactions)
+
+	if b.GenericCoinbase != nil {
+		size += b.GenericCoinbase.BufferLength()
+	} else {
+		size += b.Coinbase.BufferLength()
+	}
+
 	if b.MajorVersion >= monero.HardForkFCMPPlusPlus {
 		size += 1 + types.HashSize
 	}
@@ -79,29 +87,31 @@ func (b *Block) MarshalBinaryFlags(compact, pruned, containsAuxiliaryTemplateId 
 func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, containsAuxiliaryTemplateId bool) (buf []byte, err error) {
 	buf = preAllocatedBuf
 
-	if b.MajorVersion < monero.HardForkMinimumSupportedVersion || b.MajorVersion > monero.HardForkSupportedVersion {
+	if b.MajorVersion > monero.HardForkSupportedVersion || ((compact || pruned) && b.MajorVersion < monero.HardForkMinimumP2PoolSupportedVersion) {
 		return nil, utils.ErrorfNoEscape("unsupported version %d", b.MajorVersion)
 	}
 
-	if b.MinorVersion < b.MajorVersion {
+	if b.MinorVersion < b.MajorVersion && !(b.MinorVersion == 0 && b.MajorVersion == 1) {
 		return nil, utils.ErrorfNoEscape("minor version %d smaller than major %d", b.MinorVersion, b.MajorVersion)
 	}
 
-	if b.MajorVersion >= monero.HardForkRejectManyMinerOutputs {
-		// TODO: check this on pruned?
+	if b.GenericCoinbase == nil {
+		if b.MajorVersion >= monero.HardForkRejectManyMinerOutputs {
+			// TODO: check this on pruned?
 
-		if len(b.Coinbase.MinerOutputs) > monero.MaxMinerOutputs {
-			return nil, utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.MinerOutputs), monero.MaxMinerOutputs)
+			if len(b.Coinbase.MinerOutputs) > monero.MaxMinerOutputs {
+				return nil, utils.ErrorfNoEscape("too many outputs: %d > %d", len(b.Coinbase.MinerOutputs), monero.MaxMinerOutputs)
+			}
 		}
-	}
 
-	if b.MajorVersion >= monero.HardForkRejectLargeExtra {
-		// TODO: check this on pruned?
+		if b.MajorVersion >= monero.HardForkRejectLargeExtra {
+			// TODO: check this on pruned?
 
-		// Scale extra limit by number of outputs since Carrot requires 1 32-byte ephemeral pubkey per output (for Janus).
-		maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.MinerOutputs)*monero.MinerTxExtraSizePerOutput
-		if b.Coinbase.Extra.BufferLength() >= maxExtraSize {
-			return nil, utils.ErrorfNoEscape("too large tx extra: %d >= %d", b.Coinbase.Extra.BufferLength(), maxExtraSize)
+			// Scale extra limit by number of outputs since Carrot requires 1 32-byte ephemeral pubkey per output (for Janus).
+			maxExtraSize := monero.MaxTxExtraSize + len(b.Coinbase.MinerOutputs)*monero.MinerTxExtraSizePerOutput
+			if b.Coinbase.Extra.BufferLength() >= maxExtraSize {
+				return nil, utils.ErrorfNoEscape("too large tx extra: %d >= %d", b.Coinbase.Extra.BufferLength(), maxExtraSize)
+			}
 		}
 	}
 
@@ -112,8 +122,14 @@ func (b *Block) AppendBinaryFlags(preAllocatedBuf []byte, compact, pruned, conta
 	buf = append(buf, b.PreviousId[:]...)
 	buf = binary.LittleEndian.AppendUint32(buf, b.Nonce)
 
-	if buf, err = b.Coinbase.AppendBinaryFlags(buf, pruned, containsAuxiliaryTemplateId); err != nil {
-		return nil, err
+	if b.GenericCoinbase != nil {
+		if buf, err = b.GenericCoinbase.AppendBinary(buf); err != nil {
+			return nil, err
+		}
+	} else {
+		if buf, err = b.Coinbase.AppendBinaryFlags(buf, pruned, containsAuxiliaryTemplateId); err != nil {
+			return nil, err
+		}
 	}
 
 	buf = binary.AppendUvarint(buf, uint64(len(b.Transactions)))
@@ -162,6 +178,13 @@ func (b *Block) UnmarshalBinary(data []byte, canBePruned bool, f PrunedFlagsFunc
 	return nil
 }
 
+func (b *Block) MinerTx() transaction.Transaction {
+	if b.GenericCoinbase != nil {
+		return b.GenericCoinbase
+	}
+	return &b.Coinbase
+}
+
 func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBePruned bool, f PrunedFlagsFunc) (err error) {
 	var (
 		txCount         uint64
@@ -172,7 +195,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return err
 	}
 
-	if b.MajorVersion < monero.HardForkMinimumSupportedVersion || b.MajorVersion > monero.HardForkSupportedVersion {
+	if b.MajorVersion > monero.HardForkSupportedVersion || ((compact || canBePruned) && b.MajorVersion < monero.HardForkMinimumP2PoolSupportedVersion) {
 		return utils.ErrorfNoEscape("unsupported version %d", b.MajorVersion)
 	}
 
@@ -180,7 +203,7 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return err
 	}
 
-	if b.MinorVersion < b.MajorVersion {
+	if b.MinorVersion < b.MajorVersion && !(b.MinorVersion == 0 && b.MajorVersion == 1) {
 		return utils.ErrorfNoEscape("minor version %d smaller than major version %d", b.MinorVersion, b.MajorVersion)
 	}
 
@@ -207,9 +230,9 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 	}
 
 	// Coinbase Tx Decoding
-	{
+	if b.MajorVersion >= monero.HardForkCoinbaseVersionV2 {
 		if err = b.Coinbase.FromReader(reader, canBePruned, containsAuxiliaryTemplateId); err != nil {
-			return err
+			return utils.ErrorfNoEscape("coinbase: %w", err)
 		}
 
 		if b.MajorVersion >= monero.HardForkRejectManyMinerOutputs {
@@ -228,6 +251,25 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 			if b.Coinbase.Extra.BufferLength() >= maxExtraSize {
 				return utils.ErrorfNoEscape("too large tx extra: %d >= %d", b.Coinbase.Extra.BufferLength(), maxExtraSize)
 			}
+		}
+	} else {
+		// fallback for old blocks, non-p2pool
+		var minerTx transaction.GenericCoinbase
+		if err = minerTx.FromReader(reader); err != nil {
+			return utils.ErrorfNoEscape("generic coinbase: %w", err)
+		}
+		b.GenericCoinbase = &minerTx
+		// fill data on V2
+		b.Coinbase.InputCount = minerTx.InputCount
+		b.Coinbase.InputType = minerTx.InputType
+		b.Coinbase.MinerUnlockTime = minerTx.MinerUnlockTime
+		b.Coinbase.GenHeight = minerTx.GenHeight
+		b.Coinbase.MinerOutputs = minerTx.MinerOutputs
+		b.Coinbase.Extra = minerTx.ExtraTags()
+		b.Coinbase.ExtraBaseRCT = minerTx.ExtraBaseRCT
+		b.Coinbase.AuxiliaryData.TotalReward = 0
+		for _, o := range minerTx.MinerOutputs {
+			b.Coinbase.AuxiliaryData.TotalReward += o.Amount
 		}
 	}
 
@@ -369,7 +411,11 @@ func (b *Block) HashingBlob(preAllocatedBuf []byte) []byte {
 
 	merkleTree := make(crypto.MerkleTree, len(b.Transactions)+reserve)
 
-	merkleTree[reserveOffset] = b.Coinbase.Hash()
+	if b.GenericCoinbase != nil {
+		merkleTree[reserveOffset] = b.GenericCoinbase.Hash()
+	} else {
+		merkleTree[reserveOffset] = b.Coinbase.Hash()
+	}
 	reserveOffset++
 
 	if b.MajorVersion >= monero.HardForkFCMPPlusPlus {
@@ -396,6 +442,22 @@ func (b *Block) Difficulty(f GetDifficultyByHeightFunc) types.Difficulty {
 var ErrNoSeed = errors.New("could not get seed")
 var ErrUnsupportedAlgorithm = errors.New("unsupported algorithm")
 
+func (b *Block) powHashCN() (types.Hash, error) {
+	blob := b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength()))
+	var state cryptonight.State
+	if b.MajorVersion < monero.HardForkCryptoNightV1 {
+		return state.Sum(blob, cryptonight.V0, false), nil
+	} else if b.MajorVersion < monero.HardForkCryptoNightV2 {
+		return state.Sum(blob, cryptonight.V1, false), nil
+	} else if b.MajorVersion < monero.HardForkCryptoNightR {
+		return state.Sum(blob, cryptonight.V2, false), nil
+	} else if b.MajorVersion < monero.HardForkRandomX {
+		return state.SumR(blob, b.Coinbase.GenHeight, false), nil
+	} else {
+		return types.ZeroHash, ErrUnsupportedAlgorithm
+	}
+}
+
 func (b *Block) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeightFunc) (types.Hash, error) {
 	//not cached
 
@@ -410,9 +472,8 @@ func (b *Block) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeightFunc) (
 		}
 	}
 
-	// TODO: support different PoW algorithms than RandomX
 	if b.MajorVersion < monero.HardForkRandomX {
-		return types.ZeroHash, ErrUnsupportedAlgorithm
+		return b.powHashCN()
 	}
 
 	if seed := f(b.Coinbase.GenHeight); seed == types.ZeroHash {

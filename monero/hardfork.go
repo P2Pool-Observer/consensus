@@ -1,8 +1,12 @@
 package monero
 
 const (
-	HardForkRandomX = 12
+	HardForkCryptoNightV1 = 7
+	HardForkCryptoNightV2 = 8
+	HardForkCryptoNightR  = 10
+	HardForkRandomX       = 12
 
+	HardForkCoinbaseVersionV2      = 12
 	HardForkViewTags               = 15
 	HardForkFCMPPlusPlus           = 17
 	HardForkCarrotVersion          = 17
@@ -10,8 +14,8 @@ const (
 	HardForkRejectManyMinerOutputs = 17
 	HardFork2026Scaling            = 17
 
-	HardForkMinimumSupportedVersion = 14
-	HardForkSupportedVersion        = 18
+	HardForkMinimumP2PoolSupportedVersion = 14
+	HardForkSupportedVersion              = 18
 )
 
 type HardFork struct {

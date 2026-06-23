@@ -519,7 +519,7 @@ type BlockHeader struct {
 
 	// PowHash TODO
 	//
-	PowHash types.Hash `json:"pow_hash"`
+	PowHash types.Hash `json:"pow_hash,omitzero"`
 
 	// PrevHash is the hash of the block immediately preceding this
 	// block in the chain.

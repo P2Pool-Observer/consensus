@@ -381,8 +381,9 @@ func (c *Client) GetBlockHeaderByHash(
 // GetBlockRequestParameters represents the set of possible parameters that can
 // be used for submitting a call to the `get_block` jsonrpc method.
 type GetBlockRequestParameters struct {
-	Height uint64     `json:"height,omitzero"`
-	Hash   types.Hash `json:"hash,omitzero"`
+	Height      uint64     `json:"height,omitzero"`
+	Hash        types.Hash `json:"hash,omitzero"`
+	FillPowHash bool       `json:"fill_pow_hash,omitzero"`
 }
 
 // GetBlock fetches full block information from a block at a particular hash OR

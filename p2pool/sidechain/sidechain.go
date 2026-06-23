@@ -328,6 +328,10 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		return nil, errors.New("block reward too low"), true
 	}
 
+	if block.Main.MajorVersion < monero.HardForkMinimumP2PoolSupportedVersion || block.Main.MajorVersion > monero.HardForkSupportedVersion {
+		return nil, utils.ErrorfNoEscape("unsupported version %d", block.Main.MajorVersion), true
+	}
+
 	// Enforce deterministic tx keys starting from v15 up to v17
 	if block.Main.MajorVersion >= monero.HardForkViewTags && block.Main.MajorVersion < monero.HardForkCarrotVersion {
 		if !c.isPoolBlockTransactionKeyIsDeterministic(block) {
@@ -552,6 +556,10 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 		//already inserted
 		//TODO WARN
 		return nil
+	}
+
+	if block.Main.MajorVersion < monero.HardForkMinimumP2PoolSupportedVersion || block.Main.MajorVersion > monero.HardForkSupportedVersion {
+		return utils.ErrorfNoEscape("unsupported version %d", block.Main.MajorVersion)
 	}
 
 	if encodeBuf, err := block.AppendBinaryFlags(c.preAllocatedBuffer, false, false); err != nil {

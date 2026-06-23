@@ -318,10 +318,11 @@ func (c *Client) GetBlockHeaderByHash(hash types.Hash, ctx context.Context) (*da
 	}
 }
 
-func (c *Client) GetBlock(hash types.Hash, ctx context.Context) (*daemon.GetBlockResult, error) {
+func (c *Client) GetBlock(hash types.Hash, fillPowHash bool, ctx context.Context) (*daemon.GetBlockResult, error) {
 	<-c.throttler
 	if result, err := c.d.GetBlock(ctx, daemon.GetBlockRequestParameters{
-		Hash: hash,
+		Hash:        hash,
+		FillPowHash: fillPowHash,
 	}); err != nil {
 		return nil, err
 	} else {
