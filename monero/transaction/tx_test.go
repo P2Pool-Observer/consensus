@@ -34,6 +34,31 @@ var testTransactions = []types.Hash{
 	// mlsag borromean (with hidden inputs)
 	types.MustHashFromString("cbddbd1eadc3fc2c3094627788c57a99a187f9e91e2409f66f82500ba757197b"),
 
+	// mlsag borromean (with unreduced scalars)
+	// see https://github.com/monero-project/monero/issues/8438 or https://www.moneroinflation.com/static/data_py/report_scalars_df.pdf
+	types.MustHashFromString("0647d386365f6bfd312b0fbe966f5c85f19159ccf9003af8387f332451e6c94c"),
+	types.MustHashFromString("d5d725e7a76dab7e2ca97d941403936a0fbf5e8874e9ef3becd973e4598a8cb1"),
+	types.MustHashFromString("991712d33cdff510254ffacfb9e04f9cd54a4f08bf53388c107f72383f03c462"),
+	types.MustHashFromString("475c008c48520949843a00701fdd15b6db76bdf24b3f635bdaeb9f4a684700f8"),
+	types.MustHashFromString("2fecc6f9269264fb0f036de586451f4ae0d0c7cec8ace89d93135b90bbdc6263"),
+	types.MustHashFromString("0aba657035c498037e00d8597eee74b06f6d89c900a74af21fc717bb86002c8d"),
+	types.MustHashFromString("a6dc6d18d493e9f2749e5d0991b7703b26779d25b286de55b99a72d927d102bb"),
+	types.MustHashFromString("93c42d7938a6534816e8583e6d4accac1cff200fa4d2b51daddab91456e7f9eb"),
+	types.MustHashFromString("8171e8ac8154a20d1d345ef5b872ab2b019096efde220c67cce893b1ea25cc76"),
+	types.MustHashFromString("3f7beae73b73e3b0864a16f9950f5bb80ab7cc74498fc50e747b301b2ecb77a7"),
+	types.MustHashFromString("d21685edb1b6911b0bbe995749608b84aebb42cd99cb1487dfef4f9a8253eebb"),
+	types.MustHashFromString("37ef3484d72ac43e14d49cf5d8058607553c2018fc795c1e8dcb39b9d033a1e6"),
+	types.MustHashFromString("d1ea609d17125f407fa8b80d5fc74add85f12efa242d16509bc9d18a292f641f"),
+	types.MustHashFromString("3d407ce4a7b7f22f923987f501a7d07dc9fa9bb9568c3c8e1a2c891501597b60"),
+	types.MustHashFromString("195a9d291477b6d0c95a9c006c42a324a89dc4ffae529bc894b94284ab248359"),
+	types.MustHashFromString("e9f0234705be100032dcd1e9c631822f00b0a3d7e5748b6e6533e8eec47f2644"),
+	types.MustHashFromString("cc3ebd46fa3f85d6a2aa444d82afb5331d9bd8d6d53fcea5e6920c448c57d72a"),
+	types.MustHashFromString("d6187b450e32eb1392b0b5b211cbcb8d66aecaf90705bd1235f1a99de82577dc"),
+	types.MustHashFromString("7a47b4e8261679fc74a419bf23823b8f25cc74a67509836760e8cb0bc463438b"),
+	types.MustHashFromString("3037b7c0bdb7019ab45d726c4f0354bdd0b1a025ac88b08752af1fd9b4ca7f81"),
+	types.MustHashFromString("f5b60a9e22177f6ca68d413ceb39db40d4d43aacddf70191c0dbc3c36be7c588"),
+	types.MustHashFromString("e4b7982b081a17892525f1b1d3011ec06a0820cbf451d3a64f8ea998104a753c"),
+
 	// cuprate v2 transactions
 	// mlsag bulletproofs
 	types.MustHashFromString("e2d39395dd1625b2d707b98af789e7eab9d24c2bd2978ec38ef910961a8cdcee"),

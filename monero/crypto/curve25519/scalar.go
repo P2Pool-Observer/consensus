@@ -251,6 +251,8 @@ var zeroScalar = ZeroPrivateKeyBytes.Scalar()
 // comes, yet a couple have non-standard reductions performed.
 //
 // This struct delays scalar conversions and offers the non-standard reduction.
+//
+// See https://github.com/monero-project/monero/issues/8438 or https://www.moneroinflation.com/static/data_py/report_scalars_df.pdf
 type UnreducedScalar PrivateKeyBytes
 
 // naf5 Computes the non-adjacent form of this scalar with width 5.
@@ -371,10 +373,9 @@ var precomputedScalars [8]*Scalar
 
 //nolint:gochecknoinits
 func init() {
-	precomputedScalars[0] = (&PrivateKeyBytes{1}).Scalar()
-	for i := range precomputedScalars[1:] {
+	for i := range precomputedScalars {
 		var buf PrivateKeyBytes
 		binary.LittleEndian.PutUint64(buf[:], uint64(i*2+1))
-		precomputedScalars[i+1] = buf.Scalar()
+		precomputedScalars[i] = buf.Scalar()
 	}
 }
