@@ -565,11 +565,16 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 			}
 		}
 
-		preAllocatedShares := s.preAllocatedSharesPool.Get()
+		shares := slices.Grow(s.preAllocatedSharesPool.Get()[:0], len(s.newTemplateData.Window.Shares))[:len(s.newTemplateData.Window.Shares)]
+		defer s.preAllocatedSharesPool.Put(shares[:0])
 
 		// clone share data and reuse
-		shares := append(preAllocatedShares[:0], s.newTemplateData.Window.Shares...)
-		defer s.preAllocatedSharesPool.Put(shares[:0])
+		for i := range s.newTemplateData.Window.Shares {
+			if shares[i] == nil {
+				shares[i] = new(sidechain.Share)
+			}
+			*shares[i] = *s.newTemplateData.Window.Shares[i]
+		}
 
 		weights := s.newTemplateData.Weights[0]
 
