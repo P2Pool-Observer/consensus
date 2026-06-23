@@ -303,6 +303,7 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 		A:    A,
 		S:    S,
 		T1:   T1,
+		T2:   T2,
 		TauX: *TauX,
 		Mu:   *mu,
 		THat: THat,
