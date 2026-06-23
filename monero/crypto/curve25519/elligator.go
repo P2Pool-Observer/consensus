@@ -6,6 +6,10 @@ import (
 
 // Elligator2WithUniformBytes
 // Equivalent to ge_fromfe_frombytes_vartime
+//
+// NOTE: Caller must multiply dst using MultByCofactor to ensure point lies within the prime-order subgroup
+// This is kept without that call embedded to allow passing Monero's hash_to_point tests
+//
 // Constant time
 func Elligator2WithUniformBytes[T PointOperations, S ~[PublicKeySize]byte](dst *PublicKey[T], buf S) *PublicKey[T] {
 	// Curve25519 is a Montgomery curve with equation `v^2 = u^3 + 486662 u^2 + u`.

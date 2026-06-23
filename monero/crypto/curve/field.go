@@ -1,5 +1,7 @@
 package curve
 
+// TODO: use Go 1.26 recursive types
+
 type BasicField[F any] interface {
 	*F
 

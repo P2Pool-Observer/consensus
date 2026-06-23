@@ -2,6 +2,8 @@ package curve
 
 import "slices"
 
+// TODO: use Go 1.26 recursive types
+
 // BatchInvert Sets v to sum(inv(inputs...)), sets each input element to its inverse
 // If any input element is zero, it is unchanged
 //
