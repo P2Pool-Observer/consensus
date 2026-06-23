@@ -11,7 +11,7 @@ func RandomScalar(k *Scalar, r io.Reader) *Scalar {
 	var buf [PrivateKeySize]byte
 	for {
 		if _, err := utils.ReadNoEscape(r, buf[:]); err != nil {
-			return nil
+			panic(err)
 		}
 
 		if !ScalarIsLimit32(buf) {
