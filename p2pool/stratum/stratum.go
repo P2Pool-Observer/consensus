@@ -275,15 +275,13 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		CachedShareVersion: s.newTemplateData.ShareVersion,
 	}
 
-	preAllocatedShares := s.preAllocatedSharesPool.Get()
-	defer s.preAllocatedSharesPool.Put(preAllocatedShares)
-	shares, _, err := sidechain.GetSharesOrdered(fakeTemplateTipBlock, s.sidechain.Consensus(), s.sidechain.Server().GetDifficultyByHeight, s.sidechain.GetPoolBlockByTemplateId, preAllocatedShares)
+	shares, _, err := sidechain.GetSharesOrdered(fakeTemplateTipBlock, s.sidechain.Consensus(), s.sidechain.Server().GetDifficultyByHeight, s.sidechain.GetPoolBlockByTemplateId, s.newTemplateData.Window.Shares)
 	if err != nil {
 		return utils.ErrorfNoEscape("could not get outputs: %w", err)
 	}
 
 	// clone with reuse
-	s.newTemplateData.Window.Shares = append(s.newTemplateData.Window.Shares[:0], shares...)
+	s.newTemplateData.Window.Shares = shares
 
 	s.newTemplateData.Window.ReservedShareIndex = s.newTemplateData.Window.Shares.Index(fakeTemplateTipBlock.GetConsensusPackedAddress(fakeTemplateTipBlock.Main.MajorVersion))
 
