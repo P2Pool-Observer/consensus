@@ -626,6 +626,10 @@ func IsLongerChain(block, candidate *PoolBlock, consensus *Consensus, getByTempl
 
 		for blockAncestor != nil && candidateAncestor != nil {
 			if blockAncestor.Side.Parent == candidateAncestor.Side.Parent {
+				// too far away
+				if block.Side.Height-blockAncestor.Side.Height >= consensus.ChainWindowSize || candidate.Side.Height-candidateAncestor.Side.Height >= consensus.ChainWindowSize {
+					break
+				}
 				return block.Side.CumulativeDifficulty.Cmp(candidate.Side.CumulativeDifficulty) < 0, false
 			}
 			blockAncestor = blockAncestor.iteratorGetParent(getByTemplateId)
