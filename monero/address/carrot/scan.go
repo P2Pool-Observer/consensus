@@ -90,6 +90,10 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 	scan.Type = EnoteTypePayment
 	scan.AmountBlindingFactor = curve25519.PrivateKeyBytes{1}
 
+	if !verifyNormalJanusProtection[curve25519.VarTimeOperations](&hasher, scan.Randomness, inputContext, scan.SpendPub, false, [monero.PaymentIdSize]byte{}, enote.EphemeralPubKey) {
+		return ErrJanusProtectionFailed
+	}
+
 	return nil
 }
 
