@@ -335,6 +335,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		}
 	}
 
+	// todo: this can fail before FCMP++ upgrade on torsioned points
 	if !block.Side.PublicKey.Valid() {
 		return nil, errors.New("invalid wallet address"), true
 	}

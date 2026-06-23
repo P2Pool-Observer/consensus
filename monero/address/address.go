@@ -175,10 +175,10 @@ func (a *Address) verifyChecksum() {
 // Valid check that points can be decoded and that they are not torsioned
 func (a *Address) Valid() bool {
 	var spendPub, viewPub curve25519.PublicKey[curve25519.VarTimeOperations]
-	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil || !spendPub.IsTorsionFree() {
+	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil || !spendPub.IsTorsionFree() || spendPub.IsSmallOrder() {
 		return false
 	}
-	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil || !viewPub.IsTorsionFree() {
+	if _, err := viewPub.SetBytes(a.ViewPublicKey()[:]); err != nil || !viewPub.IsTorsionFree() || viewPub.IsSmallOrder() {
 		return false
 	}
 	return true

@@ -728,10 +728,10 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 		if _, err := viewPub.SetBytes(b.Side.PublicKey.ViewPublicKey()[:]); err != nil {
 			return fmt.Errorf("block must have a valid wallet address: %w", err)
 		}
-		if !spendPub.IsTorsionFree() {
+		if !spendPub.IsTorsionFree() || spendPub.IsSmallOrder() {
 			return errors.New("block must have a non-torsioned spend public key")
 		}
-		if !viewPub.IsTorsionFree() {
+		if !viewPub.IsTorsionFree() || viewPub.IsSmallOrder() {
 			return errors.New("block must have a non-torsioned view public key")
 		}
 	}

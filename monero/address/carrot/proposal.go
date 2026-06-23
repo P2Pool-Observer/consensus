@@ -40,7 +40,7 @@ func (p *PaymentProposalV1[T]) ECDHParts(hasher *blake2b.Digest, inputContext []
 	}
 
 	if !p.torsionChecked {
-		if !viewPub.IsTorsionFree() || !spendPub.IsTorsionFree() {
+		if !viewPub.IsTorsionFree() || !spendPub.IsTorsionFree() || spendPub.IsSmallOrder() || viewPub.IsSmallOrder() {
 			// failed decoding or torsion checks
 			return curve25519.ZeroMontgomeryPoint, curve25519.ZeroMontgomeryPoint
 		}

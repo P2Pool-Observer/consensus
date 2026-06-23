@@ -87,10 +87,10 @@ func (p PackedAddress) ToBase58(typeNetwork uint8, err ...error) []byte {
 // Valid check that points can be decoded and that they are not torsioned
 func (p PackedAddress) Valid() bool {
 	var spendPub, viewPub curve25519.PublicKey[curve25519.VarTimeOperations]
-	if _, err := spendPub.SetBytes(p.SpendPublicKey()[:]); err != nil || !spendPub.IsTorsionFree() {
+	if _, err := spendPub.SetBytes(p.SpendPublicKey()[:]); err != nil || !spendPub.IsTorsionFree() || spendPub.IsSmallOrder() {
 		return false
 	}
-	if _, err := viewPub.SetBytes(p.ViewPublicKey()[:]); err != nil || !viewPub.IsTorsionFree() {
+	if _, err := viewPub.SetBytes(p.ViewPublicKey()[:]); err != nil || !viewPub.IsTorsionFree() || viewPub.IsSmallOrder() {
 		return false
 	}
 	return true
@@ -156,10 +156,10 @@ func (p *PackedAddressWithSubaddress) PackedAddress() *PackedAddress {
 // Valid check that points can be decoded and that they are not torsioned
 func (p *PackedAddressWithSubaddress) Valid() bool {
 	var spendPub, viewPub curve25519.PublicKey[curve25519.VarTimeOperations]
-	if _, err := spendPub.SetBytes(p.SpendPublicKey()[:]); err != nil || !spendPub.IsTorsionFree() {
+	if _, err := spendPub.SetBytes(p.SpendPublicKey()[:]); err != nil || !spendPub.IsTorsionFree() || spendPub.IsSmallOrder() {
 		return false
 	}
-	if _, err := viewPub.SetBytes(p.ViewPublicKey()[:]); err != nil || !viewPub.IsTorsionFree() {
+	if _, err := viewPub.SetBytes(p.ViewPublicKey()[:]); err != nil || !viewPub.IsTorsionFree() || viewPub.IsSmallOrder() {
 		return false
 	}
 	return true

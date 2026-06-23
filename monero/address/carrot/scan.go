@@ -51,7 +51,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 	var oneTimeAddress curve25519.VarTimePublicKey
 	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 		return ErrInvalidOneTimeAddress
-	} else if !oneTimeAddress.IsTorsionFree() {
+	} else if !oneTimeAddress.IsTorsionFree() || oneTimeAddress.IsSmallOrder() {
 		return ErrTwistedOneTimeAddress
 	}
 	var extensionG, extensionT curve25519.Scalar
@@ -141,7 +141,7 @@ func (enote *EnoteV1) TryScanEnoteInternalReceiver(scan *ScanV1, inputContext []
 		var oneTimeAddress curve25519.VarTimePublicKey
 		if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 			return ErrInvalidOneTimeAddress
-		} else if !oneTimeAddress.IsTorsionFree() {
+		} else if !oneTimeAddress.IsTorsionFree() || oneTimeAddress.IsSmallOrder() {
 			return ErrTwistedOneTimeAddress
 		}
 
@@ -176,7 +176,7 @@ func (enote *EnoteV1) tryScanEnoteChecked(hasher *blake2b.Digest, scan *ScanV1, 
 	var oneTimeAddress curve25519.VarTimePublicKey
 	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 		return ErrInvalidOneTimeAddress
-	} else if !oneTimeAddress.IsTorsionFree() {
+	} else if !oneTimeAddress.IsTorsionFree() || oneTimeAddress.IsSmallOrder() {
 		return ErrTwistedOneTimeAddress
 	}
 
