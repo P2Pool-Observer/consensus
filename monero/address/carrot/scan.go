@@ -28,6 +28,7 @@ type ScanV1 struct {
 }
 
 var ErrInvalidOneTimeAddress = errors.New("invalid one time address")
+var ErrTwistedOneTimeAddress = errors.New("twisted one time address")
 var ErrMismatchedViewTag = errors.New("mismatched view tag")
 var ErrMismatchedMainAddress = errors.New("mismatched main address")
 var ErrJanusProtectionFailed = errors.New("janus protection check failed")
@@ -50,6 +51,8 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 	var oneTimeAddress curve25519.VarTimePublicKey
 	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 		return ErrInvalidOneTimeAddress
+	} else if !oneTimeAddress.IsTorsionFree() {
+		return ErrTwistedOneTimeAddress
 	}
 	var extensionG, extensionT curve25519.Scalar
 	var nominalSpendPub curve25519.PublicKeyBytes
@@ -138,6 +141,8 @@ func (enote *EnoteV1) TryScanEnoteInternalReceiver(scan *ScanV1, inputContext []
 		var oneTimeAddress curve25519.VarTimePublicKey
 		if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 			return ErrInvalidOneTimeAddress
+		} else if !oneTimeAddress.IsTorsionFree() {
+			return ErrTwistedOneTimeAddress
 		}
 
 		scanNonCoinbaseInfo(&hasher, scan, &oneTimeAddress, enote.AmountCommitment, enote.EncryptedAnchor, nil, senderReceiverSecret)
@@ -171,6 +176,8 @@ func (enote *EnoteV1) tryScanEnoteChecked(hasher *blake2b.Digest, scan *ScanV1, 
 	var oneTimeAddress curve25519.VarTimePublicKey
 	if _, err := oneTimeAddress.SetBytes(enote.OneTimeAddress[:]); err != nil {
 		return ErrInvalidOneTimeAddress
+	} else if !oneTimeAddress.IsTorsionFree() {
+		return ErrTwistedOneTimeAddress
 	}
 
 	scanNonCoinbaseInfo(hasher, scan, &oneTimeAddress, enote.AmountCommitment, enote.EncryptedAnchor, encryptedPaymentId, senderReceiverSecret)
