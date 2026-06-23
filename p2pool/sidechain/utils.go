@@ -477,17 +477,29 @@ func GetDifficultyForNextBlock(tip *PoolBlock, consensus *Consensus, getByTempla
 // NextDifficulty returns the next block difficulty based on gathered timestamp/difficulty data
 // Returns error on wrap/overflow/underflow on uint128 operations
 func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []DifficultyData) (nextDifficulty types.Difficulty, err error) {
+	if len(timestamps) == 0 {
+		return types.ZeroDifficulty, errors.New("no timestamps provided")
+	}
 	// Discard 10% oldest and 10% newest (by timestamp) blocks
 
 	cutSize := (len(timestamps) + 9) / 10
 	lowIndex := cutSize - 1
 	upperIndex := len(timestamps) - cutSize
 
+	oldestTimestamp := timestamps[0]
+	for i := range timestamps {
+		oldestTimestamp = min(oldestTimestamp, timestamps[i])
+	}
+
+	for i := range timestamps {
+		timestamps[i] = uint64(uint32(timestamps[i] - oldestTimestamp))
+	}
+
 	utils.NthElementSlice(timestamps, lowIndex)
-	timestampLowerBound := timestamps[lowIndex]
+	timestampLowerBound := oldestTimestamp + timestamps[lowIndex]
 
 	utils.NthElementSlice(timestamps, upperIndex)
-	timestampUpperBound := timestamps[upperIndex]
+	timestampUpperBound := oldestTimestamp + timestamps[upperIndex]
 
 	// Make a reasonable assumption that each block has higher timestamp, so deltaTimestamp can't be less than deltaIndex
 	// Because if it is, someone is trying to mess with timestamps
@@ -517,27 +529,13 @@ func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []
 		}
 	}
 
-	// Specific section that could wrap and needs to be detected
-	// Use calls that panic on wrap/overflow/underflow
-	{
-		defer func() {
-			if e := recover(); e != nil {
-				if panicError, ok := e.(error); ok {
-					err = utils.ErrorfNoEscape("panic in NextDifficulty, wrap occurred?: %w", panicError)
-				} else {
-					err = utils.ErrorfNoEscape("panic in NextDifficulty, wrap occurred?: %v", e)
-				}
-			}
-		}()
+	deltaDifficulty := maxDifficulty.Sub(minDifficulty)
+	curDifficulty := deltaDifficulty.Mul64(consensus.TargetBlockTime).Div64(deltaTimestamp)
 
-		deltaDifficulty := maxDifficulty.Sub(minDifficulty)
-		curDifficulty := deltaDifficulty.Mul64(consensus.TargetBlockTime).Div64(deltaTimestamp)
-
-		if curDifficulty.Cmp64(consensus.MinimumDifficulty) < 0 {
-			return types.DifficultyFrom64(consensus.MinimumDifficulty), nil
-		}
-		return curDifficulty, nil
+	if curDifficulty.Cmp64(consensus.MinimumDifficulty) < 0 {
+		return types.DifficultyFrom64(consensus.MinimumDifficulty), nil
 	}
+	return curDifficulty, nil
 }
 
 func SplitRewardAllocate(reward uint64, shares Shares) (rewards []uint64) {
