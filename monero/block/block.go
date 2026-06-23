@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"slices"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
@@ -393,9 +394,27 @@ func (b *Block) Difficulty(f GetDifficultyByHeightFunc) types.Difficulty {
 }
 
 var ErrNoSeed = errors.New("could not get seed")
+var ErrUnsupportedAlgorithm = errors.New("unsupported algorithm")
 
 func (b *Block) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeightFunc) (types.Hash, error) {
 	//not cached
+
+	if b.Coinbase.GenHeight == 202612 {
+		// commit https://github.com/monero-project/monero/commit/c05489938f2735efe1539cfab77d28e4ef2baa48
+		// introduced a bug where every block on this height produced the same PoW hash.
+		// Specifically add mainnet/testnet/stressnet hashes to match, as by the time they reached that height the fix was in.
+		// see upstream fix on https://github.com/monero-project/monero/pull/10801
+
+		if slices.Contains(knownHashesBlock202612[:], b.Id()) {
+			return powHashBlock202612, nil
+		}
+	}
+
+	// TODO: support different PoW algorithms than RandomX
+	if b.MajorVersion < monero.HardForkRandomX {
+		return types.ZeroHash, ErrUnsupportedAlgorithm
+	}
+
 	if seed := f(b.Coinbase.GenHeight); seed == types.ZeroHash {
 		return types.ZeroHash, ErrNoSeed
 	} else {
@@ -403,8 +422,19 @@ func (b *Block) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeightFunc) (
 	}
 }
 
+var powHashBlock202612 = types.MustHashFromString("84f64766475d51837ac9efbef1926486e58563c95a19fef4aec3254f03000000")
+
 var correctHashBlock202612 = types.MustHashFromString("426d16cff04c71f8b16340b722dc4010a2dd3831c22041431f772547ba6e331a")
 var existingHashBlock202612 = types.MustHashFromString("bbd604d2ba11ba27935e006ed39c9bfdd99b76bf4a50654bc1e1e61217962698")
+
+var knownHashesBlock202612 = [3]types.Hash{
+	// mainnet
+	existingHashBlock202612,
+	// testnet
+	types.MustHashFromString("248fde4b96b829c4ddbd00e3f76d35b03d01257898bc1b5578bc9e04b379a676"),
+	// stagenet
+	types.MustHashFromString("f3449e658b5f880c4b0e69007ed5d092c9c883ac3a518166fa652d5cc505e7b1"),
+}
 
 func (b *Block) Id() types.Hash {
 	var varIntBuf [binary.MaxVarintLen64]byte
