@@ -70,7 +70,7 @@ func NewGenerators[P any, V curve.Point[P]](G, H *P, GBold, HBold []*P) (g *Gene
 	for i, h := range HBold {
 		V(runningHSum).Add(runningHSum, h)
 		if (i + 1) == nextPowerOf2 {
-			HSum = append(HSum, runningHSum)
+			HSum = append(HSum, V(new(P)).Set(runningHSum))
 			nextPowerOf2 *= 2
 		}
 	}
