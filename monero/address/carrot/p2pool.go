@@ -29,7 +29,7 @@ func GetP2PoolDeterministicCarrotOutputRandomness(hasher *blake2b.Digest, seed t
 	var nonce [4]byte
 
 	for {
-		HashedTranscript(out[:], hasher, []byte(DomainSeparatorP2PoolDeterministicCarrotOutputRandomness), seed[:], inputContext[:], spendPub[:], viewPub[:], nonce[:])
+		HashedTranscript(out[:], hasher, seed[:], []byte(DomainSeparatorP2PoolDeterministicCarrotOutputRandomness), inputContext[:], spendPub[:], viewPub[:], nonce[:])
 		if out != [monero.JanusAnchorSize]byte{} {
 			break
 		}
