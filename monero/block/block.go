@@ -239,6 +239,12 @@ func (b *Block) FromReaderFlags(reader utils.ReaderAndByteReader, compact, canBe
 		return utils.ErrorfNoEscape("transaction count too large: %d > %d", txCount, MaxTransactionCount)
 	} else if txCount > 0 {
 		if compact {
+			// rough hard cap to p2pool cap
+			const maxCompactTransactions = (128 * 1024) / types.HashSize
+			if txCount > maxCompactTransactions {
+				return utils.ErrorfNoEscape("compact transaction count too large: %d > %d", txCount, maxCompactTransactions)
+			}
+
 			// preallocate with soft cap
 			b.Transactions = make([]types.Hash, 0, min(8192, txCount))
 			b.TransactionParentIndices = make([]uint64, 0, min(8192, txCount))

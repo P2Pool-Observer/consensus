@@ -357,6 +357,11 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		}
 	}
 
+	// quick check, full encode check is done later in AddPoolBlock
+	if block.BufferLength() > PoolBlockMaxTemplateSize {
+		return nil, errors.New("buffer too large"), true
+	}
+
 	templateId := block.SideTemplateId(c.Consensus())
 
 	if block.ShareVersion() >= ShareVersion_V3 {
@@ -548,8 +553,10 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 		return nil
 	}
 
-	if _, err := block.AppendBinaryFlags(c.preAllocatedBuffer, false, false); err != nil {
+	if encodeBuf, err := block.AppendBinaryFlags(c.preAllocatedBuffer, false, false); err != nil {
 		return fmt.Errorf("encoding block error: %w", err)
+	} else if len(encodeBuf) > PoolBlockMaxTemplateSize {
+		return errors.New("buffer too large")
 	}
 
 	c.blocksByTemplateId[block.SideTemplateId(c.Consensus())] = block
