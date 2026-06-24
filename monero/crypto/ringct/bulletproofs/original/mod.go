@@ -208,9 +208,13 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 	// Find out the padded amount of commitments
 	paddedPowOf2 := bulletproofs.PaddedPowerOfTwo(len(witness.Commitments))
 
-	var aL bulletproofs.ScalarVector[T]
-	for _, commitment := range witness.Commitments {
-		aL = append(aL, bulletproofs.Decompose[T](commitment.Amount)...)
+	aL := make(bulletproofs.ScalarVector[T], 0, paddedPowOf2*bulletproofs.CommitmentBits)
+	for j := 1; j <= paddedPowOf2; j++ {
+		if len(witness.Commitments) > j-1 {
+			aL = append(aL, bulletproofs.Decompose[T](witness.Commitments[j-1].Amount)...)
+		} else {
+			aL = append(aL, bulletproofs.Decompose[T](0)...)
+		}
 	}
 	aR := slices.Clone(aL).Subtract(scalarOne)
 
