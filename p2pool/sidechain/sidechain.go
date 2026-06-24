@@ -1046,7 +1046,6 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 			if child.Side.Parent == block.SideTemplateId(c.Consensus()) {
 				if i != 1 {
 					utils.Logf("SideChain", "Block %x side height %d is inconsistent with child's side_height %d", block.SideTemplateId(c.Consensus()).Slice(), block.Side.Height, child.Side.Height)
-					return
 				} else {
 					updateDepth(block, child.Depth.Load()+1)
 				}
@@ -1086,7 +1085,6 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 				if child.Side.Parent == block.SideTemplateId(c.Consensus()) {
 					if i != 1 {
 						utils.Logf("SideChain", "Block %x side height %d is inconsistent with child's side_height %d", block.SideTemplateId(c.Consensus()).Slice(), block.Side.Height, child.Side.Height)
-						return
 					} else if block.Depth.Load() > 0 {
 						updateDepth(child, block.Depth.Load()-1)
 					}
@@ -1108,21 +1106,15 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 		if parent := block.iteratorGetParent(c.getPoolBlockByTemplateId); parent != nil {
 			if parent.Side.Height+1 != block.Side.Height {
 				utils.Logf("SideChain", "Block %x side height %d is inconsistent with parent's side_height %d", block.SideTemplateId(c.Consensus()).Slice(), block.Side.Height, parent.Side.Height)
-				return
-			}
-
-			if parent.Depth.Load() < block.Depth.Load()+1 {
+			} else if parent.Depth.Load() < block.Depth.Load()+1 {
 				updateDepth(parent, block.Depth.Load()+1)
 				blocksToUpdate = append(blocksToUpdate, parent)
 			}
 		}
 
-		var returnFromUncles bool
-
 		_ = block.iteratorUncles(c.getPoolBlockByTemplateId, func(uncle *PoolBlock) {
 			if uncle.Side.Height >= block.Side.Height || (uncle.Side.Height+UncleBlockDepth < block.Side.Height) {
 				utils.Logf("SideChain", "Block %x side height %d is inconsistent with uncle's side_height %d", block.SideTemplateId(c.Consensus()).Slice(), block.Side.Height, uncle.Side.Height)
-				returnFromUncles = true
 				return
 			}
 
@@ -1132,9 +1124,6 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 				blocksToUpdate = append(blocksToUpdate, uncle)
 			}
 		})
-		if returnFromUncles {
-			return
-		}
 	}
 }
 
