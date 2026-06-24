@@ -684,7 +684,7 @@ func IsLongerChain(block, candidate *PoolBlock, consensus *Consensus, getByTempl
 						candidateTimestampDeviation = max(candidateTimestampDeviation, diff)
 					}
 
-					if !slices.Contains(currentChainMoneroBlocks, id) {
+					if !slices.Contains(candidateChainMoneroBlocks, id) {
 						candidateChainMoneroBlocks = append(candidateChainMoneroBlocks, id)
 						candidateMainchainHeight = max(candidateMainchainHeight, data.Height)
 					}
