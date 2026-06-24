@@ -147,6 +147,8 @@ type Server struct {
 
 	BroadcastedMoneroBlocks *utils.CircularBuffer[types.Hash]
 
+	lookForMissingBlocks chan struct{}
+
 	ctx context.Context //nolint:containedctx
 }
 
@@ -187,6 +189,7 @@ func NewServer(p2pool P2PoolInterface, listenAddress string, externalListenPort 
 		ctx:                     ctx,
 		bans:                    make(map[[16]byte]BanEntry),
 		BroadcastedMoneroBlocks: utils.NewCircularBuffer[types.Hash](720),
+		lookForMissingBlocks:    make(chan struct{}, 1),
 	}
 
 	s.PendingOutgoingConnections = utils.NewCircularBuffer[string](int(s.MaxOutgoingPeers))
@@ -570,6 +573,14 @@ func (s *Server) GetCachedBlocksTip() (tip *sidechain.PoolBlock) {
 	return tip
 }
 
+func (s *Server) TriggerDownloadMissingBlocks() {
+	select {
+	case s.lookForMissingBlocks <- struct{}{}:
+	default:
+
+	}
+}
+
 func (s *Server) DownloadMissingBlocks() {
 	clientList := s.Clients()
 
@@ -631,7 +642,17 @@ func (s *Server) Listen() (err error) {
 					s.DownloadMissingBlocks()
 				}
 				// Slow down updates for missing blocks after sync
-				for range utils.ContextTick(s.ctx, time.Minute*2) {
+				ticker := utils.ContextTick(s.ctx, time.Minute*2)
+
+				for {
+					select {
+					case <-s.lookForMissingBlocks:
+					case _, ok := <-ticker:
+						if !ok {
+							return
+						}
+					}
+
 					s.DownloadMissingBlocks()
 				}
 			}()

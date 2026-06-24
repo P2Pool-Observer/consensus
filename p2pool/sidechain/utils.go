@@ -785,3 +785,13 @@ func IsLongerChain(block, candidate *PoolBlock, consensus *Consensus, getByTempl
 		return false, true
 	}
 }
+
+type MissingBlockError types.Hash
+
+func (err MissingBlockError) Hash() types.Hash {
+	return types.Hash(err)
+}
+
+func (err MissingBlockError) Error() string {
+	return utils.SprintfNoEscape("missing block %x", types.Hash(err).Slice())
+}

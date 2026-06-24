@@ -599,7 +599,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 					if isChainTipBlockRequest {
 						if lastTip := c.LastKnownTip.Load(); lastTip == nil || lastTip.Side.Height <= block.Side.Height {
-							if _, err = c.Owner.SideChain().PreprocessBlock(block); err == nil {
+							if _, err = c.Owner.SideChain().PreProcessBlock(block); err == nil {
 								c.LastKnownTip.Store(block)
 							}
 						}
@@ -645,8 +645,11 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 							c.Ban(DefaultBanTime, utils.ErrorfNoEscape("expected block id = %s, got %s", expectedBlockId.String(), block.SideTemplateId(c.Owner.SideChain().Consensus()).String()))
 							return
 						}
-						for _, id := range missingBlocks {
-							c.SendMissingBlockRequest(id)
+						if len(missingBlocks) > 0 {
+							c.Owner.TriggerDownloadMissingBlocks()
+							for _, id := range missingBlocks {
+								c.SendMissingBlockRequest(id)
+							}
 						}
 					}
 				}
@@ -708,9 +711,12 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 			//utils.Logf("P2PClient", "Peer %s broadcast tip is at id = %s, height = %d, main height = %d", c.HostPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.GenHeight)
 
-			if missingBlocks, err := c.Owner.SideChain().PreprocessBlock(poolBlock); err != nil {
-				for _, id := range missingBlocks {
-					c.SendMissingBlockRequest(id)
+			if missingBlocks, err := c.Owner.SideChain().PreProcessBlock(poolBlock); err != nil {
+				if len(missingBlocks) > 0 {
+					c.Owner.TriggerDownloadMissingBlocks()
+					for _, id := range missingBlocks {
+						c.SendMissingBlockRequest(id)
+					}
 				}
 				//TODO: ban here, but sort blocks properly, maybe a queue to re-try?
 				//nolint:staticcheck
@@ -768,11 +774,13 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 						utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.HostPort.String(), tipHash, poolBlock.Side.Height, poolBlock.Main.Coinbase.GenHeight, poolBlock.Main.Timestamp)
 						break
 					}
-				} else {
+				} else if len(missingBlocks) > 0 {
+					c.Owner.TriggerDownloadMissingBlocks()
 					for _, id := range missingBlocks {
 						c.SendMissingBlockRequest(id)
 					}
 				}
+
 			}
 		case MessagePeerListRequest:
 			connectedPeerList := c.Owner.Clients()

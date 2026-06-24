@@ -355,14 +355,6 @@ func (b *PoolBlock) fillCoinbasePublicKeys(pubs []curve25519.PublicKeyBytes) err
 }
 
 func (b *PoolBlock) CoinbasePublicKeys() (result []curve25519.PublicKeyBytes) {
-	// first tag
-	if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagPubKey); t != nil {
-		if len(t.Data) != curve25519.PublicKeySize {
-			return nil
-		}
-		return []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(t.Data)}
-	}
-
 	if b.Main.MajorVersion >= monero.HardForkCarrotVersion {
 		if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys); t != nil {
 			if len(t.Data)%curve25519.PublicKeySize != 0 || len(t.Data) == 0 {
@@ -371,6 +363,16 @@ func (b *PoolBlock) CoinbasePublicKeys() (result []curve25519.PublicKeyBytes) {
 			// #nosec G103
 			return unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(t.Data))), len(t.Data)/curve25519.PublicKeySize)
 		}
+
+		return nil
+	}
+
+	// first tag
+	if t := b.Main.Coinbase.Extra.GetTag(transaction.TxExtraTagPubKey); t != nil {
+		if len(t.Data) != curve25519.PublicKeySize {
+			return nil
+		}
+		return []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(t.Data)}
 	}
 
 	return nil

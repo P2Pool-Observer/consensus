@@ -126,7 +126,7 @@ func TestMain(m *testing.M) {
 			if _, err, _ = preLoadedMiniSideChain.PoolBlockExternalVerify(b); err != nil {
 				panic(err)
 			}
-			if err = preLoadedMiniSideChain.AddPoolBlock(b); err != nil {
+			if _, err = preLoadedMiniSideChain.AddPoolBlock(b); err != nil {
 				panic(err)
 			}
 		}
@@ -359,7 +359,7 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 			}
 		}
 
-		missing, err := sideChain.PreprocessBlock(&b)
+		missing, err := sideChain.PreProcessBlock(&b)
 		if len(missing) != 0 {
 			t.Fatal("missing blocks!")
 		}
@@ -381,7 +381,7 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 			if err != nil {
 				t.Fatalf("failed to unmarshal block: %s", err)
 			}
-			missing, err = sideChain.PreprocessBlock(&b2)
+			missing, err = sideChain.PreProcessBlock(&b2)
 			if len(missing) != 0 {
 				t.Fatal("missing blocks!")
 			}
@@ -401,7 +401,7 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 			if err != nil {
 				t.Fatalf("failed to unmarshal block: %s", err)
 			}
-			missing, err = sideChain.PreprocessBlock(&b2)
+			missing, err = sideChain.PreProcessBlock(&b2)
 			if len(missing) != 0 {
 				t.Fatal("missing blocks!")
 			}

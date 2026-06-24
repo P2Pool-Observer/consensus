@@ -172,7 +172,7 @@ func (c *SideChain) PreCalcFinished() bool {
 	return c.precalcFinished.Load()
 }
 
-func (c *SideChain) PreprocessBlock(block *PoolBlock) (missingBlocks []types.Hash, err error) {
+func (c *SideChain) PreProcessBlock(block *PoolBlock) (missingBlocks []types.Hash, err error) {
 	var preAllocatedShares Shares
 	if len(block.Main.Coinbase.MinerOutputs) == 0 {
 		//cannot use SideTemplateId() as it might not be proper to calculate yet. fetch appropriate identifier from coinbase only here
@@ -349,7 +349,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	// same for carrot outputs
 	expectedTxType := block.GetTransactionOutputType()
 
-	if missingBlocks, err = c.PreprocessBlock(block); err != nil {
+	if missingBlocks, err = c.PreProcessBlock(block); err != nil {
 		return missingBlocks, err, true
 	}
 	for _, o := range block.Main.Coinbase.MinerOutputs {
@@ -544,28 +544,39 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 	}
 
 	//TODO: block found section
+	verification, invalid := c.AddPoolBlock(block)
+	if verification != nil {
+		if mbErr, ok := errors.AsType[MissingBlockError](verification); ok {
+			if !slices.Contains(missingBlocks, mbErr.Hash()) {
+				missingBlocks = append(missingBlocks, mbErr.Hash())
+			}
+		}
+	}
+	if invalid != nil {
+		return missingBlocks, invalid, true
+	}
 
-	return missingBlocks, c.AddPoolBlock(block), true
+	return missingBlocks, nil, false
 }
 
-func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
+func (c *SideChain) AddPoolBlock(block *PoolBlock) (verification error, invalid error) {
 
 	c.sidechainLock.Lock()
 	defer c.sidechainLock.Unlock()
 	if _, ok := c.blocksByTemplateId[block.SideTemplateId(c.Consensus())]; ok {
 		//already inserted
 		//TODO WARN
-		return nil
+		return nil, nil
 	}
 
 	if block.Main.MajorVersion < monero.HardForkMinimumP2PoolSupportedVersion || block.Main.MajorVersion > monero.HardForkSupportedVersion {
-		return utils.ErrorfNoEscape("unsupported version %d", block.Main.MajorVersion)
+		return nil, utils.ErrorfNoEscape("unsupported version %d", block.Main.MajorVersion)
 	}
 
 	if encodeBuf, err := block.AppendBinaryFlags(c.preAllocatedBuffer, false, false); err != nil {
-		return fmt.Errorf("encoding block error: %w", err)
+		return nil, fmt.Errorf("encoding block error: %w", err)
 	} else if len(encodeBuf) > PoolBlockMaxTemplateSize {
-		return errors.New("buffer too large")
+		return nil, errors.New("buffer too large")
 	}
 
 	c.blocksByTemplateId[block.SideTemplateId(c.Consensus())] = block
@@ -605,13 +616,13 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (err error) {
 			c.updateChainTip(block)
 		}
 
-		return nil
+		return nil, nil
 	} else {
 		return c.verifyLoop(block)
 	}
 }
 
-func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
+func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (verificationErr error, invalidErr error) {
 	// PoW is already checked at this point
 
 	blocksToVerify := make([]*PoolBlock, 1, 8)
@@ -632,7 +643,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 			block.Verified.Store(verification == nil)
 			if block == blockToVerify {
 				//Save error for return
-				err = invalid
+				invalidErr = invalid
 			}
 		} else if verification != nil {
 			verification = fmt.Errorf("at depth %d: %w", block.Depth.Load(), verification)
@@ -642,6 +653,10 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (err error) {
 			}
 			block.Verified.Store(false)
 			block.Invalid.Store(false)
+			if block == blockToVerify {
+				//Save error for return
+				verificationErr = verification
+			}
 		} else {
 			block.Verified.Store(true)
 			block.Invalid.Store(false)
@@ -845,9 +860,8 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			}
 
 			if uncle := c.getPoolBlockByTemplateId(uncleId); uncle == nil {
-				return errors.New("uncle does not exist"), nil
+				return utils.ErrorfNoEscape("uncle does not exist: %w", MissingBlockError(uncleId)), nil
 			} else if !uncle.Verified.Load() {
-				// If it's invalid then this block is also invalid
 				return errors.New("uncle is not verified"), nil
 			} else if uncle.Invalid.Load() {
 				// If it's invalid then this block is also invalid
@@ -1008,7 +1022,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 		// All checks passed
 		return nil, nil //nolint:nilnil
 	} else {
-		return utils.ErrorfNoEscape("parent %s does not exist", block.Side.Parent), nil
+		return utils.ErrorfNoEscape("parent does not exist: %w", MissingBlockError(block.Side.Parent)), nil
 	}
 }
 
@@ -1061,7 +1075,7 @@ func (c *SideChain) updateDepths(block *PoolBlock) {
 		// at depth > (m_chainWindowSize - 1) * 2 + UNCLE_BLOCK_DEPTH * 2
 		//
 		if !block.Verified.Load() && (block.Depth.Load() > ((c.Consensus().ChainWindowSize-1)*2+UncleBlockDepth*2) || block.Side.Height == 0) {
-			_ = c.verifyLoop(block)
+			_, _ = c.verifyLoop(block)
 		}
 
 		// Walk blocks upward from current block to update children

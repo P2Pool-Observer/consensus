@@ -466,7 +466,7 @@ func FuzzSideChain_Mini_Shuffle_V4(f *testing.F) {
 			if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
 				t.Fatalf("pool block external verify failed: %s", err)
 			}
-			if err = s.AddPoolBlock(b); err != nil {
+			if _, err = s.AddPoolBlock(b); err != nil {
 				t.Fatalf("add pool block failed: %s", err)
 			}
 		}
@@ -506,7 +506,7 @@ func FuzzSideChain_AddPoolBlockExternal(f *testing.F) {
 		if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
 			f.Fatalf("pool block external verify failed: %s", err)
 		}
-		if err = s.AddPoolBlock(b); err != nil {
+		if _, err = s.AddPoolBlock(b); err != nil {
 			f.Fatalf("add pool block failed: %s", err)
 		}
 		data, err := b.MarshalBinary()
@@ -546,7 +546,7 @@ func FuzzSideChain_AddPoolBlockExternal(f *testing.F) {
 			}
 			t.Skip(err)
 		}
-		if err = s.AddPoolBlock(b); err != nil {
+		if _, err = s.AddPoolBlock(b); err != nil {
 			if errors.Is(err, ErrPanic) {
 				t.Fatal(err)
 			}
@@ -579,7 +579,7 @@ func FuzzSideChain_AddPoolBlockExternal_PrunedCompact(f *testing.F) {
 		if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
 			f.Fatalf("pool block external verify failed: %s", err)
 		}
-		if err = s.AddPoolBlock(b); err != nil {
+		if _, err = s.AddPoolBlock(b); err != nil {
 			f.Fatalf("add pool block failed: %s", err)
 		}
 	}
@@ -646,7 +646,7 @@ func FuzzSideChain_AddPoolBlockExternal_PrunedCompact(f *testing.F) {
 			}
 			t.Skip(err)
 		}
-		if err = s.AddPoolBlock(b); err != nil {
+		if _, err = s.AddPoolBlock(b); err != nil {
 			if errors.Is(err, ErrPanic) {
 				t.Fatal(err)
 			}
@@ -701,7 +701,7 @@ func FuzzSideChain_Default_Shuffle_V4(f *testing.F) {
 			if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
 				t.Fatalf("pool block external verify failed: %s", err)
 			}
-			if err = s.AddPoolBlock(b); err != nil {
+			if _, err = s.AddPoolBlock(b); err != nil {
 				t.Fatalf("add pool block failed: %s", err)
 			}
 		}
@@ -762,7 +762,7 @@ func FuzzSideChain_Default_Random_V4(f *testing.F) {
 			if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
 				t.Fatalf("pool block external verify failed: %s", err)
 			}
-			if err = s.AddPoolBlock(b); err != nil {
+			if _, err = s.AddPoolBlock(b); err != nil {
 				t.Fatalf("add pool block failed: %s", err)
 			}
 		}
@@ -794,7 +794,7 @@ func TestSideChain(t *testing.T) {
 				if _, err, _ = s.PoolBlockExternalVerify(b); err != nil {
 					t.Fatalf("pool block external verify failed: %s", err)
 				}
-				if err = s.AddPoolBlock(b); err != nil {
+				if _, err = s.AddPoolBlock(b); err != nil {
 					t.Fatalf("add pool block failed: %s", err)
 				}
 			}
@@ -971,7 +971,7 @@ func TestMain(m *testing.M) {
 			if _, err, _ = benchLoadedSideChain.PoolBlockExternalVerify(b); err != nil {
 				panic(err)
 			}
-			if err = benchLoadedSideChain.AddPoolBlock(b); err != nil {
+			if _, err = benchLoadedSideChain.AddPoolBlock(b); err != nil {
 				panic(err)
 			}
 		}
