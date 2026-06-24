@@ -417,6 +417,11 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				return
 			}
 
+			if peerId == 0 {
+				c.Ban(DefaultBanTime, errors.New("invalid peer id"))
+				return
+			}
+
 			if peerId == c.Owner.PeerId() || peerId == c.Owner.AlternatePeerId() {
 				c.HandshakeComplete.Store(true)
 				c.SetError(errors.New("connected to self"))
