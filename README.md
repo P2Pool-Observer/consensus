@@ -139,7 +139,7 @@ go vet ./...
 
 ### Requirements
 
-Go 1.25
+Go 1.26
 
 By default, CGO is not necessary, so `CGO_ENABLED=0` is recommended. You may use the `purego` build flag to disable any assembly or architecture specific optimizations.
 
@@ -150,7 +150,7 @@ By default, the Golang library will be used, without special requirements.
 You can enable the C++ library if by using CGO and the Go compile tag `enable_randomx_library` and use `CGO_ENABLED=1`.
 You must have the library installed or done via the command below:
 ```bash
-$ git clone --depth 1 --branch master https://github.com/tevador/RandomX.git /tmp/RandomX && cd /tmp/RandomX && \
+$ git clone --depth 1 --branch v2.0.1 https://github.com/tevador/RandomX.git /tmp/RandomX && cd /tmp/RandomX && \
     mkdir build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release -D CMAKE_INSTALL_PREFIX:PATH=/usr && \
     make -j$(nproc) && \
