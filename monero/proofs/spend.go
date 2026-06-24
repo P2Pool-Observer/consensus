@@ -36,7 +36,7 @@ func (p SpendProof[T]) Verify(prefixHash types.Hash, keyImages []curve25519.Publ
 	if p.Version != 1 {
 		return false
 	}
-	if len(keyImages) != len(rings) {
+	if len(keyImages) != len(rings) || len(rings) == 0 {
 		return false
 	}
 	ring0Len := len(rings[0])
