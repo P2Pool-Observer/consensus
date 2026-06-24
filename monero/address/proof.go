@@ -34,10 +34,10 @@ func GetOutProof[T curve25519.PointOperations](a Interface, txId types.Hash, txK
 		sharedSecret[i+1].ScalarMult(&additionalTxKey, &viewPub)
 		if sa, ok := a.(InterfaceSubaddress); ok && sa.IsSubaddress() {
 			pub := new(curve25519.PublicKey[T]).ScalarMult(&additionalTxKey, &spendPub)
-			signature[i+1] = proofs.GenerateTxProof(prefixHash, pub, &viewPub, &spendPub, &sharedSecret[i+1], txKey, version)
+			signature[i+1] = proofs.GenerateTxProof(prefixHash, pub, &viewPub, &spendPub, &sharedSecret[i+1], &additionalTxKey, version)
 		} else {
 			pub := new(curve25519.PublicKey[T]).ScalarBaseMult(&additionalTxKey)
-			signature[i+1] = proofs.GenerateTxProof(prefixHash, pub, &viewPub, nil, &sharedSecret[i+1], txKey, version)
+			signature[i+1] = proofs.GenerateTxProof(prefixHash, pub, &viewPub, nil, &sharedSecret[i+1], &additionalTxKey, version)
 		}
 	}
 
