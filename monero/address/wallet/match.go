@@ -243,7 +243,7 @@ func matchDerivationCarrot(a address.InterfaceSubaddress, senderReceiverUnctx, e
 			return int(out.Index), scan
 		}
 	} else {
-		if len(commitments) < int(out.Index) {
+		if len(commitments) <= int(out.Index) {
 			return -1, nil
 		}
 
