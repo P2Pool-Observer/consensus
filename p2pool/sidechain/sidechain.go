@@ -566,6 +566,7 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (verification error, invalid 
 	if _, ok := c.blocksByTemplateId[block.SideTemplateId(c.Consensus())]; ok {
 		//already inserted
 		//TODO WARN
+		//nolint:nilnil
 		return nil, nil
 	}
 
@@ -616,6 +617,7 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (verification error, invalid 
 			c.updateChainTip(block)
 		}
 
+		//nolint:nilnil
 		return nil, nil
 	} else {
 		return c.verifyLoop(block)
