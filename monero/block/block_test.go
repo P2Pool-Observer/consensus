@@ -123,6 +123,10 @@ var testBlocks = []types.Hash{
 	types.MustHashFromString("de765284307d562be5d68cd46d1c80f3e2c311680c14e07cd1cfd91e6bbf0575"),
 	// newer p2pool block
 	types.MustHashFromString("ee860c8d05640f0fe200904ca806140d2620f5cdd1a5e68f2418535e24d7742a"),
+
+	// invalid extra data due to Tari merge mining bug
+	// todo
+	// types.MustHashFromString("35050900709dac5b4529101ead86631985f74e9e1f2142761b2854bd5b387aef"),
 }
 
 func TestBlocks(t *testing.T) {
