@@ -72,7 +72,7 @@ func (e VarTimeOperations) IsSmallOrder(v *Point) bool {
 }
 
 func (e VarTimeOperations) IsTorsionFree(v *Point) bool {
-	return v.IsTorsionFreeVarTime()
+	return v.Equal(identity) == 0 && v.IsTorsionFreeVarTime()
 }
 
 func (e VarTimeOperations) SetBytes(v *Point, x []byte) (*Point, error) {
