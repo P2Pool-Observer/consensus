@@ -248,7 +248,7 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 
 	yPowN := bulletproofs.AppendScalarVectorPowers[T](make(bulletproofs.ScalarVector[T], 0, len(aR)), &y, len(aR))
 
-	r0 := (slices.Clone(sR).Add(&z[1])).MultiplyVec(yPowN)
+	r0 := (slices.Clone(aR).Add(&z[1])).MultiplyVec(yPowN)
 	r1 := slices.Clone(sR).MultiplyVec(yPowN)
 	{
 		for j := range paddedPowOf2 {
