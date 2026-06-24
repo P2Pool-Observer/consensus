@@ -186,22 +186,22 @@ func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, out
 	inputContext := carrot.MakeInputContext(firstKeyImage)
 	scan = &carrot.ScanV1{}
 
-	if len(commitments) != len(outputs) {
-		return -1, nil, address.ZeroSubaddressIndex
-	}
-
 	for _, pub := range txPubs {
 
 		//TODO: optimize order from pubs?
-		for i, out := range outputs {
+		for _, out := range outputs {
 			if out.Type != transaction.TxOutToCarrotV1 {
 				continue
 			}
+			if len(commitments) <= int(out.Index) {
+				continue
+			}
+
 			enote := carrot.EnoteV1{
 				OneTimeAddress:   out.EphemeralPublicKey,
 				EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
-				EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[i].Amount[:]),
-				AmountCommitment: commitments[i].Commitment,
+				EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[out.Index].Amount[:]),
+				AmountCommitment: commitments[out.Index].Commitment,
 				ViewTag:          out.ViewTag.Value(),
 				EphemeralPubKey:  curve25519.MontgomeryPoint(pub),
 				FirstKeyImage:    firstKeyImage,
