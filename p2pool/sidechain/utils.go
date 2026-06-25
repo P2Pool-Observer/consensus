@@ -492,7 +492,12 @@ func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []
 	}
 
 	for i := range timestamps {
-		timestamps[i] = uint64(uint32(timestamps[i] - oldestTimestamp))
+		dt := timestamps[i] - oldestTimestamp
+		// Sanity check for the overall timestamp range
+		if dt > math.MaxUint32 {
+			return types.ZeroDifficulty, utils.ErrorfNoEscape("too large timestamp delta %d (oldest %d, current %d)", dt, oldestTimestamp, timestamps[i])
+		}
+		timestamps[i] = uint64(uint32(dt))
 	}
 
 	utils.NthElementSlice(timestamps, lowIndex)
