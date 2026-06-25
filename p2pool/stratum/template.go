@@ -486,7 +486,7 @@ func TemplateFromPoolBlock(consensus *sidechain.Consensus, b *sidechain.PoolBloc
 		tpl.MerkleTreeMainBranch = merkleTree.MainBranch()
 	}
 
-	tpl.MainHeight = b.Main.Coinbase.GenHeight
+	tpl.MainHeight = b.Main.Coinbase.MinerGenHeight
 	tpl.MainParent = b.Main.PreviousId
 
 	tpl.SideHeight = b.Side.Height

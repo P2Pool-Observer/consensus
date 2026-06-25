@@ -76,7 +76,7 @@ type WeightEntries struct {
 
 type Server struct {
 	SubmitFunc     func(block *sidechain.PoolBlock) error
-	SubmitMainFunc func(b *block.Block) error
+	SubmitMainFunc func(b *sidechain.PoolMainBlock) error
 
 	refreshDuration time.Duration
 
@@ -105,7 +105,7 @@ type Server struct {
 	incomingChanges chan func() bool
 }
 
-func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBlock) error, submitMain func(b *block.Block) error) *Server {
+func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBlock) error, submitMain func(b *sidechain.PoolMainBlock) error) *Server {
 	server := &Server{
 		SubmitFunc:                        submitFunc,
 		SubmitMainFunc:                    submitMain,
@@ -245,14 +245,14 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 
 	fakeTemplateTipBlock := &sidechain.PoolBlock{
-		Main: block.Block{
+		Main: sidechain.PoolMainBlock{
 			MajorVersion: s.minerData.MajorVersion,
 			MinorVersion: minorVersion,
 			Timestamp:    s.newTemplateData.Timestamp,
 			PreviousId:   s.minerData.PrevId,
 			Nonce:        0,
-			Coinbase: transaction.CoinbaseV2{
-				GenHeight: s.minerData.Height,
+			Coinbase: transaction.P2PoolCoinbaseV2{
+				MinerGenHeight: s.minerData.Height,
 			},
 			Transactions:   nil,
 			FCMPTreeLayers: s.minerData.FCMPTreeLayers,
@@ -606,7 +606,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 		}
 
 		blockTemplate := &sidechain.PoolBlock{
-			Main: block.Block{
+			Main: sidechain.PoolMainBlock{
 				MajorVersion:   s.minerData.MajorVersion,
 				MinorVersion:   minorVersion,
 				Timestamp:      s.newTemplateData.Timestamp,
@@ -769,11 +769,11 @@ func (s *Server) coinbaseTransactionWeight(shareVersion sidechain.ShareVersion, 
 
 	txOutputsSize := txOutputSize*len(rewards) + int(rewardAmountsWeight)
 
-	tx := transaction.CoinbaseV2{
+	tx := transaction.P2PoolCoinbaseV2{
 		MinerUnlockTime: s.minerData.Height + monero.MinerRewardUnlockTime,
 		InputCount:      1,
 		InputType:       transaction.TxInGen,
-		GenHeight:       s.minerData.Height,
+		MinerGenHeight:  s.minerData.Height,
 		Extra:           nil,
 		ExtraBaseRCT:    0,
 	}
@@ -787,7 +787,7 @@ func (s *Server) coinbaseTransactionWeight(shareVersion sidechain.ShareVersion, 
 	return uint64(txSize), nil
 }
 
-func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, mergeMiningTreeData uint64, txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (tx transaction.CoinbaseV2, err error) {
+func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, mergeMiningTreeData uint64, txType uint8, shares sidechain.Shares, rewards []uint64, maxRewardsAmountsWeight uint64, final bool) (tx transaction.P2PoolCoinbaseV2, err error) {
 
 	var mergeMineTag transaction.ExtraTag
 	if shareVersion <= sidechain.ShareVersion_V2 {
@@ -809,14 +809,14 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			Data:      data,
 		}
 	} else {
-		return transaction.CoinbaseV2{}, errors.New("unsupported share version")
+		return transaction.P2PoolCoinbaseV2{}, errors.New("unsupported share version")
 	}
 
-	tx = transaction.CoinbaseV2{
+	tx = transaction.P2PoolCoinbaseV2{
 		MinerUnlockTime: s.minerData.Height + monero.MinerRewardUnlockTime,
 		InputCount:      1,
 		InputType:       transaction.TxInGen,
-		GenHeight:       s.minerData.Height,
+		MinerGenHeight:  s.minerData.Height,
 		AuxiliaryData: transaction.CoinbaseTransactionAuxiliaryData{
 			TotalReward: func() (v uint64) {
 				for i := range rewards {
@@ -865,7 +865,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			for i := range shares {
 				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i])
 				if carrotEnotes[i] == nil {
-					return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
+					return transaction.P2PoolCoinbaseV2{}, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
 				}
 			}
 
@@ -875,7 +875,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 			})
 			pubs := tx.Extra.GetTag(transaction.TxExtraTagAdditionalPubKeys)
 			if pubs == nil {
-				return transaction.CoinbaseV2{}, errors.New("nil additional public keys")
+				return transaction.P2PoolCoinbaseV2{}, errors.New("nil additional public keys")
 			}
 			for i, enote := range carrotEnotes {
 				//TODO: cache
@@ -891,7 +891,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 				outputIndex := uint64(i)
 				addr := &shares[outputIndex].Address
 				if addr.IsSubaddress() {
-					return transaction.CoinbaseV2{}, errors.New("unsupported subaddress")
+					return transaction.P2PoolCoinbaseV2{}, errors.New("unsupported subaddress")
 				}
 				tx.MinerOutputs[outputIndex].Index = outputIndex
 				tx.MinerOutputs[outputIndex].Type = txType
@@ -918,10 +918,10 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 
 	if !final {
 		if rewardAmountsWeight != maxRewardsAmountsWeight {
-			return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("incorrect miner rewards during the dry run, %d != %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+			return transaction.P2PoolCoinbaseV2{}, utils.ErrorfNoEscape("incorrect miner rewards during the dry run, %d != %d", rewardAmountsWeight, maxRewardsAmountsWeight)
 		}
 	} else if rewardAmountsWeight > maxRewardsAmountsWeight {
-		return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("incorrect miner rewards during the real run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
+		return transaction.P2PoolCoinbaseV2{}, utils.ErrorfNoEscape("incorrect miner rewards during the real run, %d > %d", rewardAmountsWeight, maxRewardsAmountsWeight)
 	}
 
 	correctedExtraNonceSize := sidechain.SideExtraNonceSize + maxRewardsAmountsWeight - rewardAmountsWeight
@@ -929,7 +929,7 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 	if correctedExtraNonceSize > sidechain.SideExtraNonceSize {
 		if correctedExtraNonceSize > sidechain.SideExtraNonceMaxSize {
 			//TODO: handle this case!!!!
-			return transaction.CoinbaseV2{}, utils.ErrorfNoEscape("corrected extra_nonce size is too large, %d > %d", correctedExtraNonceSize, sidechain.SideExtraNonceMaxSize)
+			return transaction.P2PoolCoinbaseV2{}, utils.ErrorfNoEscape("corrected extra_nonce size is too large, %d > %d", correctedExtraNonceSize, sidechain.SideExtraNonceMaxSize)
 		}
 		//Increase size to maintain transaction weight
 		tx.Extra.GetTag(transaction.TxExtraTagNonce).Data = make(types.Bytes, correctedExtraNonceSize)

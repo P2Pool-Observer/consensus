@@ -533,7 +533,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			if templateId == types.ZeroHash {
 				utils.Logf("P2PClient", "Peer %s requested tip", c.HostPort.String())
 				// Don't return stale chain tip
-				if block = c.Owner.SideChain().GetChainTip(); block != nil && ((block.Main.Coinbase.GenHeight+2) < c.Owner.MainChain().GetMinerDataTip().Height || block.Thinned.Load()) {
+				if block = c.Owner.SideChain().GetChainTip(); block != nil && ((block.Main.Coinbase.MinerGenHeight+2) < c.Owner.MainChain().GetMinerDataTip().Height || block.Thinned.Load()) {
 					block = nil
 				}
 			} else {
@@ -541,7 +541,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				if block == nil {
 					utils.Logf("P2PClient", "Peer %s requested id = %s, got nil", c.HostPort.String(), templateId)
 				} else {
-					utils.Logf("P2PClient", "Peer %s requested id = %s, got height = %d, main height = %d", c.HostPort.String(), templateId, block.Side.Height, block.Main.Coinbase.GenHeight)
+					utils.Logf("P2PClient", "Peer %s requested id = %s, got height = %d, main height = %d", c.HostPort.String(), templateId, block.Side.Height, block.Main.Coinbase.MinerGenHeight)
 				}
 			}
 
@@ -609,8 +609,8 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 							}
 						}
 
-						utils.Logf("P2PClient", "Peer %s tip is at id = %s, height = %d, main height = %d", c.HostPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.GenHeight)
-						peerHeight := block.Main.Coinbase.GenHeight
+						utils.Logf("P2PClient", "Peer %s tip is at id = %s, height = %d, main height = %d", c.HostPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.MinerGenHeight)
+						peerHeight := block.Main.Coinbase.MinerGenHeight
 						ourHeight := c.Owner.MainChain().GetMinerDataTip().Height
 
 						if (peerHeight + 2) < ourHeight {
@@ -642,7 +642,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 							c.Ban(DefaultBanTime, err)
 							return
 						} else {
-							utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.HostPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.GenHeight, block.Main.Timestamp)
+							utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.HostPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.MinerGenHeight, block.Main.Timestamp)
 							break
 						}
 					} else {
@@ -714,7 +714,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				}
 			}
 
-			//utils.Logf("P2PClient", "Peer %s broadcast tip is at id = %s, height = %d, main height = %d", c.HostPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.GenHeight)
+			//utils.Logf("P2PClient", "Peer %s broadcast tip is at id = %s, height = %d, main height = %d", c.HostPort.String(), tipHash, block.Side.Height, block.Main.Coinbase.MinerGenHeight)
 
 			if missingBlocks, err := c.Owner.SideChain().PreProcessBlock(poolBlock); err != nil {
 				if len(missingBlocks) > 0 {
@@ -742,7 +742,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				if poolBlock.Main.PreviousId != ourMinerData.PrevId {
 					// This peer is mining on top of a different Monero block, investigate it
 
-					peerHeight := poolBlock.Main.Coinbase.GenHeight
+					peerHeight := poolBlock.Main.Coinbase.MinerGenHeight
 					ourHeight := ourMinerData.Height
 
 					if peerHeight < ourHeight {
@@ -776,7 +776,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 						c.Ban(DefaultBanTime, err)
 						return
 					} else {
-						utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.HostPort.String(), tipHash, poolBlock.Side.Height, poolBlock.Main.Coinbase.GenHeight, poolBlock.Main.Timestamp)
+						utils.Logf("P2PClient", "Peer %s error adding block id = %s, height = %d, main height = %d, timestamp = %d", c.HostPort.String(), tipHash, poolBlock.Side.Height, poolBlock.Main.Coinbase.MinerGenHeight, poolBlock.Main.Timestamp)
 						break
 					}
 				} else if len(missingBlocks) > 0 {
@@ -999,10 +999,10 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				return
 			}
 
-			b := &block.Block{}
+			b := &sidechain.PoolMainBlock{}
 			if err = b.FromReader(r, false, nil); err != nil {
 				if errors.Is(err, transaction.ErrInvalidTransactionExtra) {
-					// allow these as blocks with invalid tx extra could be published. Thanks Tari
+					// TODO allow these as blocks with invalid tx extra could be published. Thanks Tari
 					break
 				}
 				c.Ban(DefaultBanTime, err)
@@ -1022,7 +1022,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 
 			var diff types.Difficulty
 
-			if cm := c.Owner.MainChain().GetChainMainByHeight(b.Coinbase.GenHeight); cm != nil {
+			if cm := c.Owner.MainChain().GetChainMainByHeight(b.Coinbase.MinerGenHeight); cm != nil {
 				diff = cm.Difficulty
 			} else {
 				diff = minerData.Difficulty

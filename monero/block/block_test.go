@@ -11,6 +11,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -41,7 +42,7 @@ func FuzzMainBlockRoundTrip(f *testing.F) {
 			f.Fatal(err)
 		}
 		reader := bytes.NewReader(data)
-		b := &Block{}
+		b := &Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]{}
 		err = b.FromReader(reader, false, nil)
 		if err != nil {
 			f.Skipf("leftover error: %s", err)
@@ -54,7 +55,7 @@ func FuzzMainBlockRoundTrip(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, buf []byte) {
-		b := &Block{}
+		b := &Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]{}
 		reader := bytes.NewReader(buf)
 		err := b.FromReader(reader, false, nil)
 		if err != nil {
@@ -125,8 +126,7 @@ var testBlocks = []types.Hash{
 	types.MustHashFromString("ee860c8d05640f0fe200904ca806140d2620f5cdd1a5e68f2418535e24d7742a"),
 
 	// invalid extra data due to Tari merge mining bug
-	// todo
-	// types.MustHashFromString("35050900709dac5b4529101ead86631985f74e9e1f2142761b2854bd5b387aef"),
+	types.MustHashFromString("35050900709dac5b4529101ead86631985f74e9e1f2142761b2854bd5b387aef"),
 }
 
 func TestBlocks(t *testing.T) {
@@ -147,13 +147,13 @@ func TestBlocks(t *testing.T) {
 
 			hdr := result.BlockHeader
 
-			var b Block
+			var b Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
 			if err = b.UnmarshalBinary(result.Blob, false, nil); err != nil {
 				t.Fatal(err)
 			}
 
 			calculatedId := b.Id()
-			calculatedMinerId := b.MinerTx().Hash()
+			calculatedMinerId := b.Coinbase.Hash()
 			calculatedPow, err := b.PowHashWithError(rx, func(height uint64) (hash types.Hash) {
 				result, err := rpc.GetBlockHeaderByHeight(randomx.SeedHeight(height), t.Context())
 				if err != nil {
@@ -182,11 +182,11 @@ func TestBlocks(t *testing.T) {
 			}
 
 			t.Logf("version = %d", b.MajorVersion)
-			t.Logf("height  = %d", b.Coinbase.GenHeight)
+			t.Logf("height  = %d", b.Coinbase.GenHeight())
 			t.Logf("id      = %s", calculatedId)
 			t.Logf("pow     = %s", calculatedPow)
 			t.Logf("tx id   = %s", calculatedMinerId)
-			t.Logf("reward  = %s XMR", utils.XMRUnits(b.Coinbase.AuxiliaryData.TotalReward))
+			t.Logf("reward  = %s XMR", utils.XMRUnits(b.Coinbase.TotalReward()))
 
 			if calculatedId != id {
 				t.Fatalf("expected id %s, got %s", id, calculatedId)
@@ -200,8 +200,8 @@ func TestBlocks(t *testing.T) {
 				t.Fatalf("expected tx id %s, got %s", hdr.MinerTxHash, calculatedMinerId)
 			}
 
-			if b.Coinbase.AuxiliaryData.TotalReward != hdr.Reward {
-				t.Fatalf("expected reward %d, got %d", hdr.Reward, b.Coinbase.AuxiliaryData.TotalReward)
+			if b.Coinbase.TotalReward() != hdr.Reward {
+				t.Fatalf("expected reward %d, got %d", hdr.Reward, b.Coinbase.TotalReward())
 			}
 		})
 	}

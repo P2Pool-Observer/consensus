@@ -199,6 +199,27 @@ func (p *Prefix) BufferLength() int {
 		utils.UVarInt64Size(len(p.Extra)) + len(p.Extra)
 }
 
+type KnownMinerTransactions interface {
+	GenericCoinbase | P2PoolCoinbaseV2
+}
+
+type TypedMinerTransaction[T KnownMinerTransactions] interface {
+	MinerTransaction
+
+	*T
+}
+
+type MinerTransaction interface {
+	Transaction
+	GenHeight() uint64
+	TotalReward() uint64
+
+	// Special for txs to handle blocks in p2pool
+
+	AppendBinaryFlags(preAllocatedBuf []byte, pruned, containsAuxiliaryTemplateId bool) (data []byte, err error)
+	FromReaderFlags(reader utils.ReaderAndByteReader, canBePruned, containsAuxiliaryTemplateId bool) error
+}
+
 type Transaction interface { //nolint:iface
 	PrunableTransaction
 }

@@ -471,10 +471,10 @@ func matchTxPreamble(tx transaction.PrunedTransaction) (pubs []curve25519.Public
 	isCoinbase = len(tx.Inputs()) == 0
 
 	if isCoinbase {
-		if txv2, ok := tx.(*transaction.CoinbaseV2); ok {
-			blockIndex = txv2.GenHeight
+		if txv2, ok := tx.(*transaction.P2PoolCoinbaseV2); ok {
+			blockIndex = txv2.MinerGenHeight
 		} else if genTx, ok := tx.(*transaction.GenericCoinbase); ok {
-			blockIndex = genTx.GenHeight
+			blockIndex = genTx.MinerGenHeight
 		} else {
 			return nil, nil, nil, nil, true, 0, errors.New("cannot get coinbase block height")
 		}

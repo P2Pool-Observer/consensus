@@ -28,6 +28,8 @@ const TimestampWindow = 60
 // BlockHeadersRequired TODO: make this dynamic depending on PPLNS size
 const BlockHeadersRequired = 720
 
+type GenericMainBlock = mainblock.Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
+type PoolMainBlock = mainblock.Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]
 type MainChain struct {
 	p2pool       P2PoolInterface
 	minorVersion uint8
@@ -139,17 +141,17 @@ func (c *MainChain) Listen(success func()) error {
 						continue
 					}
 
-					blockData := &mainblock.Block{
+					blockData := &PoolMainBlock{
 						MajorVersion: uint8(fullChainMain.MajorVersion),
 						MinorVersion: uint8(fullChainMain.MinorVersion),
 						Timestamp:    uint64(fullChainMain.Timestamp),
 						PreviousId:   fullChainMain.PrevID,
 						Nonce:        uint32(fullChainMain.Nonce),
-						Coinbase: transaction.CoinbaseV2{
+						Coinbase: transaction.P2PoolCoinbaseV2{
 							MinerUnlockTime: uint64(fullChainMain.MinerTx.UnlockTime),
 							InputCount:      uint8(len(fullChainMain.MinerTx.Inputs)),
 							InputType:       transaction.TxInGen,
-							GenHeight:       fullChainMain.MinerTx.Inputs[0].Gen.Height,
+							MinerGenHeight:  fullChainMain.MinerTx.Inputs[0].Gen.Height,
 							MinerOutputs:    outputs,
 							Extra:           extraTags,
 							ExtraBaseRCT:    0,
@@ -249,12 +251,12 @@ func (c *MainChain) HandleMainHeader(mainHeader *mainblock.Header) {
 	c.updateMedianTimestamp()
 }
 
-func (c *MainChain) HandleMainBlock(b *mainblock.Block) {
+func (c *MainChain) HandleMainBlock(b *PoolMainBlock) {
 	mainData := &sidechain.ChainMain{
 		Difficulty: types.ZeroDifficulty,
-		Height:     b.Coinbase.GenHeight,
+		Height:     b.Coinbase.MinerGenHeight,
 		Timestamp:  b.Timestamp,
-		Reward:     b.Coinbase.AuxiliaryData.TotalReward,
+		Reward:     b.Coinbase.TotalReward(),
 		Id:         b.Id(),
 	}
 

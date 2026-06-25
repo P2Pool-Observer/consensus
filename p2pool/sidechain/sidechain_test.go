@@ -263,7 +263,7 @@ func TestSideChainFullSync(t *testing.T) {
 		t.Fatal("no tip")
 	}
 
-	err = server.DownloadMinimalBlockHeaders(tip.Main.Coinbase.GenHeight)
+	err = server.DownloadMinimalBlockHeaders(tip.Main.Coinbase.MinerGenHeight)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,8 +303,8 @@ func TestSideChainFullSync(t *testing.T) {
 		t.Fatalf("tip is invalid")
 	}
 
-	if tip.Main.Coinbase.GenHeight != sideChain.TipMainHeight {
-		t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.GenHeight, sideChain.TipMainHeight)
+	if tip.Main.Coinbase.MinerGenHeight != sideChain.TipMainHeight {
+		t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.MinerGenHeight, sideChain.TipMainHeight)
 	}
 	if tip.Side.Height != sideChain.TipSideHeight {
 		t.Fatalf("tip side height mismatch %d != %d", tip.Side.Height, sideChain.TipSideHeight)
@@ -378,7 +378,7 @@ func TestSideChainLightSync(t *testing.T) {
 		t.Fatal("no tip")
 	}
 
-	err = server.DownloadMinimalBlockHeaders(tip.Main.Coinbase.GenHeight)
+	err = server.DownloadMinimalBlockHeaders(tip.Main.Coinbase.MinerGenHeight)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,8 +418,8 @@ func TestSideChainLightSync(t *testing.T) {
 		t.Fatalf("tip is invalid")
 	}
 
-	if tip.Main.Coinbase.GenHeight != sideChain.TipMainHeight {
-		t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.GenHeight, sideChain.TipMainHeight)
+	if tip.Main.Coinbase.MinerGenHeight != sideChain.TipMainHeight {
+		t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.MinerGenHeight, sideChain.TipMainHeight)
 	}
 	if tip.Side.Height != sideChain.TipSideHeight {
 		t.Fatalf("tip side height mismatch %d != %d", tip.Side.Height, sideChain.TipSideHeight)
@@ -817,8 +817,8 @@ func TestSideChain(t *testing.T) {
 				t.Fatalf("tip is invalid")
 			}
 
-			if tip.Main.Coinbase.GenHeight != sideChain.TipMainHeight {
-				t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.GenHeight, sideChain.TipMainHeight)
+			if tip.Main.Coinbase.MinerGenHeight != sideChain.TipMainHeight {
+				t.Fatalf("tip main height mismatch %d != %d", tip.Main.Coinbase.MinerGenHeight, sideChain.TipMainHeight)
 			}
 			if tip.Side.Height != sideChain.TipSideHeight {
 				t.Fatalf("tip side height mismatch %d != %d", tip.Side.Height, sideChain.TipSideHeight)

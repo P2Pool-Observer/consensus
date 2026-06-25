@@ -73,8 +73,11 @@ type IterationCache struct {
 	Uncles []*PoolBlock
 }
 
+type GenericMainBlock = mainblock.Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
+type PoolMainBlock = mainblock.Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]
+
 type PoolBlock struct {
-	Main mainblock.Block `json:"main"`
+	Main PoolMainBlock `json:"main"`
 
 	Side SideData `json:"side"`
 
@@ -691,8 +694,8 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 	if len(b.Main.Coinbase.MinerOutputs) == 0 && b.Main.Coinbase.AuxiliaryData.OutputsBlobSize == 0 {
 		return errors.New("no specified outputs")
 	}
-	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.GenHeight); expectedMajorVersion != b.Main.MajorVersion {
-		return utils.ErrorfNoEscape("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.GenHeight, b.Main.MajorVersion)
+	if expectedMajorVersion := monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.MinerGenHeight); expectedMajorVersion != b.Main.MajorVersion {
+		return utils.ErrorfNoEscape("expected major version %d at height %d, got %d", expectedMajorVersion, b.Main.Coinbase.MinerGenHeight, b.Main.MajorVersion)
 	}
 
 	if b.CachedShareVersion == ShareVersion_None {
@@ -722,7 +725,7 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 	}
 
 	// Wallet point validity and torsion check, at FCMP++ or one week ahead of time
-	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlus || monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.GenHeight+720*7) >= monero.HardForkFCMPPlusPlus {
+	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlus || monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.MinerGenHeight+720*7) >= monero.HardForkFCMPPlusPlus {
 		var spendPub, viewPub curve25519.VarTimePublicKey
 		if _, err := spendPub.SetBytes(b.Side.PublicKey.SpendPublicKey()[:]); err != nil {
 			return fmt.Errorf("block must have a valid wallet address: %w", err)

@@ -99,7 +99,7 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 		carrotEnotes := make([]*carrot.CoinbaseEnoteV1, n)
 
 		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
-			carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, tmpRewards[workIndex])
+			carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, tmpRewards[workIndex])
 			if carrotEnotes[workIndex] == nil {
 				return utils.ErrorfNoEscape("invalid carrot enote at index %d", workIndex)
 			}
@@ -159,7 +159,7 @@ func IterateBlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficulty
 	var mainchainDiff types.Difficulty
 
 	if tip.Side.Parent != types.ZeroHash {
-		seedHeight := randomx.SeedHeight(tip.Main.Coinbase.GenHeight)
+		seedHeight := randomx.SeedHeight(tip.Main.Coinbase.MinerGenHeight)
 		mainchainDiff = difficultyByHeight(seedHeight)
 		if mainchainDiff == types.ZeroDifficulty {
 			return utils.ErrorfNoEscape("couldn't get mainchain difficulty for height = %d", seedHeight)
@@ -256,7 +256,7 @@ func BlocksInPPLNSWindow(tip *PoolBlock, consensus *Consensus, difficultyByHeigh
 	var mainchainDiff types.Difficulty
 
 	if tip.Side.Parent != types.ZeroHash {
-		seedHeight := randomx.SeedHeight(tip.Main.Coinbase.GenHeight)
+		seedHeight := randomx.SeedHeight(tip.Main.Coinbase.MinerGenHeight)
 		mainchainDiff = difficultyByHeight(seedHeight)
 		if mainchainDiff == types.ZeroDifficulty {
 			return 0, utils.ErrorfNoEscape("couldn't get mainchain difficulty for height = %d", seedHeight)
@@ -692,15 +692,15 @@ func IsLongerChain(block, candidate *PoolBlock, consensus *Consensus, getByTempl
 			}
 
 			if candidateMainchainMinHeight != 0 {
-				candidateMainchainMinHeight = min(candidateMainchainMinHeight, newChain.Main.Coinbase.GenHeight)
+				candidateMainchainMinHeight = min(candidateMainchainMinHeight, newChain.Main.Coinbase.MinerGenHeight)
 			} else {
-				candidateMainchainMinHeight = newChain.Main.Coinbase.GenHeight
+				candidateMainchainMinHeight = newChain.Main.Coinbase.MinerGenHeight
 			}
 			candidateTotalDiff = candidateTotalDiff.Add(newChain.Side.Difficulty)
 			candidateTimestamps = append(candidateTimestamps, newChain.Main.Timestamp)
 			_ = newChain.iteratorUncles(getByTemplateId, func(uncle *PoolBlock) {
 				if candidate.Side.Height-uncle.Side.Height < consensus.ChainWindowSize {
-					candidateMainchainMinHeight = min(candidateMainchainMinHeight, uncle.Main.Coinbase.GenHeight)
+					candidateMainchainMinHeight = min(candidateMainchainMinHeight, uncle.Main.Coinbase.MinerGenHeight)
 					candidateTotalDiff = candidateTotalDiff.Add(uncle.Side.Difficulty)
 					candidateTimestamps = append(candidateTimestamps, uncle.Main.Timestamp)
 					addMoneroBlock(uncle.Main.PreviousId, uncle.Main.Timestamp)

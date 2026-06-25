@@ -36,7 +36,7 @@ type P2PoolInterface interface {
 	Cache
 	Context() context.Context
 	UpdateTip(tip *PoolBlock)
-	BroadcastMoneroBlock(block *mainblock.Block)
+	BroadcastMoneroBlock(block *PoolMainBlock)
 	Broadcast(block *PoolBlock)
 	ClientRPC() *client.Client
 	GetChainMainByHeight(height uint64) *ChainMain
@@ -45,7 +45,7 @@ type P2PoolInterface interface {
 	GetMinimalBlockHeaderByHash(hash types.Hash) *mainblock.Header
 	GetDifficultyByHeight(height uint64) types.Difficulty
 	UpdateBlockFound(data *ChainMain, block *PoolBlock)
-	SubmitBlock(block *mainblock.Block)
+	SubmitBlock(block *PoolMainBlock)
 	GetChainMainTip() *ChainMain
 	GetMinerDataTip() *p2pooltypes.MinerData
 	Store(block *PoolBlock)
@@ -410,22 +410,22 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 				return nil, err, false
 			} else {
 				if isHigherMainChain, err := block.IsProofHigherThanMainDifficultyWithError(c.Consensus().GetHasher(), c.getOptionalMainDifficulty, c.getSeedByHeightFunc()); err != nil {
-					utils.Debugf("SideChain", "add_external_block: couldn't get mainchain difficulty for height = %d: %s", block.Main.Coinbase.GenHeight, err)
+					utils.Debugf("SideChain", "add_external_block: couldn't get mainchain difficulty for height = %d: %s", block.Main.Coinbase.MinerGenHeight, err)
 				} else if isHigherMainChain {
-					utils.Logf("SideChain", "add_external_block: ALTERNATE block %x has enough PoW for Monero height %d, submitting it", templateId.Slice(), block.Main.Coinbase.GenHeight)
+					utils.Logf("SideChain", "add_external_block: ALTERNATE block %x has enough PoW for Monero height %d, submitting it", templateId.Slice(), block.Main.Coinbase.MinerGenHeight)
 					c.server.SubmitBlock(&block.Main)
 				}
 				if isHigher, err := block.IsProofHigherThanDifficultyWithError(c.Consensus().GetHasher(), c.getSeedByHeightFunc()); err != nil {
 					return nil, err, true
 				} else if !isHigher {
-					return nil, utils.ErrorfNoEscape("not enough PoW for id %x, height = %d, mainchain height %d", templateId.Slice(), block.Side.Height, block.Main.Coinbase.GenHeight), true
+					return nil, utils.ErrorfNoEscape("not enough PoW for id %x, height = %d, mainchain height %d", templateId.Slice(), block.Side.Height, block.Main.Coinbase.MinerGenHeight), true
 				}
 
 				{
 					c.sidechainLock.Lock()
 					defer c.sidechainLock.Unlock()
 
-					utils.Logf("SideChain", "add_external_block: ALTERNATE height = %d, id = %x, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.Verified.Load(), len(c.blocksByTemplateId))
+					utils.Logf("SideChain", "add_external_block: ALTERNATE height = %d, id = %x, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.MinerGenHeight, block.Verified.Load(), len(c.blocksByTemplateId))
 
 					block.Verified.Store(true)
 					block.Invalid.Store(false)
@@ -465,8 +465,8 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 
 	// This check is not always possible to perform because of mainchain reorgs
 	if data := c.server.GetChainMainByHash(block.Main.PreviousId); data != nil {
-		if (data.Height + 1) != block.Main.Coinbase.GenHeight {
-			return nil, utils.ErrorfNoEscape("wrong mainchain height %d, expected %d", block.Main.Coinbase.GenHeight, data.Height+1), true
+		if (data.Height + 1) != block.Main.Coinbase.MinerGenHeight {
+			return nil, utils.ErrorfNoEscape("wrong mainchain height %d, expected %d", block.Main.Coinbase.MinerGenHeight, data.Height+1), true
 		}
 	} /* else {
 		//TODO warn unknown block, reorg
@@ -530,16 +530,16 @@ func (c *SideChain) AddPoolBlockExternal(block *PoolBlock) (missingBlocks []type
 		return nil, err, false
 	} else {
 		if isHigherMainChain, err := block.IsProofHigherThanMainDifficultyWithError(c.Consensus().GetHasher(), c.getOptionalMainDifficulty, c.getSeedByHeightFunc()); err != nil {
-			utils.Debugf("SideChain", "add_external_block: couldn't get mainchain difficulty for height = %d: %s", block.Main.Coinbase.GenHeight, err)
+			utils.Debugf("SideChain", "add_external_block: couldn't get mainchain difficulty for height = %d: %s", block.Main.Coinbase.MinerGenHeight, err)
 		} else if isHigherMainChain {
-			utils.Logf("SideChain", "add_external_block: block %x has enough PoW for Monero height %d, submitting it", templateId.Slice(), block.Main.Coinbase.GenHeight)
+			utils.Logf("SideChain", "add_external_block: block %x has enough PoW for Monero height %d, submitting it", templateId.Slice(), block.Main.Coinbase.MinerGenHeight)
 			c.server.SubmitBlock(&block.Main)
 		}
 
 		if isHigher, err := block.IsProofHigherThanDifficultyWithError(c.Consensus().GetHasher(), c.getSeedByHeightFunc()); err != nil {
 			return nil, err, true
 		} else if !isHigher {
-			return nil, utils.ErrorfNoEscape("not enough PoW for id %x, height = %d, mainchain height %d", templateId.Slice(), block.Side.Height, block.Main.Coinbase.GenHeight), true
+			return nil, utils.ErrorfNoEscape("not enough PoW for id %x, height = %d, mainchain height %d", templateId.Slice(), block.Side.Height, block.Main.Coinbase.MinerGenHeight), true
 		}
 	}
 
@@ -582,7 +582,7 @@ func (c *SideChain) AddPoolBlock(block *PoolBlock) (verification error, invalid 
 
 	c.blocksByTemplateId[block.SideTemplateId(c.Consensus())] = block
 
-	utils.Logf("SideChain", "add_block: height = %d, id = %x, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.Verified.Load(), len(c.blocksByTemplateId))
+	utils.Logf("SideChain", "add_block: height = %d, id = %x, mainchain height = %d, verified = %t, total = %d", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.MinerGenHeight, block.Verified.Load(), len(c.blocksByTemplateId))
 
 	if c.isWatched(block) {
 		c.server.UpdateBlockFound(c.watchBlock, block)
@@ -640,7 +640,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (verificationErr error,
 
 		if verification, invalid := c.verifyBlock(block); invalid != nil {
 			invalid = fmt.Errorf("at depth %d: %w", block.Depth.Load(), invalid)
-			utils.Errorf("SideChain", "block at height = %d, id = %x, mainchain height = %d, mined by %s is invalid: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), invalid.Error())
+			utils.Errorf("SideChain", "block at height = %d, id = %x, mainchain height = %d, mined by %s is invalid: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.MinerGenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), invalid.Error())
 			block.Invalid.Store(true)
 			block.Verified.Store(verification == nil)
 			if block == blockToVerify {
@@ -651,7 +651,7 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (verificationErr error,
 			verification = fmt.Errorf("at depth %d: %w", block.Depth.Load(), verification)
 			// specific check here to prevent format calls
 			if utils.IsLogLevelDebug() {
-				utils.Debugf("SideChain", "can't verify block at height = %d, id = %x, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), verification.Error())
+				utils.Debugf("SideChain", "can't verify block at height = %d, id = %x, mainchain height = %d, mined by %s: %s", block.Side.Height, block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.MinerGenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), verification.Error())
 			}
 			block.Verified.Store(false)
 			block.Invalid.Store(false)
@@ -664,12 +664,12 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (verificationErr error,
 			block.Invalid.Store(false)
 
 			if block.ShareVersion() >= ShareVersion_V2 {
-				utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s via %s %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.ExtraBuffer.SoftwareId, block.Side.ExtraBuffer.SoftwareVersion)
+				utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s via %s %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.MinerGenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), block.Side.ExtraBuffer.SoftwareId, block.Side.ExtraBuffer.SoftwareVersion)
 			} else {
 				if signalingVersion := block.ShareVersionSignaling(); signalingVersion > ShareVersion_None {
-					utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s, signaling v%d", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), signalingVersion)
+					utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s, signaling v%d", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.MinerGenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58(), signalingVersion)
 				} else {
-					utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.GenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58())
+					utils.Logf("SideChain", "verified block at height = %d, depth = %d, id = %x, mainchain height = %d, mined by %s", block.Side.Height, block.Depth.Load(), block.SideTemplateId(c.Consensus()).Slice(), block.Main.Coinbase.MinerGenHeight, block.GetPayoutAddress(c.Consensus().NetworkType).ToBase58())
 				}
 			}
 
@@ -956,7 +956,7 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(rewards))
 
 				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
-					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.GenHeight, rewards[workIndex])
+					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, rewards[workIndex])
 					if carrotEnotes[workIndex] == nil {
 						return utils.ErrorfNoEscape("invalid carrot enote at index %d", workIndex)
 					}

@@ -13,7 +13,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
-const blockSize = 96 * 1024
+const blockSize = 1024 * 1024
 const NumBlocks = 4608
 const cacheSize = blockSize * NumBlocks
 
