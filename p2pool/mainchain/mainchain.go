@@ -28,8 +28,6 @@ const TimestampWindow = 60
 // BlockHeadersRequired TODO: make this dynamic depending on PPLNS size
 const BlockHeadersRequired = 720
 
-type GenericMainBlock = mainblock.Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
-type PoolMainBlock = mainblock.Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]
 type MainChain struct {
 	p2pool       P2PoolInterface
 	minorVersion uint8
@@ -141,7 +139,7 @@ func (c *MainChain) Listen(success func()) error {
 						continue
 					}
 
-					blockData := &PoolMainBlock{
+					blockData := &mainblock.PoolMainBlock{
 						MajorVersion: uint8(fullChainMain.MajorVersion),
 						MinorVersion: uint8(fullChainMain.MinorVersion),
 						Timestamp:    uint64(fullChainMain.Timestamp),
@@ -251,7 +249,7 @@ func (c *MainChain) HandleMainHeader(mainHeader *mainblock.Header) {
 	c.updateMedianTimestamp()
 }
 
-func (c *MainChain) HandleMainBlock(b *PoolMainBlock) {
+func (c *MainChain) HandleMainBlock(b *mainblock.PoolMainBlock) {
 	mainData := &sidechain.ChainMain{
 		Difficulty: types.ZeroDifficulty,
 		Height:     b.Coinbase.MinerGenHeight,

@@ -76,7 +76,7 @@ type WeightEntries struct {
 
 type Server struct {
 	SubmitFunc     func(block *sidechain.PoolBlock) error
-	SubmitMainFunc func(b *sidechain.PoolMainBlock) error
+	SubmitMainFunc func(b *block.PoolMainBlock) error
 
 	refreshDuration time.Duration
 
@@ -105,7 +105,7 @@ type Server struct {
 	incomingChanges chan func() bool
 }
 
-func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBlock) error, submitMain func(b *sidechain.PoolMainBlock) error) *Server {
+func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBlock) error, submitMain func(b *block.PoolMainBlock) error) *Server {
 	server := &Server{
 		SubmitFunc:                        submitFunc,
 		SubmitMainFunc:                    submitMain,
@@ -245,7 +245,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	}
 
 	fakeTemplateTipBlock := &sidechain.PoolBlock{
-		Main: sidechain.PoolMainBlock{
+		Main: block.PoolMainBlock{
 			MajorVersion: s.minerData.MajorVersion,
 			MinorVersion: minorVersion,
 			Timestamp:    s.newTemplateData.Timestamp,
@@ -606,7 +606,7 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 		}
 
 		blockTemplate := &sidechain.PoolBlock{
-			Main: sidechain.PoolMainBlock{
+			Main: block.PoolMainBlock{
 				MajorVersion:   s.minerData.MajorVersion,
 				MinorVersion:   minorVersion,
 				Timestamp:      s.newTemplateData.Timestamp,

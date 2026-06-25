@@ -36,7 +36,7 @@ type P2PoolInterface interface {
 	Cache
 	Context() context.Context
 	UpdateTip(tip *PoolBlock)
-	BroadcastMoneroBlock(block *PoolMainBlock)
+	BroadcastMoneroBlock(block *mainblock.PoolMainBlock)
 	Broadcast(block *PoolBlock)
 	ClientRPC() *client.Client
 	GetChainMainByHeight(height uint64) *ChainMain
@@ -45,7 +45,7 @@ type P2PoolInterface interface {
 	GetMinimalBlockHeaderByHash(hash types.Hash) *mainblock.Header
 	GetDifficultyByHeight(height uint64) types.Difficulty
 	UpdateBlockFound(data *ChainMain, block *PoolBlock)
-	SubmitBlock(block *PoolMainBlock)
+	SubmitBlock(block *mainblock.PoolMainBlock)
 	GetChainMainTip() *ChainMain
 	GetMinerDataTip() *p2pooltypes.MinerData
 	Store(block *PoolBlock)

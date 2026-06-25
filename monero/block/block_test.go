@@ -11,7 +11,6 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -42,7 +41,7 @@ func FuzzMainBlockRoundTrip(f *testing.F) {
 			f.Fatal(err)
 		}
 		reader := bytes.NewReader(data)
-		b := &Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]{}
+		b := &PoolMainBlock{}
 		err = b.FromReader(reader, false, nil)
 		if err != nil {
 			f.Skipf("leftover error: %s", err)
@@ -55,7 +54,7 @@ func FuzzMainBlockRoundTrip(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, buf []byte) {
-		b := &Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]{}
+		b := &PoolMainBlock{}
 		reader := bytes.NewReader(buf)
 		err := b.FromReader(reader, false, nil)
 		if err != nil {
@@ -147,7 +146,7 @@ func TestBlocks(t *testing.T) {
 
 			hdr := result.BlockHeader
 
-			var b Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
+			var b GenericBlock
 			if err = b.UnmarshalBinary(result.Blob, false, nil); err != nil {
 				t.Fatal(err)
 			}

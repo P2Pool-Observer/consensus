@@ -20,6 +20,11 @@ import (
 // MaxTransactionCount TODO: this differs from P2Pool's num_transactions >= MAX_BLOCK_SIZE / HASH_SIZE)
 const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize
 
+type GenericBlock = Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
+type PoolMainBlock = Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]
+
+// Block Main Monero block
+// todo: cleanup types when https://github.com/golang/go/issues/61731 is in
 type Block[T transaction.KnownMinerTransactions, MT transaction.TypedMinerTransaction[T]] struct {
 	MajorVersion uint8 `json:"major_version"`
 	MinorVersion uint8 `json:"minor_version"`

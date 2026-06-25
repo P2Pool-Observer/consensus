@@ -15,6 +15,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/address"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
@@ -36,7 +37,7 @@ var submitBlockFunc = func(block *sidechain.PoolBlock) (err error) {
 	}
 	return err
 }
-var submitMainBlockFunc = func(b *sidechain.PoolMainBlock) (err error) {
+var submitMainBlockFunc = func(b *block.PoolMainBlock) (err error) {
 	if blob, err := b.MarshalBinary(); err == nil {
 		_, err = client.GetDefaultClient().SubmitBlock(blob)
 		return err
@@ -228,7 +229,7 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 
 	stratumServer := NewServer(sideChain, func(block *sidechain.PoolBlock) error {
 		return nil
-	}, func(b *sidechain.PoolMainBlock) error {
+	}, func(b *block.PoolMainBlock) error {
 		return nil
 	})
 	stratumServer.HandleMinerData(minerData)

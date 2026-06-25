@@ -73,11 +73,8 @@ type IterationCache struct {
 	Uncles []*PoolBlock
 }
 
-type GenericMainBlock = mainblock.Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
-type PoolMainBlock = mainblock.Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]
-
 type PoolBlock struct {
-	Main PoolMainBlock `json:"main"`
+	Main mainblock.PoolMainBlock `json:"main"`
 
 	Side SideData `json:"side"`
 

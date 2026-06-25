@@ -49,7 +49,7 @@ func (s *FakeServer) UpdateTip(tip *PoolBlock) {
 func (s *FakeServer) Broadcast(block *PoolBlock) {
 
 }
-func (s *FakeServer) BroadcastMoneroBlock(block *PoolMainBlock) {
+func (s *FakeServer) BroadcastMoneroBlock(block *mainblock.PoolMainBlock) {
 
 }
 func (s *FakeServer) ClientRPC() *client.Client {
@@ -135,7 +135,7 @@ func (s *FakeServer) GetDifficultyByHeight(height uint64) types.Difficulty {
 func (s *FakeServer) UpdateBlockFound(data *ChainMain, block *PoolBlock) {
 
 }
-func (s *FakeServer) SubmitBlock(block *PoolMainBlock) {
+func (s *FakeServer) SubmitBlock(block *mainblock.PoolMainBlock) {
 
 }
 func (s *FakeServer) GetChainMainTip() *ChainMain {

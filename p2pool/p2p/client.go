@@ -999,7 +999,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				return
 			}
 
-			b := &sidechain.PoolMainBlock{}
+			b := &block.PoolMainBlock{}
 			if err = b.FromReader(r, false, nil); err != nil {
 				if errors.Is(err, transaction.ErrInvalidTransactionExtra) {
 					// TODO allow these as blocks with invalid tx extra could be published. Thanks Tari

@@ -18,6 +18,7 @@ import (
 	"time"
 	"unsafe"
 
+	mainblock "git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/mainchain"
@@ -1020,7 +1021,7 @@ func (s *Server) MainChain() *mainchain.MainChain {
 	return s.p2pool.MainChain()
 }
 
-func (s *Server) BroadcastMoneroBlock(source *Client, b *sidechain.PoolMainBlock) {
+func (s *Server) BroadcastMoneroBlock(source *Client, b *mainblock.PoolMainBlock) {
 
 	if b != nil {
 		supportsMoneroBlockBroadcast := s.versionInformation.SupportsFeature(p2pooltypes.FeatureMoneroBlockBroadcast)
