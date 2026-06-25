@@ -284,6 +284,10 @@ func (c *Consensus) DefaultPort() uint16 {
 	return 37889
 }
 
+func (c *Consensus) BlockHeadersRequired() int {
+	return int((c.ChainWindowSize * 4 * c.TargetBlockTime) / monero.BlockTime)
+}
+
 func (c *Consensus) SeedNode() string {
 	if nodes := c.SeedNodes(); len(nodes) > 0 {
 		return nodes[0]

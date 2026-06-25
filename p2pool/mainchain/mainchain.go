@@ -25,9 +25,6 @@ import (
 
 const TimestampWindow = 60
 
-// BlockHeadersRequired TODO: make this dynamic depending on PPLNS size
-const BlockHeadersRequired = 720
-
 type MainChain struct {
 	p2pool       P2PoolInterface
 	minorVersion uint8
@@ -60,8 +57,8 @@ func NewMainChain(s *sidechain.SideChain, p2pool P2PoolInterface, minorVersion u
 		sidechain:         s,
 		minorVersion:      minorVersion,
 		p2pool:            p2pool,
-		mainchainByHeight: make(map[uint64]*sidechain.ChainMain, BlockHeadersRequired+3),
-		mainchainByHash:   make(map[types.Hash]*sidechain.ChainMain, BlockHeadersRequired+3),
+		mainchainByHeight: make(map[uint64]*sidechain.ChainMain, s.Consensus().BlockHeadersRequired()+3),
+		mainchainByHash:   make(map[types.Hash]*sidechain.ChainMain, s.Consensus().BlockHeadersRequired()+3),
 	}
 
 	return m
@@ -374,14 +371,14 @@ func (c *MainChain) cleanup(height uint64) {
 	// Expects m_mainchainLock to be already locked here
 	// Deletes everything older than 720 blocks, except for the 3 latest RandomX seed heights
 
-	const PruneDistance = BlockHeadersRequired
+	pruneDistance := uint64(c.sidechain.Consensus().BlockHeadersRequired())
 
 	seedHeight := randomx.SeedHeight(height)
 
 	seedHeights := []uint64{seedHeight, seedHeight - randomx.SeedHashEpochBlocks, seedHeight - randomx.SeedHashEpochBlocks*2}
 
 	for h, m := range c.mainchainByHeight {
-		if (h + PruneDistance) >= height {
+		if (h + pruneDistance) >= height {
 			continue
 		}
 
@@ -410,9 +407,11 @@ func (c *MainChain) DownloadBlockHeaders(currentHeight uint64) error {
 		}
 	}
 
+	blockHeadersRequired := uint64(c.sidechain.Consensus().BlockHeadersRequired())
+
 	var startHeight uint64
-	if currentHeight > BlockHeadersRequired {
-		startHeight = currentHeight - BlockHeadersRequired
+	if currentHeight > blockHeadersRequired {
+		startHeight = currentHeight - blockHeadersRequired
 	}
 
 	if rangeResult, err := c.p2pool.ClientRPC().GetBlockHeadersRangeResult(startHeight, currentHeight-1, c.p2pool.Context()); err != nil {
@@ -441,6 +440,9 @@ func (c *MainChain) DownloadBlockHeaders(currentHeight uint64) error {
 }
 
 func (c *MainChain) HandleMinerData(minerData *p2pooltypes.MinerData) {
+
+	blockHeadersRequired := uint64(c.sidechain.Consensus().BlockHeadersRequired())
+
 	var missingHeights []uint64
 	func() {
 		c.lock.Lock()
@@ -487,7 +489,7 @@ func (c *MainChain) HandleMinerData(minerData *p2pooltypes.MinerData) {
 		}
 
 		if c.p2pool.Started() {
-			for h := minerData.Height; h > 0 && (h+BlockHeadersRequired) > minerData.Height; h-- {
+			for h := minerData.Height; h > 0 && (h+blockHeadersRequired) > minerData.Height; h-- {
 				if d, ok := c.mainchainByHeight[h]; !ok || d.Difficulty.Equals(types.ZeroDifficulty) {
 					utils.Logf("MainChain", "Main chain data for height = %d is missing, requesting from monerod again", h)
 					missingHeights = append(missingHeights, h)

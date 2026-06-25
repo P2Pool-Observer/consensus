@@ -87,12 +87,11 @@ func (s *FakeServer) GetMinimalBlockHeaderByHeight(height uint64) *mainblock.Hea
 }
 
 func (s *FakeServer) DownloadMinimalBlockHeaders(currentHeight uint64) error {
-	// BlockHeadersRequired TODO: make this dynamic depending on PPLNS size
-	const BlockHeadersRequired = 720
+	blockHeadersRequired := uint64(s.consensus.BlockHeadersRequired())
 
 	var startHeight uint64
-	if currentHeight > BlockHeadersRequired {
-		startHeight = currentHeight - BlockHeadersRequired
+	if currentHeight > blockHeadersRequired {
+		startHeight = currentHeight - blockHeadersRequired
 	}
 
 	if rangeResult, err := s.ClientRPC().GetBlockHeadersRangeResult(startHeight, currentHeight-1, s.Context()); err != nil {
