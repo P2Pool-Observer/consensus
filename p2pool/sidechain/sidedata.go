@@ -24,8 +24,7 @@ const MaxUncleCount = 5
 const MaxEncodedUncleCount = uint64(math.MaxUint64) / types.HashSize
 
 type SideData struct {
-	PublicKey    address.PackedAddress `json:"public_key"`
-	IsSubaddress bool                  `json:"is_subaddress,omitempty"`
+	PublicKey address.PackedAddress `json:"public_key"`
 
 	CoinbasePrivateKeySeed types.Hash `json:"coinbase_private_key_seed,omitzero"`
 	// CoinbasePrivateKey filled or calculated on decoding,
@@ -64,11 +63,6 @@ func (b *SideData) BufferLength(majorVersion uint8, version ShareVersion) (size 
 		utils.UVarInt64Size(b.Difficulty.Lo) + utils.UVarInt64Size(b.Difficulty.Hi) +
 		utils.UVarInt64Size(b.CumulativeDifficulty.Lo) + utils.UVarInt64Size(b.CumulativeDifficulty.Hi)
 
-	if majorVersion >= monero.HardForkCarrotVersion {
-		// PublicKey IsSubaddress
-		size++
-	}
-
 	if version >= ShareVersion_V2 {
 		// ExtraBuffer
 		size += 4 * 4
@@ -89,13 +83,6 @@ func (b *SideData) AppendBinary(preAllocatedBuf []byte, majorVersion uint8, vers
 	buf = preAllocatedBuf
 	buf = append(buf, b.PublicKey[address.PackedAddressSpend][:]...)
 	buf = append(buf, b.PublicKey[address.PackedAddressView][:]...)
-	if majorVersion >= monero.HardForkCarrotVersion {
-		if b.IsSubaddress {
-			buf = append(buf, 1)
-		} else {
-			buf = append(buf, 0)
-		}
-	}
 
 	if version >= ShareVersion_V2 {
 		buf = append(buf, b.CoinbasePrivateKeySeed[:]...)
@@ -160,18 +147,6 @@ func (b *SideData) FromReader(reader utils.ReaderAndByteReader, majorVersion uin
 	}
 	if _, err = utils.ReadFullNoEscape(reader, b.PublicKey[address.PackedAddressView][:]); err != nil {
 		return err
-	}
-	// read subaddress data
-	if majorVersion >= monero.HardForkCarrotVersion {
-		var isSubaddress uint8
-		if isSubaddress, err = utils.ReadByteNoEscape(reader); err != nil {
-			return err
-		}
-		// ensure value can only be 0 or 1
-		if isSubaddress > 1 {
-			return utils.ErrorfNoEscape("invalid isSubaddress: %d > 1", isSubaddress)
-		}
-		b.IsSubaddress = isSubaddress == 1
 	}
 
 	if version >= ShareVersion_V2 {

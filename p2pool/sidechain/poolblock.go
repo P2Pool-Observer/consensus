@@ -921,10 +921,6 @@ func (b *PoolBlock) CalculateTransactionPrivateKeySeed() types.Hash {
 	return types.Hash(b.Side.PublicKey[address.PackedAddressSpend])
 }
 
-func (b *PoolBlock) GetAddress() address.PackedAddressWithSubaddress {
-	return address.NewPackedAddressWithSubaddress(&b.Side.PublicKey, b.Side.IsSubaddress)
-}
-
 func (b *PoolBlock) GetMergeMineExtraSubaddress() *address.PackedAddressWithSubaddress {
 	if d, ok := b.Side.MergeMiningExtra.Get(ExtraChainKeySubaddressViewPub); ok && len(d) >= curve25519.PublicKeySize {
 		// subaddress
@@ -976,7 +972,7 @@ func (b *PoolBlock) GetConsensusPackedAddress(targetMajorVersion uint8) address.
 			return *sa
 		}
 	}
-	return b.GetAddress()
+	return address.NewPackedAddressWithSubaddress(&b.Side.PublicKey, false)
 }
 
 // GetPayoutAddress Special function that checks if a subaddress has been specified, on the right network
@@ -994,15 +990,10 @@ func (b *PoolBlock) GetPayoutAddress(networkType NetworkType) *address.Address {
 		}
 	}
 
-	if b.Side.IsSubaddress {
-		if n, err := networkType.SubaddressNetwork(); err == nil {
-			return address.FromRawAddress(n, *b.Side.PublicKey.SpendPublicKey(), *b.Side.PublicKey.ViewPublicKey())
-		}
-	} else {
-		if n, err := networkType.AddressNetwork(); err == nil {
-			return address.FromRawAddress(n, *b.Side.PublicKey.SpendPublicKey(), *b.Side.PublicKey.ViewPublicKey())
-		}
+	if n, err := networkType.AddressNetwork(); err == nil {
+		return address.FromRawAddress(n, *b.Side.PublicKey.SpendPublicKey(), *b.Side.PublicKey.ViewPublicKey())
 	}
+
 	return nil
 }
 

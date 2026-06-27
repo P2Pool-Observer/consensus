@@ -107,26 +107,9 @@ func (tpl *Template) Write(writer io.Writer, consensus *sidechain.Consensus, add
 		return err
 	}
 
-	if tpl.MajorVersion() >= monero.HardForkCarrotVersion {
-		if addr.IsSubaddress() {
-			if _, err := utils.WriteNoEscape(writer, []byte{1}); err != nil {
-				return err
-			}
-		} else {
-			if _, err := utils.WriteNoEscape(writer, []byte{0}); err != nil {
-				return err
-			}
-		}
-
-		// side data up to the end of side data
-		if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2+1:]); err != nil {
-			return err
-		}
-	} else {
-		// side data up to the end of side data
-		if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2:]); err != nil {
-			return err
-		}
+	// side data up to the end of side data
+	if _, err := utils.WriteNoEscape(writer, tpl.Buffer[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2:]); err != nil {
+		return err
 	}
 
 	version := tpl.ShareVersion(consensus)
@@ -206,14 +189,6 @@ func (tpl *Template) Blob(preAllocatedBuffer []byte, consensus *sidechain.Consen
 	// set own data
 	copy(buf[tpl.TemplateSideDataOffset:], addr.SpendPublicKey()[:])
 	copy(buf[tpl.TemplateSideDataOffset+curve25519.PublicKeySize:], addr.ViewPublicKey()[:])
-
-	if tpl.MajorVersion() >= monero.HardForkCarrotVersion {
-		if addr.IsSubaddress() {
-			buf[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2] = 1
-		} else {
-			buf[tpl.TemplateSideDataOffset+curve25519.PublicKeySize*2] = 0
-		}
-	}
 
 	// Overwrite nonce
 	binary.LittleEndian.PutUint32(buf[tpl.NonceOffset:], nonce)

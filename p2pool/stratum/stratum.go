@@ -536,6 +536,10 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 			return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("nil address")
 		}
 
+		if addr.IsSubaddress() && s.minerData.MajorVersion >= monero.HardForkCarrotVersion {
+			return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("subaddress not supported")
+		}
+
 		if !s.newTemplateData.Ready {
 			return nil, 0, types.ZeroDifficulty, types.ZeroHash, errors.New("template data not ready")
 		}
@@ -618,7 +622,6 @@ func (s *Server) BuildTemplate(minerId uint64, addrFunc func(majorVersion uint8)
 			},
 			Side: sidechain.SideData{
 				PublicKey:              *addr.PackedAddress(),
-				IsSubaddress:           addr.IsSubaddress(),
 				CoinbasePrivateKeySeed: s.newTemplateData.TransactionPrivateKeySeed,
 				CoinbasePrivateKey:     s.newTemplateData.TransactionPrivateKey,
 				Parent:                 s.newTemplateData.PreviousTemplateId,
@@ -1363,23 +1366,31 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 											}
 										}
 										// algo extension
-										var hasRx0 bool
 										if algos, ok := m["algo"].([]any); ok {
+											client.Extensions.Algo = true
 											for _, v := range algos {
 												if str, ok := v.(string); !ok {
 													return errors.New("invalid algo")
-												} else if str == "rx/0" {
-													hasRx0 = true
-													client.Extensions.Algo = true
-													break
+												} else if str == AlgoRandomX_V0 {
+													client.Extensions.RandomX_V0 = true
+												} else if str == AlgoRandomX_V2 {
+													client.Extensions.RandomX_V2 = true
+												} else if str == AlgoCryptoNight_V0 {
+													client.Extensions.CryptoNight_V0 = true
+												} else if str == AlgoCryptoNight_V1 {
+													client.Extensions.CryptoNight_V1 = true
+												} else if str == AlgoCryptoNight_V2 {
+													client.Extensions.CryptoNight_V2 = true
+												} else if str == AlgoCryptoNight_R {
+													client.Extensions.CryptoNight_R = true
 												}
 											}
 										} else {
 											// default rx0 true
-											hasRx0 = true
+											client.Extensions.RandomX_V0 = true
 										}
 
-										if !hasRx0 {
+										if !client.Extensions.RandomX_V0 {
 											return errors.New("algo rx/0 not found")
 										}
 
@@ -1633,6 +1644,10 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 	mmExtra := jobId.MergeMiningExtra
 
 	shareVersion := tpl.ShareVersion(s.sidechain.Consensus())
+	algo := AlgoForMajorVersion(tpl.MajorVersion())
+	if !c.Extensions.HasAlgo(algo) {
+		return utils.ErrorfNoEscape("missing client algo %s", algo)
+	}
 
 	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion && shareVersion >= sidechain.ShareVersion_V3 {
 		// explicitly add old subaddress tagging information before hardfork
@@ -1653,16 +1668,17 @@ func (s *Server) SendTemplate(c *Client, supportsTemplate bool) (err error) {
 
 	job := copyBaseJob()
 	job.Params.Blob = fasthex.EncodeToString(tpl.HashingBlob(c.buf, 0, jobId.ExtraNonce, jobId.MerkleRoot))
+	if c.Extensions.Algo {
+		job.Params.Algo = algo
+	}
 
 	job.Params.JobId = jobId.Id()
 
 	target := targetDifficulty.Target()
 	job.Params.Target = TargetHex(target)
 	job.Params.Height = tpl.MainHeight
-	job.Params.SeedHash = seedHash
-
-	if !c.Extensions.Algo {
-		job.Params.Algo = ""
+	if tpl.MajorVersion() >= monero.HardForkRandomX {
+		job.Params.SeedHash = seedHash
 	}
 
 	if err = c.encoder.Encode(job); err != nil {
@@ -1706,6 +1722,10 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 	mmExtra := jobId.MergeMiningExtra
 
 	shareVersion := tpl.ShareVersion(s.sidechain.Consensus())
+	algo := AlgoForMajorVersion(tpl.MajorVersion())
+	if !c.Extensions.HasAlgo(algo) {
+		return utils.ErrorfNoEscape("missing client algo %s", algo)
+	}
 
 	if c.Subaddress != nil && tpl.MajorVersion() < monero.HardForkCarrotVersion && shareVersion >= sidechain.ShareVersion_V3 {
 		// explicitly add old subaddress tagging information before hardfork
@@ -1728,16 +1748,16 @@ func (s *Server) SendTemplateResponse(c *Client, id any, supportsTemplate bool) 
 	job.Id = id
 	job.Result.Id = fasthex.EncodeToString(hexBuf[:])
 	job.Result.Job.Blob = fasthex.EncodeToString(tpl.HashingBlob(c.buf, 0, jobId.ExtraNonce, jobId.MerkleRoot))
-
+	if c.Extensions.Algo {
+		job.Result.Job.Algo = algo
+	}
 	job.Result.Job.JobId = jobId.Id()
 
 	target := targetDifficulty.Target()
 	job.Result.Job.Target = TargetHex(target)
 	job.Result.Job.Height = tpl.MainHeight
-	job.Result.Job.SeedHash = seedHash
-
-	if !c.Extensions.Algo {
-		job.Result.Job.Algo = ""
+	if tpl.MajorVersion() >= monero.HardForkRandomX {
+		job.Result.Job.SeedHash = seedHash
 	}
 
 	if err = c.encoder.Encode(job); err != nil {

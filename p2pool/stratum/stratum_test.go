@@ -10,6 +10,7 @@ import (
 	"path"
 	"runtime"
 	"testing"
+	"testing/synctest"
 	"time"
 	_ "unsafe"
 
@@ -19,6 +20,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/mempool"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
@@ -69,9 +71,6 @@ func init() {
 }
 
 func getMinerData(rpcClient *client.Client) *p2pooltypes.MinerData {
-	if rpcClient == nil {
-		rpcClient = client.GetDefaultClient()
-	}
 	version, err := rpcClient.GetVersion()
 	if err != nil {
 		return nil
@@ -139,7 +138,7 @@ func TestMain(m *testing.M) {
 
 func TestStratumServer(t *testing.T) {
 	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
-	minerData := getMinerData(nil)
+	minerData := getMinerData(client.GetDefaultClient())
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.HandleMinerData(minerData)
 	stratumServer.HandleTip(tip)
@@ -184,7 +183,26 @@ func TestStratumServer(t *testing.T) {
 	}
 }
 
-func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *client.Client, n int) {
+func testFromGenesisFakeTime(t *testing.T, consensus *sidechain.Consensus, rpcClient *client.Client, n int) {
+	if rpcClient == nil {
+		rpcClient = client.GetDefaultClient()
+	}
+	minerData := getMinerData(rpcClient)
+	if minerData == nil {
+		t.Fatal("miner data is nil")
+	}
+
+	fakeServer := sidechain.GetFakeTestServerWithRPC(consensus, rpcClient)
+	// preload so it doesn't panic
+	fakeServer.GetDifficultyByHeight(randomx.SeedHeight(minerData.Height))
+	fakeServer.GetDifficultyByHeight(randomx.SeedHeight(minerData.Height + 1))
+
+	synctest.Test(t, func(t *testing.T) {
+		testFromGenesis(t, consensus, minerData, fakeServer, n)
+	})
+}
+
+func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, minerData *p2pooltypes.MinerData, fakeServer *sidechain.FakeServer, n int) {
 	oldLogLevel := utils.GlobalLogLevel
 	defer func() {
 		utils.GlobalLogLevel = oldLogLevel
@@ -193,7 +211,6 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 
 	var testAddresses []address.PackedAddressWithSubaddress
 
-	minerData := getMinerData(rpcClient)
 	if minerData == nil {
 		t.Fatal("miner data is nil")
 	}
@@ -205,7 +222,7 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 			testAddresses = append(testAddresses, address.NewPackedAddressWithSubaddressFromBytes(
 				new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)).AsBytes(),
 				new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)).AsBytes(),
-				sidechain.P2PoolShareVersion(consensus, 0) >= sidechain.ShareVersion_V3 && /* TODO: remove when supported? */ minerData.MajorVersion < monero.HardForkCarrotVersion,
+				sidechain.P2PoolShareVersion(consensus, 0) >= sidechain.ShareVersion_V3 && minerData.MajorVersion < monero.HardForkCarrotVersion,
 			))
 		}
 	}
@@ -224,7 +241,6 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 		}
 	}
 
-	fakeServer := sidechain.GetFakeTestServerWithRPC(consensus, rpcClient)
 	sideChain := sidechain.NewSideChain(fakeServer)
 
 	stratumServer := NewServer(sideChain, func(block *sidechain.PoolBlock) error {
@@ -322,9 +338,19 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 
 		blockData := tpl.Blob(nil, consensus, addr, nonce, 0, 0, 0, templateId, nil, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion)
 
+		bufferLength := tpl.BufferLength(consensus, nil, mmExtra)
+
 		buffer := bytes.NewBuffer(make([]byte, 0, tpl.BufferLength(consensus, nil, mmExtra)))
 		if err := tpl.Write(buffer, consensus, addr, nonce, 0, 0, 0, templateId, nil, mmExtra, p2pooltypes.CurrentSoftwareId, p2pooltypes.CurrentSoftwareVersion); err != nil {
 			t.Fatal(err)
+		}
+
+		if bufferLength != len(blockData) {
+			t.Fatal("bad length block data")
+		}
+
+		if bufferLength != buffer.Len() {
+			t.Fatal("bad length buffer data")
 		}
 
 		if !bytes.Equal(blockData, buffer.Bytes()) {
@@ -343,6 +369,10 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 
 		if b.SideTemplateId(consensus) != templateId {
 			t.Fatalf("mismatched template id, got %s expected %s", b.SideTemplateId(consensus), templateId)
+		}
+
+		if b.Side.Difficulty.Hi > 0 {
+			t.Fatal("difficulty too high")
 		}
 
 		if i == 0 {
@@ -442,6 +472,8 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, rpcClient *cl
 		}
 
 		stratumServer.HandleTip(fakeServer.Tip)
+		// pass time
+		time.Sleep(time.Duration(consensus.TargetBlockTime) * time.Second)
 		expected = fakeServer.Tip.Side.Height + 1
 	}
 }
@@ -459,7 +491,7 @@ func TestStratumServer_Genesis(t *testing.T) {
 			consensus.HardForks = []monero.HardFork{
 				{Version: uint8(version)},
 			}
-			testFromGenesis(t, consensus, nil, n)
+			testFromGenesisFakeTime(t, consensus, nil, n)
 		})
 	}
 
@@ -488,13 +520,13 @@ func TestStratumServer_Genesis(t *testing.T) {
 		}
 
 		// less that default due to PoW
-		testFromGenesis(t, consensus, rpcClient, 32)
+		testFromGenesisFakeTime(t, consensus, rpcClient, 32)
 	})
 }
 
 func BenchmarkServer_FillTemplate(b *testing.B) {
 	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
-	minerData := getMinerData(nil)
+	minerData := getMinerData(client.GetDefaultClient())
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.minerData = minerData
 	stratumServer.tip = tip
@@ -523,7 +555,7 @@ func BenchmarkServer_FillTemplate(b *testing.B) {
 
 func BenchmarkServer_BuildTemplate(b *testing.B) {
 	stratumServer := NewServer(preLoadedMiniSideChain, submitBlockFunc, submitMainBlockFunc)
-	minerData := getMinerData(nil)
+	minerData := getMinerData(client.GetDefaultClient())
 	tip := preLoadedMiniSideChain.GetChainTip()
 	stratumServer.minerData = minerData
 	stratumServer.tip = tip
