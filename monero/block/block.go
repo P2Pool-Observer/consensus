@@ -430,7 +430,14 @@ func (b *Block[T, MT]) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeight
 		// Specifically add mainnet/testnet/stressnet hashes to match, as by the time they reached that height the fix was in.
 		// see upstream fix on https://github.com/monero-project/monero/pull/10801
 
-		if slices.Contains(knownHashesBlock202612[:], b.Id()) {
+		//hashingBlob := b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength()))
+		//hashingBlobHash :=
+		var varIntBuf [binary.MaxVarintLen64]byte
+
+		buf := b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength()))
+		h := crypto.Keccak256Var(varIntBuf[:binary.PutUvarint(varIntBuf[:], uint64(len(buf)))], buf)
+
+		if slices.Contains(knownHashesBlock202612[:], h) {
 			return powHashBlock202612, nil
 		}
 	}
@@ -439,11 +446,17 @@ func (b *Block[T, MT]) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeight
 		return b.powHashCN()
 	}
 
-	if seed := f(b.MinerTx().GenHeight()); seed == types.ZeroHash {
+	seed := f(b.MinerTx().GenHeight())
+	if seed == types.ZeroHash {
 		return types.ZeroHash, ErrNoSeed
-	} else {
+	}
+
+	if b.MajorVersion < monero.HardForkRandomXV2 {
 		return hasher.Hash(seed[:], b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength())))
 	}
+
+	//TODO: RandomX V2, commitment hash
+	return types.ZeroHash, ErrUnsupportedAlgorithm
 }
 
 var powHashBlock202612 = types.MustHashFromString("84f64766475d51837ac9efbef1926486e58563c95a19fef4aec3254f03000000")
@@ -453,7 +466,7 @@ var existingHashBlock202612 = types.MustHashFromString("bbd604d2ba11ba27935e006e
 
 var knownHashesBlock202612 = [3]types.Hash{
 	// mainnet
-	existingHashBlock202612,
+	correctHashBlock202612,
 	// testnet
 	types.MustHashFromString("248fde4b96b829c4ddbd00e3f76d35b03d01257898bc1b5578bc9e04b379a676"),
 	// stagenet

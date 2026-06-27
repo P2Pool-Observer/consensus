@@ -128,6 +128,35 @@ var testBlocks = []types.Hash{
 	types.MustHashFromString("35050900709dac5b4529101ead86631985f74e9e1f2142761b2854bd5b387aef"),
 }
 
+func TestHeight202612Blocks(t *testing.T) {
+	for _, testPath := range [][2]string{
+		{"testdata/monero_blocks_block_202612_mainnet.bin", "bbd604d2ba11ba27935e006ed39c9bfdd99b76bf4a50654bc1e1e61217962698"},
+		{"testdata/monero_blocks_block_202612_stagenet.bin", "f3449e658b5f880c4b0e69007ed5d092c9c883ac3a518166fa652d5cc505e7b1"},
+		{"testdata/monero_blocks_block_202612_testnet.bin", "248fde4b96b829c4ddbd00e3f76d35b03d01257898bc1b5578bc9e04b379a676"},
+	} {
+		t.Run(fmt.Sprintf("%s", path.Base(testPath[0])), func(t *testing.T) {
+			buf, err := os.ReadFile(testPath[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			var b GenericBlock
+			if err = b.UnmarshalBinary(buf, false, nil); err != nil {
+				t.Fatal(err)
+			}
+
+			if id := b.Id(); id.String() != testPath[1] {
+				t.Fatalf("id: got %s, want %s", id.String(), testPath[1])
+			}
+
+			if hash, err := b.PowHashWithError(nil, nil); err != nil {
+				t.Fatal(err)
+			} else if hash != powHashBlock202612 {
+				t.Fatalf("pow: got %s, want %s", hash.String(), powHashBlock202612.String())
+			}
+		})
+	}
+}
+
 func TestBlocks(t *testing.T) {
 	rpc := client.GetDefaultClient()
 

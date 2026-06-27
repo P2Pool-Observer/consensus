@@ -1,24 +1,33 @@
 #!/bin/bash
 
+set -e
+set -o pipefail
+
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 pushd "${SCRIPT_DIR}"
 
 ARCHIVE_URL="https://git.gammaspectra.live/P2Pool/p2pool/raw/commit/"
 
 
-TESTS_MONERO_COMMIT_ID=ac02af92867590ca80b2779a7bbeafa99ff94dcb
+TESTS_MONERO_COMMIT_ID=c93af366c3125e0ebd59ee4687a85943bb3ec708
 function download_test_monero() {
     if [ -f "./monero_${1}_${2}" ]; then
       return
     fi
-    curl --progress-bar --output "./monero_${1}_${2}" "https://raw.githubusercontent.com/monero-project/monero/${TESTS_MONERO_COMMIT_ID}/tests/${1}/${2}"
+    curl --progress-bar --fail --output "./monero_${1}_${2}" "https://raw.githubusercontent.com/monero-project/monero/${TESTS_MONERO_COMMIT_ID}/tests/${1}/${2}"
+}
+function download_test_data_monero() {
+    if [ -f "./monero_${1}_${2}" ]; then
+      return
+    fi
+    curl --progress-bar --fail --output "./monero_${1}_${2}" "https://raw.githubusercontent.com/monero-project/monero/${TESTS_MONERO_COMMIT_ID}/tests/data/${1}/${2}"
 }
 
 function download_getmonero() {
     if [ -f "./getmonero_${1}" ]; then
       return
     fi
-    curl --progress-bar --output "./getmonero_${1}" "https://downloads.getmonero.org/${1}"
+    curl --progress-bar --fail --output "./getmonero_${1}" "https://downloads.getmonero.org/${1}"
 }
 
 # Pre-v2 p2pool hardfork
@@ -27,7 +36,7 @@ function download_test_v1() {
     if [ -f "./v1_${1}" ]; then
       return
     fi
-    curl --progress-bar --output "./v1_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V1}/tests/src/${1}"
+    curl --progress-bar --fail --output "./v1_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V1}/tests/src/${1}"
 }
 
 # Post-v2 p2pool hardfork
@@ -36,7 +45,7 @@ function download_test_v2() {
     if [ -f "./v2_${1}" ]; then
       return
     fi
-    curl --progress-bar --output "./v2_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V2}/tests/src/${1}"
+    curl --progress-bar --fail --output "./v2_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V2}/tests/src/${1}"
 }
 
 # Post-v4 p2pool hardfork
@@ -45,7 +54,7 @@ function download_test_v4() {
     if [ -f "./v4_${1}" ]; then
       return
     fi
-    curl --progress-bar --output "./v4_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V4}/tests/src/${1}"
+    curl --progress-bar --fail --output "./v4_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V4}/tests/src/${1}"
 }
 
 # Post-v4 p2pool hardfork, updated tests
@@ -54,10 +63,13 @@ function download_test_v4_2() {
     if [ -f "./v4_2_${1}" ]; then
       return
     fi
-    curl --progress-bar --output "./v4_2_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V4_2}/tests/src/${1}"
+    curl --progress-bar --fail --output "./v4_2_${1}" "${ARCHIVE_URL}${TESTS_COMMIT_ID_V4_2}/tests/src/${1}"
 }
 
 download_test_monero crypto tests.txt
+download_test_data_monero blocks block_202612_mainnet.bin
+download_test_data_monero blocks block_202612_stagenet.bin
+download_test_data_monero blocks block_202612_testnet.bin
 
 download_getmonero key_images_GF_until_20250206
 

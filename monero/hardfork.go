@@ -5,6 +5,8 @@ const (
 	HardForkCryptoNightV2 = 8
 	HardForkCryptoNightR  = 10
 	HardForkRandomX       = 12
+	// HardForkRandomXV2 TODO
+	HardForkRandomXV2 = 255
 
 	HardForkCoinbaseVersionV2      = 12
 	HardForkViewTags               = 15
