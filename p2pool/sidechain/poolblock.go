@@ -721,8 +721,8 @@ func (b *PoolBlock) consensusDecode(consensus *Consensus, derivationCache Deriva
 		return err
 	}
 
-	// Wallet point validity and torsion check, at FCMP++ or one week ahead of time
-	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlus || monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.MinerGenHeight+720*7) >= monero.HardForkFCMPPlusPlus {
+	// Wallet point validity and torsion check, at FCMP++ or seven Monero sync windows ahead of time
+	if b.Main.MajorVersion >= monero.HardForkFCMPPlusPlus || monero.NetworkMajorVersion(consensus.MoneroHardForks, b.Main.Coinbase.MinerGenHeight+uint64(consensus.BlockHeadersRequired()*7)) >= monero.HardForkFCMPPlusPlus {
 		var spendPub, viewPub curve25519.VarTimePublicKey
 		if _, err := spendPub.SetBytes(b.Side.PublicKey.SpendPublicKey()[:]); err != nil {
 			return fmt.Errorf("block must have a valid wallet address: %w", err)

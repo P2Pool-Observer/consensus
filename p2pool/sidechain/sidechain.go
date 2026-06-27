@@ -339,9 +339,19 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 		}
 	}
 
-	// todo: this can fail before FCMP++ upgrade on torsioned points
-	if !block.Side.PublicKey.Valid() {
-		return nil, errors.New("invalid wallet address"), true
+	if block.Main.MajorVersion >= monero.HardForkFCMPPlusPlus {
+		if !block.Side.PublicKey.Valid() {
+			return nil, errors.New("invalid wallet address"), true
+		}
+	} else {
+		// specific path that allows twisted outputs
+		var spendPub, viewPub curve25519.PublicKey[curve25519.VarTimeOperations]
+		if _, err := spendPub.SetBytes(block.Side.PublicKey.SpendPublicKey()[:]); err != nil {
+			return nil, errors.New("invalid wallet address"), true
+		}
+		if _, err := viewPub.SetBytes(block.Side.PublicKey.ViewPublicKey()[:]); err != nil {
+			return nil, errors.New("invalid wallet address"), true
+		}
 	}
 
 	// Both tx types are allowed by Monero consensus during v15 because it needs to process pre-fork mempool transactions,
