@@ -468,16 +468,11 @@ func matchTxPreamble(tx transaction.PrunedTransaction) (pubs []curve25519.Public
 	encryptedPaymentId, paymentId = txPaymentId(extra)
 
 	// is coinbase check
-	isCoinbase = len(tx.Inputs()) == 0
+
+	minerTx, isCoinbase := tx.(transaction.MinerTransaction)
 
 	if isCoinbase {
-		if txv2, ok := tx.(*transaction.P2PoolCoinbaseV2); ok {
-			blockIndex = txv2.MinerGenHeight
-		} else if genTx, ok := tx.(*transaction.GenericCoinbase); ok {
-			blockIndex = genTx.MinerGenHeight
-		} else {
-			return nil, nil, nil, nil, true, 0, errors.New("cannot get coinbase block height")
-		}
+		blockIndex = minerTx.GenHeight()
 	} else {
 		if txv2, ok := tx.(*transaction.TransactionV2); ok {
 			commitments = make([]ringct.CommitmentEncryptedAmount, len(txv2.Outputs()))
