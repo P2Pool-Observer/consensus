@@ -24,16 +24,16 @@ func (e *JSONEncoder) Encode(val interface{}) error {
 		e.w.Write([]byte{'\n'})
 	}()
 	if e.indent != "" {
-		return json.MarshalWrite(e.w, val, json.OmitZeroStructFields(true), jsontext.WithIndent(e.indent))
+		return json.MarshalWrite(e.w, val, jsontext.WithIndent(e.indent))
 	}
 
-	return json.MarshalWrite(e.w, val, json.OmitZeroStructFields(true))
+	return json.MarshalWrite(e.w, val)
 }
 
 type JSONDecoder = jsonv1.Decoder
 
 func MarshalJSON(val any) ([]byte, error) {
-	return json.Marshal(val, json.OmitZeroStructFields(true))
+	return json.Marshal(val)
 }
 
 func MarshalJSONIndent(val any, indent string) ([]byte, error) {
