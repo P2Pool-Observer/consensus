@@ -115,8 +115,8 @@ func NewServer(s *sidechain.SideChain, submitFunc func(block *sidechain.PoolBloc
 		preAllocatedSharesPool:            sidechain.NewPreAllocatedSharesPool(s.Consensus().ChainWindowSize * 2),
 		miners:                            make(map[uint64]*MinerTrackingEntry),
 		mempool:                           (MiningMempool)(make(map[types.Hash]*mempool.Entry, 512)),
-		// buffer 4 at a time for non-blocking source
-		incomingChanges: make(chan func() bool, 4),
+		// buffer 8 at a time for non-blocking source
+		incomingChanges: make(chan func() bool, 8),
 
 		//refresh every n seconds
 		refreshDuration: time.Duration(s.Consensus().TargetBlockTime) * time.Second,
@@ -995,7 +995,7 @@ func (s *Server) HandleMinerData(minerData *p2pooltypes.MinerData) {
 
 func (s *Server) HandleTip(tip *sidechain.PoolBlock) {
 	currentDifficulty := s.sidechain.Difficulty()
-	s.incomingChanges <- func() bool {
+	changeFunc := func() bool {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 
@@ -1011,10 +1011,18 @@ func (s *Server) HandleTip(tip *sidechain.PoolBlock) {
 		}
 		return false
 	}
+
+	select {
+	// non-blocking, prevents deadlock
+	case s.incomingChanges <- changeFunc:
+	default:
+
+	}
+
 }
 
 func (s *Server) HandleBroadcast(block *sidechain.PoolBlock) {
-	s.incomingChanges <- func() bool {
+	changeFunc := func() bool {
 		s.lock.Lock()
 		defer s.lock.Unlock()
 
@@ -1027,6 +1035,12 @@ func (s *Server) HandleBroadcast(block *sidechain.PoolBlock) {
 			return true
 		}
 		return false
+	}
+	select {
+	// non-blocking, prevents deadlock
+	case s.incomingChanges <- changeFunc:
+	default:
+
 	}
 }
 
