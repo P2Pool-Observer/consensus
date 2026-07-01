@@ -21,7 +21,7 @@ type CommitmentEncryptedAmount struct {
 
 // ZeroCommitment A commitment to zero, defined with a mask of 1 (as to not be the identity).
 var ZeroCommitment = LazyCommitment{
-	Mask:   *(&curve25519.PrivateKeyBytes{1}).Scalar(),
+	Mask:   *CoinbaseAmountBlindingFactor,
 	Amount: 0,
 }
 
