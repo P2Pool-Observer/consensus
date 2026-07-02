@@ -1,5 +1,11 @@
 package curve
 
+import (
+	"io"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
+)
+
 // TODO: use Go 1.26 recursive types
 
 type BasicField[F any] interface {
@@ -42,4 +48,25 @@ type Field[F any] interface {
 	// Comparison
 	IsZero() int
 	IsNegative() int
+}
+
+func RandomField[F any, FE Field[F]](k *F, r io.Reader) *F {
+
+	var buf [64]byte
+	var zeroElement F
+	FE(&zeroElement).Zero()
+
+	for {
+		if _, err := utils.ReadNoEscape(r, buf[:]); err != nil {
+			panic(err)
+		}
+
+		if _, err := FE(k).SetWideBytes(buf[:]); err != nil {
+			panic(err)
+		}
+
+		if FE(k).Equal(&zeroElement) == 0 {
+			return k
+		}
+	}
 }

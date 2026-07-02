@@ -3,68 +3,93 @@ package multiexp
 import (
 	"io"
 
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
 )
 
-type ScalarPointPair[T curve25519.PointOperations] struct {
-	S curve25519.Scalar
-	P curve25519.PublicKey[T]
+type ScalarPointPair[P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scalar[S]] struct {
+	S S
+	P P
 }
 
-type VerifierEntry[Id any, T curve25519.PointOperations] struct {
+type VerifierEntry[Id any, P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scalar[S]] struct {
 	Id    Id
-	Pairs []ScalarPointPair[T]
+	Pairs []ScalarPointPair[P, S, PE, SE]
 }
 
-type BatchVerifier[Id any, T curve25519.PointOperations] []VerifierEntry[Id, T]
+type BatchVerifier[Id any, P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scalar[S]] []VerifierEntry[Id, P, S, PE, SE]
 
-func (v *BatchVerifier[Id, T]) Queue(id Id, pairs []ScalarPointPair[T], randomReader io.Reader) {
+func (v *BatchVerifier[Id, P, S, PE, SE]) Queue(id Id, pairs []ScalarPointPair[P, S, PE, SE], randomReader io.Reader) {
 
 	// Define a unique scalar factor for this set of variables so individual items can't overlap
-	var u curve25519.Scalar
+	var u S
 	if len(*v) == 0 {
-		u.One()
+		SE(&u).One()
 	} else {
-		curve25519.RandomScalar(&u, randomReader)
+		curve.RandomScalar[S, SE](&u, randomReader)
 	}
 
 	for i := range pairs {
-		pairs[i].S.Multiply(&pairs[i].S, &u)
+		SE(&pairs[i].S).Multiply(&pairs[i].S, &u)
 	}
 
-	*v = append(*v, VerifierEntry[Id, T]{
+	*v = append(*v, VerifierEntry[Id, P, S, PE, SE]{
 		Id:    id,
 		Pairs: pairs,
 	})
 }
 
-func (v *BatchVerifier[Id, T]) Verify() bool {
-	return multiexp(new(curve25519.PublicKey[T]), flatten(*v)).IsIdentity() == 1
+// BlameVarTime Perform a binary search to identify which statement does not equal 0, returning statementFailed false if all statements do
+//
+// Variable time
+func (v *BatchVerifier[Id, P, S, PE, SE]) BlameVarTime() (id Id, statementFailed bool) {
+	slice := *v
+	for len(slice) > 1 {
+		split := len(slice) / 2
+		testSplit := slice[:split]
+		if testSplit.Verify() {
+			slice = slice[split:]
+		} else {
+			slice = slice[:split]
+		}
+	}
+
+	if len(slice) > 0 {
+		first := slice[0]
+		if PE(multiexp[P, S, PE, SE](new(P), first.Pairs)).IsIdentity() == 0 {
+			return first.Id, true
+		}
+	}
+	// return zero Id and false
+	return id, false
 }
 
-func flatten[Id any, T curve25519.PointOperations](entries []VerifierEntry[Id, T]) (pairs []ScalarPointPair[T]) {
+func (v *BatchVerifier[Id, P, S, PE, SE]) Verify() bool {
+	return PE(multiexp(new(P), flatten(*v))).IsIdentity() == 1
+}
+
+func flatten[Id any, P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scalar[S]](entries []VerifierEntry[Id, P, S, PE, SE]) (pairs []ScalarPointPair[P, S, PE, SE]) {
 	for _, e := range entries {
 		pairs = append(pairs, e.Pairs...)
 	}
 	return pairs
 }
 
-func multiexp[T curve25519.PointOperations](out *curve25519.PublicKey[T], pairs []ScalarPointPair[T]) *curve25519.PublicKey[T] {
+func multiexp[P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scalar[S]](out *P, pairs []ScalarPointPair[P, S, PE, SE]) *P {
 	if len(pairs) == 0 {
-		return out.Identity()
+		return PE(out).Identity()
 	} else if len(pairs) == 1 {
-		return out.ScalarMult(&pairs[0].S, &pairs[0].P)
+		return PE(out).ScalarMult(&pairs[0].S, &pairs[0].P)
 	}
 
-	scalars := make([]*curve25519.Scalar, 0, len(pairs))
-	points := make([]*curve25519.PublicKey[T], 0, len(pairs))
+	scalars := make([]*S, 0, len(pairs))
+	points := make([]*P, 0, len(pairs))
 
 	for _, pair := range pairs {
 		scalars = append(scalars, &pair.S)
 		points = append(points, &pair.P)
 	}
 
-	return out.MultiScalarMult(scalars, points)
+	return PE(out).MultiScalarMult(scalars, points)
 }
 
 //TODO: blame

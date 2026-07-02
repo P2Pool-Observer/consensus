@@ -6,7 +6,6 @@ import (
 
 	"git.gammaspectra.live/P2Pool/blake2b"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/multiexp"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -74,7 +73,7 @@ func (p *Proof[T]) FromReader(reader utils.ReaderAndByteReader, pseudoOuts []cur
 	return nil
 }
 
-func (p *Proof[T]) Verify(verifier *multiexp.BatchVerifier[struct{}, T], signableTxHash types.Hash, tree any, layers int, keyImages []curve25519.PublicKey[T], randomReader io.Reader) (err error) {
+func (p *Proof[T]) Verify(verifier *BatchVerifier[T], signableTxHash types.Hash, tree any, layers int, keyImages []curve25519.PublicKey[T], randomReader io.Reader) (err error) {
 	if len(keyImages) != len(p.Inputs) {
 		return errors.New("invalid number of key images")
 	}

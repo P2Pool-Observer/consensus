@@ -5,7 +5,6 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/multiexp"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -30,7 +29,7 @@ func TestSAL(t *testing.T) {
 	if L.Equal(&L_) == 0 {
 		t.Fatalf("L does not equal L_ (%x != %x)", L.Bytes(), L_.Bytes())
 	}
-	var verifier multiexp.BatchVerifier[struct{}, curve25519.ConstantTimeOperations]
+	var verifier BatchVerifier[curve25519.ConstantTimeOperations]
 	sal.Verify(&verifier, types.ZeroHash, input, &L, rng)
 	if !verifier.Verify() {
 		t.Fatalf("batch verifier does not verify")
