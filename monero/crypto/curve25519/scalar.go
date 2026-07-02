@@ -323,7 +323,6 @@ func (s *UnreducedScalar) VarTimeScalar(out *Scalar) *Scalar {
 	}
 
 	out.Set(zeroScalar)
-	//TODO: add tests for unreduced ones
 	naf5 := s.naf5()
 	for i := len(naf5) - 1; i >= 0; i-- {
 		n := naf5[i]
