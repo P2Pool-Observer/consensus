@@ -10,7 +10,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
-	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/multiexp"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/borromean"
 	bp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs/original"
@@ -781,7 +780,7 @@ func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base *Base, rings [
 		if err != nil {
 			return err
 		}
-		var verifier multiexp.BatchVerifier[struct{}, curve25519.VarTimeOperations]
+		var verifier fcmp_pp.BatchVerifier[curve25519.VarTimeOperations]
 		if err = proof.Verify(&verifier, prefixHash, nil, int(p.NTreeLayers), images, rand.Reader); err != nil {
 			return err
 		}

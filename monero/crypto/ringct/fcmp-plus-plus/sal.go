@@ -207,7 +207,7 @@ func (sal *SpendAuthAndLinkability[T]) Challenge(dst *curve25519.Scalar, signabl
 	curve25519.BytesToScalar64(dst, h)
 }
 
-type BatchVerifier[T curve25519.PointOperations] = multiexp.BatchVerifier[struct{}, curve25519.PublicKey[T], curve25519.Scalar, *curve25519.PublicKey[T], *curve25519.Scalar]
+type BatchVerifier[T curve25519.PointOperations] = multiexp.BatchVerifier[types.Hash, curve25519.PublicKey[T], curve25519.Scalar, *curve25519.PublicKey[T], *curve25519.Scalar]
 type ScalarPointPair[T curve25519.PointOperations] = multiexp.ScalarPointPair[curve25519.PublicKey[T], curve25519.Scalar, *curve25519.PublicKey[T], *curve25519.Scalar]
 
 func (sal *SpendAuthAndLinkability[T]) Verify(verifier *BatchVerifier[T], signableTxHash types.Hash, input *Input[T], L *curve25519.PublicKey[T], randomReader io.Reader) {
@@ -216,7 +216,7 @@ func (sal *SpendAuthAndLinkability[T]) Verify(verifier *BatchVerifier[T], signab
 	sal.Challenge(&e, signableTxHash, input, L)
 
 	// BP+ Verification Statement
-	verifier.Queue(struct{}{}, []ScalarPointPair[T]{
+	verifier.Queue(signableTxHash, []ScalarPointPair[T]{
 		{S: *new(curve25519.Scalar).Multiply(&e, &e), P: sal.P},
 		{S: e, P: sal.A},
 		{S: *new(curve25519.Scalar).One(), P: sal.B},
@@ -229,7 +229,7 @@ func (sal *SpendAuthAndLinkability[T]) Verify(verifier *BatchVerifier[T], signab
 	}, randomReader)
 
 	// O_tilde GSP Verification Statement
-	verifier.Queue(struct{}{}, []ScalarPointPair[T]{
+	verifier.Queue(signableTxHash, []ScalarPointPair[T]{
 		{S: *new(curve25519.Scalar).One(), P: sal.R_O},
 		{S: e, P: input.OTilde},
 
@@ -239,7 +239,7 @@ func (sal *SpendAuthAndLinkability[T]) Verify(verifier *BatchVerifier[T], signab
 	}, randomReader)
 
 	// P' GSP Verification Statement
-	verifier.Queue(struct{}{}, []ScalarPointPair[T]{
+	verifier.Queue(signableTxHash, []ScalarPointPair[T]{
 		{S: *new(curve25519.Scalar).One(), P: sal.R_P},
 		{S: e, P: *new(curve25519.PublicKey[T]).Subtract(new(curve25519.PublicKey[T]).Subtract(&sal.P, &input.OTilde), &input.R)},
 
@@ -249,7 +249,7 @@ func (sal *SpendAuthAndLinkability[T]) Verify(verifier *BatchVerifier[T], signab
 	}, randomReader)
 
 	// L GSP Verification Statement
-	verifier.Queue(struct{}{}, []ScalarPointPair[T]{
+	verifier.Queue(signableTxHash, []ScalarPointPair[T]{
 		{S: *new(curve25519.Scalar).One(), P: sal.R_L},
 		{S: e, P: *L},
 
