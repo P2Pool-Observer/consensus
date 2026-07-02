@@ -19,6 +19,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -38,7 +39,7 @@ const (
 )
 
 // PoolBlockMaxTemplateSize Max P2P message size (128 KB) minus BLOCK_RESPONSE header (5 bytes)
-const PoolBlockMaxTemplateSize = 128*1024 - (1 + 4)
+const PoolBlockMaxTemplateSize = p2pool.MaxBufferSize - (1 + 4)
 
 // PoolBlockMaxSideChainHeight 1000 years at 1 block/second. It should be enough for any normal use.
 const PoolBlockMaxSideChainHeight = 31556952000

@@ -13,12 +13,14 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/cryptonight"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 // MaxTransactionCount TODO: this differs from P2Pool's num_transactions >= MAX_BLOCK_SIZE / HASH_SIZE)
 const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize
+const MaxTransactionCountP2Pool = uint64(p2pool.MaxBufferSize) / types.HashSize
 
 type GenericBlock = Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
 type PoolMainBlock = Block[transaction.P2PoolCoinbaseV2, *transaction.P2PoolCoinbaseV2]
@@ -245,9 +247,8 @@ func (b *Block[T, MT]) FromReaderFlags(reader utils.ReaderAndByteReader, compact
 	} else if txCount > 0 {
 		if compact {
 			// rough hard cap to p2pool cap
-			const maxCompactTransactions = (128 * 1024) / types.HashSize
-			if txCount > maxCompactTransactions {
-				return utils.ErrorfNoEscape("compact transaction count too large: %d > %d", txCount, maxCompactTransactions)
+			if txCount > MaxTransactionCountP2Pool {
+				return utils.ErrorfNoEscape("compact transaction count too large: %d > %d", txCount, MaxTransactionCountP2Pool)
 			}
 
 			// preallocate with soft cap
@@ -429,9 +430,6 @@ func (b *Block[T, MT]) PowHashWithError(hasher randomx.Hasher, f GetSeedByHeight
 		// introduced a bug where every block on this height produced the same PoW hash.
 		// Specifically add mainnet/testnet/stressnet hashes to match, as by the time they reached that height the fix was in.
 		// see upstream fix on https://github.com/monero-project/monero/pull/10801
-
-		//hashingBlob := b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength()))
-		//hashingBlobHash :=
 		var varIntBuf [binary.MaxVarintLen64]byte
 
 		buf := b.HashingBlob(make([]byte, 0, b.HashingBlobBufferLength()))

@@ -21,6 +21,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/block"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/randomx"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
+	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool"
 	"git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain"
 	p2pooltypes "git.gammaspectra.live/P2Pool/consensus/v5/p2pool/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -31,8 +32,6 @@ import (
 const DefaultBanTime = time.Second * 600
 const PeerListResponseMaxPeers = 16
 const PeerRequestDelay = 60
-
-const MaxBufferSize = 128 * 1024
 
 var smallBufferPool = sync.Pool{
 	New: func() any {
@@ -1138,8 +1137,8 @@ type ClientMessage struct {
 func (c *Client) SendMessage(message *ClientMessage) {
 	if !c.Closed.Load() {
 		bufLen := len(message.Buffer) + 1
-		if bufLen > MaxBufferSize {
-			utils.Logf("P2PClient", "Peer %s tried to send more than %d bytes, sent %d, disconnecting", c.HostPort, MaxBufferSize, len(message.Buffer)+1)
+		if bufLen > p2pool.MaxBufferSize {
+			utils.Logf("P2PClient", "Peer %s tried to send more than %d bytes, sent %d, disconnecting", c.HostPort, p2pool.MaxBufferSize, len(message.Buffer)+1)
 			c.Close()
 			return
 		}
