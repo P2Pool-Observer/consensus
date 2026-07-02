@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/multiexp"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/borromean"
 	bp "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs/original"
@@ -546,6 +548,8 @@ type pRangeProof[RP any] interface {
 
 var ErrInvalidRangeProof = errors.New("invalid range proof")
 
+var ErrInvalidBatchProof = errors.New("invalid batch verifier proof")
+
 func pSigRangeProofVerifyCLSAG[RP any, pRP pRangeProof[RP]](sigs []clsag.Signature[curve25519.VarTimeOperations], pseudoOuts []curve25519.VarTimePublicKey, rangeProof *RP, prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
 	var sumInputs, sumOutputs curve25519.VarTimePublicKey
 	// init
@@ -772,9 +776,23 @@ func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base *Base, rings [
 	sumInputs.Identity()
 	sumOutputs.Identity()
 
-	// TODO: verify FCMP++
 	{
+		proof, err := p.FCMPProof()
+		if err != nil {
+			return err
+		}
+		var verifier multiexp.BatchVerifier[struct{}, curve25519.VarTimeOperations]
+		if err = proof.Verify(&verifier, prefixHash, nil, int(p.NTreeLayers), images, rand.Reader); err != nil {
+			return err
+		}
 
+		if !verifier.Verify() {
+			return ErrInvalidBatchProof
+		}
+		// TODO: verify FCMP++ curve
+		//TODO: move this to the proof
+
+		_ = proof
 	}
 
 	for i := range p.PseudoOuts {
@@ -819,6 +837,14 @@ func (p *PrunableFCMPPlusPlus) Hash(signature bool) types.Hash {
 		return types.ZeroHash
 	}
 	return crypto.Keccak256(buf)
+}
+
+func (p *PrunableFCMPPlusPlus) FCMPProof() (*fcmp_pp.Proof[curve25519.VarTimeOperations], error) {
+	var proof fcmp_pp.Proof[curve25519.VarTimeOperations]
+	if err := proof.FromReader(bytes.NewReader(p.FCMP_PP), p.PseudoOuts, int(p.NTreeLayers)); err != nil {
+		return nil, err
+	}
+	return &proof, nil
 }
 
 func (p *PrunableFCMPPlusPlus) BufferLength(signature bool) (n int) {
