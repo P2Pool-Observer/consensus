@@ -64,16 +64,17 @@ func HashFromBytes(buf []byte) (h Hash) {
 	return
 }
 
+func CompareHash(a, b Hash) int {
+	return a.Compare(b)
+}
+
 // Compare consensus way of comparison
 func (h Hash) Compare(other Hash) int {
-	//golang might free other otherwise
-	defer runtime.KeepAlive(other)
-	defer runtime.KeepAlive(h)
 
 	// #nosec G103 -- 32 bytes -> 4 uint64
-	a := unsafe.Slice((*uint64)(unsafe.Pointer(&h)), len(h)/int(unsafe.Sizeof(uint64(0))))
+	a := (*[4]uint64)(unsafe.Pointer(&h))
 	// #nosec G103 -- 32 bytes -> 4 uint64
-	b := unsafe.Slice((*uint64)(unsafe.Pointer(&other)), len(other)/int(unsafe.Sizeof(uint64(0))))
+	b := (*[4]uint64)(unsafe.Pointer(&other))
 
 	if a[3] < b[3] {
 		return -1
@@ -102,6 +103,9 @@ func (h Hash) Compare(other Hash) int {
 	if a[0] > b[0] {
 		return 1
 	}
+
+	runtime.KeepAlive(other)
+	runtime.KeepAlive(h)
 
 	return 0
 }
