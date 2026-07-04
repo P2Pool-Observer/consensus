@@ -280,6 +280,12 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		return utils.ErrorfNoEscape("could not get outputs: %w", err)
 	}
 
+	// todo: add merge mining entries, merkle proof
+	fakeSideDataBaseSize := fakeTemplateTipBlock.Side.BufferLength(s.minerData.MajorVersion, s.newTemplateData.ShareVersion)
+	// add some merge mining extra data overhead, todo: make this proper dynamic
+	fakeSideDataBaseSize += 32 + (binary.MaxVarintLen64*2+32)*4
+	fakeMainDataBaseSize := fakeTemplateTipBlock.Main.BufferLength() - fakeTemplateTipBlock.Main.Coinbase.BufferLength()
+
 	// clone with reuse
 	s.newTemplateData.Window.Shares = shares
 
@@ -394,6 +400,14 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			pickedMempool = selectedMempool
 		} else {
 			pickedMempool = selectedMempool.Pick(baseReward, coinbaseTransactionWeight, s.minerData.MedianWeight)
+		}
+
+		templateSize := int(uint64(fakeSideDataBaseSize) + uint64(fakeMainDataBaseSize) + coinbaseTransactionWeight)
+		// limit number of max transactions to pool block max template size
+		// todo: what if number of shares makes it larger already?
+		maxTransactions := max((sidechain.PoolBlockMaxTemplateSize-templateSize)/32, 0)
+		if len(pickedMempool) > maxTransactions {
+			pickedMempool = pickedMempool[:maxTransactions]
 		}
 
 		txs := make([]types.Hash, len(pickedMempool))

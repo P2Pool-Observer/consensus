@@ -80,8 +80,6 @@ func ApplyShuffleMapping[T any](v []T, mappings ShuffleMapping) []T {
 	return result
 }
 
-type ShuffleMappingIndices [][3]int
-
 func (m ShuffleMapping) RangePossibleIndices(f func(i, ix0, ix1, ix2 int)) {
 	n := len(m.Including)
 	var ix0, ix1, ix2 int
