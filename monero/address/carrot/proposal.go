@@ -141,7 +141,7 @@ func (p *PaymentProposalV1[T]) CoinbaseOutputFromPartial(hasher *blake2b.Digest,
 		mask := makeAnchorEncryptionMask(hasher, secretSenderReceiver, enote.OneTimeAddress)
 		subtle.XORBytes(enote.EncryptedAnchor.Slice(), p.Randomness[:], mask[:])
 	}
-	// 6. save the amount and block index
+	// 6. save the amount
 	enote.Amount = p.Amount
 }
 

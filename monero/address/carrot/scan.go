@@ -10,6 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
@@ -91,7 +92,7 @@ func (enote *CoinbaseEnoteV1) TryScanEnoteChecked(scan *ScanV1, inputContext []b
 
 	scan.Amount = enote.Amount
 	scan.Type = EnoteTypePayment
-	scan.AmountBlindingFactor = curve25519.PrivateKeyBytes{1}
+	copy(scan.AmountBlindingFactor[:], ringct.CoinbaseAmountBlindingFactor.Bytes())
 
 	if !verifyNormalJanusProtection[curve25519.VarTimeOperations](&hasher, scan.Randomness, inputContext, scan.SpendPub, false, [monero.PaymentIdSize]byte{}, enote.EphemeralPubKey) {
 		return ErrJanusProtectionFailed
