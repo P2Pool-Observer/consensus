@@ -15,22 +15,22 @@ func TestSAL(t *testing.T) {
 	curve25519.RandomScalar(&x, rng)
 	curve25519.RandomScalar(&y, rng)
 
-	var O, I, C, L curve25519.ConstantTimePublicKey
-	O.Add(new(curve25519.ConstantTimePublicKey).ScalarBaseMult(&x), new(curve25519.ConstantTimePublicKey).ScalarMultPrecomputed(&y, crypto.GeneratorT))
-	curve25519.RandomPoint(&I, rng)
-	curve25519.RandomPoint(&C, rng)
+	var output Output[curve25519.ConstantTimeOperations]
+	output.O.Add(new(curve25519.ConstantTimePublicKey).ScalarBaseMult(&x), new(curve25519.ConstantTimePublicKey).ScalarMultPrecomputed(&y, crypto.GeneratorT))
+	curve25519.RandomPoint(&output.I, rng)
+	curve25519.RandomPoint(&output.C, rng)
 
-	L.ScalarMult(&x, &I)
+	var L curve25519.ConstantTimePublicKey
+	L.ScalarMult(&x, &output.I)
 
-	rerandomizedOutput := RerandomizeOutput(&O, &I, &C, rng)
-	input := rerandomizedOutput.Input()
-	opening := OpenInput(&rerandomizedOutput, &x, &y)
+	rerandomizedOutput := output.Rerandomize(rng)
+	opening := rerandomizedOutput.OpenInput(&x, &y)
 	L_, sal := opening.Prove(types.ZeroHash, rng)
 	if L.Equal(&L_) == 0 {
 		t.Fatalf("L does not equal L_ (%x != %x)", L.Bytes(), L_.Bytes())
 	}
 	var verifier BatchVerifier[curve25519.ConstantTimeOperations]
-	sal.Verify(&verifier, types.ZeroHash, input, &L, rng)
+	sal.Verify(&verifier, types.ZeroHash, &rerandomizedOutput.Input, &L, rng)
 	if !verifier.Verify() {
 		t.Fatalf("batch verifier does not verify")
 	}

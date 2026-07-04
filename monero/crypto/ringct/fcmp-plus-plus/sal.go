@@ -11,11 +11,32 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
+type Output[T curve25519.PointOperations] struct {
+	O curve25519.PublicKey[T]
+	I curve25519.PublicKey[T]
+	C curve25519.PublicKey[T]
+}
+
+func (output *Output[T]) Rerandomize(randomReader io.Reader) *RerandomizedOutput[T] {
+	var rerandomizedOutput RerandomizedOutput[T]
+	curve25519.RandomScalar(&rerandomizedOutput.R_O, randomReader)
+	curve25519.RandomScalar(&rerandomizedOutput.R_I, randomReader)
+	curve25519.RandomScalar(&rerandomizedOutput.R_R_I, randomReader)
+	curve25519.RandomScalar(&rerandomizedOutput.R_C, randomReader)
+
+	rerandomizedOutput.OTilde.Add(&output.O, new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&rerandomizedOutput.R_O, crypto.GeneratorT))
+	rerandomizedOutput.ITilde.Add(&output.I, new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&rerandomizedOutput.R_I, crypto.GeneratorU))
+	rerandomizedOutput.R.Add(
+		new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&rerandomizedOutput.R_I, crypto.GeneratorV),
+		new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&rerandomizedOutput.R_R_I, crypto.GeneratorT),
+	)
+	rerandomizedOutput.CTilde.Add(&output.C, new(curve25519.PublicKey[T]).ScalarBaseMult(&rerandomizedOutput.R_C))
+
+	return &rerandomizedOutput
+}
+
 type RerandomizedOutput[T curve25519.PointOperations] struct {
-	OTilde curve25519.PublicKey[T]
-	ITilde curve25519.PublicKey[T]
-	R      curve25519.PublicKey[T]
-	CTilde curve25519.PublicKey[T]
+	Input[T]
 
 	R_O   curve25519.Scalar
 	R_I   curve25519.Scalar
@@ -23,48 +44,7 @@ type RerandomizedOutput[T curve25519.PointOperations] struct {
 	R_C   curve25519.Scalar
 }
 
-func (output *RerandomizedOutput[T]) Input() *Input[T] {
-	return &Input[T]{
-		OTilde: output.OTilde,
-		ITilde: output.ITilde,
-		R:      output.R,
-		CTilde: output.CTilde,
-	}
-}
-
-func RerandomizeOutput[T curve25519.PointOperations](O, I, C *curve25519.PublicKey[T], randomReader io.Reader) (output RerandomizedOutput[T]) {
-	curve25519.RandomScalar(&output.R_O, randomReader)
-	curve25519.RandomScalar(&output.R_I, randomReader)
-	curve25519.RandomScalar(&output.R_R_I, randomReader)
-	curve25519.RandomScalar(&output.R_C, randomReader)
-
-	output.OTilde.Add(O, new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&output.R_O, crypto.GeneratorT))
-	output.ITilde.Add(I, new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&output.R_I, crypto.GeneratorU))
-	output.R.Add(
-		new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&output.R_I, crypto.GeneratorV),
-		new(curve25519.PublicKey[T]).ScalarMultPrecomputed(&output.R_R_I, crypto.GeneratorT),
-	)
-	output.CTilde.Add(C, new(curve25519.PublicKey[T]).ScalarBaseMult(&output.R_C))
-
-	return output
-}
-
-type OpenedInput[T curve25519.PointOperations] struct {
-	OTilde curve25519.PublicKey[T]
-	ITilde curve25519.PublicKey[T]
-	R      curve25519.PublicKey[T]
-	CTilde curve25519.PublicKey[T]
-
-	// O~ = xG + yT
-	X curve25519.Scalar
-	Y curve25519.Scalar
-
-	// R = r_i V + r_r_i T
-	R_I   curve25519.Scalar
-	R_R_I curve25519.Scalar
-}
-
-func OpenInput[T curve25519.PointOperations](rerandomizedOutput *RerandomizedOutput[T], x, y *curve25519.Scalar) *OpenedInput[T] {
+func (rerandomizedOutput *RerandomizedOutput[T]) OpenInput(x, y *curve25519.Scalar) *OpenedInput[T] {
 	yTilde := new(curve25519.Scalar).Add(&rerandomizedOutput.R_O, y)
 	if new(curve25519.PublicKey[T]).Add(
 		new(curve25519.PublicKey[T]).ScalarBaseMult(x),
@@ -74,10 +54,7 @@ func OpenInput[T curve25519.PointOperations](rerandomizedOutput *RerandomizedOut
 	}
 
 	return &OpenedInput[T]{
-		OTilde: rerandomizedOutput.OTilde,
-		ITilde: rerandomizedOutput.ITilde,
-		R:      rerandomizedOutput.R,
-		CTilde: rerandomizedOutput.CTilde,
+		Input: rerandomizedOutput.Input,
 
 		X:     *x,
 		Y:     *yTilde,
@@ -86,13 +63,16 @@ func OpenInput[T curve25519.PointOperations](rerandomizedOutput *RerandomizedOut
 	}
 }
 
-func (opening *OpenedInput[T]) Input() *Input[T] {
-	return &Input[T]{
-		OTilde: opening.OTilde,
-		ITilde: opening.ITilde,
-		R:      opening.R,
-		CTilde: opening.CTilde,
-	}
+type OpenedInput[T curve25519.PointOperations] struct {
+	Input[T]
+
+	// O~ = xG + yT
+	X curve25519.Scalar
+	Y curve25519.Scalar
+
+	// R = r_i V + r_r_i T
+	R_I   curve25519.Scalar
+	R_R_I curve25519.Scalar
 }
 
 func (opening *OpenedInput[T]) Prove(signableTxHash types.Hash, randomReader io.Reader) (L curve25519.PublicKey[T], sal SpendAuthAndLinkability[T]) {
@@ -151,7 +131,7 @@ func (opening *OpenedInput[T]) Prove(signableTxHash types.Hash, randomReader io.
 	)
 
 	var e, r_p_double_quote curve25519.Scalar
-	sal.Challenge(&e, signableTxHash, opening.Input(), &L)
+	sal.Challenge(&e, signableTxHash, &opening.Input, &L)
 
 	sal.SAlpha.Add(&alpha, new(curve25519.Scalar).Multiply(&e, &opening.X))
 	sal.SBeta.Add(&beta, new(curve25519.Scalar).Multiply(&e, &opening.R_I))
