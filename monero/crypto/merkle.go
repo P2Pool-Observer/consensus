@@ -1,6 +1,8 @@
 package crypto
 
 import (
+	"math/bits"
+
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -40,12 +42,23 @@ func pairHash(index int, h, p types.Hash, hasher *sha3.Digest) (out types.Hash) 
 	return out
 }
 
+func pairHashInPlace(out, a, b *types.Hash, hasher *sha3.Digest) {
+	hasher.Reset()
+
+	_, _ = hasher.Write(a[:])
+	_, _ = hasher.Write(b[:])
+
+	_, _ = hasher.Read(out[:])
+}
+
 // Depth The Merkle Tree depth
 func (t MerkleTree) Depth() int {
 	return utils.PreviousPowerOfTwo(uint64(len(t)))
 }
 
 // RootHash Calculates the Merkle root hash of the tree
+//
+// Note: t is mutated in-place
 func (t MerkleTree) RootHash() (rootHash types.Hash) {
 	hasher := NewKeccak256()
 
@@ -57,28 +70,22 @@ func (t MerkleTree) RootHash() (rootHash types.Hash) {
 	depth := t.Depth()
 	offset := depth*2 - count
 
-	temporaryTree := make(MerkleTree, depth)
-	copy(temporaryTree, t[:offset])
-
-	//TODO: maybe can be done zero-alloc
-	//temporaryTree := t[:max(depth, offset)]
-
-	offsetTree := temporaryTree[offset:]
-	for i := range offsetTree {
-		offsetTree[i] = leafHash(t[offset+i*2:], hasher)
+	for i, n := 0, depth-offset; i < n; i++ {
+		pairHashInPlace(&t[offset+i], &t[offset+i*2], &t[offset+i*2+1], hasher)
 	}
 
-	for depth >>= 1; depth > 1; depth >>= 1 {
-		for i := range temporaryTree[:depth] {
-			temporaryTree[i] = leafHash(temporaryTree[i*2:], hasher)
+	for size := depth; size > 1; size >>= 1 {
+		for i, half := 0, size>>1; i < half; i++ {
+			pairHashInPlace(&t[i], &t[i*2], &t[i*2+1], hasher)
 		}
 	}
 
-	rootHash = leafHash(temporaryTree, hasher)
-
-	return
+	return t[0]
 }
 
+// MainBranch Calculates the Merkle tree main branch
+//
+// Note: t is mutated in-place
 func (t MerkleTree) MainBranch() (mainBranch []types.Hash) {
 	count := len(t)
 	if count <= 2 {
@@ -90,31 +97,23 @@ func (t MerkleTree) MainBranch() (mainBranch []types.Hash) {
 	depth := t.Depth()
 	offset := depth*2 - count
 
-	temporaryTree := make(MerkleTree, depth)
-	copy(temporaryTree, t[:offset])
-
-	offsetTree := temporaryTree[offset:]
-
-	for i := range offsetTree {
-		if (offset + i*2) == 0 {
-			mainBranch = append(mainBranch, t[1])
-		}
-		offsetTree[i] = leafHash(t[offset+i*2:], hasher)
+	mainBranch = make([]types.Hash, 0, bits.Len(uint(depth)))
+	if offset == 0 {
+		mainBranch = append(mainBranch, t[1])
 	}
 
-	for depth >>= 1; depth > 1; depth >>= 1 {
-		for i := range temporaryTree[:depth] {
-			if i == 0 {
-				mainBranch = append(mainBranch, temporaryTree[1])
-			}
+	for i, n := 0, depth-offset; i < n; i++ {
+		pairHashInPlace(&t[offset+i], &t[offset+i*2], &t[offset+i*2+1], hasher)
+	}
 
-			temporaryTree[i] = leafHash(temporaryTree[i*2:], hasher)
+	for size := depth; size > 1; size >>= 1 {
+		mainBranch = append(mainBranch, t[1])
+		for i, half := 0, size>>1; i < half; i++ {
+			pairHashInPlace(&t[i], &t[i*2], &t[i*2+1], hasher)
 		}
 	}
 
-	mainBranch = append(mainBranch, temporaryTree[1])
-
-	return
+	return mainBranch
 }
 
 type MerkleProof []types.Hash

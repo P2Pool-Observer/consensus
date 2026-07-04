@@ -248,16 +248,16 @@ func TestMerkleProof_Verify(t *testing.T) {
 }
 
 func BenchmarkBinaryTreeHash_RootHash(b *testing.B) {
-	merkleTree := make(MerkleTree, len(transactionHashes)+1)
-	merkleTree[0] = coinbaseHash
-	copy(merkleTree[1:], transactionHashes)
-
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
 		var txTreeHash types.Hash
 		for pb.Next() {
+			merkleTree := make(MerkleTree, len(transactionHashes)+1)
+			merkleTree[0] = coinbaseHash
+			copy(merkleTree[1:], transactionHashes)
+
 			txTreeHash = merkleTree.RootHash()
 		}
 		runtime.KeepAlive(txTreeHash)

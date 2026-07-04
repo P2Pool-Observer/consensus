@@ -250,10 +250,15 @@ func (b *PoolBlock) FillTransactionsFromTransactionParentIndices(consensus *Cons
 func (b *PoolBlock) FillTransactionParentIndices(consensus *Consensus, parent *PoolBlock) bool {
 	if len(b.Main.Transactions) != len(b.Main.TransactionParentIndices) {
 		if parent != nil && parent.FastSideTemplateId(consensus) == b.Side.Parent {
+			parentTransactions := make(map[types.Hash]int, len(parent.Main.Transactions))
+			for i, txHash := range parent.Main.Transactions {
+				parentTransactions[txHash] = i
+			}
+
 			b.Main.TransactionParentIndices = make([]uint64, len(b.Main.Transactions))
 			//do not fail if not found
 			for i, txHash := range b.Main.Transactions {
-				if parentIndex := slices.Index(parent.Main.Transactions, txHash); parentIndex != -1 {
+				if parentIndex, ok := parentTransactions[txHash]; ok {
 					//increase as p2pool stores tx hash as well
 					b.Main.TransactionParentIndices[i] = uint64(parentIndex + 1)
 				}
