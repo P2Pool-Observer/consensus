@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"encoding/binary"
 	"math/bits"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3"
@@ -10,22 +11,6 @@ import (
 
 // MerkleTree Used for block merkle root and similar
 type MerkleTree []types.Hash
-
-func leafHash(data []types.Hash, hasher *sha3.Digest) (rootHash types.Hash) {
-	switch len(data) {
-	case 0:
-		panic("unsupported length")
-	case 1:
-		return data[0]
-	default:
-		//only hash the next two items
-		hasher.Reset()
-		_, _ = hasher.Write(data[0][:])
-		_, _ = hasher.Write(data[1][:])
-		_, _ = hasher.Read(rootHash[:])
-		return rootHash
-	}
-}
 
 func pairHash(index int, h, p types.Hash, hasher *sha3.Digest) (out types.Hash) {
 	hasher.Reset()
@@ -42,13 +27,88 @@ func pairHash(index int, h, p types.Hash, hasher *sha3.Digest) (out types.Hash) 
 	return out
 }
 
-func pairHashInPlace(out, a, b *types.Hash, hasher *sha3.Digest) {
+func singleHash(out, a, b *types.Hash, hasher *sha3.Digest) {
 	hasher.Reset()
 
 	_, _ = hasher.Write(a[:])
 	_, _ = hasher.Write(b[:])
 
 	_, _ = hasher.Read(out[:])
+}
+
+func quadHash(st *[4 * 25]uint64, in *[8]types.Hash, out *[4]types.Hash) {
+	*st = [4 * 25]uint64{}
+	for i := range 4 {
+		a, b := &in[2*i], &in[2*i+1]
+		st[0+i] = binary.LittleEndian.Uint64(a[0:])
+		st[4+i] = binary.LittleEndian.Uint64(a[8:])
+		st[8+i] = binary.LittleEndian.Uint64(a[16:])
+		st[12+i] = binary.LittleEndian.Uint64(a[24:])
+		st[16+i] = binary.LittleEndian.Uint64(b[0:])
+		st[20+i] = binary.LittleEndian.Uint64(b[8:])
+		st[24+i] = binary.LittleEndian.Uint64(b[16:])
+		st[28+i] = binary.LittleEndian.Uint64(b[24:])
+		st[32+i] = 0x01
+		st[64+i] = 0x80 << 56
+	}
+
+	sha3.KeccakF1600x4(st)
+	for i := range 4 {
+		o := &out[i]
+		binary.LittleEndian.PutUint64(o[0:], st[0+i])
+		binary.LittleEndian.PutUint64(o[8:], st[4+i])
+		binary.LittleEndian.PutUint64(o[16:], st[8+i])
+		binary.LittleEndian.PutUint64(o[24:], st[12+i])
+	}
+}
+
+func quadHashN(st *[4 * 25]uint64, s []types.Hash, i, k int) {
+	*st = [4 * 25]uint64{}
+	for l := range k {
+		a, b := &s[2*(i+l)], &s[2*(i+l)+1]
+		st[0+l] = binary.LittleEndian.Uint64(a[0:])
+		st[4+l] = binary.LittleEndian.Uint64(a[8:])
+		st[8+l] = binary.LittleEndian.Uint64(a[16:])
+		st[12+l] = binary.LittleEndian.Uint64(a[24:])
+		st[16+l] = binary.LittleEndian.Uint64(b[0:])
+		st[20+l] = binary.LittleEndian.Uint64(b[8:])
+		st[24+l] = binary.LittleEndian.Uint64(b[16:])
+		st[28+l] = binary.LittleEndian.Uint64(b[24:])
+		st[32+l] = 0x01
+		st[64+l] = 0x80 << 56
+	}
+
+	sha3.KeccakF1600x4(st)
+	for l := range k {
+		o := &s[i+l]
+		binary.LittleEndian.PutUint64(o[0:], st[0+l])
+		binary.LittleEndian.PutUint64(o[8:], st[4+l])
+		binary.LittleEndian.PutUint64(o[16:], st[8+l])
+		binary.LittleEndian.PutUint64(o[24:], st[12+l])
+	}
+}
+
+func reduce(s []types.Hash, n int, st *[4 * 25]uint64, hasher *sha3.Digest) {
+	if !sha3.KeccakX4Supported {
+		for i := range n {
+			singleHash(&s[i], &s[2*i], &s[2*i+1], hasher)
+		}
+		return
+	}
+
+	i := 0
+
+	for ; i+4 <= n; i += 4 {
+		quadHash(st, (*[8]types.Hash)(s[2*i:]), (*[4]types.Hash)(s[i:]))
+	}
+
+	switch n - i {
+	case 0:
+	case 1:
+		singleHash(&s[i], &s[2*i], &s[2*i+1], hasher)
+	default:
+		quadHashN(st, s, i, n-i)
+	}
 }
 
 // Depth The Merkle Tree depth
@@ -60,26 +120,28 @@ func (t MerkleTree) Depth() int {
 //
 // Note: t is mutated in-place
 func (t MerkleTree) RootHash() (rootHash types.Hash) {
+	count := len(t)
+	if count == 1 {
+		return t[0]
+	}
+
 	hasher := NewKeccak256()
 
-	count := len(t)
-	if count <= 2 {
-		return leafHash(t, hasher)
+	if count == 2 {
+		singleHash(&rootHash, &t[0], &t[1], hasher)
+		return rootHash
 	}
+
+	var state [4 * 25]uint64
 
 	depth := t.Depth()
 	offset := depth*2 - count
 
-	for i, n := 0, depth-offset; i < n; i++ {
-		pairHashInPlace(&t[offset+i], &t[offset+i*2], &t[offset+i*2+1], hasher)
-	}
+	reduce(t[offset:], depth-offset, &state, hasher)
 
 	for size := depth; size > 1; size >>= 1 {
-		for i, half := 0, size>>1; i < half; i++ {
-			pairHashInPlace(&t[i], &t[i*2], &t[i*2+1], hasher)
-		}
+		reduce(t, size>>1, &state, hasher)
 	}
-
 	return t[0]
 }
 
@@ -94,6 +156,8 @@ func (t MerkleTree) MainBranch() (mainBranch []types.Hash) {
 
 	hasher := NewKeccak256()
 
+	var state [4 * 25]uint64
+
 	depth := t.Depth()
 	offset := depth*2 - count
 
@@ -102,17 +166,11 @@ func (t MerkleTree) MainBranch() (mainBranch []types.Hash) {
 		mainBranch = append(mainBranch, t[1])
 	}
 
-	for i, n := 0, depth-offset; i < n; i++ {
-		pairHashInPlace(&t[offset+i], &t[offset+i*2], &t[offset+i*2+1], hasher)
-	}
-
+	reduce(t[offset:], depth-offset, &state, hasher)
 	for size := depth; size > 1; size >>= 1 {
 		mainBranch = append(mainBranch, t[1])
-		for i, half := 0, size>>1; i < half; i++ {
-			pairHashInPlace(&t[i], &t[i*2], &t[i*2+1], hasher)
-		}
+		reduce(t, size>>1, &state, hasher)
 	}
-
 	return mainBranch
 }
 

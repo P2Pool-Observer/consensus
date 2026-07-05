@@ -428,3 +428,10 @@ func KeccakF1600(da *[200]byte) {
 		}
 	}
 }
+
+const KeccakX2Supported = false
+const KeccakX4Supported = false
+
+func KeccakF1600x4(a *[100]uint64) {
+	panic("not implemented")
+}
