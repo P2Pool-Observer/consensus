@@ -101,9 +101,6 @@ func (t *ExtraTags) FromReader(reader utils.ReaderAndByteReader) (err error) {
 			}
 			return err
 		}
-		if t.GetTag(tag.Tag) != nil {
-			return errors.New("tag already exists")
-		}
 		*t = append(*t, tag)
 	}
 }

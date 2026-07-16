@@ -78,6 +78,9 @@ var testTransactions = []types.Hash{
 	// mordinals
 	types.MustHashFromString("04a69ae5e9fb51327997f1a809604b4992ab9561680bab47e2f967f5c6129d72"),
 
+	// xns
+	types.MustHashFromString("39d4fa93dc0b646dbef792d0c6ec0321ff057e3e4fb3d856464385144c48a159"),
+
 	// fcmp++ beta stressnet tx
 	types.MustHashFromString("332691761f1ded0d74c80b223a7266f3568f472fe67f33f97d8390a48d9caa29"),
 }
