@@ -40,6 +40,3 @@ const (
 	DomainSeparatorSpendProofPrefix   = "Carrot spend proof prefix"
 	DomainSeparatorReserveProofPrefix = "Carrot reserve proof prefix"
 )
-
-// PersonalString Carrot Blake2b personal string
-const PersonalString = "Monero"

@@ -18,6 +18,7 @@ func TestReproduceGenerators(t *testing.T) {
 	for _, e := range []pointTestData{
 		{"GeneratorG", GeneratorG, "5866666666666666666666666666666666666666666666666666666666666666"},
 		{"GeneratorH", GeneratorH, "8b655970153799af2aeadc9ff1add0ea6c7251d54154cfa92c173a0dd39c1f94"},
+		//TODO: change these testcases when UnbiasedHashToPoint changes
 		{"GeneratorT", GeneratorT, "61b736ce93b62a3d3778ab204da85d3b4cdc07250f5da7e3df2629928134d526"},
 		{"GeneratorU", GeneratorU, types.Hash{80, 107, 35, 246, 214, 229, 48, 153, 122, 188, 172, 198, 253, 52, 119, 52,
 			177, 76, 43, 215, 155, 234, 0, 238, 176, 72, 87, 232, 234, 221, 26, 138}.String()},
@@ -32,11 +33,21 @@ func TestReproduceGenerators(t *testing.T) {
 
 			expected := curve25519.PublicKeyBytes(h)
 
-			p := curve25519.FromPoint[curve25519.VarTimeOperations](e.Generator.Point).AsBytes()
-			if p != expected {
-				t.Fatalf("got %s, expected %s", p.String(), expected.String())
-			} else {
-				t.Logf("match %s", expected.String())
+			{
+				p := curve25519.FromPoint[curve25519.VarTimeOperations](e.Generator.Point).AsBytes()
+				if p != expected {
+					t.Fatalf("got %s, expected %s", p.String(), expected.String())
+				} else {
+					t.Logf("match %s", expected.String())
+				}
+			}
+			{
+				p := curve25519.FromPoint[curve25519.ConstantTimeOperations](e.Generator.Point).AsBytes()
+				if p != expected {
+					t.Fatalf("got %s, expected %s", p.String(), expected.String())
+				} else {
+					t.Logf("match %s", expected.String())
+				}
 			}
 		})
 	}

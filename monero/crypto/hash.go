@@ -69,6 +69,9 @@ func HopefulHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[
 	return result
 }
 
+// PersonalString Carrot/FCMP++ Blake2b personal string
+const PersonalString = "Monero"
+
 // BiasedHashToPoint Monero's `hash_to_ec` / `hash_to_p3` / `biased_hash_to_ec` function.
 //
 // Similar to https://github.com/monero-oxide/monero-oxide/blob/71be6f9180f78675dee7cab48fbee38134688574/monero-oxide/generators/src/hash_to_point.rs
@@ -103,6 +106,18 @@ func BiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T
 // Defined as H_p^2 in Carrot
 //
 // Similar to https://github.com/seraphis-migration/monero/blob/74a254f8c215986042c40e6875a0f97bd6169a1e/src/crypto/crypto.cpp#L622
+//
+// TODO: Implement change similar to https://github.com/j-berman/monero/pull/17 / https://github.com/monero-oxide/monero-oxide/pull/182
+//
+//	var hasher blake2b.Digest
+//
+//
+//	_ = hasher.Init(blake2b.Size, nil, nil, []byte(PersonalString))
+//	_, _ = hasher.Write(preimage)
+//	var h [blake2b.Size]byte
+//	hasher.Sum(h[:0])
+//
+//nolint:dupword
 func UnbiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], preimage []byte) *curve25519.PublicKey[T] {
 	h := blake2b.Sum512(preimage)
 

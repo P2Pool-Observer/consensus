@@ -2,12 +2,13 @@ package carrot
 
 import (
 	"git.gammaspectra.live/P2Pool/blake2b"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 )
 
 // HashedTranscript Equivalent to H_b(key, Transcript(...))
 func HashedTranscript[S ~[]byte](dst S, hasher *blake2b.Digest, key []byte, domainSeparator []byte, args ...[]byte) {
-	_ = hasher.Init(len(dst), key, nil, []byte(PersonalString))
+	_ = hasher.Init(len(dst), key, nil, []byte(crypto.PersonalString))
 
 	_, _ = hasher.Write([]byte{uint8(len(domainSeparator))})
 	_, _ = hasher.Write(domainSeparator)

@@ -30,7 +30,7 @@ func TestPaymentProposalV1_CoinbaseOutput(t *testing.T) {
 	}
 
 	var enote CoinbaseEnoteV1
-	err := proposal.CoinbaseOutput(&enote, 123456)
+	err := proposal.CoinbaseOutput(&enote, expectedEnote.BlockIndex)
 	if err != nil {
 		t.Fatalf("failed to generate coinbase enote: %s", err)
 	}
