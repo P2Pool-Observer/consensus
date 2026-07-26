@@ -17,7 +17,13 @@ const TxExtraTagPubKey = 0x01
 const TxExtraTagNonce = 0x02
 const TxExtraTagMergeMining = 0x03
 const TxExtraTagAdditionalPubKeys = 0x04
-const TxExtraTagOrdinals = 0x10
+const TxExtraTagOrdinalsRegister = 0x10
+const TxExtraTagOrdinalsUpdate = 0x11
+
+// todo: mordinal v2
+
+const TxExtraTagOrdinalsRegisterMultiBody = 0x12
+const TxExtraTagOrdinalsMultiBodyPart = 0x13
 const TxExtraTagMysteriousMinergate = 0xde
 
 const TxExtraPaddingMaxCount = 255
@@ -248,7 +254,7 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 				return err
 			}
 		}
-	case TxExtraTagMergeMining, TxExtraTagOrdinals, TxExtraTagMysteriousMinergate:
+	case TxExtraTagMergeMining, TxExtraTagOrdinalsRegister, TxExtraTagOrdinalsUpdate, TxExtraTagMysteriousMinergate:
 		t.HasVarInt = true
 		if t.VarInt, err = utils.ReadCanonicalUvarint(reader); err != nil {
 			return err

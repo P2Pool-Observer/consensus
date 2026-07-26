@@ -30,7 +30,7 @@ func TestUnreducedScalarRecover(t *testing.T) {
 func testUnreducedScalarRecover(t *testing.T, storedHex, recoveredHex string) {
 	stored := types.MustBytes32FromString[UnreducedScalar](storedHex)
 	recovered := types.MustBytes32FromString[PrivateKeyBytes](recoveredHex)
-	if stored.VarTimeScalar(new(Scalar)).Equal(recovered.Scalar()) == 0 {
+	if stored.ScalarVarTime(new(Scalar)).Equal(recovered.Scalar()) == 0 {
 		t.Fatalf("unreduced scalar did not recover")
 	}
 }

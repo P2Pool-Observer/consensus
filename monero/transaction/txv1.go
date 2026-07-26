@@ -14,7 +14,7 @@ import (
 type TransactionV1 struct {
 	Prefix `json:",inline"`
 
-	Signatures RingSignatures `json:"signatures"`
+	Signatures RingSignatures[curve25519.VarTimeOperations] `json:"signatures"`
 	fee        uint64
 }
 

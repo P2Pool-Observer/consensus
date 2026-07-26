@@ -313,7 +313,7 @@ func (s *UnreducedScalar) naf5() (naf [256]int8) {
 	return naf
 }
 
-func (s *UnreducedScalar) VarTimeScalar(out *Scalar) *Scalar {
+func (s *UnreducedScalar) ScalarVarTime(out *Scalar) *Scalar {
 	if s[31]&128 == 0 {
 		// Computing the w-NAF of a number can only give an output with 1 more bit than
 		// the number, so even if the number isn't reduced, the `slide` function will be

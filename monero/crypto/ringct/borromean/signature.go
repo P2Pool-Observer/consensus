@@ -21,9 +21,9 @@ func (s *Signatures[T]) Verify(A, B *[Elements]curve25519.PublicKey[T]) bool {
 	var transcript [curve25519.PublicKeySize * Elements]byte
 
 	for i := range Elements {
-		LL.DoubleScalarBaseMult(&s.EE, &A[i], s.S0[i].VarTimeScalar(&tmpScalar))
+		LL.DoubleScalarBaseMult(&s.EE, &A[i], s.S0[i].ScalarVarTime(&tmpScalar))
 		crypto.ScalarDeriveLegacy(&LLScalar, LL.Bytes())
-		LV.DoubleScalarBaseMult(&LLScalar, &B[i], s.S1[i].VarTimeScalar(&tmpScalar))
+		LV.DoubleScalarBaseMult(&LLScalar, &B[i], s.S1[i].ScalarVarTime(&tmpScalar))
 
 		copy(transcript[i*curve25519.PublicKeySize:], LV.Bytes())
 	}

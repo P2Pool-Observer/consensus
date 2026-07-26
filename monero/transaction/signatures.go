@@ -140,13 +140,13 @@ func GetTransactionInputsData(tx PrunedTransaction, f func(in ...daemon.GetOutsI
 
 var ErrInvalidRingSignature = errors.New("invalid ring signature")
 
-type RingSignatures []ringct.RingSignature[curve25519.VarTimeOperations]
+type RingSignatures[T curve25519.PointOperations] []ringct.RingSignature[T]
 
-func (rs *RingSignatures) ProofType() ProofType {
+func (rs *RingSignatures[T]) ProofType() ProofType {
 	return TraceableRingSignatures
 }
 
-func (rs *RingSignatures) Verify(prefixHash types.Hash, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) error {
+func (rs *RingSignatures[T]) Verify(prefixHash types.Hash, rings []ringct.CommitmentRing[T], images []curve25519.PublicKey[T]) error {
 	if len(rings) != len(*rs) || len(images) != len(*rs) {
 		return errors.New("rings length mismatch")
 	}
@@ -154,14 +154,14 @@ func (rs *RingSignatures) Verify(prefixHash types.Hash, rings []ringct.Commitmen
 		if len(sig) != len(rings[i]) {
 			return errors.New("ring member length mismatch")
 		}
-		if !sig.Verify(prefixHash, rings[i].Ring(make(ringct.Ring[curve25519.VarTimeOperations], 0, len(rings[i]))), &images[i]) {
+		if !sig.Verify(prefixHash, rings[i].Ring(make(ringct.Ring[T], 0, len(rings[i]))), &images[i]) {
 			return ErrInvalidRingSignature
 		}
 	}
 	return nil
 }
 
-func (rs *RingSignatures) BufferLength() int {
+func (rs *RingSignatures[T]) BufferLength() int {
 	n := 0
 	for _, sig := range *rs {
 		n += sig.BufferLength()
@@ -169,7 +169,7 @@ func (rs *RingSignatures) BufferLength() int {
 	return n
 }
 
-func (rs *RingSignatures) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
+func (rs *RingSignatures[T]) AppendBinary(preAllocatedBuf []byte) (data []byte, err error) {
 	buf := preAllocatedBuf
 
 	for _, sig := range *rs {
@@ -181,9 +181,9 @@ func (rs *RingSignatures) AppendBinary(preAllocatedBuf []byte) (data []byte, err
 	return buf, nil
 }
 
-func (rs *RingSignatures) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
+func (rs *RingSignatures[T]) FromReader(reader utils.ReaderAndByteReader, inputs Inputs, outputs Outputs) (err error) {
 	for _, input := range inputs {
-		var sig ringct.RingSignature[curve25519.VarTimeOperations]
+		var sig ringct.RingSignature[T]
 		if err = sig.FromReader(reader, len(input.Offsets)); err != nil {
 			return err
 		}

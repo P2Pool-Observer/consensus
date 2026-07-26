@@ -763,6 +763,7 @@ type PrunableFCMPPlusPlus struct {
 	// NTreeLayers number of layers in the tree as of the block when the reference block index enters the chain
 	NTreeLayers uint8
 	// FCMP_PP FCMP++ SAL and membership proof
+	// TODO: make this a fcmp_pp.Proof
 	FCMP_PP []byte
 	// PseudoOuts The re-blinded commitments for the outputs being spent.
 	PseudoOuts  []curve25519.VarTimePublicKey
@@ -789,7 +790,7 @@ func (p *PrunableFCMPPlusPlus) Verify(prefixHash types.Hash, base *Base, rings [
 			return ErrInvalidBatchProof
 		}
 		// TODO: verify FCMP++ curve
-		//TODO: move this to the proof
+		// TODO: move this to the proof
 
 		_ = proof
 	}

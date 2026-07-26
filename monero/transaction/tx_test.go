@@ -24,9 +24,6 @@ var testTransactions = []types.Hash{
 
 	// some v2 txs
 
-	// v2 coinbase p2pool
-	types.MustHashFromString("8a72317bee39b1b6d8bd941607485986c7e4a50ebc440b9c144334feffd6fbfd"),
-
 	// mlsag aggregate borromean
 	types.MustHashFromString("618ae0d58ab6432e7438bf2dce33784bb540a0f3d9ebddf1f3ad7fb303380ca3"),
 	// mlsag borromean (with clear inputs)
@@ -75,13 +72,22 @@ var testTransactions = []types.Hash{
 	types.MustHashFromString("81e80ad39374105ab94363bc1315a96fd52cc3f8f81e0425c718df164a72975c"),
 	types.MustHashFromString("32e66dcf37b87703ebff69a0bd93a3cdc8fb919463085778d046bdda900efe52"),
 
+	// custom tool outputs
+
+	// first p2pool coinbase
+	types.MustHashFromString("55f934195bd4450fa210304f51fd6687a4cb9eda58fe593a9cf704116daac48b"),
+	// recent p2pool coinbase
+	types.MustHashFromString("8a72317bee39b1b6d8bd941607485986c7e4a50ebc440b9c144334feffd6fbfd"),
+
 	// mordinals
+	types.MustHashFromString("baa3f1fa73942366c19471aac73b78dd2664eefe634bdbd260d58d09d2a0e259"),
 	types.MustHashFromString("04a69ae5e9fb51327997f1a809604b4992ab9561680bab47e2f967f5c6129d72"),
 
 	// xns
 	types.MustHashFromString("39d4fa93dc0b646dbef792d0c6ec0321ff057e3e4fb3d856464385144c48a159"),
 
 	// fcmp++ beta stressnet tx
+	// this transaction is stored in this test file.
 	types.MustHashFromString("332691761f1ded0d74c80b223a7266f3568f472fe67f33f97d8390a48d9caa29"),
 }
 
@@ -141,8 +147,13 @@ func TestTransactions(t *testing.T) {
 				t.Fatalf("expected %s, got %s", txId, calculatedId)
 			}
 
-			if tags := tx.ExtraTags(); tags == nil {
+			extra := tx.ExtraTags()
+			if extra == nil {
 				t.Error("missing extra tags")
+			} else {
+				for _, tag := range extra {
+					t.Logf("tag[0x%02x] vi=%d data=%s", tag.Tag, tag.VarInt, tag.Data.String())
+				}
 			}
 
 			rings, images, err := GetTransactionInputsData(tx, rpc.GetOuts)
