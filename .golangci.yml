@@ -3,6 +3,8 @@ version: "2"
 linters:
   default: all
   disable:
+    # Deprecated
+    - gomodguard
     # We don't care about line length or whitespace
     - lll
     - whitespace
@@ -196,12 +198,6 @@ linters:
               desc: use monero/crypto/curve25519
   exclusions:
     rules:
-      # False positive
-      # See issue https://github.com/securego/gosec/issues/1406
-      - linters:
-          - gosec
-        text: "G602: slice index out of range"
-        path: "monero/cryptonight/*"
 
     paths:
       - "monero/client/levin/*"
@@ -226,4 +222,4 @@ run:
   timeout: 5m
   tests: false
   modules-download-mode: readonly
-  go: "1.25"
+  go: "1.26"
