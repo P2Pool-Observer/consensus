@@ -41,7 +41,7 @@ var smallBufferPool = sync.Pool{
 
 func getBuffer(length int) []byte {
 	if length <= 16384 {
-		//nolint:forcetypeassert
+		//nolint:forcetypeassert,revive
 		return smallBufferPool.Get().([]byte)
 	}
 	return make([]byte, length)

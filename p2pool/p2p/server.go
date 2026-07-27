@@ -875,7 +875,7 @@ func (s *Server) DefaultDialer(addr netip.Addr) proxy.ContextDialer { //nolint:i
 	if p := s.proxy.Load(); p != nil && !s.AddrIsLocal(addr) {
 		d, err := proxy.FromURL(p, nil)
 		if err == nil {
-			//nolint:forcetypeassert
+			//nolint:forcetypeassert,revive
 			return d.(proxy.ContextDialer)
 		}
 	}

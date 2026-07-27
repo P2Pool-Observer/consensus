@@ -13,7 +13,7 @@ import (
 )
 
 type TransactionV2 struct {
-	Prefix   `json:",inline"`
+	Prefix   `json:",inline"` //nolint:revive
 	Base     `json:"rct_signatures"`
 	Prunable `json:"rctsig_prunable"`
 }

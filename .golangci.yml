@@ -97,14 +97,26 @@ linters:
         - name: identical-switch-branches
         - name: identical-switch-conditions
         - name: increment-decrement
+        - name: inefficient-map-lookup
         - name: modifies-parameter
         - name: modifies-value-receiver
+        - name: optimize-operands-order
         - name: package-directory-mismatch
         - name: redefines-builtin-id
         - name: redundant-build-tag
+        - name: redundant-import-alias
+        - name: string-of-int
+        - name: struct-tag
+        - name: time-date
         - name: time-equal
+        - name: unchecked-type-assertion
         - name: unconditional-recursion
         - name: unexported-return
+        - name: unnecessary-if
+        - name: unnecessary-format
+        - name: use-any
+        - name: use-fmt-print
+        - name: use-slices-sort
         - name: waitgroup-by-value
 
 
