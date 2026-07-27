@@ -5,13 +5,14 @@ linters:
   disable:
     # Deprecated
     - gomodguard
+    - wsl
+
     # We don't care about line length or whitespace
     - lll
     - whitespace
     - nlreturn
     - nakedret
 
-    - wsl
     - wsl_v5
 
     # No sorting needed
@@ -126,8 +127,6 @@ linters:
 
     gosec:
       excludes:
-        # secrets in code
-        - G101
         # integer overflow conversion
         # todo: too noisy, too prevalent, can't configure specific safe conversions like to int
         - G115

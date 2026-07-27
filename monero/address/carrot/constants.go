@@ -13,7 +13,7 @@ const (
 	DomainSeparatorJanusAnchorSpecial        = "Carrot janus anchor special"
 	DomainSeparatorEphemeralPrivateKey       = "Carrot sending key normal"
 	DomainSeparatorViewTag                   = "Carrot view tag"
-	DomainSeparatorSenderReceiverSecret      = "Carrot sender-receiver secret"
+	DomainSeparatorSenderReceiverSecret      = "Carrot sender-receiver secret" // #nosec G101
 
 	DomainSeparatorInputContextCoinbase = 'C'
 	DomainSeparatorInputContextRingCT   = 'R'
@@ -22,7 +22,7 @@ const (
 // Carrot account secret domain separators
 const (
 	DomainSeparatorProveSpendKey               = "Carrot prove-spend key"
-	DomainSeparatorViewBalanceSecret           = "Carrot view-balance secret"
+	DomainSeparatorViewBalanceSecret           = "Carrot view-balance secret" // #nosec G101
 	DomainSeparatorGenerateImageKey            = "Carrot generate-image key"
 	DomainSeparatorGenerateImagePreimageSecret = "Carrot generate-image preimage secret"
 	DomainSeparatorIncomingViewKey             = "Carrot incoming view key"
