@@ -23,10 +23,10 @@ import (
 
 type Base struct {
 	ProofType        ProofType                   `json:"type"`
-	Fee              uint64                      `json:"txnFee"`
-	PseudoOuts       []curve25519.PublicKeyBytes `json:"pseudoOuts,omitempty"`
-	EncryptedAmounts []ringct.EncryptedAmount    `json:"ecdhInfo"`
-	Commitments      []curve25519.PublicKeyBytes `json:"outPk"`
+	Fee              uint64                      `json:"txnFee"`               //nolint:tagliatelle
+	PseudoOuts       []curve25519.PublicKeyBytes `json:"pseudoOuts,omitempty"` //nolint:tagliatelle
+	EncryptedAmounts []ringct.EncryptedAmount    `json:"ecdhInfo"`             //nolint:tagliatelle
+	Commitments      []curve25519.PublicKeyBytes `json:"outPk"`                //nolint:tagliatelle
 }
 
 func (b *Base) Hash() types.Hash {
@@ -137,8 +137,8 @@ type Prunable interface {
 }
 
 type PrunableAggregateMLSAGBorromean struct {
-	MLSAG     [1]mlsag.Signature[curve25519.VarTimeOperations] `json:"MGs"`
-	Borromean []borromean.Range[curve25519.VarTimeOperations]  `json:"rangeSigs"`
+	MLSAG     [1]mlsag.Signature[curve25519.VarTimeOperations] `json:"MGs"`       //nolint:tagliatelle
+	Borromean []borromean.Range[curve25519.VarTimeOperations]  `json:"rangeSigs"` //nolint:tagliatelle
 }
 
 func (p *PrunableAggregateMLSAGBorromean) Verify(prefixHash types.Hash, base *Base, rings []ringct.CommitmentRing[curve25519.VarTimeOperations], images []curve25519.VarTimePublicKey) (err error) {
@@ -228,8 +228,8 @@ func (p *PrunableAggregateMLSAGBorromean) FromReader(reader utils.ReaderAndByteR
 }
 
 type PrunableMLSAGBorromean struct {
-	MLSAG     []mlsag.Signature[curve25519.VarTimeOperations] `json:"MGs"`
-	Borromean []borromean.Range[curve25519.VarTimeOperations] `json:"rangeSigs"`
+	MLSAG     []mlsag.Signature[curve25519.VarTimeOperations] `json:"MGs"`       //nolint:tagliatelle
+	Borromean []borromean.Range[curve25519.VarTimeOperations] `json:"rangeSigs"` //nolint:tagliatelle
 }
 
 var ErrInvalidBorromeanProof = errors.New("invalid Borromean proof")

@@ -14,9 +14,6 @@ linters:
     - wsl
     - wsl_v5
 
-    # Inconsistent across the project due to Monero/Go contexts
-    - tagliatelle
-
     # No sorting needed
     - funcorder
 
@@ -52,6 +49,17 @@ linters:
     - gochecknoglobals
 
   settings:
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+        overrides:
+          # Monero ZMQ and RPC naming are a mess
+          - pkg: "monero/client/zmq"
+            ignore: true
+          - pkg: "monero/client/rpc/daemon"
+            ignore: true
+
     modernize:
       disable:
         # todo: remove when TinyGo supports wg.Go

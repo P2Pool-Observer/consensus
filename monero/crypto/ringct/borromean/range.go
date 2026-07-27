@@ -9,7 +9,7 @@ import (
 type Range[T curve25519.PointOperations] struct {
 	Signatures Signatures[T] `json:"asig"`
 	// Commitments Bit commitments
-	Commitments [Elements]curve25519.PublicKey[T] `json:"Ci"`
+	Commitments [Elements]curve25519.PublicKey[T] `json:"Ci"` //nolint:tagliatelle
 }
 
 func (s *Range[T]) Verify(commitment *curve25519.PublicKey[T]) bool {
