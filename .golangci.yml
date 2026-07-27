@@ -119,8 +119,6 @@ linters:
         - "all"
         - "-ST1000"
         - "-ST1003"
-        - "-ST1020"
-        - "-ST1022"
         # no condition De Morgan's law
         - "-QF1001"
         - "-QF1003"

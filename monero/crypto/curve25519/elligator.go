@@ -4,8 +4,7 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 )
 
-// Elligator2WithUniformBytes
-// Equivalent to ge_fromfe_frombytes_vartime
+// Elligator2WithUniformBytes Equivalent to ge_fromfe_frombytes_vartime
 //
 // NOTE: Caller must multiply dst using MultByCofactor to ensure point lies within the prime-order subgroup
 // This is kept without that call embedded to allow passing Monero's hash_to_point tests

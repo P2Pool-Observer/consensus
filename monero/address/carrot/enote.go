@@ -98,8 +98,7 @@ func MakeUncontextualizedSharedKeySender[T curve25519.PointOperations](ephemeral
 	return senderReceiverUnctx
 }
 
-// MakeUncontextualizedSharedKeySenderVarTime
-// VarTime implementation of MakeUncontextualizedSharedKeySender
+// MakeUncontextualizedSharedKeySenderVarTime VarTime implementation of MakeUncontextualizedSharedKeySender
 func MakeUncontextualizedSharedKeySenderVarTime[T curve25519.PointOperations](ephemeralPrivKey *curve25519.Scalar, viewPub *curve25519.PublicKey[T]) (senderReceiverUnctx curve25519.MontgomeryPoint) {
 	// s_sr = ConvertPointE(d_e * K^j_v)
 	var tmp curve25519.PublicKey[T]

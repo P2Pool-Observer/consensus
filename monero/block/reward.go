@@ -16,7 +16,7 @@ func GetBaseReward(alreadyGeneratedCounts uint64) uint64 {
 	return result
 }
 
-// GetBlockReward
+// GetBlockReward Calculates the final block reward given weights
 // Taken from https://github.com/monero-project/monero/blob/b0bf49a65a38ceb1acfbc8e17f40e63383ac140d/src/cryptonote_basic/cryptonote_basic_impl.cpp#L83
 func GetBlockReward(medianWeight, currentBlockWeight, alreadyGeneratedCoins uint64, version uint8) (reward uint64) {
 	const DIFFICULTY_TARGET_V1 = 60  // seconds - before first fork

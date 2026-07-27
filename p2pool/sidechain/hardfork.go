@@ -67,9 +67,7 @@ const (
 	ShareVersion_V3
 )
 
-// P2PoolShareVersion
-// Different miners can have different timestamps,
-// so a temporary mix of old and new blocks is allowed
+// P2PoolShareVersion Different miners can have different timestamps, so a temporary mix of old and new blocks is allowed
 func P2PoolShareVersion(consensus *Consensus, timestamp uint64) ShareVersion {
 	hardForks := consensus.HardForks
 

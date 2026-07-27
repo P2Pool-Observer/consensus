@@ -113,9 +113,8 @@ func ScalarIsReduced32VarTime[T ~[PrivateKeySize]byte](a T) bool {
 	return scalarLessVarTime[T](a, order)
 }
 
-// ScalarReduce32
+// ScalarReduce32 256-bit little endian integer mod order
 // also called sc_reduce32 in Monero
-// 256-bit s little endian integer mod order
 //
 // Constant time
 //
