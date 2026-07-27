@@ -38,6 +38,13 @@ var x25519TestVectors = []x25519TestVector{
 		"95cbde9476e8907d7aade45cb4b873f88b595a68799fa152e6f8f7647aac7957",
 	),
 
+	// tweaked RFC 7748 test vector with MSB bit on last byte set to 0
+	newX25519TestVector(
+		"a046e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449a44",
+		"e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c",
+		"c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552",
+	),
+
 	// base point >2^255-19
 	newX25519TestVector(
 		"a82b2c3964e188a899d6f74b99679013b0a2510b5a6a0a90739e444b23f7bae6",
