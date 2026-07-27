@@ -252,7 +252,7 @@ func (w *ViewWallet[T]) Get(index address.SubaddressIndex) *address.Address {
 	}
 
 	var D, C curve25519.PublicKey[T]
-	cryptonote.GetSubaddressDC(&D, &C, &w.accountSpendPub, &w.viewKeyScalar, w.viewKey, index)
+	cryptonote.CalculateSubaddressDC(&D, &C, &w.accountSpendPub, &w.viewKeyScalar, w.viewKey, index)
 
 	switch w.primaryAddress.BaseNetwork() {
 	case monero.MainNetwork:

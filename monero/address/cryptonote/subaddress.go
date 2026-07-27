@@ -45,7 +45,7 @@ func GetSubaddressSpendPub[T curve25519.PointOperations](spendPub *curve25519.Pu
 	return D.AsBytes()
 }
 
-func GetSubaddressDC[T curve25519.PointOperations](D, C *curve25519.PublicKey[T], spendPub *curve25519.PublicKey[T], viewKeyScalar *curve25519.Scalar, viewKeyBytes curve25519.PrivateKeyBytes, index address.SubaddressIndex) {
+func CalculateSubaddressDC[T curve25519.PointOperations](D, C *curve25519.PublicKey[T], spendPub *curve25519.PublicKey[T], viewKeyScalar *curve25519.Scalar, viewKeyBytes curve25519.PrivateKeyBytes, index address.SubaddressIndex) {
 	var extension curve25519.PublicKey[T]
 	// special case
 	if index == address.ZeroSubaddressIndex {
@@ -75,7 +75,7 @@ func GetSubaddress(a *address.Address, viewKey *curve25519.Scalar, index address
 	if _, err := spendPub.SetBytes(a.SpendPublicKey()[:]); err != nil {
 		return nil
 	}
-	GetSubaddressDC(&D, &C, &spendPub, viewKey, curve25519.PrivateKeyBytes(viewKey.Bytes()), index)
+	CalculateSubaddressDC(&D, &C, &spendPub, viewKey, curve25519.PrivateKeyBytes(viewKey.Bytes()), index)
 
 	switch a.BaseNetwork() {
 	case monero.MainNetwork:

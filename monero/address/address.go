@@ -80,12 +80,12 @@ func FromBase58(address string) *Address {
 
 	switch raw[0] {
 	case monero.MainNetwork, monero.TestNetwork, monero.StageNetwork:
-		break
-	case monero.IntegratedMainNetwork, monero.IntegratedTestNetwork, monero.IntegratedStageNetwork:
-		return nil
+		fallthrough
 	case monero.SubAddressMainNetwork, monero.SubAddressTestNetwork, monero.SubAddressStageNetwork:
 		// allow
 		break
+	case monero.IntegratedMainNetwork, monero.IntegratedTestNetwork, monero.IntegratedStageNetwork:
+		fallthrough
 	default:
 		return nil
 	}
@@ -116,12 +116,12 @@ func FromBase58NoChecksumCheck(address []byte) *Address {
 
 	switch raw[0] {
 	case monero.MainNetwork, monero.TestNetwork, monero.StageNetwork:
-		break
-	case monero.IntegratedMainNetwork, monero.IntegratedTestNetwork, monero.IntegratedStageNetwork:
-		return nil
+		fallthrough
 	case monero.SubAddressMainNetwork, monero.SubAddressTestNetwork, monero.SubAddressStageNetwork:
 		// allow
 		break
+	case monero.IntegratedMainNetwork, monero.IntegratedTestNetwork, monero.IntegratedStageNetwork:
+		fallthrough
 	default:
 		return nil
 	}

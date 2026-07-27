@@ -40,12 +40,10 @@ type PeerVersionInformation struct {
 
 func (i *PeerVersionInformation) SupportsFeature(feature ProtocolFeature) bool {
 	switch feature {
-	case FeaturePeerInformationReceive:
+	case FeaturePeerInformationReceive, FeaturePrunedBroadcast:
 		return i.Protocol == ProtocolVersion_0_0 || i.Protocol >= ProtocolVersion_1_0
 	case FeaturePeerInformationExchange:
 		return i.Protocol >= ProtocolVersion_1_0
-	case FeaturePrunedBroadcast:
-		return i.Protocol == ProtocolVersion_0_0 || i.Protocol >= ProtocolVersion_1_0
 	case FeatureCompactBroadcast:
 		return i.Protocol >= ProtocolVersion_1_1
 	case FeatureBlockNotify:

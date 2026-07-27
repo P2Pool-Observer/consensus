@@ -82,15 +82,19 @@ linters:
       rules:
         - name: atomic
         - name: blank-imports
+        - name: bool-literal-in-expr
         - name: call-to-gc
         - name: constant-logical-expr
         - name: datarace
         - name: deep-exit
         - name: defer
         - name: dot-imports
+        - name: duplicated-imports
+        - name: get-return
         - name: identical-branches
         - name: identical-ifelseif-branches
         - name: identical-ifelseif-conditions
+        - name: identical-switch-branches
         - name: identical-switch-conditions
         - name: increment-decrement
         - name: modifies-parameter
