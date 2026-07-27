@@ -14,6 +14,8 @@ import (
 )
 
 // DeterministicScalar consensus way of generating a deterministic scalar from given entropy
+//
+// Variable time
 func DeterministicScalar(k *curve25519.Scalar, entropy []byte) *curve25519.Scalar {
 
 	var counter uint32
@@ -28,7 +30,7 @@ func DeterministicScalar(k *curve25519.Scalar, entropy []byte) *curve25519.Scala
 		_, _ = utils.WriteNoEscape(h, entropy)
 		_, _ = utils.WriteNoEscape(h, nonce[:])
 		_, _ = utils.ReadNoEscape(h, hash[:])
-		if !curve25519.ScalarIsLimit32(hash) {
+		if !curve25519.ScalarIsLimit32VarTime(hash) {
 			utils.ResetNoEscape(h)
 			continue
 		}
