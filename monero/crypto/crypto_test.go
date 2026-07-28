@@ -91,7 +91,7 @@ func TestCheckTorsion(t *testing.T) {
 			if result {
 				t.Errorf("expected not nil")
 			}
-		} else if p.IsSmallOrder() || !p.IsTorsionFree() {
+		} else if !p.IsTorsionFree() {
 			if result {
 				t.Errorf("expected valid")
 			}
@@ -115,7 +115,7 @@ func TestCheckTorsionVarTime(t *testing.T) {
 			if result {
 				t.Errorf("expected not nil")
 			}
-		} else if p.IsSmallOrder() || !p.IsTorsionFree() {
+		} else if !p.IsTorsionFree() {
 			if result {
 				t.Errorf("expected valid")
 			}

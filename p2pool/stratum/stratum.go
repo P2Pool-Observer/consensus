@@ -1356,7 +1356,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 											a := address.FromBase58(str)
 											if a == nil {
 												// do nothing
-											} else if !a.Valid() {
+											} else if !a.ValidAndTorsionFree() {
 												return errors.New("invalid address in user, or integrated addresses not supported")
 											} else if a.BaseNetwork() != addressNetwork {
 												return errors.New("invalid address in user, wrong network")
@@ -1378,7 +1378,7 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 												}
 											} else {
 												if sa := address.FromBase58(client.Password); sa != nil && sa.BaseNetwork() == a.BaseNetwork() && sa.IsSubaddress() {
-													if !sa.Valid() {
+													if !sa.ValidAndTorsionFree() {
 														return errors.New("invalid subaddress in pass")
 													}
 

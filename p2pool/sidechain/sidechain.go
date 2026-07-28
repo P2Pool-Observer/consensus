@@ -340,7 +340,7 @@ func (c *SideChain) PoolBlockExternalVerify(block *PoolBlock) (missingBlocks []t
 	}
 
 	if block.Main.MajorVersion >= monero.HardForkFCMPPlusPlus {
-		if !block.Side.PublicKey.Valid() {
+		if !block.Side.PublicKey.ValidAndTorsionFree() {
 			return nil, errors.New("invalid wallet address"), true
 		}
 	} else {
