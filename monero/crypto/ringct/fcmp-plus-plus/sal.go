@@ -169,11 +169,10 @@ type SpendAuthAndLinkability[T curve25519.PointOperations] struct {
 }
 
 func (sal *SpendAuthAndLinkability[T]) Challenge(dst *curve25519.Scalar, signableTxHash types.Hash, input *Input[T], L *curve25519.PublicKey[T]) {
-	var transcript blake2b.Digest
-	_ = transcript.Init(blake2b.Size, nil, nil, nil)
+	transcript := crypto.NewBlake2bPersonalized512()
 
 	_, _ = transcript.Write(signableTxHash[:])
-	input.Transcript(&transcript, L)
+	input.Transcript(transcript, L)
 	_, _ = transcript.Write(sal.P.Bytes())
 	_, _ = transcript.Write(sal.A.Bytes())
 	_, _ = transcript.Write(sal.B.Bytes())
