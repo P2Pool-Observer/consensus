@@ -60,7 +60,7 @@ type CarrotViewWallet[T curve25519.PointOperations] struct {
 
 // NewCarrotViewWallet Creates a new CarrotViewWallet with the specified account and index depth. The main address is always tracked
 func NewCarrotViewWallet[T curve25519.PointOperations](primaryAddress *address.Address, generateImageKey, viewIncomingKey *curve25519.Scalar, generateAddressSecret, viewBalanceSecret types.Hash, accountDepth, indexDepth int) (*CarrotViewWallet[T], error) {
-	if primaryAddress == nil || primaryAddress.IsSubaddress() || !primaryAddress.Valid() {
+	if primaryAddress == nil || primaryAddress.IsSubaddress() || !primaryAddress.ValidAndTorsionFree() {
 		return nil, errors.New("address must be a main valid one")
 	}
 
@@ -126,77 +126,81 @@ func (w *CarrotViewWallet[T]) track(hasher *blake2b.Digest, ix address.Subaddres
 	return nil
 }
 
-func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs TxPublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 	scan = &carrot.ScanV1{}
-	for _, pub := range txPubs {
+	for _, out := range outputs {
+		if out.Type != transaction.TxOutToCarrotV1 {
+			continue
+		}
 
-		//TODO: optimize order from pubs?
-		for _, out := range outputs {
-			if out.Type != transaction.TxOutToCarrotV1 {
-				continue
-			}
-			enote := carrot.CoinbaseEnoteV1{
-				OneTimeAddress:  out.EphemeralPublicKey,
-				Amount:          out.Amount,
-				EncryptedAnchor: out.EncryptedJanusAnchor,
-				ViewTag:         out.ViewTag,
-				EphemeralPubKey: curve25519.MontgomeryPoint(pub),
-				BlockIndex:      blockIndex,
-			}
+		pub, err := txPubs.Index(out.Index)
+		if err != nil {
+			continue
+		}
 
-			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
-			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
-				if ix, ok := w.HasSpend(scan.SpendPub); ok {
-					return int(out.Index), scan, ix
-				}
+		enote := carrot.CoinbaseEnoteV1{
+			OneTimeAddress:  out.EphemeralPublicKey,
+			Amount:          out.Amount,
+			EncryptedAnchor: out.EncryptedJanusAnchor,
+			ViewTag:         out.ViewTag,
+			EphemeralPubKey: curve25519.MontgomeryPoint(pub),
+			BlockIndex:      blockIndex,
+		}
+
+		senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
+		if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
+			if ix, ok := w.HasSpend(scan.SpendPub); ok {
+				return int(out.Index), scan, ix
 			}
 		}
 	}
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeInputContext(firstKeyImage)
 	scan = &carrot.ScanV1{}
 
-	for _, pub := range txPubs {
+	for _, out := range outputs {
+		if out.Type != transaction.TxOutToCarrotV1 {
+			continue
+		}
+		if len(commitments) <= int(out.Index) {
+			continue
+		}
 
-		//TODO: optimize order from pubs?
-		for _, out := range outputs {
-			if out.Type != transaction.TxOutToCarrotV1 {
-				continue
-			}
-			if len(commitments) <= int(out.Index) {
-				continue
-			}
+		pub, err := txPubs.Index(out.Index)
+		if err != nil {
+			continue
+		}
 
-			enote := carrot.EnoteV1{
-				OneTimeAddress:   out.EphemeralPublicKey,
-				EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
-				EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[out.Index].Amount[:]),
-				AmountCommitment: commitments[out.Index].Commitment,
-				ViewTag:          out.ViewTag.Value(),
-				EphemeralPubKey:  curve25519.MontgomeryPoint(pub),
-				FirstKeyImage:    firstKeyImage,
-			}
+		enote := carrot.EnoteV1{
+			OneTimeAddress:   out.EphemeralPublicKey,
+			EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
+			EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[out.Index].Amount[:]),
+			AmountCommitment: commitments[out.Index].Commitment,
+			ViewTag:          out.ViewTag.Value(),
+			EphemeralPubKey:  curve25519.MontgomeryPoint(pub),
+			FirstKeyImage:    firstKeyImage,
+		}
 
-			if w.viewBalanceSecret != types.ZeroHash {
-				if enote.TryScanEnoteInternalReceiver(scan, inputContext[:], w.viewBalanceSecret, w.primaryAddress.SpendPub) == nil {
-					if ix, ok := w.HasSpend(scan.SpendPub); ok {
-						return int(out.Index), scan, ix
-					}
-				}
-			}
-
-			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
-			if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewIncomingKey, w.primaryAddress.SpendPub) == nil {
+		if w.viewBalanceSecret != types.ZeroHash {
+			if enote.TryScanEnoteInternalReceiver(scan, inputContext[:], w.viewBalanceSecret, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
 				}
 			}
 		}
+
+		senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
+		if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewIncomingKey, w.primaryAddress.SpendPub) == nil {
+			if ix, ok := w.HasSpend(scan.SpendPub); ok {
+				return int(out.Index), scan, ix
+			}
+		}
 	}
+
 	return -1, nil, address.ZeroSubaddressIndex
 }
 

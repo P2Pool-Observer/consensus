@@ -3,6 +3,7 @@ package wallet
 import (
 	"crypto/subtle"
 	"errors"
+	"io"
 	"unsafe"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -81,7 +82,7 @@ func MatchTransactionProof[T curve25519.PointOperations](
 	return nil
 }
 
-func matchTxProofCarrot[T curve25519.PointOperations](proof proofs.TxProof[T], txId types.Hash, message string, a address.InterfaceSubaddress, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte, isCoinbase bool, inputContext []byte) (index int, scan *carrot.ScanV1) {
+func matchTxProofCarrot[T curve25519.PointOperations](proof proofs.TxProof[T], txId types.Hash, message string, a address.InterfaceSubaddress, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte, isCoinbase bool, inputContext []byte) (index int, scan *carrot.ScanV1) {
 	// #nosec G103 -- Conversion between same underlying types and length
 	pubIndex, ok := carrot.VerifyTxProof(proof, a, txId, message, unsafe.Slice((*curve25519.MontgomeryPoint)(unsafe.SliceData(txPubs)), len(txPubs))...)
 	if !ok {
@@ -97,7 +98,7 @@ func matchTxProofCarrot[T curve25519.PointOperations](proof proofs.TxProof[T], t
 	return -1, nil
 }
 
-func matchTxProof[T curve25519.PointOperations](proof proofs.TxProof[T], txId types.Hash, message string, a address.InterfaceSubaddress, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
+func matchTxProof[T curve25519.PointOperations](proof proofs.TxProof[T], txId types.Hash, message string, a address.InterfaceSubaddress, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
 	var err error
 
 	pubs := make([]curve25519.PublicKey[T], len(txPubs))
@@ -326,32 +327,38 @@ func matchDerivation[T curve25519.PointOperations](derivation curve25519.PublicK
 	return -1, nil
 }
 
-func matchTxKeyCarrot(a address.InterfaceSubaddress, expectedPub, senderReceiverUnctx curve25519.MontgomeryPoint, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte, isCoinbase bool, inputContext []byte) (index int, scan *carrot.ScanV1) {
-	for _, pub := range txPubs {
+func matchTxKeyCarrot(a address.InterfaceSubaddress, expectedPub, senderReceiverUnctx curve25519.MontgomeryPoint, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte, isCoinbase bool, inputContext []byte) (index int, scan *carrot.ScanV1) {
+	for _, out := range outputs {
+		pub, err := txPubs.Index(out.Index)
+		if err != nil {
+			continue
+		}
+
 		if expectedPub != curve25519.MontgomeryPoint(pub) {
 			continue
 		}
 
-		for i := range outputs {
-			if index, scan = matchDerivationCarrot(a, senderReceiverUnctx, expectedPub, &outputs[i], commitments, encryptedPaymentId, isCoinbase, inputContext); index != -1 {
-				return index, scan
-			}
+		if index, scan = matchDerivationCarrot(a, senderReceiverUnctx, expectedPub, &out, commitments, encryptedPaymentId, isCoinbase, inputContext); index != -1 {
+			return index, scan
 		}
 	}
 
 	return -1, nil
 }
 
-func matchTxKey[T curve25519.PointOperations](expectedPub, derivation curve25519.PublicKeyBytes, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
-	for _, pub := range txPubs {
+func matchTxKey[T curve25519.PointOperations](expectedPub, derivation curve25519.PublicKeyBytes, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
+	for _, out := range outputs {
+		pub, err := txPubs.Index(out.Index)
+		if err != nil {
+			continue
+		}
+
 		if expectedPub != pub {
 			continue
 		}
 
-		for i := range outputs {
-			if index, scan = matchDerivation(derivation, spendPub, &outputs[i], commitments, encryptedPaymentId); index != -1 {
-				return index, scan
-			}
+		if index, scan = matchDerivation(derivation, spendPub, &out, commitments, encryptedPaymentId); index != -1 {
+			return index, scan
 		}
 	}
 
@@ -417,7 +424,21 @@ func MatchTransaction[T curve25519.PointOperations, ViewWallet ViewWalletInterfa
 
 var ErrNoOutputs = errors.New("no transaction outputs")
 
-func txPubs(extra transaction.ExtraTags) (pubs []curve25519.PublicKeyBytes) {
+type TxPublicKeys []curve25519.PublicKeyBytes
+
+func (pubs TxPublicKeys) Index(i uint64) (curve25519.PublicKeyBytes, error) {
+	if l := len(pubs); l == 0 {
+		return curve25519.ZeroPublicKeyBytes, errors.New("no public keys")
+	} else if l == 1 {
+		return pubs[0], nil
+	} else if l > int(i) {
+		return pubs[i], nil
+	} else {
+		return curve25519.ZeroPublicKeyBytes, io.ErrUnexpectedEOF
+	}
+}
+
+func txPubs(extra transaction.ExtraTags) (pubs TxPublicKeys) {
 	if txPubExtra := extra.GetTag(transaction.TxExtraTagPubKey); txPubExtra != nil && len(txPubExtra.Data) == curve25519.PublicKeySize {
 		// #nosec G103 -- verified public key size for data
 		pubs = unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubExtra.Data))), 1)
@@ -427,7 +448,7 @@ func txPubs(extra transaction.ExtraTags) (pubs []curve25519.PublicKeyBytes) {
 		// #nosec G103 -- verified public key size for data, and that it's modulo the data, and it's longer than 0
 		additionalPubs := unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubsExtra.Data))), len(txPubsExtra.Data)/curve25519.PublicKeySize)
 		if pubs != nil {
-			pubs = append(make([]curve25519.PublicKeyBytes, 0, len(pubs)+len(additionalPubs)), pubs...)
+			pubs = append(make(TxPublicKeys, 0, len(pubs)+len(additionalPubs)), pubs...)
 			pubs = append(pubs, additionalPubs...)
 		} else {
 			pubs = additionalPubs
@@ -451,7 +472,7 @@ func txPaymentId(extra transaction.ExtraTags) (paymentId, encryptedPaymentId *[m
 	return nil, nil
 }
 
-func matchTxPreamble(tx transaction.PrunedTransaction) (pubs []curve25519.PublicKeyBytes, paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte, commitments []ringct.CommitmentEncryptedAmount, isCoinbase bool, blockIndex uint64, err error) {
+func matchTxPreamble(tx transaction.PrunedTransaction) (pubs TxPublicKeys, paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte, commitments []ringct.CommitmentEncryptedAmount, isCoinbase bool, blockIndex uint64, err error) {
 	if len(tx.Outputs()) == 0 {
 		return nil, nil, nil, nil, false, 0, ErrNoOutputs
 	}
@@ -462,7 +483,7 @@ func matchTxPreamble(tx transaction.PrunedTransaction) (pubs []curve25519.Public
 	}
 	pubs = txPubs(tx.ExtraTags())
 	if len(pubs) == 0 {
-		return nil, nil, nil, nil, false, 0, errors.New("no valid public keys")
+		return nil, nil, nil, nil, false, 0, errors.New("no public keys")
 	}
 
 	encryptedPaymentId, paymentId = txPaymentId(extra)

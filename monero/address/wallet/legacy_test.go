@@ -82,7 +82,7 @@ func TestViewWallet_GeneralFund_Match(t *testing.T) {
 	}
 
 	// todo: payment id
-	i, scan, ix := vw.Match(outputs, commitments, []curve25519.PublicKeyBytes{txPub}, nil)
+	i, scan, ix := vw.Match(outputs, commitments, TxPublicKeys{txPub}, nil)
 	if i == -1 {
 		t.Fatal("expected to find output")
 	}
@@ -126,6 +126,27 @@ func TestViewWallet_GeneralFund_KeyImages(t *testing.T) {
 		t.Logf("#%04d: ki = %x", i, ki.KI.Bytes())
 	}
 
+}
+
+func TestViewWallet_Zero(t *testing.T) {
+	var spendKey curve25519.Scalar
+	spendKey.Zero()
+
+	wallet, err := NewSpendWalletFromSpendKey[curve25519.ConstantTimeOperations](&spendKey, monero.MainNetwork, 0, 80)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("Main Address: %s", string(wallet.Get(address.ZeroSubaddressIndex).ToBase58()))
+
+	testScanCoinbase[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
+	testScanCoinbase[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
+
+	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
+	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
+
+	testScanSelfSend[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
+	testScanSelfSend[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
 }
 
 func TestViewWallet_Match(t *testing.T) {

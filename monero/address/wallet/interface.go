@@ -36,11 +36,11 @@ type ViewWalletInterface[T curve25519.PointOperations] interface {
 
 	// MatchCarrot matches a Carrot non-coinbase from a list of outputs. Returns the absolute index of the matched output, scan data, and eligible address index if available
 	// Slice outputs to continue scanning
-	MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
+	MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
 
 	// MatchCarrotCoinbase matches a Carrot coinbase from a list of outputs. Returns the absolute index of the matched output, scan data, and eligible address index if available
 	// Slice outputs to continue scanning
-	MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs []curve25519.PublicKeyBytes) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
+	MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs TxPublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
 }
 
 type LegacyScan struct {
@@ -66,5 +66,5 @@ type ViewWalletLegacyInterface[T curve25519.PointOperations] interface {
 	// Slice outputs to continue scanning
 	//
 	// Only available in non-Carrot legacy implementation
-	Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs []curve25519.PublicKeyBytes, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex)
+	Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex)
 }

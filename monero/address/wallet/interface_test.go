@@ -50,7 +50,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				out, _, _ := address.CalculateTransactionOutput[T](addrI, txKey, 0, amount)
 				out.Amount = 0
 
-				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, nil, []curve25519.PublicKeyBytes{txPub.AsBytes()}, nil)
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, nil, TxPublicKeys{txPub.AsBytes()}, nil)
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
@@ -88,6 +88,9 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 		t.Run("Carrot", func(t *testing.T) {
 			if addr.IsSubaddress() {
 				t.Skip("coinbase outputs to a subaddress not supported under Carrot")
+			}
+			if addr.Valid() && !addr.ValidAndTorsionFree() {
+				t.Skip("address not valid under carrot")
 			}
 
 			proposal := carrot.PaymentProposalV1[T]{
@@ -232,8 +235,6 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 
 				txKey := curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)
 
-				txPub := new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
-
 				out, additionalPub, encryptedAmount := address.CalculateTransactionOutput[T](addr, txKey, 0, amount)
 				out.Amount = 0
 
@@ -242,7 +243,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 				}
 
 				//todo: payment id
-				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, []ringct.CommitmentEncryptedAmount{encryptedAmount}, []curve25519.PublicKeyBytes{txPub.AsBytes(), additionalPub.AsBytes()}, nil)
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, []ringct.CommitmentEncryptedAmount{encryptedAmount}, TxPublicKeys{additionalPub.AsBytes()}, nil)
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
@@ -283,6 +284,10 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 		}
 
 		t.Run("Carrot", func(t *testing.T) {
+			if addr.Valid() && !addr.ValidAndTorsionFree() {
+				t.Skip("address not valid under carrot")
+			}
+
 			proposal := carrot.PaymentProposalV1[T]{
 				Destination: carrot.DestinationV1{
 					Address: address.NewPackedAddressWithSubaddressFromBytes(addr.SpendPub, addr.ViewPub, addr.IsSubaddress()),
