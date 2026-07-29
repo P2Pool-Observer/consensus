@@ -50,7 +50,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				out, _, _ := address.CalculateTransactionOutput[T](addrI, txKey, 0, amount)
 				out.Amount = 0
 
-				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, nil, TxPublicKeys{txPub.AsBytes()}, nil)
+				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, nil, transaction.PublicKeys{PublicKey: txPub.AsBytes()}, nil)
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
@@ -119,7 +119,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				ViewTag:              enote.ViewTag,
 			}
 
-			i, scan, subaddressIndex := wallet.MatchCarrotCoinbase(blockIndex, transaction.Outputs{out}, []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.EphemeralPubKey)})
+			i, scan, subaddressIndex := wallet.MatchCarrotCoinbase(blockIndex, transaction.Outputs{out}, transaction.PublicKeys{AdditionalPublicKeys: []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.EphemeralPubKey)}})
 			if i != 0 {
 				t.Fatalf("got index %d, want 0", i)
 			}
@@ -234,16 +234,22 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 				_, _ = rand.Read(txId[:])
 
 				txKey := curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)
+				txPubs := transaction.PublicKeys{PublicKey: new(curve25519.PublicKey[T]).ScalarBaseMult(txKey).AsBytes()}
 
 				out, additionalPub, encryptedAmount := address.CalculateTransactionOutput[T](addr, txKey, 0, amount)
 				out.Amount = 0
 
-				if additionalPub == nil {
+				if additionalPub != nil {
+					txPubs.AdditionalPublicKeys = append(txPubs.AdditionalPublicKeys, additionalPub.AsBytes())
+				} else {
 					additionalPub = new(curve25519.PublicKey[T]).ScalarBaseMult(txKey)
 				}
 
 				//todo: payment id
-				i, scan, subaddressIndex := lw.Match(transaction.Outputs{out}, []ringct.CommitmentEncryptedAmount{encryptedAmount}, TxPublicKeys{additionalPub.AsBytes()}, nil)
+				i, scan, subaddressIndex := lw.Match(
+					transaction.Outputs{out},
+					[]ringct.CommitmentEncryptedAmount{encryptedAmount},
+					txPubs, nil)
 				if i != 0 {
 					t.Fatalf("got index %d, want 0", i)
 				}
@@ -327,7 +333,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 						Commitment: enote.Enote.AmountCommitment,
 					},
 				},
-				[]curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)},
+				transaction.PublicKeys{AdditionalPublicKeys: []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)}},
 				&enote.EncryptedPaymentId,
 			)
 			if i != 0 {
@@ -491,7 +497,7 @@ func testScanSelfSend[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 						Commitment: enote.Enote.AmountCommitment,
 					},
 				},
-				[]curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)},
+				transaction.PublicKeys{AdditionalPublicKeys: []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)}},
 				&enote.EncryptedPaymentId,
 			)
 			if i != 0 {
@@ -633,7 +639,7 @@ func testScanSelfSend[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 							Commitment: enote.Enote.AmountCommitment,
 						},
 					},
-					[]curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)},
+					transaction.PublicKeys{AdditionalPublicKeys: []curve25519.PublicKeyBytes{curve25519.PublicKeyBytes(enote.Enote.EphemeralPubKey)}},
 					&enote.EncryptedPaymentId,
 				)
 				if i != 0 {

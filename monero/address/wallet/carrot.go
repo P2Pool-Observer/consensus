@@ -126,7 +126,7 @@ func (w *CarrotViewWallet[T]) track(hasher *blake2b.Digest, ix address.Subaddres
 	return nil
 }
 
-func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs TxPublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs transaction.PublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 	scan = &carrot.ScanV1{}
 	for _, out := range outputs {
@@ -134,31 +134,31 @@ func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs tra
 			continue
 		}
 
-		pub, err := txPubs.Index(out.Index)
-		if err != nil {
-			continue
-		}
+		for _, pub := range txPubs.Scan(out.Index) {
+			if pub == nil {
+				continue
+			}
+			enote := carrot.CoinbaseEnoteV1{
+				OneTimeAddress:  out.EphemeralPublicKey,
+				Amount:          out.Amount,
+				EncryptedAnchor: out.EncryptedJanusAnchor,
+				ViewTag:         out.ViewTag,
+				EphemeralPubKey: curve25519.MontgomeryPoint(*pub),
+				BlockIndex:      blockIndex,
+			}
 
-		enote := carrot.CoinbaseEnoteV1{
-			OneTimeAddress:  out.EphemeralPublicKey,
-			Amount:          out.Amount,
-			EncryptedAnchor: out.EncryptedJanusAnchor,
-			ViewTag:         out.ViewTag,
-			EphemeralPubKey: curve25519.MontgomeryPoint(pub),
-			BlockIndex:      blockIndex,
-		}
-
-		senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
-		if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
-			if ix, ok := w.HasSpend(scan.SpendPub); ok {
-				return int(out.Index), scan, ix
+			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
+			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
+				if ix, ok := w.HasSpend(scan.SpendPub); ok {
+					return int(out.Index), scan, ix
+				}
 			}
 		}
 	}
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs transaction.PublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeInputContext(firstKeyImage)
 	scan = &carrot.ScanV1{}
 
@@ -170,33 +170,33 @@ func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyByte
 			continue
 		}
 
-		pub, err := txPubs.Index(out.Index)
-		if err != nil {
-			continue
-		}
+		for _, pub := range txPubs.Scan(out.Index) {
+			if pub == nil {
+				continue
+			}
+			enote := carrot.EnoteV1{
+				OneTimeAddress:   out.EphemeralPublicKey,
+				EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
+				EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[out.Index].Amount[:]),
+				AmountCommitment: commitments[out.Index].Commitment,
+				ViewTag:          out.ViewTag.Value(),
+				EphemeralPubKey:  curve25519.MontgomeryPoint(*pub),
+				FirstKeyImage:    firstKeyImage,
+			}
 
-		enote := carrot.EnoteV1{
-			OneTimeAddress:   out.EphemeralPublicKey,
-			EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
-			EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[out.Index].Amount[:]),
-			AmountCommitment: commitments[out.Index].Commitment,
-			ViewTag:          out.ViewTag.Value(),
-			EphemeralPubKey:  curve25519.MontgomeryPoint(pub),
-			FirstKeyImage:    firstKeyImage,
-		}
+			if w.viewBalanceSecret != types.ZeroHash {
+				if enote.TryScanEnoteInternalReceiver(scan, inputContext[:], w.viewBalanceSecret, w.primaryAddress.SpendPub) == nil {
+					if ix, ok := w.HasSpend(scan.SpendPub); ok {
+						return int(out.Index), scan, ix
+					}
+				}
+			}
 
-		if w.viewBalanceSecret != types.ZeroHash {
-			if enote.TryScanEnoteInternalReceiver(scan, inputContext[:], w.viewBalanceSecret, w.primaryAddress.SpendPub) == nil {
+			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
+			if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewIncomingKey, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
 				}
-			}
-		}
-
-		senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewIncomingKeyScalar, &enote.EphemeralPubKey)
-		if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewIncomingKey, w.primaryAddress.SpendPub) == nil {
-			if ix, ok := w.HasSpend(scan.SpendPub); ok {
-				return int(out.Index), scan, ix
 			}
 		}
 	}

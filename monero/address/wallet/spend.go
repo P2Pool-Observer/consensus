@@ -34,11 +34,11 @@ func (w *CarrotSpendWallet[T]) HasSpend(spendPub curve25519.PublicKeyBytes) (add
 	return w.vw.HasSpend(spendPub)
 }
 
-func (w *CarrotSpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotSpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs transaction.PublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	return w.vw.MatchCarrot(firstKeyImage, outputs, commitments, txPubs, encryptedPaymentId)
 }
 
-func (w *CarrotSpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs TxPublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *CarrotSpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs transaction.PublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	return w.vw.MatchCarrotCoinbase(blockIndex, outputs, txPubs)
 }
 
@@ -135,15 +135,15 @@ func (w *SpendWallet[T]) GetFromSpend(spendPub *curve25519.PublicKey[T]) *addres
 	return w.vw.GetFromSpend(spendPub)
 }
 
-func (w *SpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *SpendWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs transaction.PublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	return w.vw.MatchCarrot(firstKeyImage, outputs, commitments, txPubs, encryptedPaymentId)
 }
 
-func (w *SpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs TxPublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *SpendWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs transaction.PublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	return w.vw.MatchCarrotCoinbase(blockIndex, outputs, txPubs)
 }
 
-func (w *SpendWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex) {
+func (w *SpendWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs transaction.PublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex) {
 	return w.vw.Match(outputs, commitments, txPubs, encryptedPaymentId)
 }
 

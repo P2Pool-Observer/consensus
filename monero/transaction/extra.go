@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"unsafe"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
@@ -267,4 +268,72 @@ func (t *ExtraTag) FromReader(reader utils.ReaderAndByteReader) (err error) {
 	}
 
 	return nil
+}
+
+type PublicKeys struct {
+	PublicKey            curve25519.PublicKeyBytes
+	AdditionalPublicKeys []curve25519.PublicKeyBytes
+}
+
+func (pubs PublicKeys) Main() curve25519.PublicKeyBytes {
+	return pubs.PublicKey
+}
+
+func (pubs PublicKeys) Additional(i uint64) (curve25519.PublicKeyBytes, error) {
+	if len(pubs.AdditionalPublicKeys) > int(i) {
+		return pubs.AdditionalPublicKeys[i], nil
+	} else {
+		return curve25519.ZeroPublicKeyBytes, io.ErrUnexpectedEOF
+	}
+}
+
+func (pubs PublicKeys) Slice() (out []curve25519.PublicKeyBytes) {
+	if pubs.PublicKey != curve25519.ZeroPublicKeyBytes {
+		out = append(out, pubs.PublicKey)
+		out = append(out, pubs.AdditionalPublicKeys...)
+		return out
+	} else {
+		return pubs.AdditionalPublicKeys
+	}
+}
+
+func (pubs PublicKeys) Scan(i uint64) (out [2]*curve25519.PublicKeyBytes) {
+	if pubs.PublicKey != curve25519.ZeroPublicKeyBytes {
+		out[0] = &pubs.PublicKey
+	}
+	if len(pubs.AdditionalPublicKeys) > int(i) {
+		out[1] = &pubs.AdditionalPublicKeys[i]
+	}
+	return out
+}
+
+func ExtraPublicKeys(extra ExtraTags) (pubs PublicKeys, ok bool) {
+	if txPubExtra := extra.GetTag(TxExtraTagPubKey); txPubExtra != nil && len(txPubExtra.Data) == curve25519.PublicKeySize {
+		pubs.PublicKey = curve25519.PublicKeyBytes(txPubExtra.Data)
+		//TODO: fail if this is not set?
+		ok = true
+	}
+
+	if txPubsExtra := extra.GetTag(TxExtraTagAdditionalPubKeys); txPubsExtra != nil && len(txPubsExtra.Data) > 0 && len(txPubsExtra.Data)%curve25519.PublicKeySize == 0 {
+		// #nosec G103 -- verified public key size for data, and that it's modulo the data, and it's longer than 0
+		additionalPubs := unsafe.Slice((*curve25519.PublicKeyBytes)(unsafe.Pointer(unsafe.SliceData(txPubsExtra.Data))), len(txPubsExtra.Data)/curve25519.PublicKeySize)
+		pubs.AdditionalPublicKeys = additionalPubs
+		ok = true
+	}
+
+	return pubs, ok
+}
+
+func ExtraPaymentId(extra ExtraTags) (paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte) {
+	nonce := extra.GetTag(TxExtraTagNonce)
+	if nonce == nil || len(nonce.Data) != monero.PaymentIdSize+1 {
+		return nil, nil
+	}
+
+	if nonce.Data[0] == TxExtraNoncePaymentId {
+		return (*[monero.PaymentIdSize]byte)(nonce.Data[1:]), nil
+	} else if nonce.Data[0] == TxExtraNonceEncryptedPaymentId {
+		return nil, (*[monero.PaymentIdSize]byte)(nonce.Data[1:])
+	}
+	return nil, nil
 }

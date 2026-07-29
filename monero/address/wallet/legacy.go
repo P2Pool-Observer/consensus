@@ -74,7 +74,7 @@ func (w *ViewWallet[T]) Track(ix address.SubaddressIndex) error {
 }
 
 // Match Matches a list of outputs from a transaction
-func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex) {
+func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs transaction.PublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan, addressIndex address.SubaddressIndex) {
 	var sharedDataPub, ephemeralPub curve25519.PublicKey[T]
 	var extensionG curve25519.Scalar
 	var derivation curve25519.PublicKey[T]
@@ -85,74 +85,76 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.
 			continue
 		}
 
-		pub, err := txPubs.Index(out.Index)
-		if err != nil {
-			continue
-		}
-
-		if _, err := publicKey.SetBytes(pub[:]); err != nil {
-			continue
-		}
-		address.GetDerivation(&derivation, &publicKey, &w.viewKeyScalar)
-
-		_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&extensionG, derivation.AsBytes(), out.Index)
-		if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag.Slice()[0] {
-			continue
-		}
-
-		sharedDataPub.ScalarBaseMult(&extensionG)
-
-		_, err = ephemeralPub.P().SetBytes(out.EphemeralPublicKey[:])
-		if err != nil {
-			return -1, nil, address.ZeroSubaddressIndex
-		}
-
-		D := ephemeralPub.Subtract(&ephemeralPub, &sharedDataPub)
-
-		scan = &LegacyScan{
-			ExtensionG: extensionG,
-			// zero
-			ExtensionT: curve25519.Scalar{},
-			SpendPub:   D.AsBytes(),
-		}
-
-		extensionGBytes := curve25519.PrivateKeyBytes(extensionG.Bytes())
-
-		if len(commitments) > int(out.Index) {
-			c := commitments[int(out.Index)]
-			lc := c.Decode(extensionGBytes, c.Mask == curve25519.ZeroPrivateKeyBytes)
-			if ringct.CalculateCommitment(new(curve25519.PublicKey[T]), lc).AsBytes() != c.Commitment {
-				// cannot match!
+		for _, pub := range txPubs.Scan(out.Index) {
+			if pub == nil {
 				continue
 			}
-			scan.Amount = lc.Amount
-			copy(scan.AmountBlindingFactor[:], lc.Mask.Bytes())
-		} else if out.Amount > 0 {
-			// probably coinbase or old
-			scan.Amount = out.Amount
-			copy(scan.AmountBlindingFactor[:], ringct.CoinbaseAmountBlindingFactor.Bytes())
-		}
 
-		if encryptedPaymentId != nil {
-			// restore payment id if any
-			paymentIdKey := address.CalculatePaymentIdEncodingKey(extensionGBytes)
-			subtle.XORBytes(scan.PaymentId[:], encryptedPaymentId[:], paymentIdKey[:])
-		}
+			if _, err := publicKey.SetBytes(pub[:]); err != nil {
+				continue
+			}
+			address.GetDerivation(&derivation, &publicKey, &w.viewKeyScalar)
 
-		if ix, ok := w.HasSpend(scan.SpendPub); ok {
-			return int(out.Index), scan, ix
-		} else if len(commitments) > int(out.Index) {
-			// we checked commitment, this is probably it - shared data is fine, we just don't know the specific index
-			// return unknown index.
-			// we cannot do this for transparent outputs (coinbase, or pre-RingCT)
-			return int(out.Index), scan, address.UnknownSubaddressIndex
+			_, viewTag := crypto.GetDerivationSharedDataAndViewTagForOutputIndex(&extensionG, derivation.AsBytes(), out.Index)
+			if out.Type == transaction.TxOutToTaggedKey && viewTag != out.ViewTag.Slice()[0] {
+				continue
+			}
+
+			sharedDataPub.ScalarBaseMult(&extensionG)
+
+			_, err := ephemeralPub.P().SetBytes(out.EphemeralPublicKey[:])
+			if err != nil {
+				return -1, nil, address.ZeroSubaddressIndex
+			}
+
+			D := ephemeralPub.Subtract(&ephemeralPub, &sharedDataPub)
+
+			scan = &LegacyScan{
+				ExtensionG: extensionG,
+				// zero
+				ExtensionT: curve25519.Scalar{},
+				SpendPub:   D.AsBytes(),
+			}
+
+			extensionGBytes := curve25519.PrivateKeyBytes(extensionG.Bytes())
+
+			if len(commitments) > int(out.Index) {
+				c := commitments[int(out.Index)]
+				lc := c.Decode(extensionGBytes, c.Mask == curve25519.ZeroPrivateKeyBytes)
+				if ringct.CalculateCommitment(new(curve25519.PublicKey[T]), lc).AsBytes() != c.Commitment {
+					// cannot match!
+					continue
+				}
+				scan.Amount = lc.Amount
+				copy(scan.AmountBlindingFactor[:], lc.Mask.Bytes())
+			} else if out.Amount > 0 {
+				// probably coinbase or old
+				scan.Amount = out.Amount
+				copy(scan.AmountBlindingFactor[:], ringct.CoinbaseAmountBlindingFactor.Bytes())
+			}
+
+			if encryptedPaymentId != nil {
+				// restore payment id if any
+				paymentIdKey := address.CalculatePaymentIdEncodingKey(extensionGBytes)
+				subtle.XORBytes(scan.PaymentId[:], encryptedPaymentId[:], paymentIdKey[:])
+			}
+
+			if ix, ok := w.HasSpend(scan.SpendPub); ok {
+				return int(out.Index), scan, ix
+			} else if len(commitments) > int(out.Index) {
+				// we checked commitment, this is probably it - shared data is fine, we just don't know the specific index
+				// return unknown index.
+				// we cannot do this for transparent outputs (coinbase, or pre-RingCT)
+				return int(out.Index), scan, address.UnknownSubaddressIndex
+			}
+
 		}
 	}
 
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs TxPublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs transaction.PublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 	scan = &carrot.ScanV1{}
 
@@ -161,26 +163,27 @@ func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transacti
 			continue
 		}
 
-		pub, err := txPubs.Index(out.Index)
-		if err != nil {
-			continue
-		}
+		for _, pub := range txPubs.Scan(out.Index) {
+			if pub == nil {
+				continue
+			}
 
-		enote := carrot.CoinbaseEnoteV1{
-			OneTimeAddress:  out.EphemeralPublicKey,
-			Amount:          out.Amount,
-			EncryptedAnchor: out.EncryptedJanusAnchor,
-			ViewTag:         out.ViewTag,
-			EphemeralPubKey: curve25519.MontgomeryPoint(pub),
-			BlockIndex:      blockIndex,
-		}
+			enote := carrot.CoinbaseEnoteV1{
+				OneTimeAddress:  out.EphemeralPublicKey,
+				Amount:          out.Amount,
+				EncryptedAnchor: out.EncryptedJanusAnchor,
+				ViewTag:         out.ViewTag,
+				EphemeralPubKey: curve25519.MontgomeryPoint(*pub),
+				BlockIndex:      blockIndex,
+			}
 
-		senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewKeyScalar, &enote.EphemeralPubKey)
-		if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
-			if ix, ok := w.HasSpend(scan.SpendPub); ok {
-				return int(out.Index), scan, ix
-			} else {
-				return int(out.Index), scan, address.UnknownSubaddressIndex
+			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewKeyScalar, &enote.EphemeralPubKey)
+			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
+				if ix, ok := w.HasSpend(scan.SpendPub); ok {
+					return int(out.Index), scan, ix
+				} else {
+					return int(out.Index), scan, address.UnknownSubaddressIndex
+				}
 			}
 		}
 	}
@@ -188,7 +191,7 @@ func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transacti
 	return -1, nil, address.ZeroSubaddressIndex
 }
 
-func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs TxPublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
+func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs transaction.PublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex) {
 	inputContext := carrot.MakeInputContext(firstKeyImage)
 	scan = &carrot.ScanV1{}
 
@@ -200,27 +203,28 @@ func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, out
 			continue
 		}
 
-		pub, err := txPubs.Index(out.Index)
-		if err != nil {
-			continue
-		}
+		for _, pub := range txPubs.Scan(out.Index) {
+			if pub == nil {
+				continue
+			}
 
-		enote := carrot.EnoteV1{
-			OneTimeAddress:   out.EphemeralPublicKey,
-			EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
-			EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[out.Index].Amount[:]),
-			AmountCommitment: commitments[out.Index].Commitment,
-			ViewTag:          out.ViewTag.Value(),
-			EphemeralPubKey:  curve25519.MontgomeryPoint(pub),
-			FirstKeyImage:    firstKeyImage,
-		}
+			enote := carrot.EnoteV1{
+				OneTimeAddress:   out.EphemeralPublicKey,
+				EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),
+				EncryptedAmount:  [monero.EncryptedAmountSize]byte(commitments[out.Index].Amount[:]),
+				AmountCommitment: commitments[out.Index].Commitment,
+				ViewTag:          out.ViewTag.Value(),
+				EphemeralPubKey:  curve25519.MontgomeryPoint(*pub),
+				FirstKeyImage:    firstKeyImage,
+			}
 
-		senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewKeyScalar, &enote.EphemeralPubKey)
-		if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewKey, w.primaryAddress.SpendPub) == nil {
-			if ix, ok := w.HasSpend(scan.SpendPub); ok {
-				return int(out.Index), scan, ix
-			} else {
-				return int(out.Index), scan, address.UnknownSubaddressIndex
+			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewKeyScalar, &enote.EphemeralPubKey)
+			if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewKey, w.primaryAddress.SpendPub) == nil {
+				if ix, ok := w.HasSpend(scan.SpendPub); ok {
+					return int(out.Index), scan, ix
+				} else {
+					return int(out.Index), scan, address.UnknownSubaddressIndex
+				}
 			}
 		}
 	}
