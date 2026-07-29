@@ -18,12 +18,9 @@ func TestReproduceGenerators(t *testing.T) {
 	for _, e := range []pointTestData{
 		{"GeneratorG", GeneratorG, "5866666666666666666666666666666666666666666666666666666666666666"},
 		{"GeneratorH", GeneratorH, "8b655970153799af2aeadc9ff1add0ea6c7251d54154cfa92c173a0dd39c1f94"},
-		//TODO: change these testcases when UnbiasedHashToPoint changes
-		{"GeneratorT", GeneratorT, "61b736ce93b62a3d3778ab204da85d3b4cdc07250f5da7e3df2629928134d526"},
-		{"GeneratorU", GeneratorU, types.Hash{80, 107, 35, 246, 214, 229, 48, 153, 122, 188, 172, 198, 253, 52, 119, 52,
-			177, 76, 43, 215, 155, 234, 0, 238, 176, 72, 87, 232, 234, 221, 26, 138}.String()},
-		{"GeneratorV", GeneratorV, types.Hash{105, 53, 244, 19, 248, 49, 9, 19, 138, 122, 20, 180, 9, 85, 45, 59, 118,
-			216, 143, 202, 129, 187, 89, 39, 233, 161, 225, 48, 205, 254, 41, 249}.String()},
+		{"GeneratorT", GeneratorT, "dc42e1d3307b2d4b3b02729abe577e231d79478141cb5b310ca9fa6e127616a3"},
+		{"GeneratorU", GeneratorU, "8a948e2854073aa0bcb82f863c80865b5cc9be179723fc1cbf1c25b885597e54"},
+		{"GeneratorV", GeneratorV, "1a423509f7675e912011d14b5610a857ddd588733413b515e003bc4055855bf1"},
 	} {
 		t.Run(e.Name, func(t *testing.T) {
 			h, err := types.HashFromString(e.Expected)

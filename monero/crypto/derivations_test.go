@@ -73,3 +73,25 @@ func TestHashToScalar(t *testing.T) {
 		}
 	}
 }
+
+func TestDeriveKeyImageGenerator(t *testing.T) {
+	results := GetTestEntries("derive_key_image_generator", 3)
+	if results == nil {
+		t.Fatal()
+	}
+	for e := range results {
+		pubData := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[0])
+		biased := e[1] == "true"
+		expected := types.MustBytes32FromString[curve25519.PublicKeyBytes](e[2])
+
+		if biased {
+			if pub := BiasedHashToPoint(new(curve25519.ConstantTimePublicKey), pubData[:]); pub.AsBytes() != expected {
+				t.Errorf("expected %s, got %s", expected.String(), pub.String())
+			}
+		} else {
+			if pub := UnbiasedHashToPoint(new(curve25519.ConstantTimePublicKey), pubData[:]); pub.AsBytes() != expected {
+				t.Errorf("expected %s, got %s", expected.String(), pub.String())
+			}
+		}
+	}
+}

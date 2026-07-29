@@ -131,19 +131,9 @@ func BiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T
 //
 // Similar to https://github.com/seraphis-migration/monero/blob/74a254f8c215986042c40e6875a0f97bd6169a1e/src/crypto/crypto.cpp#L622
 //
-// TODO: Implement change similar to https://github.com/j-berman/monero/pull/17 / https://github.com/monero-oxide/monero-oxide/pull/182
-//
-//	var hasher blake2b.Digest
-//
-//
-//	_ = hasher.Init(blake2b.Size, nil, nil, []byte(PersonalString))
-//	_, _ = hasher.Write(preimage)
-//	var h [blake2b.Size]byte
-//	hasher.Sum(h[:0])
-//
 //nolint:dupword
 func UnbiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], preimage []byte) *curve25519.PublicKey[T] {
-	h := blake2b.Sum512(preimage)
+	h := Blake2bPersonalized512(preimage)
 
 	var first, second curve25519.PublicKey[T]
 	curve25519.Elligator2WithUniformBytes(&first, [curve25519.PublicKeySize]byte(h[:curve25519.PublicKeySize]))
