@@ -10,6 +10,7 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client/rpc"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/client/rpc/daemon"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -246,6 +247,12 @@ type Output struct {
 	Mask              types.Hash `json:"mask"`
 	TransactionId     types.Hash `json:"tx_id"`
 	Unlocked          bool       `json:"unlocked"`
+}
+
+func (c *Client) IsKeyImageSpent(ki ...curve25519.PublicKeyBytes) (status []int, err error) {
+	<-c.throttler
+
+	return c.d.IsKeyImageSpent(context.Background(), ki)
 }
 
 // GetOutputIndexes Get global output indexes for a given transaction

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
@@ -18,6 +19,7 @@ const (
 	endpointGetTransactionPool      = "/get_transaction_pool"
 	endpointGetTransactionPoolStats = "/get_transaction_pool_stats"
 	endpointGetTransactions         = "/get_transactions"
+	endpointIsKeyImageSpent         = "/is_key_image_spent"
 	endpointMiningStatus            = "/mining_status"
 	endpointSetLimit                = "/set_limit"
 	endpointSetLogLevel             = "/set_log_level"
@@ -192,6 +194,23 @@ func (c *Client) GetOuts(
 	}
 
 	return resp, nil
+}
+
+func (c *Client) IsKeyImageSpent(ctx context.Context, ki []curve25519.PublicKeyBytes) ([]int, error) {
+	var resp struct {
+		Status []int `json:"spent_status"`
+	}
+	var params struct {
+		KeyImages []curve25519.PublicKeyBytes `json:"key_images"`
+	}
+	params.KeyImages = ki
+
+	err := c.RawRequest(ctx, endpointIsKeyImageSpent, params, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("raw request: %w", err)
+	}
+
+	return resp.Status, nil
 }
 
 func (c *Client) GetHeight(ctx context.Context) (*GetHeightResult, error) {
