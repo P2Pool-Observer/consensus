@@ -13,28 +13,28 @@ import (
 var testMasterSecret = types.MustHashFromString("6e02e67b303dc713276bb1a4d70b0083b78e4f50e34e209da9f0377cdc3d376e")
 
 var testProveSpend = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("c9651fc906015afeefdb8d3bf7be621c36e035de2a85cb22dd4b869a22086f0e")
-var testPartialSpendPub = types.MustBytes32FromString[curve25519.PublicKeyBytes]("eef3184e91505660c8ccbdeec1bd3b1b7b56d2c39efcad8a036f963470d6f498")
+var testPartialSpendPub = types.MustBytes32FromString[curve25519.PublicKeyBytes]("0ea83cfaa5a4b8e3fcfd1073e84459b8ecbcfa4affe6a6bf5688c113b9e9ecc3")
 var testViewBalanceSecret = types.MustHashFromString("59b2ee8646923309384704613418f5982b0167eb3cd87c6c067ee10700c3af91")
 var testGenerateImagePreimageSecret = types.MustHashFromString("0f3bf96a0642ab4cd10e8c64fba1cc535379ec18dbc7d304d50eb753197e266f")
-var testGenerateImage = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("dabc1ed54dc44f68f67200a1a66ee30b3237f05c2f6dc0dd47e5743431ac800b")
+var testGenerateImage = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("b5d11670cbbbf7a70aa3a6eb88723d49f645162eb3603f70854a80a8dbceb404")
 var testViewIncoming = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("12624c702b4c1a22fd710a836894ed0705955502e6498e5c6e3ad6f5920bb00f")
 var testGenerateAddressSecret = types.MustHashFromString("039f0744fb138954072ee6bcbda4b5c085fd05e09b476a7b34ad20bf9ad440bc")
 
-var testAccountSpendPubkey = types.MustBytes32FromString[curve25519.PublicKeyBytes]("4198f391723f6c64eb75e4f0e341d576dc344e8a8ad3164444451855dbd862b4")
-var testAccountViewPubkey = types.MustBytes32FromString[curve25519.PublicKeyBytes]("14d12188409591353096b41abeccf66a88d916dfe0e6d1998672293ebc1cc83d")
+var testAccountSpendPubkey = types.MustBytes32FromString[curve25519.PublicKeyBytes]("905f67e69c39948e03dacbcfaeb2e766bfb407cdae53f1b11a813df99d9444e5")
+var testAccountViewPubkey = types.MustBytes32FromString[curve25519.PublicKeyBytes]("34e4a36c249e3e0d22a4ee4d6a4da5ee89b12dc42223a12195af8dd727eb35fc")
 
 var testSubaddressIndex = address.SubaddressIndex{Account: 5, Offset: 16}
 
 var testAddressIndexPreimage1 = types.MustHashFromString("9c21bf89635102f5379f97b5d08074e6ed36084544262f92a93d7644945475f1")
-var testAddressIndexPreimage2 = types.MustHashFromString("523188ad4482797566397e9e7f13c9e7169b04aefd9eb449c31baaab82713a19")
+var testAddressIndexPreimage2 = types.MustHashFromString("97d954f490a552e9faa5db4866441c0973d0f42aec56c8c2d553f6b43b4e9580")
 
-var testSubaddressScalar = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("016b3265a2b7b0d05bcffd6f4e87df9fd9b8cd2a39dfc38c4731ca243cca5f09")
+var testSubaddressScalar = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("fe701755513860e77ae77bdb4f3161714635e0d48cea3f4f330895e910670103")
 
 // testSubaddress generated from index 5, 16 from above values
 // see TestDestinationV1_ConvergeMakeSubaddress
 var testSubaddress = address.NewPackedAddressWithSubaddressFromBytes(
-	types.MustBytes32FromString[curve25519.PublicKeyBytes]("8f2f38e702678ae59751dc55818240e0330851e77bfaff003b671885ed06871e"),
-	types.MustBytes32FromString[curve25519.PublicKeyBytes]("369bdcf4f434f42eb09f4372cb6be30de7b17d21e4f98e244459a90b58cd0610"),
+	types.MustBytes32FromString[curve25519.PublicKeyBytes]("97d227d0ff67e521b805d05d3a51390fd889181e334bf68156cb1e2d5aee6dd4"),
+	types.MustBytes32FromString[curve25519.PublicKeyBytes]("99a684cd429d88815cb1f90b794522b32812388a9f35120cfc08c7435f7bd51f"),
 	true,
 )
 

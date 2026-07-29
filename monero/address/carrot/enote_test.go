@@ -13,22 +13,22 @@ import (
 var testAnchorNorm = [monero.JanusAnchorSize]byte(hex.MustDecodeString("caee1381775487a0982557f0d2680b55"))
 var testInputContext = hex.MustDecodeString("9423f74f3e869dc8427d8b35bb24c917480409c3f4750bff3c742f8e4d5af7bef7")
 
-var testEphemeralPriv = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("6aea0ed0c34ad3483415377658841a75e0da8b462e637d8bf783b9bcd320b303")
+var testEphemeralPriv = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("6bd72042c79d9532a3b90b3689ee53c22725a11169ac2d251337bc4a69b2340d")
 
-var testEphemeralPubCryptonote = types.MustBytes32FromString[curve25519.MontgomeryPoint]("8df2a40a42ecc10348a461310c1afc2c2b1be7b29fd27a3921a1aefba5efa27b")
-var testEphemeralPubSubaddress = types.MustBytes32FromString[curve25519.MontgomeryPoint]("a3c3cdf84fd301cfc4675096f1c896543f2efc1001d899bbab3a0fd137f6a630")
+var testEphemeralPubCryptonote = types.MustBytes32FromString[curve25519.MontgomeryPoint]("65b42ef1ed3bd2ab3e6e86d17a52d832bcb6c820a8987306bedd9f6453693869")
+var testEphemeralPubSubaddress = types.MustBytes32FromString[curve25519.MontgomeryPoint]("d8e787047bb21d7dd348524741c78f311f549554b6dffd71c86ecc4a98a15720")
 
-var testSenderReceiverUnctx = types.MustBytes32FromString[curve25519.MontgomeryPoint]("1f848f8384e7a9f217dc9dc2691703cf392eaf6c92931acd0fc840c900d3ed49")
-var testSecretSenderReceiver = types.MustHashFromString("6e99852ed7b3744177bb669e73fd1c544d88555ea6fffe3787ca6af48d2fe9f6")
+var testSenderReceiverUnctx = types.MustBytes32FromString[curve25519.MontgomeryPoint]("513ee79c0c8d76fdd95665a36d607b618e2f76a4806cfdba340fafe64b7f805f")
+var testSecretSenderReceiver = types.MustHashFromString("6d4288869ce44ed5c38d4016b33083a1a0200daa2d8afc16625702d2108b62ae")
 
 const testAmount = 67000000000000
 
-var testAmountBlindingFactorPayment = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("5a01cc9f8ca9556c429d623d848fe036c76593005c63a62df57afc4b51d3c20b")
-var testAmountBlindingFactorChange = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("f69587a2e01d039758b5dd61999e4d60f226eb7b8027be2ff2656ecbb584d103")
-var testAmountCommitment = types.MustBytes32FromString[curve25519.PublicKeyBytes]("f5df40aeba877e8ccadd9dff363d90ec28efbfd1201573897cd70c61c026edb9")
+var testAmountBlindingFactorPayment = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("2943f1f7cdabfcfef4803fe6a36df414065e912089ebcee5dbdad32a9685060a")
+var testAmountBlindingFactorChange = types.MustBytes32FromString[curve25519.PrivateKeyBytes]("b9787d10298d13e34cf21513bce84dd1b13ae8aad6ab79794ac06a4c936e2b09")
+var testAmountCommitment = types.MustBytes32FromString[curve25519.PublicKeyBytes]("95f818f40a41665950d90db8f790cd8a135403624bac284d1059aeb29652fafe")
 
-var testOnetimeAddressCoinbase = types.MustBytes32FromString[curve25519.PublicKeyBytes]("0c4ee83d079ebd77882f894b2e0a43e3d572af9c330871f1dfbcc62f5c64e4ae")
-var testOnetimeAddress = types.MustBytes32FromString[curve25519.PublicKeyBytes]("522347147e41f22ebe155abc32b9def985b2e454045c6edd8921ee4253cd4516")
+var testOnetimeAddressCoinbase = types.MustBytes32FromString[curve25519.PublicKeyBytes]("eb6d42a2cabe4e71a0d61172ed8b528b62c0ab398cde9373dab35cc774ba7c05")
+var testOnetimeAddress = types.MustBytes32FromString[curve25519.PublicKeyBytes]("5e8f18d1dd3aba72d6ea2c7cfb217573ff4baa878300bbf97b4e32c5c566050d")
 
 func TestConverge(t *testing.T) {
 	t.Parallel()
@@ -177,7 +177,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_view_tag", func(t *testing.T) {
-		expected := [monero.CarrotViewTagSize]byte(hex.MustDecodeString("5f58e1"))
+		expected := [monero.CarrotViewTagSize]byte(hex.MustDecodeString("98ad1e"))
 		result := makeViewTag(
 			&blake2b.Digest{},
 			testSenderReceiverUnctx,
@@ -190,7 +190,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_anchor_encryption_mask", func(t *testing.T) {
-		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("6ba7e188fb315ad2158ac6b6652408d4"))
+		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("8d769d8417759007792f824e83115408"))
 		result := makeAnchorEncryptionMask(
 			&blake2b.Digest{},
 			testSecretSenderReceiver,
@@ -202,7 +202,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_amount_encryption_mask", func(t *testing.T) {
-		expected := [monero.EncryptedAmountSize]byte(hex.MustDecodeString("2b739fdb6d1d5e50"))
+		expected := [monero.EncryptedAmountSize]byte(hex.MustDecodeString("ee875c495435d1c3"))
 		result := makeAmountEncryptionMask(
 			&blake2b.Digest{},
 			testSecretSenderReceiver,
@@ -214,7 +214,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_payment_id_encryption_mask", func(t *testing.T) {
-		expected := [monero.PaymentIdSize]byte(hex.MustDecodeString("043d7e9ed13a3484"))
+		expected := [monero.PaymentIdSize]byte(hex.MustDecodeString("736350182e1e0840"))
 		result := makePaymentIdEncryptionMask(
 			&blake2b.Digest{},
 			testSecretSenderReceiver,
@@ -226,7 +226,7 @@ func TestConverge(t *testing.T) {
 	})
 
 	t.Run("make_carrot_janus_anchor_special", func(t *testing.T) {
-		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("70fe9b941fe1ef3b2345c87485f70a6e"))
+		expected := [monero.JanusAnchorSize]byte(hex.MustDecodeString("dea14ab8268ba491238f1c554ab60d83"))
 		result := makeJanusAnchorSpecial(
 			&blake2b.Digest{},
 			testEphemeralPubCryptonote,
