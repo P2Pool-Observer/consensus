@@ -16,6 +16,34 @@ type HashReader interface {
 	io.Reader
 }
 
+// PersonalString Carrot/FCMP++ Blake2b personal string
+const PersonalString = "Monero"
+
+//go:nosplit
+func NewBlake2bPersonalized512() *blake2b.Digest {
+	var digest blake2b.Digest
+	_ = digest.Init(blake2b.Size, nil, nil, []byte(PersonalString))
+	return &digest
+}
+
+func Blake2bPersonalized512Var[T ~string | ~[]byte](data ...T) (result [blake2b.Size]byte) {
+	h := NewBlake2bPersonalized512()
+	for _, b := range data {
+		_, _ = utils.WriteNoEscape(h, []byte(b))
+	}
+	utils.SumNoEscape(h, result[:0])
+
+	return
+}
+
+func Blake2bPersonalized512[T ~string | ~[]byte](data T) (result [blake2b.Size]byte) {
+	h := NewBlake2bPersonalized512()
+	_, _ = utils.WriteNoEscape(h, []byte(data))
+	utils.SumNoEscape(h, result[:0])
+
+	return
+}
+
 //go:nosplit
 func NewKeccak256() *sha3.Digest {
 	return sha3.NewLegacyKeccak256()
@@ -67,9 +95,6 @@ func HopefulHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[
 
 	return result
 }
-
-// PersonalString Carrot/FCMP++ Blake2b personal string
-const PersonalString = "Monero"
 
 // BiasedHashToPoint Monero's `hash_to_ec` / `hash_to_p3` / `biased_hash_to_ec` function.
 //
