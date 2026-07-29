@@ -52,7 +52,7 @@ func TestTemplate(t *testing.T) {
 	bHashingBlob := b.Main.HashingBlob(nil)
 	if tplHashingBlob := tpl.HashingBlob(preAllocatedBuffer, b.Main.Nonce, b.ExtraNonce(), blockTemplateId); bytes.Compare(tplHashingBlob, bHashingBlob) != 0 {
 		if len(tplHashingBlob) == len(bHashingBlob) {
-			for i := range buf {
+			for i := range tplHashingBlob {
 				if bHashingBlob[i] != tplHashingBlob[i] {
 					t.Logf("%s %s *** @ %d", fasthex.EncodeToString(bHashingBlob[i:i+1]), fasthex.EncodeToString(tplHashingBlob[i:i+1]), i)
 				} else {

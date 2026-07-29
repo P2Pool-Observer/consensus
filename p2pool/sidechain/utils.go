@@ -549,6 +549,63 @@ func SplitRewardAllocate(reward uint64, shares Shares) (rewards []uint64) {
 	return SplitReward(make([]uint64, 0, len(shares)), reward, shares)
 }
 
+func SplitRewardWeights(preAllocatedRewards []uint64, reward uint64, shares Weights) (rewards []uint64) {
+	if len(shares) == 0 {
+		return nil
+	}
+	var totalWeight types.Difficulty
+
+	for i := range shares {
+		totalWeight = totalWeight.Add(shares[i])
+	}
+
+	if totalWeight.IsZero() {
+		//TODO: err
+		return nil
+	}
+
+	var rewardGiven uint64
+
+	rewards = slices.Grow(preAllocatedRewards, len(shares))[:len(shares)]
+
+	// compiler bounds check
+	_ = rewards[len(shares)-1]
+
+	if totalWeight.Hi == 0 {
+		//fast path for 64-bit ops
+		//implies all shares have only low weight
+		var w, hi, lo uint64
+		for i := range shares {
+			w += shares[i].Lo
+
+			hi, lo = bits.Mul64(w, reward)
+			//nextValue
+			_, lo = utils.Div128(hi, lo, totalWeight.Lo)
+			rewards[i] = lo - rewardGiven
+			rewardGiven = lo
+		}
+	} else {
+		var w types.Difficulty
+		for i := range shares {
+			w = w.Add(shares[i])
+			nextValue := w.Mul64(reward).Div(totalWeight)
+			rewards[i] = nextValue.Lo - rewardGiven
+			rewardGiven = nextValue.Lo
+
+			if rewards[i] > MaxTxOutputReward {
+				return nil
+			}
+		}
+	}
+
+	// Double check that we gave out the exact amount
+	if rewardGiven != reward {
+		return nil
+	}
+
+	return rewards
+}
+
 func SplitReward(preAllocatedRewards []uint64, reward uint64, shares Shares) (rewards []uint64) {
 	if len(shares) == 0 {
 		return nil

@@ -218,11 +218,11 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, minerData *p2
 	pa := address.FromBase58(types.DonationAddress).ToPackedAddress()
 	testAddresses = append(testAddresses, address.NewPackedAddressWithSubaddress(&pa, false))
 	if n > 2 {
-		for range n / 2 {
+		for k := range n / 2 {
 			testAddresses = append(testAddresses, address.NewPackedAddressWithSubaddressFromBytes(
 				new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)).AsBytes(),
 				new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.RandomScalar(new(curve25519.Scalar), rand.Reader)).AsBytes(),
-				sidechain.P2PoolShareVersion(consensus, 0) >= sidechain.ShareVersion_V3 && minerData.MajorVersion < monero.HardForkCarrotVersion,
+				sidechain.P2PoolShareVersion(consensus, 0) >= sidechain.ShareVersion_V3 && minerData.MajorVersion < monero.HardForkCarrotVersion && k%3 == 0,
 			))
 		}
 	}
@@ -455,16 +455,19 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, minerData *p2
 			t.Fatal("expected tip")
 		}
 
-		// add a fake tx every iteration to increase weight past limit
-		stratumServer.HandleMempoolData(mempool.Mempool{
-			{
-				Id:           b.SideTemplateId(consensus),
-				BlobSize:     0,
-				Weight:       unsafeRandom.Uint64N(512*1024) + 64*1024,
-				Fee:          unsafeRandom.Uint64N(1000000000000-10000000000) + 10000000000,
-				TimeReceived: time.Now().AddDate(0, 0, -1),
-			},
-		})
+		var pool mempool.Mempool
+		// add a fake tx every iteration to push limit
+		for i := range 8 {
+			pool = append(pool, &mempool.Entry{
+				Id:                crypto.Keccak256([]byte(utils.SprintfNoEscape("%d-%d", b.Side.Height, i))),
+				BlobSize:          0,
+				Weight:            1,
+				Fee:               unsafeRandom.Uint64N(HighFeeValue),
+				TimeReceivedMilli: time.Now().AddDate(0, 0, -1).UnixMilli(),
+			})
+		}
+		// add also a heavy one to increase weight past limit
+		stratumServer.HandleMempoolData(pool)
 
 		if i > 0 && i%7 == 0 {
 			// do uncle
@@ -479,15 +482,13 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, minerData *p2
 }
 
 func TestStratumServer_Genesis(t *testing.T) {
-
-	const n = 256
-
 	for _, version := range []sidechain.ShareVersion{
 		sidechain.ShareVersion_V2,
 		sidechain.ShareVersion_V3,
 	} {
+		const n = 800
 		t.Run(fmt.Sprintf("V%d", uint8(version)), func(t *testing.T) {
-			consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 1, sidechain.SmallestMinimumDifficulty, 100, 20)
+			consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 1, sidechain.SmallestMinimumDifficulty, 216, 20)
 			consensus.HardForks = []monero.HardFork{
 				{Version: uint8(version)},
 			}

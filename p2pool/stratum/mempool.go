@@ -12,8 +12,8 @@ type MiningMempool map[types.Hash]*mempool.Entry
 // Add Inserts a transaction into the mempool.
 func (m MiningMempool) Add(tx *mempool.Entry) (added bool) {
 	if _, ok := m[tx.Id]; !ok {
-		if tx.TimeReceived.IsZero() {
-			tx.TimeReceived = time.Now()
+		if tx.TimeReceivedMilli == 0 {
+			tx.TimeReceivedMilli = time.Now().UnixMilli()
 		}
 		m[tx.Id] = tx
 		added = true
@@ -28,9 +28,9 @@ func (m MiningMempool) Swap(pool mempool.Mempool) {
 	for _, tx := range pool {
 		if v, ok := m[tx.Id]; ok {
 			//tx is already here, use previous seen time
-			tx.TimeReceived = v.TimeReceived
+			tx.TimeReceivedMilli = v.TimeReceivedMilli
 		} else {
-			tx.TimeReceived = currentTime
+			tx.TimeReceivedMilli = currentTime.UnixMilli()
 		}
 	}
 
@@ -42,12 +42,13 @@ func (m MiningMempool) Swap(pool mempool.Mempool) {
 }
 
 func (m MiningMempool) Select(highFee uint64, receivedSince time.Duration) (pool mempool.Mempool) {
+	receivedSinceMilli := int64(receivedSince / time.Millisecond)
+	currentTimeMilli := time.Now().UnixMilli()
+
 	pool = make(mempool.Mempool, 0, len(m))
 
-	currentTime := time.Now()
-
 	for _, tx := range m {
-		if currentTime.Sub(tx.TimeReceived) > receivedSince || tx.Fee >= highFee {
+		if (currentTimeMilli-tx.TimeReceivedMilli) > receivedSinceMilli || tx.Fee >= highFee {
 			pool = append(pool, tx)
 		}
 	}

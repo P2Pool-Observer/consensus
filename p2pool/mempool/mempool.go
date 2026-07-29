@@ -4,7 +4,6 @@ import (
 	"math"
 	"math/bits"
 	"slices"
-	"time"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -12,11 +11,11 @@ import (
 )
 
 type Entry struct {
-	Id           types.Hash `json:"id"`
-	BlobSize     uint64     `json:"blob_size"`
-	Weight       uint64     `json:"weight"`
-	Fee          uint64     `json:"fee"`
-	TimeReceived time.Time  `json:"-"`
+	Id                types.Hash `json:"id"`
+	BlobSize          uint64     `json:"blob_size"`
+	Weight            uint64     `json:"weight"`
+	Fee               uint64     `json:"fee"`
+	TimeReceivedMilli int64      `json:"-"`
 }
 
 type Mempool []*Entry
@@ -59,6 +58,8 @@ func (m Mempool) Weight() (r uint64) {
 // Usually no more than 0.5 micronero away from the optimal discrete knapsack solution
 // Sometimes it even finds the optimal solution
 func (m Mempool) Pick(baseReward, minerTxWeight, medianWeight uint64) Mempool {
+	const replacementDepth = 1000
+
 	// Sort all transactions by fee per byte (highest to lowest)
 	m.Sort()
 
@@ -80,9 +81,9 @@ func (m Mempool) Pick(baseReward, minerTxWeight, medianWeight uint64) Mempool {
 
 		// Try replacing other transactions when we are above the limit
 		if finalWeight+tx.Weight > medianWeight {
-			// Don't check more than 100 transactions deep because they have higher and higher fee/byte
+			// Don't check more than replacementDepth transactions deep because they have higher and higher fee/byte
 			n := len(mempoolTxsOrder2)
-			for j, j1 := n-1, max(0, n-100); j >= j1; j-- {
+			for j, j1 := n-1, max(0, n-replacementDepth); j >= j1; j-- {
 				prevTx := mempoolTxsOrder2[j]
 				reward2 := GetBlockReward(baseReward, medianWeight, finalFees+tx.Fee-prevTx.Fee, finalWeight+tx.Weight-prevTx.Weight)
 				if reward2 > finalReward {

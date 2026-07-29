@@ -308,7 +308,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 	s.newTemplateData.Weights = make([]*WeightEntries, len(s.newTemplateData.Window.Shares))
 
-	allShares := s.newTemplateData.Window.Shares
+	allShares := s.newTemplateData.Window.Shares.Weights()
 	fewShares := slices.Clone(allShares)
 	// delete placeholder index
 	fewShares = slices.Delete(fewShares, s.newTemplateData.Window.ReservedShareIndex, s.newTemplateData.Window.ReservedShareIndex+1)
@@ -333,23 +333,20 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 	for weightIndex := range len(s.newTemplateData.Weights) {
 		// TODO: only allocate the ones we currently are mining, not entire PPLNS!!!
 
-		var oldShare *sidechain.Share
-		var shares []*sidechain.Share
+		var oldShare types.Difficulty
+		var shares sidechain.Weights
 		if weightIndex > 0 {
 			// remove reserve
 			oldShare = fewShares[weightIndex-1]
 
-			fewShares[weightIndex-1] = &sidechain.Share{
-				Address: oldShare.Address,
-				Weight:  oldShare.Weight.Add(s.newTemplateData.Weight),
-			}
+			fewShares[weightIndex-1] = oldShare.Add(s.newTemplateData.Weight)
 
 			shares = fewShares
 		} else {
 			shares = allShares
 		}
 
-		rewards = sidechain.SplitReward(rewards[:0], maxReward, shares)
+		rewards = sidechain.SplitRewardWeights(rewards[:0], maxReward, shares)
 		maxRewardAmounts := uint64(utils.UVarInt64SliceSize(rewards))
 
 		if w, ok := calculatedWeights[maxRewardAmounts]; ok {
@@ -415,11 +412,6 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			txs[i] = entry.Id
 		}
 
-		//shuffle transactions
-		unsafeRandom.Shuffle(len(txs), func(i, j int) {
-			txs[i], txs[j] = txs[j], txs[i]
-		})
-
 		weights.Transactions = txs
 
 		pickedWeight, pickedFees := pickedMempool.WeightAndFees()
@@ -428,7 +420,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 		finalReward := mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, pickedFees, finalWeight)
 
-		rewards = sidechain.SplitReward(rewards[:0], finalReward, shares)
+		rewards = sidechain.SplitRewardWeights(rewards[:0], finalReward, shares)
 
 		rewardAmountsWeight := uint64(utils.UVarInt64SliceSize(rewards))
 
@@ -447,14 +439,14 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 			// Block reward will be <= r due to how block size penalty works
 			r := mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, pickedFees, w)
 
-			rewards = sidechain.SplitReward(rewards[:0], r, shares)
+			rewards = sidechain.SplitRewardWeights(rewards[:0], r, shares)
 
 			finalWeight -= weights.MaxRewardAmounts
 			weights.MaxRewardAmounts = uint64(utils.UVarInt64SliceSize(rewards))
 			finalWeight += weights.MaxRewardAmounts
 
 			finalReward = mempool.GetBlockReward(baseReward, s.minerData.MedianWeight, pickedFees, finalWeight)
-			rewards = sidechain.SplitReward(rewards[:0], finalReward, shares)
+			rewards = sidechain.SplitRewardWeights(rewards[:0], finalReward, shares)
 			rewardAmountsWeight = uint64(utils.UVarInt64SliceSize(rewards))
 			coinbaseTransactionWeight = coinbaseTransactionBaseWeight + weights.MaxRewardAmounts
 

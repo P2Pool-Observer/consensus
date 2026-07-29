@@ -11,6 +11,8 @@ import (
 
 type Shares []*Share
 
+type Weights []types.Difficulty
+
 func (s Shares) Index(addr address.PackedAddressWithSubaddress) int {
 	return slices.IndexFunc(s, func(share *Share) bool {
 		return share.Address == addr
@@ -27,6 +29,14 @@ func fastShareCompare(a *Share, b *Share) int {
 	}
 
 	return a.Address.ComparePacked(&b.Address)
+}
+
+func (s Shares) Weights() (result Weights) {
+	result = make(Weights, len(s))
+	for i := range s {
+		result[i] = s[i].Weight
+	}
+	return result
 }
 
 // Sort Consensus way of sorting Shares
@@ -83,7 +93,7 @@ func NewPreAllocatedSharesPool[T uint64 | int](n T) *PreAllocatedSharesPool {
 }
 
 func (p *PreAllocatedSharesPool) Get() Shares {
-	//nolint:forcetypeassert
+	//nolint:forcetypeassert,revive
 	return p.pool.Get().(Shares)
 }
 

@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -937,7 +938,7 @@ func TestMain(m *testing.M) {
 
 	var isBenchmark bool
 	for _, arg := range os.Args {
-		if arg == "-test.bench" {
+		if strings.Contains(arg, "-test.bench") {
 			isBenchmark = true
 		}
 	}
@@ -1040,6 +1041,25 @@ func BenchmarkSideChainDefault_GetShares(b *testing.B) {
 		shares, _, _ := benchLoadedSideChain.getShares(tip, benchLoadedSideChain.preAllocatedShares)
 		if shares == nil {
 			b.Error("nil shares")
+			return
+		}
+	}
+}
+
+func BenchmarkSideChainDefault_SplitRewardWeights(b *testing.B) {
+	b.ReportAllocs()
+	tip := benchLoadedSideChain.GetChainTip()
+
+	shares, _, _ := benchLoadedSideChain.getShares(tip, benchLoadedSideChain.preAllocatedShares)
+	weights := shares.Weights()
+	preAllocatedRewards := make([]uint64, 0, len(shares))
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		rewards := SplitRewardWeights(preAllocatedRewards, tip.Main.Coinbase.AuxiliaryData.TotalReward, weights)
+		if rewards == nil {
+			b.Error("nil rewards")
 			return
 		}
 	}
