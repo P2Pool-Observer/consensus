@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"math"
 	"slices"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -18,8 +17,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
-// MaxTransactionCount TODO: this differs from P2Pool's num_transactions >= MAX_BLOCK_SIZE / HASH_SIZE)
-const MaxTransactionCount = uint64(math.MaxUint64) / types.HashSize
+const MaxTransactionCount = 0x10000000
 const MaxTransactionCountP2Pool = uint64(p2pool.MaxBufferSize) / types.HashSize
 
 type GenericBlock = Block[transaction.GenericCoinbase, *transaction.GenericCoinbase]
@@ -242,7 +240,6 @@ func (b *Block[T, MT]) FromReaderFlags(reader utils.ReaderAndByteReader, compact
 	if txCount, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
 	} else if txCount > MaxTransactionCount {
-		//TODO: #define CRYPTONOTE_MAX_TX_PER_BLOCK                     0x10000000
 		return utils.ErrorfNoEscape("transaction count too large: %d > %d", txCount, MaxTransactionCount)
 	} else if txCount > 0 {
 		if compact {
