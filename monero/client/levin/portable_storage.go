@@ -389,7 +389,7 @@ func ReadAny(bytes []byte, ttype byte) (idx int, value interface{}, serializable
 }
 
 func CanonicalVarIntSize(n, i int) bool {
-	return n <= 1 || i > (1<<((n-1)*8-2))-1
+	return n <= 1 || i >= 1<<(4*n-2)
 }
 
 // ReadVarInt reads var int, returning number of bytes read and the integer in that byte
