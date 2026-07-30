@@ -143,6 +143,7 @@ func TestTransactions(t *testing.T) {
 			t.Logf("size    = %d", tx.BufferLength())
 			t.Logf("weight  = %d", tx.Weight())
 			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
+			t.Logf("unlock  = %d", tx.UnlockTime())
 			t.Logf("inputs  = %d", len(tx.Inputs()))
 			t.Logf("outputs = %d", len(tx.Outputs()))
 
@@ -272,6 +273,7 @@ func TestPrunedTransactions(t *testing.T) {
 			t.Logf("prefix  = %s", prefixHash)
 			t.Logf("size    = %d", tx.PrunedBufferLength())
 			t.Logf("fee     = %s XMR", utils.XMRUnits(tx.Fee()))
+			t.Logf("unlock  = %d", tx.UnlockTime())
 			t.Logf("inputs  = %d", len(tx.Inputs()))
 			t.Logf("outputs = %d", len(tx.Outputs()))
 

@@ -154,6 +154,8 @@ func (tx *TransactionV2) AppendPrunedBinary(preAllocatedBuf []byte) (data []byte
 	return buf, nil
 }
 
+// FromPrunedReader Decodes the transaction from pruned bytes, where the version field has already been read
+// Use GenericCoinbase for decoding a Coinbase transaction.
 func (tx *TransactionV2) FromPrunedReader(reader utils.ReaderAndByteReader) (err error) {
 	if err = tx.Prefix.FromReader(reader); err != nil {
 		return err
@@ -169,6 +171,8 @@ func (tx *TransactionV2) FromPrunedReader(reader utils.ReaderAndByteReader) (err
 	return nil
 }
 
+// FromReader Decodes the transaction, where the version field has already been read
+// Use GenericCoinbase for decoding a Coinbase transaction.
 func (tx *TransactionV2) FromReader(reader utils.ReaderAndByteReader) (err error) {
 	if err = tx.FromPrunedReader(reader); err != nil {
 		return err
