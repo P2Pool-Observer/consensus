@@ -517,8 +517,9 @@ func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []
 	if timestampUpperBound > timestampLowerBound {
 		deltaTimestamp = timestampUpperBound - timestampLowerBound
 	} else {
-		deltaTimestamp = max(0, deltaTimestamp)
+		deltaTimestamp = 0
 	}
+	deltaTimestamp = max(deltaTimestamp, deltaIndex)
 
 	minDifficulty := types.MaxDifficulty
 	maxDifficulty := types.ZeroDifficulty
