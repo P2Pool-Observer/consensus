@@ -5,6 +5,7 @@ const (
 
 	TransactionUnlockTime = 10
 	MinerRewardUnlockTime = 60
+	MaxBlockNumber        = 500000000
 
 	TailEmissionReward = 600000000000
 

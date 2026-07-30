@@ -120,6 +120,8 @@ func (c *P2PoolCoinbaseV2) FromVersionReader(reader utils.ReaderAndByteReader, c
 
 	if c.MinerUnlockTime, err = utils.ReadCanonicalUvarint(reader); err != nil {
 		return err
+	} else if c.MinerUnlockTime > monero.MaxBlockNumber {
+		return errors.New("invalid unlock time")
 	}
 
 	if c.InputCount, err = utils.ReadByteNoEscape(reader); err != nil {
@@ -142,8 +144,8 @@ func (c *P2PoolCoinbaseV2) FromVersionReader(reader utils.ReaderAndByteReader, c
 		return err
 	}
 
-	if c.MinerUnlockTime != (c.MinerGenHeight + monero.MinerRewardUnlockTime) {
-		return errors.New("invalid unlock time")
+	if c.MinerGenHeight > monero.MaxBlockNumber || c.MinerUnlockTime != (c.MinerGenHeight+monero.MinerRewardUnlockTime) {
+		return errors.New("invalid gen height")
 	}
 
 	if err = c.MinerOutputs.FromReader(reader); err != nil {
