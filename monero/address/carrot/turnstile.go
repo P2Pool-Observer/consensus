@@ -14,6 +14,12 @@ import (
 // PQTurnstile Implements Post-quantum Turnstile Design for Carrot/FCMP++ Enotes
 //
 // See https://gist.github.com/jeffro256/146bfd5306ea3a8a2a0ea4d660cd2243
+//
+// Only for testing purposes. Do not use in real-world schemes:
+// > To make spending authority somewhat secure in a practical system, you need some kind of pre-commit scheme, finalization layer, etc.
+// > This is the same model as Bitcoin's hashed addresses "PQ security".
+// > They are secure until some pre-image is revealed, and then it becomes a race.
+// > To be secure, you need to remove the race
 type PQTurnstile[T curve25519.PointOperations] struct {
 	FetchOutput     func(id types.Hash, outputIndex int) (pub curve25519.PublicKeyBytes, commitment curve25519.PublicKeyBytes, err error)
 	IsKeyImageSpent func(ki curve25519.PublicKeyBytes) bool
