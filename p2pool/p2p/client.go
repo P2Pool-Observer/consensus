@@ -857,7 +857,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				unsafeRandom.Shuffle(len(peerList), func(i, j int) {
 					peerList[i], peerList[j] = peerList[j], peerList[i]
 				})
-				for _, p := range c.Owner.PeerList() {
+				for _, p := range peerList {
 					if p.AddressPort.Addr().Is4In6() || p.AddressPort.Addr().Is6() {
 						if len(entriesToSend) < PeerListResponseMaxPeers {
 							entriesToSend = append(entriesToSend, p.AddressPort)
