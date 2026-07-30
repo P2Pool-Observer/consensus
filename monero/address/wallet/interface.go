@@ -53,7 +53,8 @@ type LegacyScan struct {
 
 	SpendPub curve25519.PublicKeyBytes
 
-	PaymentId [monero.PaymentIdSize]byte
+	PaymentId       [monero.PaymentIdSize]byte
+	LegacyPaymentId *[monero.LegacyPaymentIdSize]byte
 }
 
 type ViewWalletLegacyInterface[T curve25519.PointOperations] interface {

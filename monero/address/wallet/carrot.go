@@ -134,10 +134,7 @@ func (w *CarrotViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs tra
 			continue
 		}
 
-		for _, pub := range txPubs.Scan(out.Index) {
-			if pub == nil {
-				continue
-			}
+		for pub := range txPubs.Scan(out.Index) {
 			enote := carrot.CoinbaseEnoteV1{
 				OneTimeAddress:  out.EphemeralPublicKey,
 				Amount:          out.Amount,
@@ -170,10 +167,7 @@ func (w *CarrotViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyByte
 			continue
 		}
 
-		for _, pub := range txPubs.Scan(out.Index) {
-			if pub == nil {
-				continue
-			}
+		for pub := range txPubs.Scan(out.Index) {
 			enote := carrot.EnoteV1{
 				OneTimeAddress:   out.EphemeralPublicKey,
 				EncryptedAnchor:  out.EncryptedJanusAnchor.Value(),

@@ -9,6 +9,7 @@ const (
 	TailEmissionReward = 600000000000
 
 	EncryptedAmountSize       = 8
+	LegacyPaymentIdSize       = 32
 	PaymentIdSize             = 8
 	JanusAnchorSize           = 16
 	CarrotViewTagSize         = 3

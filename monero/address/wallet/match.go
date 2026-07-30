@@ -24,7 +24,7 @@ func MatchTransactionProof[T curve25519.PointOperations](
 	txId types.Hash,
 	tx transaction.PrunedTransaction,
 ) error {
-	pubs, encryptedPaymentId, paymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
+	pubs, legacyPaymentId, encryptedPaymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
 	if err != nil {
 		return err
 	}
@@ -55,9 +55,6 @@ func MatchTransactionProof[T curve25519.PointOperations](
 		var scan *carrot.ScanV1
 		for i != -1 && i < len(tx.Outputs()) {
 			if i, scan = matchTxProofCarrot(proof, txId, message, addr, tx.Outputs()[i:], commitments, pubs, encryptedPaymentId, isCoinbase, inputContext[:]); i != -1 {
-				if paymentId != nil {
-					scan.PaymentId = *paymentId
-				}
 				carrotMatch(i, scan, address.UnknownSubaddressIndex)
 				i++
 			}
@@ -70,9 +67,7 @@ func MatchTransactionProof[T curve25519.PointOperations](
 		var scan *LegacyScan
 		for i != -1 && i < len(tx.Outputs()) {
 			if i, scan = matchTxProof(proof, txId, message, addr, &spendPub, tx.Outputs()[i:], commitments, pubs, encryptedPaymentId); i != -1 {
-				if paymentId != nil {
-					scan.PaymentId = *paymentId
-				}
+				scan.LegacyPaymentId = legacyPaymentId
 				legacyMatch(i, scan, address.UnknownSubaddressIndex)
 				i++
 			}
@@ -138,7 +133,7 @@ func MatchTransactionKey[T curve25519.PointOperations](
 	carrotMatch func(index int, scan *carrot.ScanV1, _ address.SubaddressIndex),
 	tx transaction.PrunedTransaction,
 ) error {
-	pubs, encryptedPaymentId, paymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
+	pubs, legacyPaymentId, encryptedPaymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
 	if err != nil {
 		return err
 	}
@@ -177,9 +172,6 @@ func MatchTransactionKey[T curve25519.PointOperations](
 		var scan *carrot.ScanV1
 		for i != -1 && i < len(tx.Outputs()) {
 			if i, scan = matchTxKeyCarrot(addr, expectedPub, senderReceiverUnctx, tx.Outputs()[i:], commitments, pubs, encryptedPaymentId, isCoinbase, inputContext[:]); i != -1 {
-				if paymentId != nil {
-					scan.PaymentId = *paymentId
-				}
 				carrotMatch(i, scan, address.UnknownSubaddressIndex)
 				i++
 			}
@@ -209,9 +201,7 @@ func MatchTransactionKey[T curve25519.PointOperations](
 		var scan *LegacyScan
 		for i != -1 && i < len(tx.Outputs()) {
 			if i, scan = matchTxKey(expectedPub, derivation, &spendPub, tx.Outputs()[i:], commitments, pubs, encryptedPaymentId); i != -1 {
-				if paymentId != nil {
-					scan.PaymentId = *paymentId
-				}
+				scan.LegacyPaymentId = legacyPaymentId
 				legacyMatch(i, scan, address.UnknownSubaddressIndex)
 				i++
 			}
@@ -332,10 +322,7 @@ func matchDerivation[T curve25519.PointOperations](derivation curve25519.PublicK
 
 func matchTxKeyCarrot(a address.InterfaceSubaddress, expectedPub, senderReceiverUnctx curve25519.MontgomeryPoint, outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs transaction.PublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte, isCoinbase bool, inputContext []byte) (index int, scan *carrot.ScanV1) {
 	for _, out := range outputs {
-		for _, pub := range txPubs.Scan(out.Index) {
-			if pub == nil {
-				continue
-			}
+		for pub := range txPubs.Scan(out.Index) {
 
 			if expectedPub != curve25519.MontgomeryPoint(*pub) {
 				continue
@@ -352,11 +339,7 @@ func matchTxKeyCarrot(a address.InterfaceSubaddress, expectedPub, senderReceiver
 
 func matchTxKey[T curve25519.PointOperations](expectedPub, derivation curve25519.PublicKeyBytes, spendPub *curve25519.PublicKey[T], outputs transaction.Outputs, commitments []ringct.CommitmentEncryptedAmount, txPubs transaction.PublicKeys, encryptedPaymentId *[monero.PaymentIdSize]byte) (index int, scan *LegacyScan) {
 	for _, out := range outputs {
-		for _, pub := range txPubs.Scan(out.Index) {
-			if pub == nil {
-				continue
-			}
-
+		for pub := range txPubs.Scan(out.Index) {
 			if expectedPub != *pub {
 				continue
 			}
@@ -376,7 +359,7 @@ func MatchTransaction[T curve25519.PointOperations, ViewWallet ViewWalletInterfa
 	carrotMatch func(index int, scan *carrot.ScanV1, ix address.SubaddressIndex),
 	tx transaction.PrunedTransaction,
 ) error {
-	pubs, encryptedPaymentId, paymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
+	pubs, legacyPaymentId, encryptedPaymentId, commitments, isCoinbase, blockIndex, err := matchTxPreamble(tx)
 	if err != nil {
 		return err
 	}
@@ -397,9 +380,6 @@ func MatchTransaction[T curve25519.PointOperations, ViewWallet ViewWalletInterfa
 				i, scan, ix = wallet.MatchCarrot(tx.Inputs()[0].KeyImage, tx.Outputs()[i:], commitments, pubs, encryptedPaymentId)
 			}
 			if i != -1 {
-				if paymentId != nil {
-					scan.PaymentId = *paymentId
-				}
 				carrotMatch(i, scan, ix)
 				i++
 			}
@@ -414,9 +394,7 @@ func MatchTransaction[T curve25519.PointOperations, ViewWallet ViewWalletInterfa
 			var ix address.SubaddressIndex
 			for i != -1 && i < len(tx.Outputs()) {
 				if i, scan, ix = legacyWallet.Match(tx.Outputs()[i:], commitments, pubs, encryptedPaymentId); i != -1 {
-					if paymentId != nil {
-						scan.PaymentId = *paymentId
-					}
+					scan.LegacyPaymentId = legacyPaymentId
 					legacyMatch(i, scan, ix)
 					i++
 				}
@@ -429,7 +407,7 @@ func MatchTransaction[T curve25519.PointOperations, ViewWallet ViewWalletInterfa
 
 var ErrNoOutputs = errors.New("no transaction outputs")
 
-func matchTxPreamble(tx transaction.PrunedTransaction) (pubs transaction.PublicKeys, paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte, commitments []ringct.CommitmentEncryptedAmount, isCoinbase bool, blockIndex uint64, err error) {
+func matchTxPreamble(tx transaction.PrunedTransaction) (pubs transaction.PublicKeys, legacyPaymentId *[monero.LegacyPaymentIdSize]byte, encryptedPaymentId *[monero.PaymentIdSize]byte, commitments []ringct.CommitmentEncryptedAmount, isCoinbase bool, blockIndex uint64, err error) {
 	if len(tx.Outputs()) == 0 {
 		return transaction.PublicKeys{}, nil, nil, nil, false, 0, ErrNoOutputs
 	}
@@ -443,7 +421,7 @@ func matchTxPreamble(tx transaction.PrunedTransaction) (pubs transaction.PublicK
 		return transaction.PublicKeys{}, nil, nil, nil, false, 0, errors.New("no public keys")
 	}
 
-	encryptedPaymentId, paymentId = transaction.ExtraPaymentId(extra)
+	legacyPaymentId, encryptedPaymentId = transaction.ExtraPaymentId(extra)
 
 	// is coinbase check
 
@@ -462,5 +440,5 @@ func matchTxPreamble(tx transaction.PrunedTransaction) (pubs transaction.PublicK
 		// txv1 do not have commitments
 	}
 
-	return pubs, paymentId, encryptedPaymentId, commitments, isCoinbase, blockIndex, nil
+	return pubs, legacyPaymentId, encryptedPaymentId, commitments, isCoinbase, blockIndex, nil
 }

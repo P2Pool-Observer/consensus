@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"iter"
 	"unsafe"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
@@ -297,14 +298,16 @@ func (pubs PublicKeys) Slice() (out []curve25519.PublicKeyBytes) {
 	}
 }
 
-func (pubs PublicKeys) Scan(i uint64) (out [2]*curve25519.PublicKeyBytes) {
-	if pubs.PublicKey != curve25519.ZeroPublicKeyBytes {
-		out[0] = &pubs.PublicKey
+func (pubs PublicKeys) Scan(i uint64) iter.Seq[*curve25519.PublicKeyBytes] {
+	return func(yield func(*curve25519.PublicKeyBytes) bool) {
+		if pubs.PublicKey != curve25519.ZeroPublicKeyBytes {
+			yield(&pubs.PublicKey)
+		}
+
+		if len(pubs.AdditionalPublicKeys) > int(i) {
+			yield(&pubs.AdditionalPublicKeys[i])
+		}
 	}
-	if len(pubs.AdditionalPublicKeys) > int(i) {
-		out[1] = &pubs.AdditionalPublicKeys[i]
-	}
-	return out
 }
 
 func ExtraPublicKeys(extra ExtraTags) (pubs PublicKeys, ok bool) {
@@ -324,15 +327,15 @@ func ExtraPublicKeys(extra ExtraTags) (pubs PublicKeys, ok bool) {
 	return pubs, ok
 }
 
-func ExtraPaymentId(extra ExtraTags) (paymentId, encryptedPaymentId *[monero.PaymentIdSize]byte) {
+func ExtraPaymentId(extra ExtraTags) (legacyPaymentId *[monero.LegacyPaymentIdSize]byte, encryptedPaymentId *[monero.PaymentIdSize]byte) {
 	nonce := extra.GetTag(TxExtraTagNonce)
-	if nonce == nil || len(nonce.Data) != monero.PaymentIdSize+1 {
+	if nonce == nil {
 		return nil, nil
 	}
 
-	if nonce.Data[0] == TxExtraNoncePaymentId {
-		return (*[monero.PaymentIdSize]byte)(nonce.Data[1:]), nil
-	} else if nonce.Data[0] == TxExtraNonceEncryptedPaymentId {
+	if len(nonce.Data) == monero.LegacyPaymentIdSize+1 && nonce.Data[0] == TxExtraNoncePaymentId {
+		return (*[monero.LegacyPaymentIdSize]byte)(nonce.Data[1:]), nil
+	} else if len(nonce.Data) == monero.PaymentIdSize+1 && nonce.Data[0] == TxExtraNonceEncryptedPaymentId {
 		return nil, (*[monero.PaymentIdSize]byte)(nonce.Data[1:])
 	}
 	return nil, nil

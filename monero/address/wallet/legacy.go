@@ -85,10 +85,7 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.
 			continue
 		}
 
-		for _, pub := range txPubs.Scan(out.Index) {
-			if pub == nil {
-				continue
-			}
+		for pub := range txPubs.Scan(out.Index) {
 
 			if _, err := publicKey.SetBytes(pub[:]); err != nil {
 				continue
@@ -163,10 +160,7 @@ func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transacti
 			continue
 		}
 
-		for _, pub := range txPubs.Scan(out.Index) {
-			if pub == nil {
-				continue
-			}
+		for pub := range txPubs.Scan(out.Index) {
 
 			enote := carrot.CoinbaseEnoteV1{
 				OneTimeAddress:  out.EphemeralPublicKey,
@@ -203,10 +197,7 @@ func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, out
 			continue
 		}
 
-		for _, pub := range txPubs.Scan(out.Index) {
-			if pub == nil {
-				continue
-			}
+		for pub := range txPubs.Scan(out.Index) {
 
 			enote := carrot.EnoteV1{
 				OneTimeAddress:   out.EphemeralPublicKey,
