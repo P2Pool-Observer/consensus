@@ -504,7 +504,7 @@ func (c *MainChain) HandleMinerData(minerData *p2pooltypes.MinerData) {
 	for _, h := range missingHeights {
 		wg.Add(1)
 		go func(height uint64) {
-			wg.Done()
+			defer wg.Done()
 			if err := c.getBlockHeader(height); err != nil {
 				utils.Errorf("MainChain", "%s", err)
 			}
