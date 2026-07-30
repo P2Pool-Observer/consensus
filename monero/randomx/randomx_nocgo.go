@@ -14,7 +14,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 	fasthex "git.gammaspectra.live/P2Pool/go-hex"
-	"git.gammaspectra.live/P2Pool/go-randomx/v4"
+	"git.gammaspectra.live/P2Pool/go-randomx/v5"
 )
 
 type hasherCollection struct {
@@ -112,7 +112,7 @@ func ConsensusHash(buf []byte) types.Hash {
 
 	memory := cache.GetMemory()
 	// #nosec G103 -- blocks -> bytes
-	scratchpad := unsafe.Slice((*byte)(unsafe.Pointer(memory)), len(memory)*len(memory[0])*int(unsafe.Sizeof(uint64(0))))
+	scratchpad := unsafe.Slice((*byte)(unsafe.Pointer(unsafe.SliceData(memory))), len(memory)*int(unsafe.Sizeof(memory[0])))
 	defer runtime.KeepAlive(cache)
 
 	return consensusHash(scratchpad)

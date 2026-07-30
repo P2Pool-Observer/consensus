@@ -7,7 +7,7 @@ require (
 	git.gammaspectra.live/P2Pool/blake2b v0.42.1
 	git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20260623010819-f3b0caff06be
 	git.gammaspectra.live/P2Pool/go-hex v0.0.0-20251214231021-098f65fc1214
-	git.gammaspectra.live/P2Pool/go-randomx/v4 v4.7.0
+	git.gammaspectra.live/P2Pool/go-randomx/v5 v5.0.0
 	git.gammaspectra.live/P2Pool/helioselene v0.0.0-20260623011100-0eae007ff3c6
 	git.gammaspectra.live/P2Pool/monero-base58 v1.0.0
 	git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0
@@ -25,5 +25,6 @@ require (
 // External dependencies
 require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	lukechampine.com/uint128 v1.3.0
 )

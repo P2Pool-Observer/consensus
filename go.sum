@@ -4,8 +4,8 @@ git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20260623010819-f3b0caff06be h1:
 git.gammaspectra.live/P2Pool/edwards25519 v0.0.0-20260623010819-f3b0caff06be/go.mod h1:FZsrMWGucMP3SZamzrd7m562geIs5zp1O/9MGoiAKH0=
 git.gammaspectra.live/P2Pool/go-hex v0.0.0-20251214231021-098f65fc1214 h1:MWH8m0+hFBHVniKvkLy1rbVODLv6uq4/fYmL8IPcuJQ=
 git.gammaspectra.live/P2Pool/go-hex v0.0.0-20251214231021-098f65fc1214/go.mod h1:b4whW/umqLY4eVZ4eaSgumFQNIFPCrO20AQoSR0vS5s=
-git.gammaspectra.live/P2Pool/go-randomx/v4 v4.7.0 h1:bgsnAaOAyBMIU6hmg7JibsoTeSt9C6PbtEHn1fMvPtg=
-git.gammaspectra.live/P2Pool/go-randomx/v4 v4.7.0/go.mod h1:w0GfXJAM8bA5xI6TYWBc1u6fGD0lLS30LNwNncjrZFU=
+git.gammaspectra.live/P2Pool/go-randomx/v5 v5.0.0 h1:MMj0xKsRe1gndV2GSM/ENE9n4dePXlmypM5QEFxQZ6g=
+git.gammaspectra.live/P2Pool/go-randomx/v5 v5.0.0/go.mod h1:M2AuOHnEZx8QpzQnxsdXEGoDEVknHNez2xa/KPW6tns=
 git.gammaspectra.live/P2Pool/helioselene v0.0.0-20260623011100-0eae007ff3c6 h1:jhs5HrnK6CHzHIaE9ylwna+yRkaM71yMKpwWH9txfiY=
 git.gammaspectra.live/P2Pool/helioselene v0.0.0-20260623011100-0eae007ff3c6/go.mod h1:ZLah17N0xUmFZfiSUwXUXiEREynns5h7UOJHATahX4k=
 git.gammaspectra.live/P2Pool/monero-base58 v1.0.0 h1:s8LZxVNc93YEs2NCCNWZ7CKr8RbEb031y6Wkvhn+TS4=
@@ -16,6 +16,8 @@ git.gammaspectra.live/P2Pool/zmq4 v0.99.0 h1:DYjOTqZKurPLn+/OvC8wFE0+cMnw9bp6CQn
 git.gammaspectra.live/P2Pool/zmq4 v0.99.0/go.mod h1:VZEQMCQTRVzrvGZl1E225PPKHl9UQ47CEBvrYkqWKZs=
 github.com/hashicorp/golang-lru/v2 v2.0.7 h1:a+bsQ5rvGLjzHuww6tVxozPZFVghXaHOwFs4luLUK2k=
 github.com/hashicorp/golang-lru/v2 v2.0.7/go.mod h1:QeFd9opnmA6QUJc5vARoKUSoFhyfM2/ZepoAG6RGpeM=
+github.com/klauspost/cpuid/v2 v2.4.0 h1:S6Hrbc7+ywsr0r+RLapfGBHfyefhCTwEh3A0tV913Dw=
+github.com/klauspost/cpuid/v2 v2.4.0/go.mod h1:19jmZ9mjzoF//ddRSUsv0zfBTJWh3QJh9FNxZTMrGxU=
 golang.org/x/crypto v0.54.0 h1:YLIA59K4fiNzHzjnZt2tUJQjQtUWfWbeHBqKtk3eScw=
 golang.org/x/crypto v0.54.0/go.mod h1:KWL8ny2AZdGR2cWmzeHrp2azQPGogOv+HeQaVEXC2dk=
 golang.org/x/net v0.57.0 h1:K5+3DljvIuDG9/Jv9rvyMywYNFCQ9RSUY6OOTTkT+tE=
