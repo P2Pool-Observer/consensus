@@ -74,6 +74,9 @@ var testTransactions = []types.Hash{
 
 	// custom tool outputs
 
+	// mysterious minergate tag
+	types.MustHashFromString("c67bff93bfb1ddad87994b44461be681b4ffb3c9b2c75ef7bffc2c52b880e4a3"),
+
 	// first p2pool coinbase
 	types.MustHashFromString("55f934195bd4450fa210304f51fd6687a4cb9eda58fe593a9cf704116daac48b"),
 	// recent p2pool coinbase
