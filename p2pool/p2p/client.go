@@ -855,7 +855,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				peerList := c.Owner.PeerList()
 				// #nosec G404
 				unsafeRandom.Shuffle(len(peerList), func(i, j int) {
-					peerList[i] = peerList[j]
+					peerList[i], peerList[j] = peerList[j], peerList[i]
 				})
 				for _, p := range c.Owner.PeerList() {
 					if p.AddressPort.Addr().Is4In6() || p.AddressPort.Addr().Is6() {
@@ -892,7 +892,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 						c.Ban(DefaultBanTime, err)
 						return
 					} else {
-						if _, err = c.Read(rawIp[:]); err != nil {
+						if _, err = utils.ReadFullNoEscape(c, rawIp[:]); err != nil {
 							c.Ban(DefaultBanTime, err)
 							return
 						} else if err = utils.ReadLittleEndianInteger(c, &port); err != nil {
@@ -957,6 +957,9 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				return
 			} else if dataSize == 0 {
 				break
+			} else if dataSize > p2pool.MaxBufferSize {
+				c.Ban(DefaultBanTime, errors.New("aux job donation too big"))
+				return
 			}
 
 			r := bufio.NewReader(utils.LimitByteReader(c, int64(dataSize)))
@@ -980,8 +983,11 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 				//TODO warn
 				c.Ban(DefaultBanTime, err)
 				return
-			} else if dataSize == 0 || dataSize > sidechain.PoolBlockMaxTemplateSize {
+			} else if dataSize == 0 {
 				break
+			} else if dataSize > sidechain.PoolBlockMaxTemplateSize {
+				c.Ban(DefaultBanTime, err)
+				return
 			}
 
 			r := bufio.NewReader(utils.LimitByteReader(c, int64(dataSize)))
