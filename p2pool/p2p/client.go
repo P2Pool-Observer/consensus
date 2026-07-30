@@ -986,7 +986,7 @@ func (c *Client) OnConnection(ourPeerId uint64) {
 			} else if dataSize == 0 {
 				break
 			} else if dataSize > sidechain.PoolBlockMaxTemplateSize {
-				c.Ban(DefaultBanTime, err)
+				c.Ban(DefaultBanTime, errors.New("block broadcast too big"))
 				return
 			}
 
