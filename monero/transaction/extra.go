@@ -301,7 +301,9 @@ func (pubs PublicKeys) Slice() (out []curve25519.PublicKeyBytes) {
 func (pubs PublicKeys) Scan(i uint64) iter.Seq[*curve25519.PublicKeyBytes] {
 	return func(yield func(*curve25519.PublicKeyBytes) bool) {
 		if pubs.PublicKey != curve25519.ZeroPublicKeyBytes {
-			yield(&pubs.PublicKey)
+			if !yield(&pubs.PublicKey) {
+				return
+			}
 		}
 
 		if len(pubs.AdditionalPublicKeys) > int(i) {
