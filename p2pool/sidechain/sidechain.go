@@ -964,15 +964,23 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 				}
 				// todo: cache buf
 				carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(rewards))
+				oneTimeAddresses := make([]curve25519.VarTimePublicKey, len(rewards))
+				oneTimeAddressesBytes := make([]curve25519.PublicKeyBytes, len(rewards))
 
 				if err := utils.SplitWork(-2, uint64(len(rewards)), func(workIndex uint64, workerIndex int) error {
-					carrotEnotes[workIndex] = CalculateEnoteCarrot(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, rewards[workIndex])
-					if carrotEnotes[workIndex] == nil {
-						return utils.ErrorfNoEscape("invalid carrot enote at index %d", workIndex)
-					}
+					CalculateEnoteCarrotOneTimeAddress(c.derivationCache, &shares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, rewards[workIndex], &oneTimeAddresses[workIndex])
 					return nil
 				}, nil); err != nil {
 					return nil, err
+				}
+				// batch invert bytes
+				curve25519.BatchBytes(utils.ValuesToPointers(oneTimeAddresses), oneTimeAddressesBytes)
+				// do not parallelize the cheap work
+				for i := range rewards {
+					carrotEnotes[i] = CalculateEnoteCarrotFinalize(c.DerivationCache(), &shares[i].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, rewards[i], oneTimeAddressesBytes[i])
+					if carrotEnotes[i] == nil {
+						return nil, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
+					}
 				}
 
 				// sort

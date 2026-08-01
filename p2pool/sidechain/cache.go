@@ -33,6 +33,13 @@ type DerivationCacheInterface interface {
 	GetCarrotCoinbaseEnote(a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) *carrot.CoinbaseEnoteV1
 }
 
+type BatchDerivationCacheInterface interface {
+	DerivationCacheInterface
+
+	GetCarrotCoinbaseOneTimeAddress(a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, Ko *curve25519.VarTimePublicKey) *curve25519.VarTimePublicKey
+	GetCarrotCoinbaseFinalizeEnote(a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, oneTimeAddress curve25519.PublicKeyBytes) *carrot.CoinbaseEnoteV1
+}
+
 type DerivationCache struct {
 	carrotEnoteCache        utils.Cache[carrotEnoteCacheKey, carrotEnoteCache]
 	deterministicKeyCache   utils.Cache[deterministicTransactionCacheKey, *crypto.KeyPair[curve25519.VarTimeOperations]]
@@ -127,7 +134,46 @@ func (d *DerivationCache) getDerivation(viewPublicKeyBytes curve25519.PublicKeyB
 	}
 }
 
-func (d *DerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) *carrot.CoinbaseEnoteV1 {
+func (d *DerivationCache) GetCarrotCoinbaseOneTimeAddress(a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, Ko *curve25519.VarTimePublicKey) *curve25519.VarTimePublicKey {
+	var key carrotEnoteCacheKey
+	copy(key[:], a[:])
+	copy(key[curve25519.PublicKeySize*2+1:], seed[:])
+	binary.LittleEndian.PutUint64(key[curve25519.PublicKeySize*2+1+types.HashSize:], blockIndex)
+
+	proposal := carrot.PaymentProposalV1[curve25519.VarTimeOperations]{
+		Destination: carrot.DestinationV1{
+			Address: *a,
+		},
+		Amount:     amount,
+		Randomness: carrot.GetP2PoolDeterministicCarrotOutputRandomness(&blake2b.Digest{}, seed, blockIndex, a.SpendPublicKey(), a.ViewPublicKey()),
+	}
+
+	// assume all entries here have been checked ahead of time
+	proposal.UnsafeForceTorsionChecked()
+
+	var hasher blake2b.Digest
+
+	if kp, ok := d.carrotEnoteCache.Get(key); ok {
+		// calculate non-cacheable part
+		return proposal.CoinbaseOutputOneTimeAddress(&hasher, Ko, kp.SecretSenderReceiver)
+	} else {
+		inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
+		ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, err := proposal.OutputPartial(&hasher, inputContext[:], true)
+		if err != nil {
+			return nil
+		}
+		d.carrotEnoteCache.Set(key, carrotEnoteCache{
+			EphemeralPubkey:      ephemeralPubkey,
+			SenderReceiverUnctx:  senderReceiverUnctx,
+			SecretSenderReceiver: secretSenderReceiver,
+		})
+
+		// calculate non-cacheable part
+		return proposal.CoinbaseOutputOneTimeAddress(&hasher, Ko, secretSenderReceiver)
+	}
+}
+
+func (d *DerivationCache) GetCarrotCoinbaseFinalizeEnote(a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, oneTimeAddress curve25519.PublicKeyBytes) *carrot.CoinbaseEnoteV1 {
 	var key carrotEnoteCacheKey
 	copy(key[:], a[:])
 	copy(key[curve25519.PublicKeySize*2+1:], seed[:])
@@ -150,7 +196,7 @@ func (d *DerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSub
 
 	if kp, ok := d.carrotEnoteCache.Get(key); ok {
 		// calculate non-cacheable part
-		proposal.CoinbaseOutputFromPartial(&hasher, &enote, inputContext[:], kp.EphemeralPubkey, kp.SenderReceiverUnctx, kp.SecretSenderReceiver)
+		proposal.CoinbaseOutputFinalize(&hasher, &enote, inputContext[:], kp.EphemeralPubkey, kp.SenderReceiverUnctx, kp.SecretSenderReceiver, oneTimeAddress)
 		enote.BlockIndex = blockIndex
 
 		return &enote
@@ -166,9 +212,15 @@ func (d *DerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSub
 		})
 
 		// calculate non-cacheable part
-		proposal.CoinbaseOutputFromPartial(&hasher, &enote, inputContext[:], ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver)
+		proposal.CoinbaseOutputFinalize(&hasher, &enote, inputContext[:], ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, oneTimeAddress)
 		enote.BlockIndex = blockIndex
 
 		return &enote
 	}
+}
+
+func (d *DerivationCache) GetCarrotCoinbaseEnote(a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64) *carrot.CoinbaseEnoteV1 {
+	var Ko curve25519.VarTimePublicKey
+	d.GetCarrotCoinbaseOneTimeAddress(a, seed, blockIndex, amount, &Ko)
+	return d.GetCarrotCoinbaseFinalizeEnote(a, seed, blockIndex, amount, Ko.AsBytes())
 }

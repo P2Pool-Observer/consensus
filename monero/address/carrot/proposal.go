@@ -115,10 +115,8 @@ func (p *PaymentProposalV1[T]) Check(isCoinbase bool) error {
 	return nil
 }
 
-// CoinbaseOutputFromPartial Make a coinbase payment output from OutputPartial values
-func (p *PaymentProposalV1[T]) CoinbaseOutputFromPartial(hasher *blake2b.Digest, enote *CoinbaseEnoteV1, inputContext []byte, ephemeralPubkey, senderReceiverUnctx curve25519.MontgomeryPoint, secretSenderReceiver types.Hash) {
-	enote.EphemeralPubKey = ephemeralPubkey
-
+// CoinbaseOutputOneTimeAddress Calculate a coinbase output one time address
+func (p *PaymentProposalV1[T]) CoinbaseOutputOneTimeAddress(hasher *blake2b.Digest, Ko *curve25519.PublicKey[T], secretSenderReceiver types.Hash) *curve25519.PublicKey[T] {
 	var spendPub curve25519.PublicKey[T]
 	if _, err := spendPub.SetBytes(p.Destination.Address.SpendPublicKey()[:]); err != nil {
 		panic(err)
@@ -130,8 +128,17 @@ func (p *PaymentProposalV1[T]) CoinbaseOutputFromPartial(hasher *blake2b.Digest,
 		// 2. get other parts: k_a, C_a, Ko, a_enc, pid_enc
 		{
 			// 3. Ko = K^j_s + K^o_ext = K^j_s + (k^o_g G + k^o_t T)
-			enote.OneTimeAddress = makeOneTimeAddressCoinbase(hasher, secretSenderReceiver, p.Amount, &spendPub)
+			return makeOneTimeAddressCoinbaseWithBytes(hasher, Ko, secretSenderReceiver, p.Amount, &spendPub, *p.Destination.Address.SpendPublicKey())
 		}
+	}
+}
+
+func (p *PaymentProposalV1[T]) CoinbaseOutputFinalize(hasher *blake2b.Digest, enote *CoinbaseEnoteV1, inputContext []byte, ephemeralPubkey, senderReceiverUnctx curve25519.MontgomeryPoint, secretSenderReceiver types.Hash, oneTimeAddress curve25519.PublicKeyBytes) {
+	enote.EphemeralPubKey = ephemeralPubkey
+	enote.OneTimeAddress = oneTimeAddress
+
+	// 4. build the output enote address pieces
+	{
 
 		// 3. vt = H_3(s_sr || input_context || Ko)
 		enote.ViewTag = types.MakeFixed(makeViewTag(hasher, senderReceiverUnctx, inputContext, enote.OneTimeAddress))
@@ -157,7 +164,8 @@ func (p *PaymentProposalV1[T]) CoinbaseOutput(enote *CoinbaseEnoteV1, blockIndex
 		return err
 	}
 
-	p.CoinbaseOutputFromPartial(&hasher, enote, inputContext[:], ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver)
+	oneTimeAddress := p.CoinbaseOutputOneTimeAddress(&hasher, new(curve25519.PublicKey[T]), secretSenderReceiver)
+	p.CoinbaseOutputFinalize(&hasher, enote, inputContext[:], ephemeralPubkey, senderReceiverUnctx, secretSenderReceiver, oneTimeAddress.AsBytes())
 
 	enote.BlockIndex = blockIndex
 

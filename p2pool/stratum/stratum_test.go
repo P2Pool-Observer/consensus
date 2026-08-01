@@ -455,19 +455,20 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, minerData *p2
 			t.Fatal("expected tip")
 		}
 
-		var pool mempool.Mempool
-		// add a fake tx every iteration to push limit
-		for i := range 8 {
-			pool = append(pool, &mempool.Entry{
-				Id:                crypto.Keccak256([]byte(utils.SprintfNoEscape("%d-%d", b.Side.Height, i))),
-				BlobSize:          0,
-				Weight:            1,
-				Fee:               unsafeRandom.Uint64N(HighFeeValue),
-				TimeReceivedMilli: time.Now().AddDate(0, 0, -1).UnixMilli(),
-			})
+		if len(stratumServer.mempool) < 1000 {
+			var pool mempool.Mempool
+			// add a fake tx every iteration to push limit
+			for i := range 4 {
+				pool = append(pool, &mempool.Entry{
+					Id:                crypto.Keccak256([]byte(utils.SprintfNoEscape("%d-%d", b.Side.Height, i))),
+					BlobSize:          0,
+					Weight:            1,
+					Fee:               unsafeRandom.Uint64N((HighFeeValue * 3) / 2),
+					TimeReceivedMilli: time.Now().AddDate(0, 0, -1).UnixMilli(),
+				})
+			}
+			stratumServer.HandleMempoolData(pool)
 		}
-		// add also a heavy one to increase weight past limit
-		stratumServer.HandleMempoolData(pool)
 
 		if i > 0 && i%7 == 0 {
 			// do uncle
@@ -482,13 +483,15 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, minerData *p2
 }
 
 func TestStratumServer_Genesis(t *testing.T) {
+	const n = 800
+	const window = 216
 	for _, version := range []sidechain.ShareVersion{
 		sidechain.ShareVersion_V2,
 		sidechain.ShareVersion_V3,
 	} {
 		const n = 800
 		t.Run(fmt.Sprintf("V%d", uint8(version)), func(t *testing.T) {
-			consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 1, sidechain.SmallestMinimumDifficulty, 216, 20)
+			consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 1, sidechain.SmallestMinimumDifficulty, window, 20)
 			consensus.HardForks = []monero.HardFork{
 				{Version: uint8(version)},
 			}
@@ -496,13 +499,27 @@ func TestStratumServer_Genesis(t *testing.T) {
 		})
 	}
 
+	// run hashing
+	t.Run("RandomX", func(t *testing.T) {
+		consensus := sidechain.NewConsensus(sidechain.NetworkMainnet, "test", "", "", 1, sidechain.SmallestMinimumDifficulty, window, 20)
+
+		// this is unsupported and breaks the hash id, just for testing
+		consensus.MinimumDifficulty = 1
+
+		consensus.HardForks = []monero.HardFork{
+			{Version: uint8(sidechain.ShareVersion_V3)},
+		}
+		// less that default due to PoW
+		testFromGenesisFakeTime(t, consensus, nil, 32)
+	})
+
 	t.Run("Testnet", func(t *testing.T) {
 		rpcClient, _ := client.NewClient("http://127.0.0.1:28081", nil)
 		if minerData := getMinerData(rpcClient); minerData == nil {
 			t.Skip("No Testnet RPC")
 		}
 
-		consensus := sidechain.NewConsensus(sidechain.NetworkTestnet, "test", "", "", 1, 1, 60, 20)
+		consensus := sidechain.NewConsensus(sidechain.NetworkTestnet, "test", "", "", 1, sidechain.SmallestMinimumDifficulty, window, 20)
 		consensus.HardForks = []monero.HardFork{
 			{Version: uint8(sidechain.ShareVersion_V3)},
 		}
@@ -520,8 +537,7 @@ func TestStratumServer_Genesis(t *testing.T) {
 			}
 		}
 
-		// less that default due to PoW
-		testFromGenesisFakeTime(t, consensus, rpcClient, 32)
+		testFromGenesisFakeTime(t, consensus, rpcClient, n)
 	})
 }
 

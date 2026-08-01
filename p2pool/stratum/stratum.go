@@ -477,39 +477,41 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 
 	s.newTemplateData.Window.EphemeralPubKeyCache = make(map[ephemeralPubKeyCacheKey]*ephemeralPubKeyCacheEntry)
 
-	txPrivateKey := s.newTemplateData.TransactionPrivateKey
-	txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.Scalar()
+	if s.minerData.MajorVersion < monero.HardForkCarrotVersion {
+		txPrivateKey := s.newTemplateData.TransactionPrivateKey
+		txPrivateKeyScalar := s.newTemplateData.TransactionPrivateKey.Scalar()
 
-	//TODO: parallelize this
-	// generate ephemeral pubkeys based on indices
-	// TODO: actually remove this
+		//TODO: parallelize this
+		// generate ephemeral pubkeys based on indices
+		// TODO: actually remove this
 
-	var tempPubKey ephemeralPubKeyCacheKey
-	generateEphPubKeyForIndex := func(index int, addr *address.PackedAddress) {
-		if index == -1 {
-			return
+		var tempPubKey ephemeralPubKeyCacheKey
+		generateEphPubKeyForIndex := func(index int, addr *address.PackedAddress) {
+			if index == -1 {
+				return
+			}
+			copy(tempPubKey[:], addr.Bytes())
+			binary.LittleEndian.PutUint64(tempPubKey[curve25519.PublicKeySize*2:], uint64(index))
+			if e, ok := oldPubKeyCache[tempPubKey]; ok {
+				s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = e
+			} else {
+				var e ephemeralPubKeyCacheEntry
+				e.PublicKey, e.ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr, txPrivateKey, txPrivateKeyScalar, uint64(index))
+				s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = &e
+			}
 		}
-		copy(tempPubKey[:], addr.Bytes())
-		binary.LittleEndian.PutUint64(tempPubKey[curve25519.PublicKeySize*2:], uint64(index))
-		if e, ok := oldPubKeyCache[tempPubKey]; ok {
-			s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = e
-		} else {
-			var e ephemeralPubKeyCacheEntry
-			e.PublicKey, e.ViewTag = s.sidechain.DerivationCache().GetEphemeralPublicKey(addr, txPrivateKey, txPrivateKeyScalar, uint64(index))
-			s.newTemplateData.Window.EphemeralPubKeyCache[tempPubKey] = &e
-		}
+		s.newTemplateData.Window.ShuffleMapping.RangePossibleIndices(func(i int, ix0, ix1, ix2 int) {
+			if i == ShuffleMappingZeroKeyIndex {
+				// Skip zero key
+				return
+			}
+
+			share := s.newTemplateData.Window.Shares[i]
+			generateEphPubKeyForIndex(ix0, share.Address.PackedAddress())
+			generateEphPubKeyForIndex(ix1, share.Address.PackedAddress())
+			generateEphPubKeyForIndex(ix2, share.Address.PackedAddress())
+		})
 	}
-	s.newTemplateData.Window.ShuffleMapping.RangePossibleIndices(func(i int, ix0, ix1, ix2 int) {
-		if i == ShuffleMappingZeroKeyIndex {
-			// Skip zero key
-			return
-		}
-
-		share := s.newTemplateData.Window.Shares[i]
-		generateEphPubKeyForIndex(ix0, share.Address.PackedAddress())
-		generateEphPubKeyForIndex(ix1, share.Address.PackedAddress())
-		generateEphPubKeyForIndex(ix2, share.Address.PackedAddress())
-	})
 
 	s.newTemplateData.Ready = true
 
@@ -871,8 +873,15 @@ func (s *Server) createCoinbaseTransaction(shareVersion sidechain.ShareVersion, 
 
 		if txType == transaction.TxOutToCarrotV1 {
 			carrotEnotes := make([]*carrot.CoinbaseEnoteV1, len(shares))
+			oneTimeAddresses := make([]curve25519.VarTimePublicKey, len(shares))
+			oneTimeAddressesBytes := make([]curve25519.PublicKeyBytes, len(shares))
 			for i := range shares {
-				carrotEnotes[i] = sidechain.CalculateEnoteCarrot(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i])
+				sidechain.CalculateEnoteCarrotOneTimeAddress(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i], &oneTimeAddresses[i])
+			}
+			// batch invert bytes
+			curve25519.BatchBytes(utils.ValuesToPointers(oneTimeAddresses), oneTimeAddressesBytes)
+			for i := range shares {
+				carrotEnotes[i] = sidechain.CalculateEnoteCarrotFinalize(s.sidechain.DerivationCache(), &shares[i].Address, s.newTemplateData.TransactionPrivateKeySeed, s.minerData.Height, rewards[i], oneTimeAddressesBytes[i])
 				if carrotEnotes[i] == nil {
 					return transaction.P2PoolCoinbaseV2{}, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
 				}

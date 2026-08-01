@@ -138,23 +138,32 @@ func makeOneTimeAddress[T curve25519.PointOperations](hasher *blake2b.Digest, se
 	var senderExtensionPubkey curve25519.PublicKey[T]
 	makeOneTimeSenderExtensionPub(hasher, &senderExtensionPubkey, secretSenderReceiver, amountCommitment)
 
-	return deriveFromExtension(spendPub, &senderExtensionPubkey)
+	return deriveFromExtensionBytes(spendPub, &senderExtensionPubkey)
 }
 
 // makeOneTimeAddressCoinbase make_carrot_onetime_address_coinbase
 func makeOneTimeAddressCoinbase[T curve25519.PointOperations](hasher *blake2b.Digest, secretSenderReceiver types.Hash, amount uint64, mainSpendPub *curve25519.PublicKey[T]) curve25519.PublicKeyBytes {
-	var senderExtensionPubkey curve25519.PublicKey[T]
-	// K^o_ext = k^o_g G + k^o_t T
-	makeOneTimeSenderExtensionPubCoinbase(hasher, &senderExtensionPubkey, secretSenderReceiver, amount, mainSpendPub.AsBytes())
-
-	return deriveFromExtension(mainSpendPub, &senderExtensionPubkey)
+	return makeOneTimeAddressCoinbaseWithBytes(hasher, new(curve25519.PublicKey[T]), secretSenderReceiver, amount, mainSpendPub, mainSpendPub.AsBytes()).AsBytes()
 }
 
-func deriveFromExtension[T curve25519.PointOperations](spendPub, senderExtensionPubkey *curve25519.PublicKey[T]) curve25519.PublicKeyBytes {
+func makeOneTimeAddressCoinbaseWithBytes[T curve25519.PointOperations](hasher *blake2b.Digest, Ko *curve25519.PublicKey[T], secretSenderReceiver types.Hash, amount uint64, mainSpendPub *curve25519.PublicKey[T], mainSpendPubBytes curve25519.PublicKeyBytes) *curve25519.PublicKey[T] {
+	var senderExtensionPubkey curve25519.PublicKey[T]
+	// K^o_ext = k^o_g G + k^o_t T
+	makeOneTimeSenderExtensionPubCoinbase(hasher, &senderExtensionPubkey, secretSenderReceiver, amount, mainSpendPubBytes)
+	return deriveFromExtension(Ko, mainSpendPub, &senderExtensionPubkey)
+}
+
+func deriveFromExtensionBytes[T curve25519.PointOperations](spendPub, senderExtensionPubkey *curve25519.PublicKey[T]) curve25519.PublicKeyBytes {
 	// Ko = K^j_s + K^o_ext
 	var Ko curve25519.PublicKey[T]
 	Ko.Add(spendPub, senderExtensionPubkey)
 	return Ko.AsBytes()
+}
+
+func deriveFromExtension[T curve25519.PointOperations](Ko, spendPub, senderExtensionPubkey *curve25519.PublicKey[T]) *curve25519.PublicKey[T] {
+	// Ko = K^j_s + K^o_ext
+	Ko.Add(spendPub, senderExtensionPubkey)
+	return Ko
 }
 
 // makeOneTimeSenderExtensionPub make_carrot_sender_extension_pubkey

@@ -63,6 +63,32 @@ func CalculateEnoteCarrot(derivationCache DerivationCacheInterface, a *address.P
 	return getCarrotCoinbaseEnote(derivationCache, a, seed, blockIndex, amount)
 }
 
+//nolint:unused
+func _getCarrotCoinbaseFinalizeEnote(derivationCache BatchDerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, oneTimeAddress curve25519.PublicKeyBytes) *carrot.CoinbaseEnoteV1 {
+	return derivationCache.GetCarrotCoinbaseFinalizeEnote(a, seed, blockIndex, amount, oneTimeAddress)
+}
+
+//go:noescape
+//go:linkname getCarrotCoinbaseFinalizeEnote git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain._getCarrotCoinbaseFinalizeEnote
+func getCarrotCoinbaseFinalizeEnote(derivationCache BatchDerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, oneTimeAddress curve25519.PublicKeyBytes) *carrot.CoinbaseEnoteV1
+
+func CalculateEnoteCarrotFinalize(derivationCache BatchDerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, oneTimeAddress curve25519.PublicKeyBytes) (enote *carrot.CoinbaseEnoteV1) {
+	return getCarrotCoinbaseFinalizeEnote(derivationCache, a, seed, blockIndex, amount, oneTimeAddress)
+}
+
+//nolint:unused
+func _getCarrotCoinbaseOneTimeAddress(derivationCache BatchDerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, Ko *curve25519.VarTimePublicKey) *curve25519.VarTimePublicKey {
+	return derivationCache.GetCarrotCoinbaseOneTimeAddress(a, seed, blockIndex, amount, Ko)
+}
+
+//go:noescape
+//go:linkname getCarrotCoinbaseOneTimeAddress git.gammaspectra.live/P2Pool/consensus/v5/p2pool/sidechain._getCarrotCoinbaseOneTimeAddress
+func getCarrotCoinbaseOneTimeAddress(derivationCache BatchDerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, Ko *curve25519.VarTimePublicKey) *curve25519.VarTimePublicKey
+
+func CalculateEnoteCarrotOneTimeAddress(derivationCache BatchDerivationCacheInterface, a *address.PackedAddressWithSubaddress, seed types.Hash, blockIndex, amount uint64, Ko *curve25519.VarTimePublicKey) *curve25519.VarTimePublicKey {
+	return getCarrotCoinbaseOneTimeAddress(derivationCache, a, seed, blockIndex, amount, Ko)
+}
+
 func CalculateOutputCarrot(enote *carrot.CoinbaseEnoteV1, txType uint8, outputIndex uint64) transaction.Output {
 	return transaction.Output{
 		Index:                outputIndex,
