@@ -7,6 +7,8 @@ import (
 	"io"
 	"net"
 	"time"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
 const DialTimeout = 15 * time.Second
@@ -93,7 +95,7 @@ func (c *Client) Handshake(ctx context.Context) (*Node, error) {
 
 again:
 	responseHeaderB := make([]byte, LevinHeaderSizeBytes)
-	if _, err := io.ReadFull(c.conn, responseHeaderB); err != nil {
+	if _, err := utils.ReadFullNoEscape(c.conn, responseHeaderB); err != nil {
 		return nil, fmt.Errorf("read full header: %w", err)
 	}
 
@@ -124,24 +126,22 @@ again:
 	return &peerList, nil
 }
 
-func (c *Client) Ping(ctx context.Context) error {
+func (c *Client) Ping(ctx context.Context) (*Header, error) {
 	reqHeaderB := NewRequestHeader(CommandPing, 0).Bytes()
 
 	if _, err := c.conn.Write(reqHeaderB); err != nil {
-		return fmt.Errorf("write: %w", err)
+		return nil, fmt.Errorf("write: %w", err)
 	}
 
 	responseHeaderB := make([]byte, LevinHeaderSizeBytes)
-	if _, err := io.ReadFull(c.conn, responseHeaderB); err != nil {
-		return fmt.Errorf("read full header: %w", err)
+	if _, err := utils.ReadFullNoEscape(c.conn, responseHeaderB); err != nil {
+		return nil, fmt.Errorf("read full header: %w", err)
 	}
 
 	respHeader, err := NewHeaderFromBytesBytes(responseHeaderB)
 	if err != nil {
-		return fmt.Errorf("new header from resp bytes: %w", err)
+		return nil, fmt.Errorf("new header from resp bytes: %w", err)
 	}
 
-	fmt.Printf("%+v\n", respHeader)
-
-	return nil
+	return respHeader, nil
 }

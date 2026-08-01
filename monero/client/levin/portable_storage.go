@@ -22,14 +22,14 @@ const (
 
 type Entry struct {
 	Name         string
-	Serializable Serializable `json:"-,omitempty"`
-	Value        interface{}
+	Serializable Serializable `json:"-"`
+	Value        any
 }
 
 func (e Entry) String() string {
 	v, ok := e.Value.(string)
 	if !ok {
-		panic(fmt.Errorf("interface couldnt be casted to string"))
+		panic(errors.New("interface couldnt be casted to string"))
 	}
 
 	return v
@@ -38,7 +38,7 @@ func (e Entry) String() string {
 func (e Entry) Uint8() uint8 {
 	v, ok := e.Value.(uint8)
 	if !ok {
-		panic(fmt.Errorf("interface couldnt be casted to uint8"))
+		panic(errors.New("interface couldnt be casted to uint8"))
 	}
 
 	return v
@@ -47,7 +47,7 @@ func (e Entry) Uint8() uint8 {
 func (e Entry) Uint16() uint16 {
 	v, ok := e.Value.(uint16)
 	if !ok {
-		panic(fmt.Errorf("interface couldnt be casted to uint16"))
+		panic(errors.New("interface couldnt be casted to uint16"))
 	}
 
 	return v
@@ -56,7 +56,7 @@ func (e Entry) Uint16() uint16 {
 func (e Entry) Uint32() uint32 {
 	v, ok := e.Value.(uint32)
 	if !ok {
-		panic(fmt.Errorf("interface couldnt be casted to uint32"))
+		panic(errors.New("interface couldnt be casted to uint32"))
 	}
 
 	return v
@@ -65,7 +65,7 @@ func (e Entry) Uint32() uint32 {
 func (e Entry) Uint64() uint64 {
 	v, ok := e.Value.(uint64)
 	if !ok {
-		panic(fmt.Errorf("interface couldnt be casted to uint64"))
+		panic(errors.New("interface couldnt be casted to uint64"))
 	}
 
 	return v
@@ -74,7 +74,7 @@ func (e Entry) Uint64() uint64 {
 func (e Entry) Entries() Entries {
 	v, ok := e.Value.(Entries)
 	if !ok {
-		panic(fmt.Errorf("interface couldnt be casted to levin.Entries"))
+		panic(errors.New("interface couldnt be casted to levin.Entries"))
 	}
 
 	return v
@@ -96,51 +96,50 @@ type PortableStorage struct {
 
 func NewPortableStorageFromBytes(bytes []byte) (ps *PortableStorage, err error) {
 	var (
-		size = 0
-		idx  = 0
+		idx = 0
 	)
 
 	{ // sig-a
-		size = 4
+		const size = 4
 
 		if len(bytes[idx:]) < size {
-			return nil, fmt.Errorf("sig-a out of bounds")
+			return nil, errors.New("sig-a out of bounds")
 		}
 
 		sig := binary.LittleEndian.Uint32(bytes[idx : idx+size])
 		idx += size
 
-		if sig != uint32(PortableStorageSignatureA) {
-			return nil, fmt.Errorf("sig-a doesn't match")
+		if sig != PortableStorageSignatureA {
+			return nil, errors.New("sig-a doesn't match")
 		}
 	}
 
 	{ // sig-b
-		size = 4
+		const size = 4
 		if len(bytes[idx:]) < size {
-			return nil, fmt.Errorf("sig-b out of bounds")
+			return nil, errors.New("sig-b out of bounds")
 		}
 
 		sig := binary.LittleEndian.Uint32(bytes[idx : idx+size])
 		idx += size
 
-		if sig != uint32(PortableStorageSignatureB) {
-			return nil, fmt.Errorf("sig-b doesn't match")
+		if sig != PortableStorageSignatureB {
+			return nil, errors.New("sig-b doesn't match")
 		}
 	}
 
 	{ // format ver
-		size = 1
+		const size = 1
 
 		if len(bytes[idx:]) < size {
-			return nil, fmt.Errorf("version out of bounds")
+			return nil, errors.New("version out of bounds")
 		}
 
 		version := bytes[idx]
 		idx += size
 
 		if version != PortableStorageFormatVersion {
-			return nil, fmt.Errorf("version doesn't match")
+			return nil, errors.New("version doesn't match")
 		}
 	}
 
@@ -156,7 +155,7 @@ func NewPortableStorageFromBytes(bytes []byte) (ps *PortableStorage, err error) 
 	idx += n
 
 	if len(bytes[idx:]) > 0 {
-		return nil, fmt.Errorf("leftover bytes")
+		return nil, errors.New("leftover bytes")
 	}
 
 	return ps, nil
@@ -172,11 +171,11 @@ func ReadString(bytes []byte) (int, string, error) {
 	idx += n
 
 	if n < 0 {
-		return -1, "", fmt.Errorf("length out of bounds")
+		return -1, "", errors.New("length out of bounds")
 	}
 
 	if !CanonicalVarIntSize(n, strLen) {
-		return -1, "", fmt.Errorf("non-canonical length encoding")
+		return -1, "", errors.New("non-canonical length encoding")
 	}
 
 	if len(bytes[idx:]) < strLen {
@@ -196,23 +195,23 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 	idx += n
 
 	if i <= 0 {
-		return 0, nil, fmt.Errorf("invalid length")
+		return 0, nil, errors.New("invalid length")
 	}
 
 	if !CanonicalVarIntSize(n, i) {
-		return 0, nil, fmt.Errorf("non-canonical length encoding")
+		return 0, nil, errors.New("non-canonical length encoding")
 	}
 
 	entries := make(Entries, 0, min(math.MaxUint16, i))
 
-	for iter := 0; iter < i; iter++ {
+	for range i {
 		var entry Entry
 
 		if len(bytes[idx:]) < 1 {
 			return 0, nil, io.ErrUnexpectedEOF
 		}
 		lenName := int(bytes[idx])
-		idx += 1
+		idx++
 
 		if len(bytes[idx:]) < lenName {
 			return 0, nil, io.ErrUnexpectedEOF
@@ -224,7 +223,7 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 			return 0, nil, io.ErrUnexpectedEOF
 		}
 		ttype := bytes[idx]
-		idx += 1
+		idx++
 
 		n, obj, serializable, err := ReadAny(bytes[idx:], ttype)
 		if err != nil {
@@ -244,7 +243,6 @@ func ReadObject(bytes []byte) (int, Entries, error) {
 func ReadArray(ttype byte, bytes []byte) (int, Entries, error) {
 	var (
 		idx = 0
-		n   = 0
 	)
 
 	n, i, err := ReadVarInt(bytes[idx:])
@@ -254,16 +252,16 @@ func ReadArray(ttype byte, bytes []byte) (int, Entries, error) {
 	idx += n
 
 	if i < 0 {
-		return 0, nil, fmt.Errorf("invalid length")
+		return 0, nil, errors.New("invalid length")
 	}
 
 	if !CanonicalVarIntSize(n, i) {
-		return 0, nil, fmt.Errorf("non-canonical length encoding")
+		return 0, nil, errors.New("non-canonical length encoding")
 	}
 
 	entries := make(Entries, 0, min(math.MaxUint16, i))
 
-	for iter := 0; iter < i; iter++ {
+	for range i {
 		n, obj, serializable, err := ReadAny(bytes[idx:], ttype)
 		if err != nil {
 			return 0, nil, err
@@ -279,7 +277,8 @@ func ReadArray(ttype byte, bytes []byte) (int, Entries, error) {
 	return idx, entries, nil
 }
 
-func ReadAny(bytes []byte, ttype byte) (idx int, value interface{}, serializable Serializable, err error) {
+//nolint:ireturn
+func ReadAny(bytes []byte, ttype byte) (idx int, value any, serializable Serializable, err error) {
 	var (
 		n = 0
 	)
@@ -309,8 +308,8 @@ func ReadAny(bytes []byte, ttype byte) (idx int, value interface{}, serializable
 		if len(bytes[idx:]) < 1 {
 			return 0, nil, nil, io.ErrUnexpectedEOF
 		}
-		obj := uint8(bytes[idx])
-		n += 1
+		obj := bytes[idx]
+		n++
 		idx += n
 
 		return idx, obj, BoostByte(obj), nil
@@ -379,7 +378,7 @@ func ReadAny(bytes []byte, ttype byte) (idx int, value interface{}, serializable
 			return 0, nil, nil, errors.New("invalid non-canonical bool encoding")
 		}
 		obj := bytes[idx] > 0
-		n += 1
+		n++
 		idx += n
 
 		return idx, obj, BoostBool(obj), nil
@@ -429,12 +428,11 @@ func (s *PortableStorage) Bytes() ([]byte, error) {
 		body = make([]byte, 9) // fit _at least_ signatures + format ver
 		b    = make([]byte, 8) // biggest type
 
-		idx  = 0
-		size = 0
+		idx = 0
 	)
 
 	{ // signature a
-		size = 4
+		const size = 4
 
 		binary.LittleEndian.PutUint32(b, PortableStorageSignatureA)
 		copy(body[idx:], b[:size])
@@ -442,7 +440,7 @@ func (s *PortableStorage) Bytes() ([]byte, error) {
 	}
 
 	{ // signature b
-		size = 4
+		const size = 4
 
 		binary.LittleEndian.PutUint32(b, PortableStorageSignatureB)
 		copy(body[idx:], b[:size])
@@ -450,11 +448,10 @@ func (s *PortableStorage) Bytes() ([]byte, error) {
 	}
 
 	{ // format ver
-		size = 1
+		const size = 1
 
 		b[0] = PortableStorageFormatVersion
 		copy(body[idx:], b[:size])
-		idx += size
 	}
 
 	// // write_var_in

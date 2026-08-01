@@ -102,12 +102,14 @@ func (v BoostUint64) Bytes() ([]byte, error) {
 type BoostString string
 
 func (v BoostString) Bytes() ([]byte, error) {
-	b := []byte{BoostSerializeTypeString}
 
 	varInB, err := VarIn(len(v))
 	if err != nil {
 		return nil, fmt.Errorf("varin '%d': %w", len(v), err)
 	}
-
-	return append(b, append(varInB, []byte(v)...)...), nil
+	b := make([]byte, 1, 1+len(varInB)+len(v))
+	b[0] = BoostSerializeTypeString
+	b = append(b, varInB...)
+	b = append(b, []byte(v)...)
+	return b, nil
 }

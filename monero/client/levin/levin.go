@@ -24,6 +24,7 @@ const (
 
 const (
 	// Return Codes.
+
 	LevinOk                               int32 = 0
 	LevinErrorConnection                  int32 = -1
 	LevinErrorConnectionNotFound          int32 = -2
@@ -41,6 +42,7 @@ func IsValidReturnCode(c int32) bool {
 
 const (
 	// p2p admin commands.
+
 	CommandHandshake    uint32 = 1001
 	CommandTimedSync    uint32 = 1002
 	CommandPing         uint32 = 1003
@@ -65,74 +67,70 @@ func IsValidCommand(c uint32) bool {
 	return (c >= CommandHandshake && c <= CommandSupportFlags)
 }
 
+// Header Layout
 //
-// Header
-//
-//
-//       0               1               2               3
-//       0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
-//      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//      |      0x01     |      0x21     |      0x01     |      0x01     |
-//      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//      |      0x01     |      0x01     |      0x01     |      0x01     |
-//      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//      |                             Length                            |
-//      |                                                               |
-//      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//      |  E. Response  |               _   Command     _
-//      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//      		|               _ Return Code   _
-//      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//      		|Q|S|B|E|       _       Reserved_
-//      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//      		|      0x01     |      0x00     |      0x00     |
-//      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//      |     0x00      |
-//      +-+-+-+-+-+-+-+-+
-//
+//	 0               1               2               3
+//	 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7 0 1 2 3 4 5 6 7
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|      0x01     |      0x21     |      0x01     |      0x01     |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|      0x01     |      0x01     |      0x01     |      0x01     |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                             Length                            |
+//	|                                                               |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  E. Response  |               _   Command     _
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//			|               _ Return Code   _
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//			|Q|S|B|E|       _       Reserved_
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//			|      0x01     |      0x00     |      0x00     |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|     0x00      |
+//	+-+-+-+-+-+-+-+-+
 //
 // i.e.,
 //
-//	BYTE(0X01) BYTE(0X21) BYTE(0X01) BYTE(0X01)  ---.
-//							+--> protocol identification
-//	BYTE(0X01) BYTE(0X01) BYTE(0X01) BYTE(0X01)  ---'
+//		BYTE(0X01) BYTE(0X21) BYTE(0X01) ---.
+//								+--> protocol identification
+//		BYTE(0X01) ---'
 //
 //
-//	UINT64(LENGTH)	-----------------------------------> unsigned little-endian 64bit integer
-//							     length of the payload _not including_
-//							     the header. messages >100MB are rejected.
+//		UINT64(LENGTH)	-----------------------------------> unsigned little-endian 64bit integer
+//								     length of the payload _not including_
+//								     the header. messages >100MB are rejected.
 //
 //
-//	BYTE(E.RESPONSE) 4BYTE(COMMAND) 4BYTE(RET CODE)
-//         |               |		  |
-//         |               |		  |
-//         |               |	          '->  signed 32-bit little endian integer representing the response
-//         |               |		       from the peer from the last command invoked. `0` for request msgs.
-//         |               |
-//         |               '-> unsigned 32-bit little endian integer
-//         |                   representing the monero specific cmd
-//         |
-//         '-> zero-byte if no response is expected from the peer, non-zero if response is expected.
-//	       peers must respond to requests w/ this flag in the same order as received.
+//		BYTE(E.RESPONSE) 4BYTE(COMMAND) 4BYTE(RET CODE)
+//	        |               |		  |
+//	        |               |		  |
+//	        |               |	          '->  signed 32-bit little endian integer representing the response
+//	        |               |		       from the peer from the last command invoked. `0` for request msgs.
+//	        |               |
+//	        |               '-> unsigned 32-bit little endian integer
+//	        |                   representing the monero specific cmd
+//	        |
+//	        '-> zero-byte if no response is expected from the peer, non-zero if response is expected.
+//		       peers must respond to requests w/ this flag in the same order as received.
 //
 //
-//	BIT(Q) BIT(S) BIT(B) BIT(E) 3BYTE+4BIT(RESERVED)
-//         |    |      |      |
-//         |    |      |      |
-//         |    |      |      '-> set if this is the end of a frag msg
-//         |    |      |
-//         |    |      '-> set if this is the beginning of a frag msg
-//         |    |
-//         |    '-> set if the message is a response
-//         |
-//         '-> set if the message is a request
+//		BIT(Q) BIT(S) BIT(B) BIT(E) 3BYTE+4BIT(RESERVED)
+//	        |    |      |      |
+//	        |    |      |      |
+//	        |    |      |      '-> set if this is the end of a frag msg
+//	        |    |      |
+//	        |    |      '-> set if this is the beginning of a frag msg
+//	        |    |
+//	        |    '-> set if the message is a response
+//	        |
+//	        '-> set if the message is a request
 //
 //
 //
-//	BYTE(0X01) BYTE(0X00) BYTE(0X00) BYTE(0X00)
-//         |
-//         '--> version
-//
+//		BYTE(0X01) BYTE(0X00)
+//	        |
+//	        '--> version
 type Header struct {
 	Signature       uint64
 	Length          uint64
@@ -163,14 +161,13 @@ func NewHeaderFromBytesBytes(bytes []byte) (*Header, error) {
 	}
 
 	var (
-		size = 0
-		idx  = 0
+		idx = 0
 	)
 
 	header := &Header{}
 
 	{ // signature
-		size = 8
+		const size = 8
 		header.Signature = binary.LittleEndian.Uint64(bytes[idx : idx+size])
 		idx += size
 
@@ -182,19 +179,19 @@ func NewHeaderFromBytesBytes(bytes []byte) (*Header, error) {
 	}
 
 	{ // length
-		size = 8
+		const size = 8
 		header.Length = binary.LittleEndian.Uint64(bytes[idx : idx+size])
 		idx += size
 	}
 
 	{ // expects response
-		size = 1
-		header.ExpectsResponse = (bytes[idx] != 0)
+		const size = 1
+		header.ExpectsResponse = bytes[idx] != 0
 		idx += size
 	}
 
 	{ // command
-		size = 4
+		const size = 4
 		header.Command = binary.LittleEndian.Uint32(bytes[idx : idx+size])
 		idx += size
 
@@ -204,7 +201,7 @@ func NewHeaderFromBytesBytes(bytes []byte) (*Header, error) {
 	}
 
 	{ // return code
-		size = 4
+		const size = 4
 		header.ReturnCode = int32(binary.LittleEndian.Uint32(bytes[idx : idx+size]))
 		idx += size
 
@@ -214,15 +211,14 @@ func NewHeaderFromBytesBytes(bytes []byte) (*Header, error) {
 	}
 
 	{ // flags
-		size = 4
+		const size = 4
 		header.Flags = binary.LittleEndian.Uint32(bytes[idx : idx+size])
 		idx += size
 	}
 
 	{ // version
-		size = 4
+		const size = 4
 		header.Version = binary.LittleEndian.Uint32(bytes[idx : idx+size])
-		idx += size
 
 		if header.Version != LevinProtocolVersion {
 			return nil, fmt.Errorf("invalid version %x",
@@ -238,12 +234,11 @@ func (h *Header) Bytes() []byte {
 		header = make([]byte, LevinHeaderSizeBytes) // full header
 		b      = make([]byte, 8)                    // biggest type
 
-		idx  = 0
-		size = 0
+		idx = 0
 	)
 
 	{ // signature
-		size = 8
+		const size = 8
 
 		binary.LittleEndian.PutUint64(b, h.Signature)
 		copy(header[idx:], b[:size])
@@ -251,7 +246,7 @@ func (h *Header) Bytes() []byte {
 	}
 
 	{ // length
-		size = 8
+		const size = 8
 
 		binary.LittleEndian.PutUint64(b, h.Length)
 		copy(header[idx:], b[:size])
@@ -259,7 +254,7 @@ func (h *Header) Bytes() []byte {
 	}
 
 	{ // expects response
-		size = 1
+		const size = 1
 
 		if h.ExpectsResponse {
 			b[0] = 0x01
@@ -272,7 +267,7 @@ func (h *Header) Bytes() []byte {
 	}
 
 	{ // command
-		size = 4
+		const size = 4
 
 		binary.LittleEndian.PutUint32(b, h.Command)
 		copy(header[idx:], b[:size])
@@ -280,7 +275,7 @@ func (h *Header) Bytes() []byte {
 	}
 
 	{ // return code
-		size = 4
+		const size = 4
 
 		binary.LittleEndian.PutUint32(b, uint32(h.ReturnCode))
 		copy(header[idx:], b[:size])
@@ -288,7 +283,7 @@ func (h *Header) Bytes() []byte {
 	}
 
 	{ // flags
-		size = 4
+		const size = 4
 
 		binary.LittleEndian.PutUint32(b, h.Flags)
 		copy(header[idx:], b[:size])
@@ -296,11 +291,10 @@ func (h *Header) Bytes() []byte {
 	}
 
 	{ // version
-		size = 4
+		const size = 4
 
 		binary.LittleEndian.PutUint32(b, h.Version)
 		copy(header[idx:], b[:size])
-		idx += size
 	}
 
 	return header

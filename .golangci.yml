@@ -198,9 +198,9 @@ linters:
             - pkg: "golang.org/x/crypto/blake2b"
               desc: use git.gammaspectra.live/P2Pool/blake2b
             - pkg: "golang.org/x/crypto/sha3"
-              desc: use monero/crypto/NewKeccak256 or git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3
+              desc: use monero/crypto/NewKeccak256 or monero/crypto/sha3
             - pkg: "crypto/sha3"
-              desc: use monero/crypto/NewKeccak256 or git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/sha3
+              desc: use monero/crypto/NewKeccak256 or monero/crypto/sha3
         unsafeRandom:
           list-mode: lax
           deny:
@@ -211,17 +211,11 @@ linters:
           deny:
             - pkg: "git.gammaspectra.live/P2Pool/edwards25519"
               desc: use monero/crypto/curve25519
-  exclusions:
-    rules:
-
-    paths:
-      - "monero/client/levin/*"
 
 formatters:
   enable:
     - gofmt
     - goimports
-
 
 severity:
   default: error
