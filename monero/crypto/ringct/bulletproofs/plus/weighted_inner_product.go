@@ -107,10 +107,12 @@ func (wips WeightedInnerProductStatement[T]) Prove(transcript *curve25519.Scalar
 	{
 		i := 1
 		for i < len(wips.Y) {
-			yInv = append(yInv, *new(curve25519.Scalar).Invert(&wips.Y[i-1]))
+			yInv = append(yInv, wips.Y[i-1])
 			i *= 2
 		}
 	}
+	// do batch inversion
+	curve.BatchInvert(new(curve25519.Scalar), utils.ValuesToPointers(yInv)...)
 
 	var points []*curve25519.PublicKey[T]
 	var scalars []*curve25519.Scalar
