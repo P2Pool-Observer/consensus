@@ -61,12 +61,6 @@ linters:
           - pkg: "monero/client/rpc/daemon"
             ignore: true
 
-    modernize:
-      disable:
-        # todo: remove when TinyGo supports wg.Go
-        - waitgroup
-        - waitgroupgo
-
     gocritic:
       enabled-tags:
         - diagnostic

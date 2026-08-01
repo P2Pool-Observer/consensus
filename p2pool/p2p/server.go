@@ -482,18 +482,15 @@ func (s *Server) UpdateClientConnections() {
 		peer := peerList[k]
 
 		if !slices.Contains(connectedPeers, peer.AddressPort.Addr().String()) {
-			wg.Add(1)
 			attempts++
-			go func() {
-				defer wg.Done()
-
+			wg.Go(func() {
 				if s.NumOutgoingConnections.Load() >= int32(s.MaxOutgoingPeers) {
 					return
 				}
 				if _, err := s.Connect(peer.AddressPort); err != nil {
 					utils.Logf("P2PServer", "Connection to %s rejected (%s)", peer.AddressPort.String(), err.Error())
 				}
-			}()
+			})
 			i++
 		}
 
@@ -622,17 +619,13 @@ func (s *Server) Listen() (err error) {
 
 		var wg sync.WaitGroup
 		{
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				for range utils.ContextTick(s.ctx, time.Second*5) {
 					s.UpdatePeerList()
 					s.UpdateClientConnections()
 				}
-			}()
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			})
+			wg.Go(func() {
 				for range utils.ContextTick(s.ctx, time.Second) {
 					if s.SideChain().PreCalcFinished() {
 						s.ClearCachedBlocks()
@@ -655,21 +648,18 @@ func (s *Server) Listen() (err error) {
 
 					s.DownloadMissingBlocks()
 				}
-			}()
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			})
+			wg.Go(func() {
 				for range utils.ContextTick(s.ctx, time.Hour) {
 					s.RefreshOutgoingIPv6()
 				}
-			}()
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			})
+
+			wg.Go(func() {
 				for range utils.ContextTick(s.ctx, time.Minute*5) {
 					s.CleanupBanList()
 				}
-			}()
+			})
 		}
 
 		for !s.close.Load() {
