@@ -120,51 +120,105 @@ func CalculateOutputs(block *PoolBlock, consensus *Consensus, difficultyByHeight
 
 	outputs = make(transaction.Outputs, n)
 
-	if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
-		pubs = make([]curve25519.PublicKeyBytes, n)
-		carrotEnotes := make([]*carrot.CoinbaseEnoteV1, n)
+	if batchCache, ok := derivationCache.(BatchDerivationCacheInterface); ok {
+		if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
+			pubs = make([]curve25519.PublicKeyBytes, n)
+			oneTimeAddresses := make([]curve25519.VarTimePublicKey, n)
+			carrotEnotes := make([]*carrot.CoinbaseEnoteV1, n)
 
-		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
-			carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, tmpRewards[workIndex])
-			if carrotEnotes[workIndex] == nil {
-				return utils.ErrorfNoEscape("invalid carrot enote at index %d", workIndex)
+			if err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
+				CalculateEnoteCarrotOneTimeAddress(batchCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, tmpRewards[workIndex], &oneTimeAddresses[workIndex])
+				return nil
+			}, nil); err != nil {
+				return nil, nil, 0, err
 			}
-			return nil
-		}, nil)
+			// batch invert bytes
+			curve25519.BatchBytes(utils.ValuesToPointers(oneTimeAddresses), pubs)
+			// do not parallelize the cheap work
+			for i := range n {
+				carrotEnotes[i] = CalculateEnoteCarrotFinalize(batchCache, &tmpShares[i].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, tmpRewards[i], pubs[i])
+				if carrotEnotes[i] == nil {
+					return nil, nil, 0, utils.ErrorfNoEscape("invalid carrot enote at index %d", i)
+				}
+			}
 
-		if err != nil {
-			return nil, nil, 0, err
+			// sort
+			slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
+				return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
+			})
+			for i, enote := range carrotEnotes {
+				outputIndex := uint64(i)
+				outputs[outputIndex] = CalculateOutputCarrot(enote, txType, outputIndex)
+				pubs[outputIndex] = curve25519.PublicKeyBytes(enote.EphemeralPubKey)
+			}
+
+			return outputs, pubs, bottomHeight, nil
+		} else {
+			txPrivateKey := block.Side.CoinbasePrivateKey
+			txPrivateKeyScalar := block.Side.CoinbasePrivateKey.Scalar()
+
+			err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
+				addr := &tmpShares[workIndex].Address
+				if addr.IsSubaddress() {
+					return utils.ErrorfNoEscape("is not main address at index %d", workIndex)
+				}
+				outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, workIndex, tmpRewards[workIndex])
+
+				return nil
+			}, nil)
+
+			if err != nil {
+				return nil, nil, 0, err
+			}
+			return outputs, nil, bottomHeight, nil
 		}
-
-		// sort
-		slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
-			return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
-		})
-		for i, enote := range carrotEnotes {
-			outputIndex := uint64(i)
-			outputs[outputIndex] = CalculateOutputCarrot(enote, txType, outputIndex)
-			pubs[outputIndex] = curve25519.PublicKeyBytes(enote.EphemeralPubKey)
-		}
-
-		return outputs, pubs, bottomHeight, nil
 	} else {
-		txPrivateKey := block.Side.CoinbasePrivateKey
-		txPrivateKeyScalar := block.Side.CoinbasePrivateKey.Scalar()
+		if block.Main.MajorVersion >= monero.HardForkCarrotVersion {
+			pubs = make([]curve25519.PublicKeyBytes, n)
+			carrotEnotes := make([]*carrot.CoinbaseEnoteV1, n)
 
-		err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
-			addr := &tmpShares[workIndex].Address
-			if addr.IsSubaddress() {
-				return utils.ErrorfNoEscape("is not main address at index %d", workIndex)
+			err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
+				carrotEnotes[workIndex] = CalculateEnoteCarrot(derivationCache, &tmpShares[workIndex].Address, block.Side.CoinbasePrivateKeySeed, block.Main.Coinbase.MinerGenHeight, tmpRewards[workIndex])
+				if carrotEnotes[workIndex] == nil {
+					return utils.ErrorfNoEscape("invalid carrot enote at index %d", workIndex)
+				}
+				return nil
+			}, nil)
+
+			if err != nil {
+				return nil, nil, 0, err
 			}
-			outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, workIndex, tmpRewards[workIndex])
 
-			return nil
-		}, nil)
+			// sort
+			slices.SortFunc(carrotEnotes, func(a, b *carrot.CoinbaseEnoteV1) int {
+				return bytes.Compare(a.OneTimeAddress[:], b.OneTimeAddress[:])
+			})
+			for i, enote := range carrotEnotes {
+				outputIndex := uint64(i)
+				outputs[outputIndex] = CalculateOutputCarrot(enote, txType, outputIndex)
+				pubs[outputIndex] = curve25519.PublicKeyBytes(enote.EphemeralPubKey)
+			}
 
-		if err != nil {
-			return nil, nil, 0, err
+			return outputs, pubs, bottomHeight, nil
+		} else {
+			txPrivateKey := block.Side.CoinbasePrivateKey
+			txPrivateKeyScalar := block.Side.CoinbasePrivateKey.Scalar()
+
+			err = utils.SplitWork(-2, n, func(workIndex uint64, workerIndex int) error {
+				addr := &tmpShares[workIndex].Address
+				if addr.IsSubaddress() {
+					return utils.ErrorfNoEscape("is not main address at index %d", workIndex)
+				}
+				outputs[workIndex] = CalculateOutputCryptonote(derivationCache, txType, addr.PackedAddress(), txPrivateKey, txPrivateKeyScalar, workIndex, tmpRewards[workIndex])
+
+				return nil
+			}, nil)
+
+			if err != nil {
+				return nil, nil, 0, err
+			}
+			return outputs, nil, bottomHeight, nil
 		}
-		return outputs, nil, bottomHeight, nil
 	}
 }
 
