@@ -6,4 +6,4 @@ import (
 )
 
 var infinityPoint = edwards25519.NewIdentityPoint()
-var zeroScalar = curve25519.ZeroPrivateKeyBytes.Scalar()
+var zeroScalar = new(curve25519.Scalar).Zero()

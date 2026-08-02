@@ -12,7 +12,7 @@ import (
 	base58 "git.gammaspectra.live/P2Pool/monero-base58"
 )
 
-var zeroKeyPub = new(curve25519.VarTimePublicKey).ScalarBaseMult(curve25519.ZeroPrivateKeyBytes.Scalar())
+var zeroKeyPub = new(curve25519.VarTimePublicKey).ScalarBaseMult(new(curve25519.Scalar).Zero())
 
 // ZeroKeyAddress Special address with private keys set to both zero.
 // Useful to detect unsupported signatures from hardware wallets on Monero GUI
