@@ -128,7 +128,7 @@ func TestViewWallet_GeneralFund_KeyImages(t *testing.T) {
 
 }
 
-func TestViewWallet_Zero(t *testing.T) {
+func TestSpendWallet_Zero(t *testing.T) {
 	var spendKey curve25519.Scalar
 	spendKey.Zero()
 
@@ -139,17 +139,10 @@ func TestViewWallet_Zero(t *testing.T) {
 
 	t.Logf("Main Address: %s", string(wallet.Get(address.ZeroSubaddressIndex).ToBase58()))
 
-	testScanCoinbase[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
-	testScanCoinbase[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
-
-	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
-	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
-
-	testScanSelfSend[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
-	testScanSelfSend[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
+	testScan[curve25519.ConstantTimeOperations](t, wallet)
 }
 
-func TestViewWallet_Match(t *testing.T) {
+func TestSpendWallet_Match(t *testing.T) {
 	var spendKey curve25519.Scalar
 	curve25519.RandomScalar(&spendKey, rand.Reader)
 
@@ -158,12 +151,7 @@ func TestViewWallet_Match(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testScanCoinbase[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
-	testScanCoinbase[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
+	t.Logf("Main Address: %s", string(wallet.Get(address.ZeroSubaddressIndex).ToBase58()))
 
-	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
-	testScanPayment[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
-
-	testScanSelfSend[curve25519.ConstantTimeOperations](t, wallet, address.ZeroSubaddressIndex)
-	testScanSelfSend[curve25519.ConstantTimeOperations](t, wallet, testGeneralFundSubaddressIndex)
+	testScan[curve25519.ConstantTimeOperations](t, wallet)
 }

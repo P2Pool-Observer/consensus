@@ -16,6 +16,17 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
 )
 
+func testScan[T curve25519.PointOperations](t *testing.T, wallet SpendWalletInterface[T]) {
+	testScanCoinbase[T](t, wallet, address.ZeroSubaddressIndex)
+	testScanCoinbase[T](t, wallet, testGeneralFundSubaddressIndex)
+
+	testScanPayment[T](t, wallet, address.ZeroSubaddressIndex)
+	testScanPayment[T](t, wallet, testGeneralFundSubaddressIndex)
+
+	testScanSelfSend[T](t, wallet, address.ZeroSubaddressIndex)
+	testScanSelfSend[T](t, wallet, testGeneralFundSubaddressIndex)
+}
+
 func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWalletInterface[T], ix address.SubaddressIndex) {
 	addr := wallet.Get(ix)
 	if addr == nil {
