@@ -79,7 +79,7 @@ func (w *CarrotSpendWallet[T]) Opening(index address.SubaddressIndex) (keyG, key
 		carrot.MakeSubaddressScalar(&hasher, &subaddressScalar, addressIndexPreimage2, accountSpendPubBytes)
 	} else {
 		// k^j_subscal = 1
-		subaddressScalar.Set((&curve25519.PrivateKeyBytes{1}).Scalar())
+		subaddressScalar.Set(new(curve25519.Scalar).One())
 	}
 
 	keyG = new(curve25519.Scalar).Multiply(w.vw.GenerateImageKey(), &subaddressScalar)

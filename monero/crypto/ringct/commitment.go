@@ -118,7 +118,7 @@ func (a *EncryptedAmount) Decode(sharedSecret curve25519.PrivateKeyBytes, compac
 }
 
 // CoinbaseAmountBlindingFactor precompute coinbase blinding factor scalar multiplication
-var CoinbaseAmountBlindingFactor = (&curve25519.PrivateKeyBytes{1}).Scalar()
+var CoinbaseAmountBlindingFactor = new(curve25519.Scalar).One()
 var coinbaseAmountBlindingFactorPub = new(curve25519.Point).ScalarBaseMult(CoinbaseAmountBlindingFactor)
 
 // CalculateCommitmentCoinbase Specialized implementation with baked in blinding factor

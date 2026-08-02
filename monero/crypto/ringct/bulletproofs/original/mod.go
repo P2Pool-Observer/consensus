@@ -185,8 +185,6 @@ func (ags AggregateRangeStatement[T]) TranscriptTauXMuTHat(transcript curve25519
 	return t
 }
 
-var scalarOne = (&curve25519.PrivateKeyBytes{1}).Scalar()
-
 var generatorHInvEight = new(curve25519.Point).ScalarMult(invEight, crypto.GeneratorH.Point)
 var generatorGInvEight = new(curve25519.Point).ScalarMult(invEight, crypto.GeneratorG.Point)
 
@@ -216,7 +214,7 @@ func (ags AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness[T], ra
 			aL = append(aL, bulletproofs.Decompose[T](0)...)
 		}
 	}
-	aR := slices.Clone(aL).Subtract(scalarOne)
+	aR := slices.Clone(aL).Subtract(new(curve25519.Scalar).One())
 
 	var alpha curve25519.Scalar
 	curve25519.RandomScalar(&alpha, randomReader)

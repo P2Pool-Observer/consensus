@@ -65,8 +65,8 @@ func ChallengeProducts(challenges [][2]curve25519.Scalar) []curve25519.Scalar {
 }
 
 var amountScalarBit = [2]curve25519.Scalar{
-	*(&curve25519.PrivateKeyBytes{0}).Scalar(),
-	*(&curve25519.PrivateKeyBytes{1}).Scalar(),
+	*new(curve25519.Scalar).Zero(),
+	*new(curve25519.Scalar).One(),
 }
 
 func Decompose[T curve25519.PointOperations](amount uint64) (out ScalarVector[T]) {

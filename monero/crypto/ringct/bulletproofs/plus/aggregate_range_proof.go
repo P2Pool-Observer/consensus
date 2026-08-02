@@ -14,7 +14,6 @@ import (
 )
 
 var eight = (&curve25519.PrivateKeyBytes{8}).Scalar()
-var one = (&curve25519.PrivateKeyBytes{1}).Scalar()
 var invEight = new(curve25519.Scalar).Invert(eight)
 
 type AggregateRangeStatement[T curve25519.PointOperations] struct {
@@ -186,7 +185,7 @@ func (ars AggregateRangeStatement[T]) Prove(witness AggregateRangeWitness, rando
 		}
 	}
 
-	aR := slices.Clone(aL).Subtract(one)
+	aR := slices.Clone(aL).Subtract(new(curve25519.Scalar).One())
 
 	var alpha curve25519.Scalar
 	curve25519.RandomScalar(&alpha, randomReader)

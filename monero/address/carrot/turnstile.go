@@ -157,7 +157,7 @@ func (pqt PQTurnstile[T]) Verify(
 	if isSubaddress {
 		MakeSubaddressScalar(&hasher, &subaddressScalar, addressIndexPreimage2, accountSpendPub.AsBytes())
 	} else {
-		_, _ = subaddressScalar.SetCanonicalBytes((&curve25519.PrivateKeyBytes{1})[:])
+		subaddressScalar.One()
 	}
 
 	// step 6

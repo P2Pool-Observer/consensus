@@ -17,7 +17,7 @@ func AppendScalarVectorPowers[T curve25519.PointOperations](out ScalarVector[T],
 		return out
 	}
 	n := len(out)
-	out = append(out, *(&curve25519.PrivateKeyBytes{1}).Scalar(), *x)
+	out = append(out, *new(curve25519.Scalar).One(), *x)
 	var tmp curve25519.Scalar
 	for i := 2; i < size; i++ {
 		out = append(out, *tmp.Multiply(&out[i-1+n], x))
