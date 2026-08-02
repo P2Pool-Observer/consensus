@@ -16,6 +16,7 @@ var (
 	counterCofactorMult atomic.Uint64
 	counterScalarMult   atomic.Uint64
 	counterTorsion      atomic.Uint64
+	counterSetBytes     atomic.Uint64
 )
 
 func VarTimeCounterOperationsReset() {
@@ -25,6 +26,7 @@ func VarTimeCounterOperationsReset() {
 	counterCofactorMult.Store(0)
 	counterScalarMult.Store(0)
 	counterTorsion.Store(0)
+	counterSetBytes.Store(0)
 }
 
 func VarTimeCounterOperationsReport(N int, f func(v float64, metric string)) {
@@ -45,6 +47,7 @@ func VarTimeCounterOperationsReport(N int, f func(v float64, metric string)) {
 	report(counterCofactorMult.Load(), "CofactorMult")
 	report(counterScalarMult.Load(), "ScalarMult")
 	report(counterTorsion.Load(), "Torsion")
+	report(counterSetBytes.Load(), "SetBytes")
 }
 
 func (e VarTimeCounterOperations) Add(v *Point, p, q *Point) *Point {
@@ -134,6 +137,7 @@ func (e VarTimeCounterOperations) IsTorsionFree(v *Point) bool {
 }
 
 func (e VarTimeCounterOperations) SetBytes(v *Point, x []byte) (*Point, error) {
+	counterSetBytes.Add(1)
 	return counterOp.SetBytes(v, x)
 }
 
