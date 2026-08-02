@@ -130,8 +130,6 @@ func BiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T
 // Defined as H_p^2 in Carrot
 //
 // Similar to https://github.com/seraphis-migration/monero/blob/74a254f8c215986042c40e6875a0f97bd6169a1e/src/crypto/crypto.cpp#L622
-//
-//nolint:dupword
 func UnbiasedHashToPoint[T curve25519.PointOperations](dst *curve25519.PublicKey[T], preimage []byte) *curve25519.PublicKey[T] {
 	h := Blake2bPersonalized512(preimage)
 
