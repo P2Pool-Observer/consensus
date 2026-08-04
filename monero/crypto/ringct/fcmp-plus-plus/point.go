@@ -1,9 +1,18 @@
 package fcmp_plus_plus
 
-import "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
+import (
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/helioselene"
+)
 
-type HSPoint[P any, S any, F any, VF curve.Field[F]] interface {
-	curve.ExtraCurvePoint[P, S]
-	XY() (x F, y F, err error)
-	SetXY(x, y *F) (*P, error)
+type Point interface {
+	helioselene.Point | curve25519.Point | curve25519.ConstantTimePublicKey | curve25519.VarTimePublicKey
+}
+
+type Scalar interface {
+	helioselene.Scalar | curve25519.Scalar
+}
+
+type Field interface {
+	helioselene.Field
 }

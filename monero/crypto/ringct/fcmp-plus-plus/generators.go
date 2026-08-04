@@ -7,10 +7,9 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/helioselene"
 	generalized_bulletproofs "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/generalized-bulletproofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/helioselene/helios"
-	"git.gammaspectra.live/P2Pool/helioselene/selene"
 )
 
 var SeleneGeneratorsSize, HeliosGeneratorsSize = IPARows(MaxInputs, MaxLayers)
@@ -31,19 +30,19 @@ func rejectionSamplingHashToCurve[P any, V curve.Point[P]](data string, G *P) *P
 	}
 }
 
-var HeliosHashInit = rejectionSamplingHashToCurve("Monero Helios Hash Initializer", new(helios.Point))
-var SeleneHashInit = rejectionSamplingHashToCurve("Monero Selene Hash Initializer", new(selene.Point))
+var HeliosHashInit = rejectionSamplingHashToCurve("Monero Helios Hash Initializer", new(helioselene.HeliosPoint))
+var SeleneHashInit = rejectionSamplingHashToCurve("Monero Selene Hash Initializer", new(helioselene.SelenePoint))
 
 // Lazy generator init
 
-var HeliosGenerators = sync.OnceValue(func() *generalized_bulletproofs.Generators[helios.Point] {
-	return initGenerators[helios.Point, helios.Scalar, helios.Field]("Helios", HeliosGeneratorsSize)
+var HeliosGenerators = sync.OnceValue(func() *generalized_bulletproofs.Generators[helioselene.HeliosPoint] {
+	return initGenerators[helioselene.HeliosPoint, helioselene.HeliosScalar, helioselene.HeliosField]("Helios", HeliosGeneratorsSize)
 })
-var SeleneGenerators = sync.OnceValue(func() *generalized_bulletproofs.Generators[selene.Point] {
-	return initGenerators[selene.Point, selene.Scalar, selene.Field]("Selene", SeleneGeneratorsSize)
+var SeleneGenerators = sync.OnceValue(func() *generalized_bulletproofs.Generators[helioselene.SelenePoint] {
+	return initGenerators[helioselene.SelenePoint, helioselene.SeleneScalar, helioselene.SeleneField]("Selene", SeleneGeneratorsSize)
 })
 
-func initGenerators[P any, S any, F any, V HSPoint[P, S, F, VF], VF curve.Field[F]](id string, size int) *generalized_bulletproofs.Generators[P] {
+func initGenerators[P helioselene.Point, S helioselene.Scalar, F helioselene.Field, V helioselene.CurvePointWithAffine[P, S, F]](id string, size int) *generalized_bulletproofs.Generators[P] {
 
 	G := rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s G", id), new(P))
 	H := rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s H", id), new(P))

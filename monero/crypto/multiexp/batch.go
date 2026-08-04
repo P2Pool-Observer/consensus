@@ -6,7 +6,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
 )
 
-type ScalarPointPair[P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scalar[S]] struct {
+type ScalarPointPair[P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.BasicField[S]] struct {
 	S S
 	P P
 }
@@ -55,7 +55,7 @@ func (v *BatchVerifier[Id, P, S, PE, SE]) BlameVarTime() (id Id, statementFailed
 
 	if len(slice) > 0 {
 		first := slice[0]
-		if PE(multiexp[P, S, PE, SE](new(P), first.Pairs)).IsIdentity() == 0 {
+		if PE(MultiExp[P, S, PE, SE](new(P), first.Pairs)).IsIdentity() == 0 {
 			return first.Id, true
 		}
 	}
@@ -64,7 +64,7 @@ func (v *BatchVerifier[Id, P, S, PE, SE]) BlameVarTime() (id Id, statementFailed
 }
 
 func (v *BatchVerifier[Id, P, S, PE, SE]) Verify() bool {
-	return PE(multiexp(new(P), flatten(*v))).IsIdentity() == 1
+	return PE(MultiExp(new(P), flatten(*v))).IsIdentity() == 1
 }
 
 func flatten[Id any, P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scalar[S]](entries []VerifierEntry[Id, P, S, PE, SE]) (pairs []ScalarPointPair[P, S, PE, SE]) {
@@ -74,7 +74,7 @@ func flatten[Id any, P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scal
 	return pairs
 }
 
-func multiexp[P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.Scalar[S]](out *P, pairs []ScalarPointPair[P, S, PE, SE]) *P {
+func MultiExp[P any, S any, PE curve.ExtraCurvePoint[P, S], SE curve.BasicField[S]](out *P, pairs []ScalarPointPair[P, S, PE, SE]) *P {
 	if len(pairs) == 0 {
 		return PE(out).Identity()
 	} else if len(pairs) == 1 {

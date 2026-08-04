@@ -211,6 +211,11 @@ linters:
           deny:
             - pkg: "git.gammaspectra.live/P2Pool/edwards25519"
               desc: use monero/crypto/curve25519
+        helioselene:
+          list-mode: lax
+          deny:
+            - pkg: "git.gammaspectra.live/P2Pool/helioselene"
+              desc: use monero/crypto/helioselene
 
 formatters:
   enable:
