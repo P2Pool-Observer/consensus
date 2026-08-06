@@ -277,7 +277,7 @@ func matchDerivation[T curve25519.PointOperations](derivation curve25519.PublicK
 
 	sharedDataPub.ScalarBaseMult(&extensionG)
 
-	_, err := ephemeralPub.P().SetBytes(out.EphemeralPublicKey[:])
+	_, err := ephemeralPub.SetBytes(out.EphemeralPublicKey[:])
 	if err != nil {
 		return -1, nil
 	}

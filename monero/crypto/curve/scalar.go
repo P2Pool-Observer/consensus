@@ -7,17 +7,7 @@ import (
 )
 
 // Scalar A full implementation of a Scalar element with helper utilities
-type Scalar[S any] interface {
-	*S
-
-	BasicField[S]
-
-	// Marshaling
-
-	SetCanonicalBytes(x []byte) (*S, error)
-	SetUniformBytes(x []byte) (*S, error)
-	Bytes() []byte
-}
+type Scalar[S any] = Field[S]
 
 func RandomScalar[S any, SE Scalar[S]](k *S, r io.Reader) *S {
 
@@ -30,7 +20,7 @@ func RandomScalar[S any, SE Scalar[S]](k *S, r io.Reader) *S {
 			panic(err)
 		}
 
-		if _, err := SE(k).SetUniformBytes(buf[:]); err != nil {
+		if _, err := SE(k).SetWideBytes(buf[:]); err != nil {
 			panic(err)
 		}
 

@@ -4,7 +4,6 @@ import (
 	"slices"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
-	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
 )
 
 type EvilKind uint64
@@ -52,7 +51,7 @@ func EvilPointGenerator[T curve25519.PointOperations](sourceScalar *curve25519.S
 	)
 
 	// add low order and torsioned points
-	for _, torsion := range edwards25519.EightTorsion[1:] {
+	for _, torsion := range curve25519.EightTorsion[1:] {
 		pubs = append(pubs,
 			EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(&keyPair.PublicKey, curve25519.FromPoint[T](torsion)), EvilKindBase | EvilKindDerivation | EvilKindTorsion},
 			EvilPoint[T]{*new(curve25519.PublicKey[T]).Add(biasedImage, curve25519.FromPoint[T](torsion)), EvilKindDerivation | EvilKindTorsion | EvilKindKeyImage},
@@ -63,8 +62,8 @@ func EvilPointGenerator[T curve25519.PointOperations](sourceScalar *curve25519.S
 
 	// special points
 	pubs = append(pubs,
-		EvilPoint[T]{*curve25519.FromPoint[T](edwards25519.NewGeneratorPoint()), EvilKindGenerator},
-		EvilPoint[T]{*curve25519.FromPoint[T](edwards25519.NewIdentityPoint()), EvilKindLowOrder},
+		EvilPoint[T]{*curve25519.FromPoint[T](curve25519.NewGeneratorPoint()), EvilKindGenerator},
+		EvilPoint[T]{*curve25519.FromPoint[T](curve25519.NewIdentityPoint()), EvilKindLowOrder},
 	)
 
 	// filter

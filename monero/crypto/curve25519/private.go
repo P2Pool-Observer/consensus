@@ -18,7 +18,7 @@ func (k *PrivateKeyBytes) Slice() []byte {
 }
 
 func (k *PrivateKeyBytes) Scalar() *Scalar {
-	secret, _ := new(Scalar).SetCanonicalBytes((*k)[:])
+	secret, _ := new(Scalar).SetBytes((*k)[:])
 	return secret
 }
 

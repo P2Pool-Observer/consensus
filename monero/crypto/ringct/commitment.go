@@ -57,7 +57,7 @@ func AmountToScalar(out *curve25519.Scalar, amount uint64) *curve25519.Scalar {
 	// no reduction is necessary: amountBytes is always lesser than l
 	var amountBytes curve25519.PrivateKeyBytes
 	binary.LittleEndian.PutUint64(amountBytes[:], amount)
-	_, _ = out.SetCanonicalBytes(amountBytes[:])
+	_, _ = out.SetBytes(amountBytes[:])
 	return out
 }
 
@@ -119,14 +119,14 @@ func (a *EncryptedAmount) Decode(sharedSecret curve25519.PrivateKeyBytes, compac
 
 // CoinbaseAmountBlindingFactor precompute coinbase blinding factor scalar multiplication
 var CoinbaseAmountBlindingFactor = new(curve25519.Scalar).One()
-var coinbaseAmountBlindingFactorPub = new(curve25519.Point).ScalarBaseMult(CoinbaseAmountBlindingFactor)
+var coinbaseAmountBlindingFactorPub = new(curve25519.ConstantTimePublicKey).ScalarBaseMult(CoinbaseAmountBlindingFactor)
 
 // CalculateCommitmentCoinbase Specialized implementation with baked in blinding factor
 // this is faster than CalculateCommitment, but is specific only for coinbase (as it uses a fixed amount blinding key)
 func CalculateCommitmentCoinbase[T curve25519.PointOperations](out *curve25519.PublicKey[T], amount uint64) *curve25519.PublicKey[T] {
 	var amountK curve25519.Scalar
 	out.ScalarMultPrecomputed(AmountToScalar(&amountK, amount), crypto.GeneratorH)
-	return out.Add(out, curve25519.FromPoint[T](coinbaseAmountBlindingFactorPub))
+	return out.Add(out, curve25519.To[T](coinbaseAmountBlindingFactorPub))
 }
 
 // Commit generates C =aG + bH from b, a is mask

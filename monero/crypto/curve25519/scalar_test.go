@@ -13,7 +13,7 @@ func TestBytesToScalar32(t *testing.T) {
 	// force high value
 	scalarBytes[31] = 0xff
 
-	expected, err := new(Scalar).SetUniformBytes(scalarBytes[:])
+	expected, err := new(Scalar).SetWideBytes(scalarBytes[:])
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,16 +8,16 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
-type Generators[T any] struct {
-	G *T
-	H *T
+type Generators[P any] struct {
+	G P
+	H P
 
-	GBold []*T
-	HBold []*T
-	HSum  []*T
+	GBold []P
+	HBold []P
+	HSum  []P
 }
 
-func NewGenerators[P any, V curve.Point[P]](G, H *P, GBold, HBold []*P) (g *Generators[P], err error) {
+func NewGenerators[P any, PE curve.Point[P]](G, H *P, GBold, HBold []P) (g *Generators[P], err error) {
 	if len(GBold) == 0 {
 		return nil, errors.New("empty GBold")
 	}
@@ -31,10 +31,10 @@ func NewGenerators[P any, V curve.Point[P]](G, H *P, GBold, HBold []*P) (g *Gene
 
 	set := make(map[[32]byte]struct{})
 	addGenerator := func(generator *P) error {
-		if V(generator).IsIdentity() == 1 {
+		if PE(generator).IsIdentity() == 1 {
 			return errors.New("generator is identity point")
 		}
-		buf := [32]byte(V(generator).Bytes())
+		buf := [32]byte(PE(generator).Bytes())
 		if _, ok := set[buf]; ok {
 			return errors.New("duplicate generator")
 		}
@@ -51,33 +51,33 @@ func NewGenerators[P any, V curve.Point[P]](G, H *P, GBold, HBold []*P) (g *Gene
 	}
 
 	for _, generator := range GBold {
-		if err = addGenerator(generator); err != nil {
+		if err = addGenerator(&generator); err != nil {
 			return nil, err
 		}
 	}
 
 	for _, generator := range HBold {
-		if err = addGenerator(generator); err != nil {
+		if err = addGenerator(&generator); err != nil {
 			return nil, err
 		}
 	}
 
-	runningHSum := V(new(P)).Identity()
-	var HSum []*P
+	runningHSum := PE(new(P)).Identity()
+	var HSum []P
 
 	nextPowerOf2 := 1
 
 	for i, h := range HBold {
-		V(runningHSum).Add(runningHSum, h)
+		PE(runningHSum).Add(runningHSum, &h)
 		if (i + 1) == nextPowerOf2 {
-			HSum = append(HSum, V(new(P)).Set(runningHSum))
+			HSum = append(HSum, *PE(new(P)).Set(runningHSum))
 			nextPowerOf2 *= 2
 		}
 	}
 
 	return &Generators[P]{
-		G:     G,
-		H:     H,
+		G:     *G,
+		H:     *H,
 		GBold: GBold,
 		HBold: HBold,
 		HSum:  HSum,

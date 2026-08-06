@@ -8,11 +8,8 @@ import (
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
-	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
 	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
-
-type Point = edwards25519.Point
 
 const PublicKeySize = 32
 
@@ -130,10 +127,12 @@ func (v *PublicKey[T]) MultiScalarMultPoints(scalars []*Scalar, points []*Point)
 	return v
 }
 
-var identity = edwards25519.NewIdentityPoint()
-
 func (v *PublicKey[T]) Set(x *PublicKey[T]) *PublicKey[T] {
 	v.P().Set(x.P())
+	return v
+}
+func (v *PublicKey[T]) Select(a, b *PublicKey[T], cond int) *PublicKey[T] {
+	v.P().Select(a.P(), b.P(), cond)
 	return v
 }
 

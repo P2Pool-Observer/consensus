@@ -47,18 +47,14 @@ func initGenerators[P helioselene.Point, S helioselene.Scalar, F helioselene.Fie
 	G := rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s G", id), new(P))
 	H := rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s H", id), new(P))
 
-	GBold := make([]*P, size)
-	HBold := make([]*P, size)
-	for i := range size {
-		GBold[i] = new(P)
-		HBold[i] = new(P)
-	}
+	GBold := make([]P, size)
+	HBold := make([]P, size)
 
 	// parallelize
 	if err := utils.SplitWork(0, uint64(size), func(workIndex uint64, workerIndex int) error {
 		i := workIndex
-		rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s G %d", id, i), GBold[i])
-		rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s H %d", id, i), HBold[i])
+		rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s G %d", id, i), &GBold[i])
+		rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s H %d", id, i), &HBold[i])
 
 		return nil
 	}, nil); err != nil {

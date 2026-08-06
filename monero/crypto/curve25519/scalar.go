@@ -7,7 +7,115 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
 )
 
-type Scalar = edwards25519.Scalar
+// A Scalar is an integer modulo
+//
+//	l = 2^252 + 27742317777372353535851937790883648493
+//
+// which is the prime order of the edwards25519 group.
+//
+// This type works similarly to math/big.Int, and all arguments and
+// receivers are allowed to alias.
+//
+// The zero value is a valid zero element.
+//
+// Mostly a passthrough implementation of edwards25519/Scalar
+// Makes it compatible with the Field interface
+// Added: Square, IsNegative, Negate
+type Scalar edwards25519.Scalar
+
+var scalarZero = (*Scalar)(new(edwards25519.Scalar).Zero())
+
+var scalarOne = (*Scalar)(new(edwards25519.Scalar).One())
+
+func (v *Scalar) S() *edwards25519.Scalar {
+	return (*edwards25519.Scalar)(v)
+}
+
+func (v *Scalar) Zero() *Scalar {
+	*v = *scalarZero
+	return v
+}
+
+func (v *Scalar) One() *Scalar {
+	*v = *scalarOne
+	return v
+}
+
+func (v *Scalar) Add(a, b *Scalar) *Scalar {
+	return (*Scalar)(v.S().Add(a.S(), b.S()))
+}
+
+func (v *Scalar) Subtract(a, b *Scalar) *Scalar {
+	return (*Scalar)(v.S().Subtract(a.S(), b.S()))
+}
+
+func (v *Scalar) Multiply(a, b *Scalar) *Scalar {
+	return (*Scalar)(v.S().Multiply(a.S(), b.S()))
+}
+
+func (v *Scalar) MultiplyAdd(x, y, z *Scalar) *Scalar {
+	return (*Scalar)(v.S().MultiplyAdd(x.S(), y.S(), z.S()))
+}
+
+func (v *Scalar) Negate(x *Scalar) *Scalar {
+	return (*Scalar)(v.S().Negate(x.S()))
+}
+
+func (v *Scalar) Invert(x *Scalar) *Scalar {
+	return (*Scalar)(v.S().Invert(x.S()))
+}
+
+func (v *Scalar) Set(x *Scalar) *Scalar {
+	return (*Scalar)(v.S().Set(x.S()))
+}
+
+func (v *Scalar) Square(x *Scalar) *Scalar {
+	return (*Scalar)(v.S().Multiply(x.S(), x.S()))
+}
+
+func (v *Scalar) Absolute(x *Scalar) *Scalar {
+	return v.Select(new(Scalar).Negate(x), x, x.IsNegative())
+}
+
+// IsNegative returns 1 if v is negative, and 0 otherwise.
+func (v *Scalar) IsNegative() int {
+	return int(v.Bytes()[0] & 1)
+}
+
+// Equal returns 1 if v and u are equal, and 0 otherwise.
+func (v *Scalar) Equal(u *Scalar) int {
+	return v.S().Equal(u.S())
+}
+
+// Select sets v to a if cond == 1, and to b if cond == 0.
+func (v *Scalar) Select(a, b *Scalar, cond int) *Scalar {
+	return (*Scalar)(v.S().Select(a.S(), b.S(), cond))
+}
+
+// IsZero returns 1 if v is Zero, and 0 otherwise.
+func (v *Scalar) IsZero() int {
+	return v.Equal(scalarZero)
+}
+
+func (v *Scalar) Bytes() []byte {
+	return v.S().Bytes()
+}
+
+// SetBytes sets s = x, where x is a 32-byte little-endian encoding of
+// s, and returns s. If x is not a canonical encoding of s, SetBytes
+// returns nil and an error, and the receiver is unchanged.
+func (v *Scalar) SetBytes(x []byte) (*Scalar, error) {
+	ret, err := v.S().SetCanonicalBytes(x)
+	return (*Scalar)(ret), err
+}
+
+func (v *Scalar) SetWideBytes(x []byte) (*Scalar, error) {
+	ret, err := v.S().SetUniformBytes(x)
+	if err != nil {
+		return nil, err
+	}
+	return (*Scalar)(ret), nil
+}
 
 // order is the order of the Ristretto group and of the Ed25519 basepoint, i.e., l = 2^252 + 27742317777372353535851937790883648493.
 var order = [PrivateKeySize]byte{
@@ -162,7 +270,7 @@ func ScalarReduce32[T ~[PrivateKeySize]byte](s *T) {
 //
 //go:nosplit
 func BytesToScalar64(c *Scalar, buf [64]byte) {
-	_, _ = c.SetUniformBytes(buf[:])
+	_, _ = c.SetWideBytes(buf[:])
 }
 
 // BytesToScalar32 Reduces a 256-bit little endian scalar mod order
@@ -172,7 +280,7 @@ func BytesToScalar64(c *Scalar, buf [64]byte) {
 //go:nosplit
 func BytesToScalar32(c *Scalar, buf [32]byte) {
 	ScalarReduce32(&buf)
-	_, _ = c.SetCanonicalBytes(buf[:])
+	_, _ = c.SetBytes(buf[:])
 }
 
 var zeroScalar = ZeroPrivateKeyBytes.Scalar()

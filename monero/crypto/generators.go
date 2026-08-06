@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
-	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
 )
 
 func inlineKeccak[T ~[]byte | ~string](data T) []byte {
@@ -13,7 +12,7 @@ func inlineKeccak[T ~[]byte | ~string](data T) []byte {
 var (
 	// GeneratorG generator of 𝔾E
 	// G = {x, 4/5 mod q}
-	GeneratorG = curve25519.NewGenerator(edwards25519.NewGeneratorPoint())
+	GeneratorG = curve25519.NewGenerator(curve25519.NewGeneratorPoint())
 
 	// GeneratorH H_p^1(G)
 	// H = 8*to_point(keccak(G))

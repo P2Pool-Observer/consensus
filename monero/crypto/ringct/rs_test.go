@@ -13,7 +13,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 	"git.gammaspectra.live/P2Pool/go-hex"
 )
 
@@ -249,8 +248,8 @@ func TestRingSignatureLowOrderGenerator(t *testing.T) {
 
 	// prepare a low order point to twist key image
 	const torsionIndex = 1
-	torsion := curve25519.FromPoint[curve25519.ConstantTimeOperations](edwards25519.EightTorsion[torsionIndex])
-	if torsion.P().Equal(edwards25519.NewIdentityPoint()) == 1 {
+	torsion := curve25519.FromPoint[curve25519.ConstantTimeOperations](curve25519.EightTorsion[torsionIndex])
+	if torsion.IsIdentity() == 1 {
 		t.Fatal("torsion must not be identity")
 	}
 	if torsion.IsTorsionFree() {
