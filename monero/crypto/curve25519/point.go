@@ -5,8 +5,9 @@ import (
 	"errors"
 	"unsafe"
 
-	"git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
-	"git.gammaspectra.live/P2Pool/edwards25519/field"
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
+	"git.gammaspectra.live/P2Pool/edwards25519"       //nolint:depguard
+	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 )
 
 // Point represents a point on the edwards25519 curve.
