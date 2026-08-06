@@ -84,3 +84,34 @@ func NewGenerators[P any, PE curve.Point[P]](G, H *P, GBold, HBold []P) (g *Gene
 	}, nil
 
 }
+
+type ProofGenerators[P any] struct {
+	G P
+	H P
+
+	GBold []P
+	HBold []P
+}
+
+func (g *Generators[P]) Reduce(generators int) *ProofGenerators[P] {
+	if generators == 0 {
+		return nil
+	}
+
+	if generators > (math.MaxInt>>1)+1 {
+		return nil
+	}
+
+	generators = utils.NextPowerOfTwo(uint(generators))
+
+	if generators > len(g.GBold) {
+		return nil
+	}
+
+	return &ProofGenerators[P]{
+		G:     g.G,
+		H:     g.H,
+		GBold: g.GBold[:generators],
+		HBold: g.HBold[:generators],
+	}
+}

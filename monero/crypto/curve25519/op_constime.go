@@ -38,21 +38,15 @@ func (e ConstantTimeOperations) ScalarMultPrecomputed(v *Point, x *Scalar, q *Ge
 }
 
 func (e ConstantTimeOperations) DoubleScalarBaseMult(v *Point, a *Scalar, A *Point, b *Scalar) *Point {
-	aA := new(Point).ScalarMult(a, A)
-	bG := new(Point).ScalarBaseMult(b)
-	return v.Add(aA, bG)
+	return v.DoubleScalarBaseMult(a, A, b)
 }
 
 func (e ConstantTimeOperations) DoubleScalarBaseMultPrecomputed(v *Point, a *Scalar, A *Generator, b *Scalar) *Point {
-	aA := new(Point).ScalarMultPrecomputed(a, A.Table)
-	bG := new(Point).ScalarBaseMult(b)
-	return v.Add(aA, bG)
+	return v.DoubleScalarBaseMultPrecomputed(a, A.Table, b)
 }
 
 func (e ConstantTimeOperations) DoubleScalarMult(v *Point, a *Scalar, A *Point, b *Scalar, B *Point) *Point {
-	aA := new(Point).ScalarMult(a, A)
-	bB := new(Point).ScalarMult(b, B)
-	return v.Add(aA, bB)
+	return v.DoubleScalarMult(a, A, b, B)
 }
 
 func (e ConstantTimeOperations) DoubleScalarMultPrecomputed(v *Point, a *Scalar, A *Generator, b *Scalar, B *Generator) *Point {
