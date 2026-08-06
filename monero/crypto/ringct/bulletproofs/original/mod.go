@@ -86,14 +86,14 @@ func (arp *AggregateRangeProof[T]) FromReader(reader utils.ReaderAndByteReader) 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = arp.TauX.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = arp.TauX.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = arp.Mu.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = arp.Mu.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
@@ -128,21 +128,21 @@ func (arp *AggregateRangeProof[T]) FromReader(reader utils.ReaderAndByteReader) 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = arp.IP.A.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = arp.IP.A.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = arp.IP.B.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = arp.IP.B.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = arp.THat.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = arp.THat.SetBytes(sec[:]); err != nil {
 		return err
 	}
 

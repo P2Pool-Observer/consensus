@@ -69,7 +69,7 @@ func (s *Range[T]) FromReader(reader utils.ReaderAndByteReader) (err error) {
 	if _, err = utils.ReadFullNoEscape(reader, k[:]); err != nil {
 		return err
 	}
-	if _, err = s.Signatures.EE.SetCanonicalBytes(k[:]); err != nil {
+	if _, err = s.Signatures.EE.SetBytes(k[:]); err != nil {
 		return err
 	}
 	var pub curve25519.PublicKeyBytes

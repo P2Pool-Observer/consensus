@@ -52,7 +52,7 @@ func (s *Signature[T]) FromReader(reader utils.ReaderAndByteReader, decoys int) 
 		if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 			return err
 		}
-		if _, err = scalar.SetCanonicalBytes(sec[:]); err != nil {
+		if _, err = scalar.SetBytes(sec[:]); err != nil {
 			return err
 		}
 		s.S = append(s.S, scalar)
@@ -60,7 +60,7 @@ func (s *Signature[T]) FromReader(reader utils.ReaderAndByteReader, decoys int) 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = s.C1.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = s.C1.SetBytes(sec[:]); err != nil {
 		return err
 	}
 	if _, err = utils.ReadFullNoEscape(reader, s.D[:]); err != nil {

@@ -28,9 +28,9 @@ func NewSignatureFromBytes[T curve25519.PointOperations](buf []byte) *Signature[
 	}
 	signature := Signature[T]{}
 
-	if _, err := signature.C.SetCanonicalBytes(buf[:curve25519.PrivateKeySize]); err != nil {
+	if _, err := signature.C.SetBytes(buf[:curve25519.PrivateKeySize]); err != nil {
 		return nil
-	} else if _, err := signature.R.SetCanonicalBytes(buf[curve25519.PrivateKeySize:]); err != nil {
+	} else if _, err := signature.R.SetBytes(buf[curve25519.PrivateKeySize:]); err != nil {
 		return nil
 	}
 

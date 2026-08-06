@@ -45,7 +45,7 @@ func (s *Signature[T]) FromReader(reader utils.ReaderAndByteReader, decoys, elem
 				return err
 			}
 			var scalar curve25519.Scalar
-			if _, err = scalar.SetCanonicalBytes(k[:]); err != nil {
+			if _, err = scalar.SetBytes(k[:]); err != nil {
 				return err
 			}
 			ring = append(ring, scalar)
@@ -56,7 +56,7 @@ func (s *Signature[T]) FromReader(reader utils.ReaderAndByteReader, decoys, elem
 		return err
 	}
 
-	if _, err = s.CC.SetCanonicalBytes(k[:]); err != nil {
+	if _, err = s.CC.SetBytes(k[:]); err != nil {
 		return err
 	}
 	return nil

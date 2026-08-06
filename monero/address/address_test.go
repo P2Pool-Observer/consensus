@@ -22,7 +22,7 @@ var ephemeralPubKey, _ = fasthex.DecodeString("20efc1310db960b0e8d22c8b85b3414fc
 
 func init() {
 	h, _ := fasthex.DecodeString("74b98b1e7ce5fc50d1634f8634622395ec2a19a4698a016fedd8139df374ac00")
-	if _, err := privateKey.SetCanonicalBytes(h); err != nil {
+	if _, err := privateKey.SetBytes(h); err != nil {
 		utils.Panic(err)
 	}
 }

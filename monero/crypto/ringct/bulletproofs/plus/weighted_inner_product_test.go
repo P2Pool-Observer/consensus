@@ -6,14 +6,13 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/bulletproofs"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 func TestZeroWeightedInnerProduct(t *testing.T) {
 	rng := crypto.NewDeterministicTestGenerator()
 
-	P := curve25519.FromPoint[curve25519.VarTimeOperations](edwards25519.NewIdentityPoint())
-	var y edwards25519.Scalar
+	P := curve25519.FromPoint[curve25519.VarTimeOperations](curve25519.NewIdentityPoint())
+	var y curve25519.Scalar
 	curve25519.RandomScalar(&y, rng)
 
 	statement := NewWeightedInnerProductStatement(P, &y, 1)

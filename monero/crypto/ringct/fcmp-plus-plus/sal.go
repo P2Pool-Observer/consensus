@@ -264,42 +264,42 @@ func (sal *SpendAuthAndLinkability[T]) FromReader(reader utils.ReaderAndByteRead
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = sal.SAlpha.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = sal.SAlpha.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = sal.SBeta.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = sal.SBeta.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = sal.SDelta.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = sal.SDelta.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = sal.SY.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = sal.SY.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = sal.SZ.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = sal.SZ.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = sal.SR_P.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = sal.SR_P.SetBytes(sec[:]); err != nil {
 		return err
 	}
 	return nil

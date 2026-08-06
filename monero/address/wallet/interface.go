@@ -43,20 +43,6 @@ type ViewWalletInterface[T curve25519.PointOperations] interface {
 	MatchCarrotCoinbase(blockIndex uint64, outputs transaction.Outputs, txPubs transaction.PublicKeys) (index int, scan *carrot.ScanV1, addressIndex address.SubaddressIndex)
 }
 
-type LegacyScan struct {
-	Amount               uint64
-	AmountBlindingFactor curve25519.PrivateKeyBytes
-
-	ExtensionG curve25519.Scalar
-	// ExtensionT Always zero
-	ExtensionT curve25519.Scalar
-
-	SpendPub curve25519.PublicKeyBytes
-
-	PaymentId       [monero.PaymentIdSize]byte
-	LegacyPaymentId *[monero.LegacyPaymentIdSize]byte
-}
-
 type ViewWalletLegacyInterface[T curve25519.PointOperations] interface {
 	ViewWalletInterface[T]
 

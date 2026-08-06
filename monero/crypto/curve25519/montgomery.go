@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"errors"
 
-	"git.gammaspectra.live/P2Pool/edwards25519"       //nolint:depguard
 	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 	fasthex "git.gammaspectra.live/P2Pool/go-hex"
 )
@@ -186,7 +185,7 @@ func MontgomeryUnclampedScalarMult[T1 ~[32]byte](dst *MontgomeryPoint, scalar T1
 	copy(dst[:], x2.Bytes())
 }
 
-func ConvertPointE(v *edwards25519.Point) (out MontgomeryPoint) {
+func ConvertPointE(v *Point) (out MontgomeryPoint) {
 	copy(out[:], v.BytesMontgomery())
 	return out
 }

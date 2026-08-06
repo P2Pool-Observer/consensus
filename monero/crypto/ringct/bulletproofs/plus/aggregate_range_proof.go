@@ -313,21 +313,21 @@ func (arp *AggregateRangeProof[T]) FromReader(reader utils.ReaderAndByteReader) 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = arp.WIP.RAnswer.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = arp.WIP.RAnswer.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = arp.WIP.SAnswer.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = arp.WIP.SAnswer.SetBytes(sec[:]); err != nil {
 		return err
 	}
 
 	if _, err = utils.ReadFullNoEscape(reader, sec[:]); err != nil {
 		return err
 	}
-	if _, err = arp.WIP.DeltaAnswer.SetCanonicalBytes(sec[:]); err != nil {
+	if _, err = arp.WIP.DeltaAnswer.SetBytes(sec[:]); err != nil {
 		return err
 	}
 

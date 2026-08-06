@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
-	"git.gammaspectra.live/P2Pool/edwards25519"
 )
 
 type x25519TestVector struct {
@@ -90,7 +89,7 @@ func TestX25519(t *testing.T) {
 	t.Run("ConvertPointE_Base", func(t *testing.T) {
 		// generate a random point P and test that ConvertPointE(P) == ConvertPointE(-P)
 
-		G := FromPoint[VarTimeOperations](edwards25519.NewGeneratorPoint())
+		G := FromPoint[VarTimeOperations](NewGeneratorPoint())
 
 		actualB := G.Montgomery()
 

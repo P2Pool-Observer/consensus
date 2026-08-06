@@ -4,14 +4,14 @@ import "git.gammaspectra.live/P2Pool/edwards25519" //nolint:depguard
 
 type Generator struct {
 	// Point The point used as Generator
-	Point *edwards25519.Point
+	Point *Point
 	// Table Precomputed table of Point to be used in VarTime Precomputed scalar point multiplication
 	Table *edwards25519.PrecomputedTable
 }
 
-func NewGenerator(point *edwards25519.Point) *Generator {
+func NewGenerator(point *Point) *Generator {
 	return &Generator{
 		Point: point,
-		Table: edwards25519.PointTablePrecompute(point),
+		Table: edwards25519.PointTablePrecompute(point.P()),
 	}
 }

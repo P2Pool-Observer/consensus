@@ -30,14 +30,12 @@ type BasicField[F any] interface {
 	Equal(x *F) int
 }
 
-// Field A full implementation of a Field element with helper utilities
 type Field[F any] interface {
 	BasicField[F]
 
 	// Operations
 	Square(x *F) *F
 	Absolute(x *F) *F
-	Sqrt(x *F) *F
 
 	// Marshaling
 
@@ -48,6 +46,13 @@ type Field[F any] interface {
 	// Comparison
 	IsZero() int
 	IsNegative() int
+}
+
+type ExtraField[F any] interface {
+	Field[F]
+
+	// Operations
+	Sqrt(x *F) *F
 }
 
 func RandomField[F any, FE Field[F]](k *F, r io.Reader) *F {

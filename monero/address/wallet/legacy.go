@@ -15,6 +15,20 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction"
 )
 
+type LegacyScan struct {
+	Amount               uint64
+	AmountBlindingFactor curve25519.PrivateKeyBytes
+
+	ExtensionG curve25519.Scalar
+	// ExtensionT Always zero
+	ExtensionT curve25519.Scalar
+
+	SpendPub curve25519.PublicKeyBytes
+
+	PaymentId       [monero.PaymentIdSize]byte
+	LegacyPaymentId *[monero.LegacyPaymentIdSize]byte
+}
+
 type ViewWallet[T curve25519.PointOperations] struct {
 	primaryAddress  *address.Address
 	accountSpendPub curve25519.PublicKey[T]
@@ -99,7 +113,7 @@ func (w *ViewWallet[T]) Match(outputs transaction.Outputs, commitments []ringct.
 
 			sharedDataPub.ScalarBaseMult(&extensionG)
 
-			_, err := ephemeralPub.P().SetBytes(out.EphemeralPublicKey[:])
+			_, err := ephemeralPub.SetBytes(out.EphemeralPublicKey[:])
 			if err != nil {
 				return -1, nil, address.ZeroSubaddressIndex
 			}

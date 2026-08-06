@@ -52,7 +52,7 @@ func GenerateTxProofNormal[T curve25519.PointOperations](prefixHash types.Hash, 
 
 	RIsNegative := subtle.ConstantTimeByteEq(R.Bytes()[31]&0x80, 0x80)
 	// R = -R
-	R.P().Select(new(curve25519.Point).Negate(R.P()), R.P(), RIsNegative)
+	R.Select(new(curve25519.PublicKey[T]).Negate(&R), &R, RIsNegative)
 	// r = -r
 	r = new(curve25519.Scalar).Select(new(curve25519.Scalar).Negate(r), r, RIsNegative)
 

@@ -12,7 +12,7 @@ import (
 func TestKeyImageRaw(t *testing.T) {
 	sec, _ := fasthex.DecodeString("981d477fb18897fa1f784c89721a9d600bf283f06b89cb018a077f41dcefef0f")
 
-	scalar, _ := (&curve25519.Scalar{}).SetCanonicalBytes(sec)
+	scalar, _ := (&curve25519.Scalar{}).SetBytes(sec)
 	keyImage := GetBiasedKeyImage(new(curve25519.ConstantTimePublicKey), NewKeyPairFromPrivate[curve25519.ConstantTimeOperations](scalar))
 
 	if keyImage.String() != "a637203ec41eab772532d30420eac80612fce8e44f1758bc7e2cb1bdda815887" {
