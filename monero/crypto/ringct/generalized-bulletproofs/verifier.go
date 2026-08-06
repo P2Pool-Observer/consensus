@@ -33,7 +33,7 @@ func (bv *BatchVerifier[P, F, PE, FE]) Verify(generators *Generators[P]) bool {
 	for i := range bv.HBold {
 		pairs = append(pairs, PointPair{S: bv.HBold[i], P: generators.HBold[i]})
 	}
-	for i := range bv.HSum {
+	for i := range min(len(bv.HSum), len(generators.HSum)) {
 		pairs = append(pairs, PointPair{S: bv.HSum[i], P: generators.HSum[i]})
 	}
 	pairs = append(pairs, bv.Additional...)

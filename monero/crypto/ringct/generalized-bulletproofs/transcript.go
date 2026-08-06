@@ -132,7 +132,7 @@ func (t *VerifierTranscript[P, F, PE, FE]) ReadPoint(out *P) (*P, error) {
 	return PE(out).SetBytes(buf[:])
 }
 
-func (t *VerifierTranscript[P, F, PE, FE]) ReadCommitment(c, v int) (*Commitments[P, F, PE, FE], error) {
+func (t *VerifierTranscript[P, F, PE, FE]) ReadCommitments(c, v int) (*Commitments[P, F, PE, FE], error) {
 
 	var tmp P
 	var buf [8]byte
