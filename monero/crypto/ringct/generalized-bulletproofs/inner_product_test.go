@@ -14,14 +14,27 @@ import (
 )
 
 func TestZeroInnerProduct(t *testing.T) {
-	t.Run("Edwards25519", func(t *testing.T) {
-		testZeroInnerProduct[curve25519.Point, curve25519.Scalar](t, rand.Reader)
+	t.Run("Constant", func(t *testing.T) {
+		t.Run("Edwards25519", func(t *testing.T) {
+			testZeroInnerProduct[curve25519.Point, curve25519.Scalar](t, rand.Reader)
+		})
+		t.Run("Helios", func(t *testing.T) {
+			testZeroInnerProduct[helioselene.HeliosPoint, helioselene.HeliosScalar](t, rand.Reader)
+		})
+		t.Run("Selene", func(t *testing.T) {
+			testZeroInnerProduct[helioselene.SelenePoint, helioselene.SeleneScalar](t, rand.Reader)
+		})
 	})
-	t.Run("Helios", func(t *testing.T) {
-		testZeroInnerProduct[helioselene.HeliosPoint, helioselene.HeliosScalar](t, rand.Reader)
-	})
-	t.Run("Selene", func(t *testing.T) {
-		testZeroInnerProduct[helioselene.SelenePoint, helioselene.SeleneScalar](t, rand.Reader)
+	t.Run("VarTime", func(t *testing.T) {
+		t.Run("Edwards25519", func(t *testing.T) {
+			testZeroInnerProduct[curve25519.VarTimePoint, curve25519.Scalar](t, rand.Reader)
+		})
+		t.Run("Helios", func(t *testing.T) {
+			testZeroInnerProduct[helioselene.VarTimeHeliosPoint, helioselene.HeliosScalar](t, rand.Reader)
+		})
+		t.Run("Selene", func(t *testing.T) {
+			testZeroInnerProduct[helioselene.VarTimeSelenePoint, helioselene.SeleneScalar](t, rand.Reader)
+		})
 	})
 }
 
@@ -70,14 +83,27 @@ func testZeroInnerProduct[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve
 }
 
 func TestInnerProduct(t *testing.T) {
-	t.Run("Edwards25519", func(t *testing.T) {
-		testInnerProduct[curve25519.Point, curve25519.Scalar](t, rand.Reader)
+	t.Run("Constant", func(t *testing.T) {
+		t.Run("Edwards25519", func(t *testing.T) {
+			testInnerProduct[curve25519.Point, curve25519.Scalar](t, rand.Reader)
+		})
+		t.Run("Helios", func(t *testing.T) {
+			testInnerProduct[helioselene.HeliosPoint, helioselene.HeliosScalar](t, rand.Reader)
+		})
+		t.Run("Selene", func(t *testing.T) {
+			testInnerProduct[helioselene.SelenePoint, helioselene.SeleneScalar](t, rand.Reader)
+		})
 	})
-	t.Run("Helios", func(t *testing.T) {
-		testInnerProduct[helioselene.HeliosPoint, helioselene.HeliosScalar](t, rand.Reader)
-	})
-	t.Run("Selene", func(t *testing.T) {
-		testInnerProduct[helioselene.SelenePoint, helioselene.SeleneScalar](t, rand.Reader)
+	t.Run("VarTime", func(t *testing.T) {
+		t.Run("Edwards25519", func(t *testing.T) {
+			testInnerProduct[curve25519.VarTimePoint, curve25519.Scalar](t, rand.Reader)
+		})
+		t.Run("Helios", func(t *testing.T) {
+			testInnerProduct[helioselene.VarTimeHeliosPoint, helioselene.HeliosScalar](t, rand.Reader)
+		})
+		t.Run("Selene", func(t *testing.T) {
+			testInnerProduct[helioselene.VarTimeSelenePoint, helioselene.SeleneScalar](t, rand.Reader)
+		})
 	})
 }
 

@@ -9,6 +9,9 @@ import (
 type HeliosPoint = helios.Point
 type SelenePoint = selene.Point
 
+type VarTimeHeliosPoint = curve.VarTimePoint[HeliosPoint, HeliosScalar, *HeliosPoint, *HeliosScalar]
+type VarTimeSelenePoint = curve.VarTimePoint[SelenePoint, SeleneScalar, *SelenePoint, *SeleneScalar]
+
 type Point interface {
 	HeliosPoint | SelenePoint
 }
