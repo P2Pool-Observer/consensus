@@ -194,3 +194,29 @@ func (v *Point) IsTorsionFreeVarTime() bool {
 func (v *Point) MultByPrimeOrder(p *Point) *Point {
 	return (*Point)(v.P().MultByPrimeOrder(p.P()))
 }
+
+func (v *Point) Identity() *Point {
+	return v.Set(identity)
+}
+
+func (v *Point) IsIdentity() int {
+	return v.Equal(identity)
+}
+
+func (v *Point) DoubleScalarBaseMult(a *Scalar, A *Point, b *Scalar) *Point {
+	aA := new(Point).ScalarMult(a, A)
+	bG := new(Point).ScalarBaseMult(b)
+	return v.Add(aA, bG)
+}
+
+func (v *Point) DoubleScalarBaseMultPrecomputed(a *Scalar, aTable *edwards25519.PrecomputedTable, b *Scalar) *Point {
+	aA := new(Point).ScalarMultPrecomputed(a, aTable)
+	bG := new(Point).ScalarBaseMult(b)
+	return v.Add(aA, bG)
+}
+
+func (v *Point) DoubleScalarMult(a *Scalar, A *Point, b *Scalar, B *Point) *Point {
+	aA := new(Point).ScalarMult(a, A)
+	bG := new(Point).ScalarMult(b, B)
+	return v.Add(aA, bG)
+}

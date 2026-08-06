@@ -109,8 +109,6 @@ func ProofSize(inputs, layers int) int {
 	return MembershipProofSize(inputs, layers) + (inputs * (FCMP_PP_INPUT_TUPLE_SIZE_V1 + FCMP_PP_SAL_PROOF_SIZE_V1))
 }
 
-const COMMITMENT_WORD_LEN = 128
-
 func MembershipProofSize(inputs, layers int) int {
 	// AI, AO, AS, tau_x, u, t_caret, a, b for each BP
 	proofElements := 16
