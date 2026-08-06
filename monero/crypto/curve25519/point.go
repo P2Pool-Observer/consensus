@@ -22,7 +22,7 @@ type Point edwards25519.Point
 
 type VarTimePoint = curve.VarTimePoint[Point, Scalar, *Point, *Scalar]
 
-var EightTorsion = *(*[8]*Point)(unsafe.Pointer(&edwards25519.EightTorsion))
+var EightTorsion = *(*[8]*Point)(unsafe.Pointer(&edwards25519.EightTorsion)) // #nosec G103
 
 func NewGeneratorPoint() *Point {
 	return (*Point)(edwards25519.NewGeneratorPoint())

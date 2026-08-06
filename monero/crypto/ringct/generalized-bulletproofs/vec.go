@@ -83,7 +83,7 @@ func (v ScalarVector[F, FE]) Multiply(s *F) ScalarVector[F, FE] {
 }
 
 func (v ScalarVector[F, FE]) AddVec(o ScalarVector[F, FE]) ScalarVector[F, FE] {
-	if len(o) != len(v) {
+	if len(o) < len(v) {
 		panic("len mismatch")
 	}
 	return v.AddVecUnchecked(o)
@@ -97,7 +97,7 @@ func (v ScalarVector[F, FE]) AddVecUnchecked(o ScalarVector[F, FE]) ScalarVector
 }
 
 func (v ScalarVector[F, FE]) SubtractVec(o ScalarVector[F, FE]) ScalarVector[F, FE] {
-	if len(o) != len(v) {
+	if len(o) < len(v) {
 		panic("len mismatch")
 	}
 	for i := range v {
@@ -107,7 +107,7 @@ func (v ScalarVector[F, FE]) SubtractVec(o ScalarVector[F, FE]) ScalarVector[F, 
 }
 
 func (v ScalarVector[F, FE]) MultiplyVec(o ScalarVector[F, FE]) ScalarVector[F, FE] {
-	if len(o) != len(v) {
+	if len(o) < len(v) {
 		panic("len mismatch")
 	}
 	for i := range v {

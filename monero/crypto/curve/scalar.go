@@ -1,6 +1,7 @@
 package curve
 
 import (
+	"encoding/binary"
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -28,4 +29,14 @@ func RandomScalar[S any, SE Scalar[S]](k *S, r io.Reader) *S {
 			return k
 		}
 	}
+}
+
+func ScalarFromUint64[S any, SE Scalar[S]](k *S, v uint64) *S {
+	var buf [32]byte
+	binary.LittleEndian.PutUint64(buf[:], v)
+	_, err := SE(k).SetBytes(buf[:])
+	if err != nil {
+		panic(err)
+	}
+	return k
 }
