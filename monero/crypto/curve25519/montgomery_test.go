@@ -83,6 +83,20 @@ func TestX25519(t *testing.T) {
 			})
 		}
 	})
+	t.Run("BatchScalarMult", func(t *testing.T) {
+		scalars := make([]PrivateKeyBytes, len(x25519TestVectors))
+		points := make([]MontgomeryPoint, len(x25519TestVectors))
+		for i, vec := range x25519TestVectors {
+			scalars[i] = vec.Scalar
+			points[i] = vec.Point
+		}
+		MontgomeryUnclampedBatchScalarMult(scalars, points)
+		for i, vec := range x25519TestVectors {
+			if points[i] != vec.Result {
+				t.Errorf("#%d: expected %s, got %s", i, vec.Result.String(), points[i].String())
+			}
+		}
+	})
 
 	// convergence unit tests from Monero
 
@@ -141,6 +155,24 @@ func BenchmarkX25519ScalarMult(b *testing.B) {
 			vec := x25519TestVectors[n%len(x25519TestVectors)]
 			MontgomeryUnclampedScalarMult(&pub, vec.Scalar, vec.Point)
 			n++
+		}
+	})
+}
+
+func BenchmarkX25519BatchScalarMult(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		scalars := make([]PrivateKeyBytes, len(x25519TestVectors))
+		points := make([]MontgomeryPoint, len(x25519TestVectors))
+		for i, vec := range x25519TestVectors {
+			scalars[i] = vec.Scalar
+			points[i] = vec.Point
+		}
+
+		for pb.Next() {
+			MontgomeryUnclampedBatchScalarMult(scalars, points)
 		}
 	})
 }

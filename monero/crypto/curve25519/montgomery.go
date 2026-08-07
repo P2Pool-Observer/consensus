@@ -138,7 +138,62 @@ func MontgomeryScalarBaseMult[T PointOperations](dst *MontgomeryPoint, s *Scalar
 //
 // Constant Time Montgomery Ladder
 func MontgomeryUnclampedScalarMult[T1 ~[32]byte](dst *MontgomeryPoint, scalar T1, point MontgomeryPoint) {
-	var x1, x2, z2, x3, z3, tmp0, tmp1 field.Element
+	var x2, z2 field.Element
+	montgomeryUnclampedScalarMultInner(&x2, &z2, scalar, point)
+
+	z2.Invert(&z2)
+	x2.Multiply(&x2, &z2)
+
+	copy(dst[:], x2.Bytes())
+}
+
+// MontgomeryUnclampedBatchScalarMult Multiply several Scalar by the given points, and place result in points
+// Note this is done unclamped, compared to common implementations
+// Precondition: scalar must be mod l, otherwise top bit is effectively clamped: scalar[31] &= 127
+//
+// Constant Time Montgomery Ladder
+func MontgomeryUnclampedBatchScalarMult[T1 ~[32]byte](scalars []T1, points []MontgomeryPoint) {
+	if len(points) != len(scalars) {
+		panic("wrong number of points")
+	}
+
+	elementsX2 := make([]field.Element, len(points))
+	elementsZ2 := make([]field.Element, len(points))
+	for i := range points {
+		montgomeryUnclampedScalarMultInner(&elementsX2[i], &elementsZ2[i], scalars[i], points[i])
+	}
+
+	// batch inversion
+	var tmp field.Element
+	field.BatchInvert(&tmp, elementsZ2...)
+
+	// store back
+	for i := range points {
+		tmp.Multiply(&elementsX2[i], &elementsZ2[i])
+		copy(points[i][:], tmp.Bytes())
+	}
+}
+
+func MontgomeryUnclampedBatchSingleScalarMult[T1 ~[32]byte](scalar T1, points []MontgomeryPoint) {
+	elementsX2 := make([]field.Element, len(points))
+	elementsZ2 := make([]field.Element, len(points))
+	for i := range points {
+		montgomeryUnclampedScalarMultInner(&elementsX2[i], &elementsZ2[i], scalar, points[i])
+	}
+
+	// batch inversion
+	var tmp field.Element
+	field.BatchInvert(&tmp, elementsZ2...)
+
+	// store back
+	for i := range points {
+		tmp.Multiply(&elementsX2[i], &elementsZ2[i])
+		copy(points[i][:], tmp.Bytes())
+	}
+}
+
+func montgomeryUnclampedScalarMultInner[T1 ~[32]byte](x2, z2 *field.Element, scalar T1, point MontgomeryPoint) {
+	var x1, x3, z3, tmp0, tmp1 field.Element
 	_, _ = x1.SetBytes(point[:])
 
 	x2.One()
@@ -156,33 +211,28 @@ func MontgomeryUnclampedScalarMult[T1 ~[32]byte](dst *MontgomeryPoint, scalar T1
 		swap = int(b)
 
 		tmp0.Subtract(&x3, &z3)
-		tmp1.Subtract(&x2, &z2)
-		x2.Add(&x2, &z2)
+		tmp1.Subtract(x2, z2)
+		x2.Add(x2, z2)
 		z2.Add(&x3, &z3)
-		z3.Multiply(&tmp0, &x2)
-		z2.Multiply(&z2, &tmp1)
+		z3.Multiply(&tmp0, x2)
+		z2.Multiply(z2, &tmp1)
 		tmp0.Square(&tmp1)
-		tmp1.Square(&x2)
-		x3.Add(&z3, &z2)
-		z2.Subtract(&z3, &z2)
+		tmp1.Square(x2)
+		x3.Add(&z3, z2)
+		z2.Subtract(&z3, z2)
 		x2.Multiply(&tmp1, &tmp0)
 		tmp1.Subtract(&tmp1, &tmp0)
-		z2.Square(&z2)
+		z2.Square(z2)
 
 		z3.Mult121666(&tmp1)
 		x3.Square(&x3)
 		tmp0.Add(&tmp0, &z3)
-		z3.Multiply(&x1, &z2)
+		z3.Multiply(&x1, z2)
 		z2.Multiply(&tmp1, &tmp0)
 	}
 
 	x2.Swap(&x3, swap)
 	z2.Swap(&z3, swap)
-
-	z2.Invert(&z2)
-	x2.Multiply(&x2, &z2)
-
-	copy(dst[:], x2.Bytes())
 }
 
 func ConvertPointE(v *Point) (out MontgomeryPoint) {
