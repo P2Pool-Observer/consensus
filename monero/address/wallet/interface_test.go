@@ -192,7 +192,7 @@ func testScanCoinbase[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				var senderReceiverSecret types.Hash
 
 				{
-					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey(), &enote.EphemeralPubKey)
+					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey().AsBytes(), enote.EphemeralPubKey)
 
 					inputContext := carrot.MakeCoinbaseInputContext(blockIndex)
 
@@ -411,7 +411,7 @@ func testScanPayment[T curve25519.PointOperations](t *testing.T, wallet SpendWal
 				var senderReceiverSecret types.Hash
 
 				{
-					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey(), &enote.Enote.EphemeralPubKey)
+					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey().AsBytes(), enote.Enote.EphemeralPubKey)
 
 					inputContext := carrot.MakeInputContext(firstKeyImage)
 
@@ -560,7 +560,7 @@ func testScanSelfSend[T curve25519.PointOperations](t *testing.T, wallet SpendWa
 				var senderReceiverSecret types.Hash
 
 				{
-					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey(), &enote.Enote.EphemeralPubKey)
+					senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(cw.ViewWallet().ViewIncomingKey().AsBytes(), enote.Enote.EphemeralPubKey)
 
 					inputContext := carrot.MakeInputContext(firstKeyImage)
 

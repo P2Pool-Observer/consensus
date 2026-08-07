@@ -185,7 +185,7 @@ func (w *ViewWallet[T]) MatchCarrotCoinbase(blockIndex uint64, outputs transacti
 				BlockIndex:      blockIndex,
 			}
 
-			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewKeyScalar, &enote.EphemeralPubKey)
+			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(w.viewKey, enote.EphemeralPubKey)
 			if enote.TryScanEnoteChecked(scan, inputContext[:], senderReceiverUnctx, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix
@@ -223,7 +223,7 @@ func (w *ViewWallet[T]) MatchCarrot(firstKeyImage curve25519.PublicKeyBytes, out
 				FirstKeyImage:    firstKeyImage,
 			}
 
-			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(&w.viewKeyScalar, &enote.EphemeralPubKey)
+			senderReceiverUnctx := carrot.MakeUncontextualizedSharedKeyReceiver(w.viewKey, enote.EphemeralPubKey)
 			if enote.TryScanEnoteExternalReceiver(scan, inputContext[:], encryptedPaymentId, senderReceiverUnctx, w.viewKey, w.primaryAddress.SpendPub) == nil {
 				if ix, ok := w.HasSpend(scan.SpendPub); ok {
 					return int(out.Index), scan, ix

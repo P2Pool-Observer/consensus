@@ -101,6 +101,10 @@ func (v *Scalar) Bytes() []byte {
 	return v.S().Bytes()
 }
 
+func (v *Scalar) AsBytes() PrivateKeyBytes {
+	return PrivateKeyBytes(v.Bytes())
+}
+
 // SetBytes sets s = x, where x is a 32-byte little-endian encoding of
 // s, and returns s. If x is not a canonical encoding of s, SetBytes
 // returns nil and an error, and the receiver is unchanged.

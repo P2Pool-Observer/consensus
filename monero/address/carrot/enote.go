@@ -84,8 +84,8 @@ func MakeEnoteEphemeralPublicKeyCryptonote[T curve25519.PointOperations](key *cu
 }
 
 // MakeUncontextualizedSharedKeyReceiver make_carrot_uncontextualized_shared_key_receiver
-func MakeUncontextualizedSharedKeyReceiver(viewPriv *curve25519.Scalar, ephemeralPubKey *curve25519.MontgomeryPoint) (senderReceiverUnctx curve25519.MontgomeryPoint) {
-	senderReceiverUnctx.ScalarMult(viewPriv, ephemeralPubKey)
+func MakeUncontextualizedSharedKeyReceiver(viewSecret curve25519.PrivateKeyBytes, ephemeralPubKey curve25519.MontgomeryPoint) (senderReceiverUnctx curve25519.MontgomeryPoint) {
+	curve25519.MontgomeryUnclampedScalarMult(&senderReceiverUnctx, viewSecret, ephemeralPubKey)
 	return senderReceiverUnctx
 }
 

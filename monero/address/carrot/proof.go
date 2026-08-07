@@ -73,8 +73,10 @@ func GetTxProofReceiver[T curve25519.PointOperations](a address.Interface, txId 
 		panic(err)
 	}
 
+	viewSecret := curve25519.PrivateKeyBytes(viewIncoming.Bytes())
+
 	for i := range ephemeralPubKeys {
-		senderReceiverUnctx := MakeUncontextualizedSharedKeyReceiver(viewIncoming, &ephemeralPubKeys[i])
+		senderReceiverUnctx := MakeUncontextualizedSharedKeyReceiver(viewSecret, ephemeralPubKeys[i])
 
 		sharedSecret[i] = curve25519.PublicKeyBytes(senderReceiverUnctx)
 		if sa, ok := a.(address.InterfaceSubaddress); ok && sa.IsSubaddress() {

@@ -74,8 +74,8 @@ func TestConverge(t *testing.T) {
 
 	t.Run("make_carrot_uncontextualized_shared_key_receiver", func(t *testing.T) {
 		result := MakeUncontextualizedSharedKeyReceiver(
-			testViewIncoming.Scalar(),
-			&testEphemeralPubSubaddress,
+			testViewIncoming,
+			testEphemeralPubSubaddress,
 		)
 		if result != testSenderReceiverUnctx {
 			t.Fatalf("expected: %x, got: %x", testSenderReceiverUnctx, result)
