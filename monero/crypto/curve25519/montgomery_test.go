@@ -144,35 +144,66 @@ func TestX25519(t *testing.T) {
 	})
 }
 
-func BenchmarkX25519ScalarMult(b *testing.B) {
+func BenchmarkX25519ScalarBaseMult(b *testing.B) {
+	var n int
+	var pub MontgomeryPoint
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
-		var n int
-		var pub MontgomeryPoint
-		for pb.Next() {
-			vec := x25519TestVectors[n%len(x25519TestVectors)]
-			MontgomeryUnclampedScalarMult(&pub, vec.Scalar, vec.Point)
+	vecs := make([]Scalar, len(x25519TestVectors))
+	for i := range x25519TestVectors {
+		var buf [64]byte
+		copy(buf[:], x25519TestVectors[i].Scalar[:])
+		if _, err := vecs[i].SetWideBytes(buf[:]); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.Run("Constant", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for b.Loop() {
+			MontgomeryScalarBaseMult[ConstantTimeOperations](&pub, &vecs[n%len(x25519TestVectors)])
+			n++
+		}
+	})
+
+	b.Run("VarTime", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		for b.Loop() {
+			MontgomeryScalarBaseMult[VarTimeOperations](&pub, &vecs[n%len(x25519TestVectors)])
 			n++
 		}
 	})
 }
 
-func BenchmarkX25519BatchScalarMult(b *testing.B) {
+func BenchmarkX25519ScalarMult(b *testing.B) {
+	var n int
+	var pub MontgomeryPoint
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
-		scalars := make([]PrivateKeyBytes, len(x25519TestVectors))
-		points := make([]MontgomeryPoint, len(x25519TestVectors))
-		for i, vec := range x25519TestVectors {
-			scalars[i] = vec.Scalar
-			points[i] = vec.Point
-		}
+	for b.Loop() {
+		vec := x25519TestVectors[n%len(x25519TestVectors)]
+		MontgomeryUnclampedScalarMult(&pub, vec.Scalar, vec.Point)
+		n++
+	}
+}
 
-		for pb.Next() {
-			MontgomeryUnclampedBatchScalarMult(scalars, points)
-		}
-	})
+func BenchmarkX25519BatchScalarMult(b *testing.B) {
+
+	scalars := make([]PrivateKeyBytes, len(x25519TestVectors))
+	points := make([]MontgomeryPoint, len(x25519TestVectors))
+	for i, vec := range x25519TestVectors {
+		scalars[i] = vec.Scalar
+		points[i] = vec.Point
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		MontgomeryUnclampedBatchScalarMult(scalars, points)
+	}
 }
