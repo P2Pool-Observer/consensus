@@ -555,7 +555,7 @@ func GetDifficultyForNextBlock(tip *PoolBlock, consensus *Consensus, getByTempla
 }
 
 // NextDifficulty returns the next block difficulty based on gathered timestamp/difficulty data
-// Returns error on wrap/overflow/underflow on uint128 operations
+// Does not error wrap/overflow/underflow on uint128 operations
 func NextDifficulty(consensus *Consensus, timestamps []uint64, difficultyData []DifficultyData) (nextDifficulty types.Difficulty, err error) {
 	if len(timestamps) == 0 {
 		return types.ZeroDifficulty, errors.New("no timestamps provided")

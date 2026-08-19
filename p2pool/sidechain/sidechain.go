@@ -770,7 +770,8 @@ func (c *SideChain) verifyBlock(block *PoolBlock) (verification error, invalid e
 			len(block.Side.Uncles) != 0 ||
 			block.Side.Difficulty.Cmp64(c.Consensus().MinimumDifficulty) != 0 ||
 			block.Side.CumulativeDifficulty.Cmp64(c.Consensus().MinimumDifficulty) != 0 ||
-			(block.ShareVersion() >= ShareVersion_V2 && block.Side.CoinbasePrivateKeySeed != c.Consensus().Id) {
+			(block.ShareVersion() >= ShareVersion_V2 &&
+				block.Side.CoinbasePrivateKeySeed != CalculateGenesisTransactionPrivateKeySeed(block.Main.MajorVersion, block.Main.Coinbase.MinerGenHeight, c.Consensus().Id)) {
 			return nil, errors.New("genesis block has invalid parameters")
 		}
 		//this does not verify coinbase outputs, but that's fine

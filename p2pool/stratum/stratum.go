@@ -229,7 +229,7 @@ func (s *Server) fillNewTemplateData(currentDifficulty types.Difficulty) error {
 		}
 	} else {
 		s.newTemplateData.PreviousTemplateId = types.ZeroHash
-		s.newTemplateData.TransactionPrivateKeySeed = s.sidechain.Consensus().Id
+		s.newTemplateData.TransactionPrivateKeySeed = sidechain.CalculateGenesisTransactionPrivateKeySeed(s.minerData.MajorVersion, s.minerData.Height, s.sidechain.Consensus().Id)
 		s.newTemplateData.Difficulty = types.DifficultyFrom64(s.sidechain.Consensus().MinimumDifficulty)
 		s.newTemplateData.Weight = s.newTemplateData.Difficulty
 		s.newTemplateData.CumulativeDifficulty = s.newTemplateData.Difficulty

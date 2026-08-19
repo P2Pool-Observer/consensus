@@ -376,7 +376,7 @@ func testFromGenesis(t *testing.T, consensus *sidechain.Consensus, minerData *p2
 		}
 
 		if i == 0 {
-			if b.Side.CoinbasePrivateKeySeed != consensus.Id {
+			if b.Side.CoinbasePrivateKeySeed != sidechain.CalculateGenesisTransactionPrivateKeySeed(b.Main.MajorVersion, b.Main.Coinbase.MinerGenHeight, consensus.Id) {
 				t.Fatal("invalid private key seed")
 			}
 

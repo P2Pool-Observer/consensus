@@ -1,6 +1,9 @@
 package sidechain
 
 import (
+	"encoding/binary"
+
+	"git.gammaspectra.live/P2Pool/consensus/v5/monero"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve25519"
 	"git.gammaspectra.live/P2Pool/consensus/v5/types"
@@ -14,6 +17,21 @@ func CalculateTransactionPrivateKeySeed(main, side []byte) (result types.Hash) {
 	_, _ = h.Write(transactionPrivateKeySeedDomain)
 	_, _ = h.Write(main)
 	_, _ = h.Write(side)
+	_, _ = h.Read(result[:])
+
+	return result
+}
+
+func CalculateGenesisTransactionPrivateKeySeed(majorVersion uint8, height uint64, id types.Hash) (result types.Hash) {
+	if majorVersion < monero.HardForkCarrotVersion {
+		return id
+	}
+	h := crypto.NewKeccak256()
+	_, _ = h.Write(transactionPrivateKeySeedDomain)
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], height)
+	_, _ = h.Write(buf[:])
+	_, _ = h.Write(id[:])
 	_, _ = h.Read(result[:])
 
 	return result
