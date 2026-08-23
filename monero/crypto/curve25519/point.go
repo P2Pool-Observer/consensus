@@ -28,6 +28,8 @@ func NewGeneratorPoint() *Point {
 	return (*Point)(edwards25519.NewGeneratorPoint())
 }
 
+var generator = NewGeneratorPoint()
+
 var identity = NewIdentityPoint()
 
 func NewIdentityPoint() *Point {
@@ -85,6 +87,78 @@ func (v *Point) Negate(u *Point) *Point {
 
 func (v *Point) Equal(u *Point) int {
 	return v.P().Equal(u.P())
+}
+
+var _D = new(field.Element).Multiply(
+	new(field.Element).Negate(curve.FieldFromUint64(new(field.Element), 121_665)),
+	new(field.Element).Invert(curve.FieldFromUint64(new(field.Element), 121_666)),
+)
+
+var _A = curve.FieldFromUint64(new(field.Element), 486_662)
+
+var _YToXMap = new(field.Element).Multiply(
+	_A,
+	new(field.Element).Invert(curve.FieldFromUint64(new(field.Element), 3)),
+)
+
+var _CSquare = new(field.Element).Negate(curve.FieldFromUint64(new(field.Element), 486_662+2))
+
+var _CI = new(field.Element).Pow22524(_CSquare)
+
+var _SQRTM1 = new(field.Element).Sqrt(new(field.Element).Negate(new(field.Element).One()))
+
+var _C = new(field.Element).Negate(new(field.Element).Multiply(_CI, _SQRTM1))
+
+//nolint:gochecknoinits
+func init() {
+	if new(field.Element).Square(_C).Equal(_CSquare) == 0 {
+		panic("C^2 does not equal CSquare")
+	}
+	if _SQRTM1.IsNegative() == 1 {
+		panic("Sqrt(−1) is negative")
+	}
+}
+
+func (v *Point) XY() (X, Y field.Element, err error) {
+	// https://www.ietf.org/archive/id/draft-ietf-lwig-curve-representations-02.pdf E.2
+	if v.IsIdentity() == 1 {
+		return X, Y, errors.New("point is identity")
+	}
+
+	// Extract the y coordinate from the compressed point
+	edwardsY := v.Bytes()
+	xIsOdd := int((edwardsY[31] >> 7) & 1)
+	edwardsY[31] &= (1 << 7) - 1
+
+	y, err := new(field.Element).SetBytesPropagate(edwardsY)
+	if err != nil {
+		return X, Y, err
+	}
+
+	// Recover the x coordinate
+	yy := new(field.Element).Square(y)
+
+	x := new(field.Element).Sqrt(new(field.Element).Multiply(
+		new(field.Element).Subtract(yy, new(field.Element).One()),
+		new(field.Element).Invert(new(field.Element).Add(new(field.Element).Multiply(_D, yy), new(field.Element).One())),
+	))
+	if x == nil {
+		return X, Y, errors.New("couldn't recover x coordinate from y coordinate of valid point")
+	}
+
+	// Negate the x coordinate if the sign doesn't match
+	x.Select(new(field.Element).Negate(x), x, x.IsNegative()^xIsOdd)
+
+	// Calculate the x and y coordinates for Wei25519
+	yPlusOne := new(field.Element).Add(y, new(field.Element).One())
+	oneMinusY := new(field.Element).Subtract(new(field.Element).One(), y)
+
+	weiX := new(field.Element).Add(new(field.Element).Multiply(yPlusOne, new(field.Element).Invert(oneMinusY)), _YToXMap)
+
+	weiY := new(field.Element).Multiply(_C, yPlusOne)
+	weiY.Multiply(weiY, new(field.Element).Invert(new(field.Element).Multiply(oneMinusY, x)))
+
+	return *weiX, *weiY, nil
 }
 
 func (v *Point) ExtendedCoordinates() (X, Y, Z, T *field.Element) {
