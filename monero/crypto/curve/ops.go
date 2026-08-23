@@ -56,7 +56,7 @@ func WeierstrassAffineIncompleteAdd[F any, FE Field[F]](outX, outY *F, x1, y1, x
 
 	u := FE(new(F)).Subtract(y2, y1)
 	uu := FE(new(F)).Square(u)
-	v := FE(new(F)).Multiply(x2, x1)
+	v := FE(new(F)).Subtract(x2, x1)
 	vv := FE(new(F)).Square(v)
 	vvv := FE(new(F)).Multiply(v, vv)
 	r := FE(new(F)).Multiply(vv, x1)

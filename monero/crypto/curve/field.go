@@ -1,6 +1,7 @@
 package curve
 
 import (
+	"crypto/subtle"
 	"encoding/binary"
 	"io"
 
@@ -18,6 +19,8 @@ type BasicField[F any] interface {
 	Subtract(a, b *F) *F
 	Multiply(a, b *F) *F
 	Negate(x *F) *F
+	// Invert TODO: fail if Zero??
+	// Something like Invert(x *F) (*F, bool)
 	Invert(x *F) *F
 
 	// Setters
@@ -47,6 +50,10 @@ type Field[F any] interface {
 	// Comparison
 	IsZero() int
 	IsNegative() int
+
+	// Special
+	NumBits() int
+	Capacity() int
 }
 
 type ExtraField[F any] interface {
@@ -85,4 +92,99 @@ func FieldFromUint64[F any, FE Field[F]](k *F, v uint64) *F {
 		panic(err)
 	}
 	return k
+}
+
+func FieldSliceEqualsVarTime[F any, FE BasicField[F], S ~[]F](a, b S) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if FE(&a[i]).Equal(&b[i]) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// FieldPow sets v = x^y, where y is a little endian order integer exponent, and returns out
+// Constant Time. Very Slow.
+func FieldPow[F any, FE Field[F]](out *F, x *F, y []byte) *F {
+	// compute power table
+	var table [16]F
+	FE(&table[0]).One()
+	FE(&table[1]).Set(x)
+	for i := 2; i < 16; i += 2 {
+		FE(&table[i]).Square(&table[i/2])
+		FE(&table[i+1]).Multiply(&table[i], x)
+	}
+
+	FE(out).One()
+
+	var factor F
+	for i := len(y) - 1; i >= 0; i-- {
+		FE(out).Square(out)
+		FE(out).Square(out)
+		FE(out).Square(out)
+		FE(out).Square(out)
+		{
+			bits := (y[i] >> 4) & 15
+			factor = table[0]
+			for j := range table[1:] {
+				FE(&factor).Select(&table[j+1], &factor, subtle.ConstantTimeEq(int32(bits), int32(j+1)))
+			}
+			FE(out).Multiply(out, &factor)
+		}
+
+		FE(out).Square(out)
+		FE(out).Square(out)
+		FE(out).Square(out)
+		FE(out).Square(out)
+		{
+			bits := y[i] & 15
+			factor = table[0]
+			for j := range table[1:] {
+				FE(&factor).Select(&table[j+1], &factor, subtle.ConstantTimeEq(int32(bits), int32(j+1)))
+			}
+			FE(out).Multiply(out, &factor)
+		}
+	}
+
+	return out
+}
+
+// FieldPowVarTime sets v = x^y, where y is a little endian order integer exponent, and returns out
+// Variable Time. Slow.
+func FieldPowVarTime[F any, FE Field[F]](out *F, x *F, y []byte) *F {
+	// compute power table
+	var table [16]F
+	FE(&table[0]).One()
+	FE(&table[1]).Set(x)
+	for i := 2; i < 16; i += 2 {
+		FE(&table[i]).Square(&table[i/2])
+		FE(&table[i+1]).Multiply(&table[i], x)
+	}
+
+	FE(out).One()
+
+	for i := len(y) - 1; i >= 0; i-- {
+		FE(out).Square(out)
+		FE(out).Square(out)
+		FE(out).Square(out)
+		FE(out).Square(out)
+		{
+			bits := (y[i] >> 4) & 15
+			FE(out).Multiply(out, &table[bits])
+		}
+
+		FE(out).Square(out)
+		FE(out).Square(out)
+		FE(out).Square(out)
+		FE(out).Square(out)
+		{
+			bits := y[i] & 15
+			FE(out).Multiply(out, &table[bits])
+		}
+	}
+
+	return out
 }

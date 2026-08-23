@@ -6,58 +6,58 @@ import (
 	"git.gammaspectra.live/P2Pool/helioselene/selene" //nolint:depguard
 )
 
-type HeliosParams struct {
-	a HeliosField
+type HeliosCiphersuite struct{}
+
+func (c HeliosCiphersuite) A() *HeliosField {
+	return _heliosA
 }
 
-func (p *HeliosParams) A() *HeliosField {
-	return &p.a
-}
-
-func (p *HeliosParams) B() *HeliosField {
+func (c HeliosCiphersuite) B() *HeliosField {
 	return helios.B
 }
 
-func (p *HeliosParams) Generator() *HeliosPoint {
+func (c HeliosCiphersuite) Generator() *HeliosPoint {
 	return helios.G
 }
 
-func (p *HeliosParams) ScalarBits() int {
+func (c HeliosCiphersuite) ScalarBits() int {
 	return 255
 }
 
-func (p *HeliosParams) XY(v *HeliosPoint) (x, y HeliosField, err error) {
+func (c HeliosCiphersuite) InterpolatorForScalarMulDegree() int {
+	return 130
+}
+
+func (c HeliosCiphersuite) XY(v *HeliosPoint) (x, y HeliosField, err error) {
 	return v.XY()
 }
 
-var HeliosCiphersuite = &HeliosParams{
-	a: *new(HeliosField).Negate(curve.ScalarFromUint64(new(HeliosField), 3)),
+var _heliosA = new(HeliosField).Negate(curve.ScalarFromUint64(new(HeliosField), 3))
+
+type SeleneCiphersuite struct{}
+
+func (c SeleneCiphersuite) A() *SeleneField {
+	return _seleneA
 }
 
-type SeleneParams struct {
-	a SeleneField
-}
-
-func (p *SeleneParams) A() *SeleneField {
-	return &p.a
-}
-
-func (p *SeleneParams) B() *SeleneField {
+func (c SeleneCiphersuite) B() *SeleneField {
 	return selene.B
 }
 
-func (p *SeleneParams) Generator() *SelenePoint {
+func (c SeleneCiphersuite) Generator() *SelenePoint {
 	return selene.G
 }
 
-func (p *SeleneParams) ScalarBits() int {
+func (c SeleneCiphersuite) ScalarBits() int {
 	return 255
 }
 
-func (p *SeleneParams) XY(v *SelenePoint) (x, y SeleneField, err error) {
+func (c SeleneCiphersuite) InterpolatorForScalarMulDegree() int {
+	return 130
+}
+
+func (c SeleneCiphersuite) XY(v *SelenePoint) (x, y SeleneField, err error) {
 	return v.XY()
 }
 
-var SeleneCiphersuite = &SeleneParams{
-	a: *new(SeleneField).Negate(curve.ScalarFromUint64(new(SeleneField), 3)),
-}
+var _seleneA = new(SeleneField).Negate(curve.ScalarFromUint64(new(SeleneField), 3))

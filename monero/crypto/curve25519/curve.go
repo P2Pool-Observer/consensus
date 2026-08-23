@@ -5,27 +5,29 @@ import (
 	"git.gammaspectra.live/P2Pool/edwards25519/field" //nolint:depguard
 )
 
-type Params struct {
-	a, b field.Element
+type Ciphersuite struct{}
+
+func (c Ciphersuite) A() *field.Element {
+	return _WeiA
 }
 
-func (p *Params) A() *field.Element {
-	return &p.a
+func (c Ciphersuite) B() *field.Element {
+	return _WeiB
 }
 
-func (p *Params) B() *field.Element {
-	return &p.b
-}
-
-func (p *Params) Generator() *Point {
+func (c Ciphersuite) Generator() *Point {
 	return generator
 }
 
-func (p *Params) ScalarBits() int {
+func (c Ciphersuite) ScalarBits() int {
 	return 253
 }
 
-func (p *Params) XY(v *Point) (x, y field.Element, err error) {
+func (c Ciphersuite) InterpolatorForScalarMulDegree() int {
+	return 128
+}
+
+func (c Ciphersuite) XY(v *Point) (x, y field.Element, err error) {
 	return v.XY()
 }
 
@@ -49,10 +51,3 @@ var _WeiB = new(field.Element).Multiply(
 	),
 	new(field.Element).Invert(curve.FieldFromUint64(new(field.Element), 27)),
 )
-
-var Ciphersuite = &Params{
-	// Wei25519 a/b
-	// https://www.ietf.org/archive/id/draft-ietf-lwig-curve-representations-02.pdf E.3
-	a: *_WeiA,
-	b: *_WeiB,
-}

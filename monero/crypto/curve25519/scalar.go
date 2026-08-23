@@ -96,7 +96,6 @@ func (v *Scalar) Select(a, b *Scalar, cond int) *Scalar {
 func (v *Scalar) IsZero() int {
 	return v.Equal(scalarZero)
 }
-
 func (v *Scalar) Bytes() []byte {
 	return v.S().Bytes()
 }
@@ -119,6 +118,14 @@ func (v *Scalar) SetWideBytes(x []byte) (*Scalar, error) {
 		return nil, err
 	}
 	return (*Scalar)(ret), nil
+}
+
+func (v *Scalar) NumBits() int {
+	return v.S().NumBits()
+}
+
+func (v *Scalar) Capacity() int {
+	return v.S().Capacity()
 }
 
 // order is the order of the Ristretto group and of the Ed25519 basepoint, i.e., l = 2^252 + 27742317777372353535851937790883648493.

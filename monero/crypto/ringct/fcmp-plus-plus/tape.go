@@ -4,7 +4,8 @@ import (
 	"slices"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
-	generalized_bulletproofs "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/generalized-bulletproofs"
+	ec_gadgets "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/fcmp-plus-plus/ec-gadgets"
+	gb "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/generalized-bulletproofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
@@ -18,7 +19,7 @@ type VectorCommitmentTape[F Field, FE curve.BasicField[F]] struct {
 }
 
 // Append a series of variables to the vector commitment tape.
-func (t *VectorCommitmentTape[F, FE]) Append(variables []F) (res []generalized_bulletproofs.Variable) {
+func (t *VectorCommitmentTape[F, FE]) Append(variables []F) (res []gb.Variable) {
 	if variables != nil {
 		if len(variables) != COMMITMENT_WORD_LEN {
 			panic("unreachable")
@@ -33,7 +34,7 @@ func (t *VectorCommitmentTape[F, FE]) Append(variables []F) (res []generalized_b
 
 	i := len(t.Commitments) - 1
 	for j := t.CurrentJOffset; j < t.CurrentJOffset+COMMITMENT_WORD_LEN; j++ {
-		res = append(res, generalized_bulletproofs.VariableCG{Commitment: i, Index: j})
+		res = append(res, gb.VariableCG{Commitment: i, Index: j})
 	}
 
 	t.CurrentJOffset += COMMITMENT_WORD_LEN
@@ -43,7 +44,7 @@ func (t *VectorCommitmentTape[F, FE]) Append(variables []F) (res []generalized_b
 	return res
 }
 
-func (t *VectorCommitmentTape[F, FE]) AppendBranch(branchLen int, branch []F) (branchVariables []generalized_bulletproofs.Variable) {
+func (t *VectorCommitmentTape[F, FE]) AppendBranch(branchLen int, branch []F) (branchVariables []gb.Variable) {
 	if len(branch) != branchLen {
 		panic("unreachable")
 	}
@@ -72,7 +73,7 @@ func (t *VectorCommitmentTape[F, FE]) AppendBranch(branchLen int, branch []F) (b
 	}
 
 	// Append each chunk of the branch
-	branchVariables = make([]generalized_bulletproofs.Variable, 0, branchLen)
+	branchVariables = make([]gb.Variable, 0, branchLen)
 	for b := range wordsInBranch {
 		branchVariables = append(branchVariables, t.Append(branch[b*COMMITMENT_WORD_LEN:(b+1)*COMMITMENT_WORD_LEN])...)
 	}
@@ -85,4 +86,55 @@ func (t *VectorCommitmentTape[F, FE]) AppendBranch(branchLen int, branch []F) (b
 		t.Append(empty)
 	}
 	return branchVariables
+}
+
+func (t *VectorCommitmentTape[F, FE]) AppendDlog[FFE curve.Field[F]](params ec_gadgets.Parameters, dlog []uint64, padding []F, extra *F) ([]gb.Variable, []gb.Variable, gb.Variable) {
+	dlogBits := params.ScalarBits
+
+	var witness []F
+	if len(dlog) > 0 {
+		witness = make([]F, 0, 256)
+		if len(dlog) != dlogBits {
+			panic("unreachable")
+		}
+		for _, coeff := range dlog {
+			witness = append(witness, *curve.FieldFromUint64[F, FFE](new(F), coeff))
+		}
+
+		if len(padding) > (255 - dlogBits) {
+			panic("unreachable")
+		}
+
+		for i := range 255 - dlogBits {
+			if len(padding) > i {
+				witness = append(witness, padding[i])
+			} else {
+				witness = append(witness, *FE(new(F)).Zero())
+			}
+		}
+
+		if len(witness) != 255 {
+			panic("unreachable")
+		}
+
+		// Since we have an extra slot, push an extra item
+		witness = append(witness, *extra)
+	}
+
+	var witnessA, witnessB []F
+	if len(witness) > 0 {
+		witnessA = witness[:COMMITMENT_WORD_LEN]
+		witnessB = witness[COMMITMENT_WORD_LEN:]
+	}
+
+	variables := t.Append(witnessA)
+	variables = append(variables, t.Append(witnessB)...)
+
+	{
+		extra := variables[len(variables)-1]
+		padding := variables[dlogBits:255]
+		dlog := variables[:dlogBits]
+
+		return dlog, padding, extra
+	}
 }
