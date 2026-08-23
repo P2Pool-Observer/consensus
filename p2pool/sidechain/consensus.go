@@ -12,7 +12,6 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
-//nolint:recvcheck
 type NetworkType int
 
 const (

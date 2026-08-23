@@ -3,7 +3,7 @@
 package utils
 
 import (
-	jsonv1 "encoding/json"
+	jsonv1 "encoding/json" //nolint:depguard
 	"encoding/json/jsontext"
 	"encoding/json/v2"
 	"io"
@@ -18,16 +18,20 @@ func (e *JSONEncoder) SetIndent(_, indent string) {
 	e.indent = indent
 }
 
-func (e *JSONEncoder) Encode(val interface{}) error {
+func (e *JSONEncoder) Encode(val any) (err error) {
 	//TODO: use streaming encoder
-	defer func() {
-		e.w.Write([]byte{'\n'})
-	}()
 	if e.indent != "" {
-		return json.MarshalWrite(e.w, val, jsontext.WithIndent(e.indent))
+		if err = json.MarshalWrite(e.w, val, jsontext.WithIndent(e.indent)); err != nil {
+			return err
+		}
+	} else {
+		if err = json.MarshalWrite(e.w, val); err != nil {
+			return err
+		}
 	}
 
-	return json.MarshalWrite(e.w, val)
+	_, err = e.w.Write([]byte{'\n'})
+	return err
 }
 
 type JSONDecoder = jsonv1.Decoder

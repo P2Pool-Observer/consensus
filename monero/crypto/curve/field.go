@@ -1,6 +1,7 @@
 package curve
 
 import (
+	"encoding/binary"
 	"io"
 
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
@@ -74,4 +75,14 @@ func RandomField[F any, FE Field[F]](k *F, r io.Reader) *F {
 			return k
 		}
 	}
+}
+
+func FieldFromUint64[F any, FE Field[F]](k *F, v uint64) *F {
+	var buf [32]byte
+	binary.LittleEndian.PutUint64(buf[:], v)
+	_, err := FE(k).SetBytes(buf[:])
+	if err != nil {
+		panic(err)
+	}
+	return k
 }

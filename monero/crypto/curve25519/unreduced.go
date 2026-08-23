@@ -16,6 +16,8 @@ import (
 // This struct delays scalar conversions and offers the non-standard reduction.
 //
 // See https://github.com/monero-project/monero/issues/8438 or https://www.moneroinflation.com/static/data_py/report_scalars_df.pdf
+//
+//nolint:recvcheck
 type UnreducedScalar PrivateKeyBytes
 
 // naf5 Computes the non-adjacent form of this scalar with width 5.

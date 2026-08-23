@@ -140,7 +140,7 @@ go vet ./...
 
 ### Requirements
 
-Go 1.26
+Go 1.27
 
 By default, CGO is not necessary, so `CGO_ENABLED=0` is recommended. You may use the `purego` build flag to disable any assembly or architecture specific optimizations.
 

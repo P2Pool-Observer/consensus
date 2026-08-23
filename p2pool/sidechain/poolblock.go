@@ -28,7 +28,7 @@ import (
 
 type CoinbaseExtraTag int
 
-const SideExtraNonceSize = 4
+const SideExtraNonceSize = transaction.TxExtraTemplateNonceSize
 const SideExtraNonceMaxSize = SideExtraNonceSize + 10
 
 const (

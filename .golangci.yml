@@ -33,6 +33,7 @@ linters:
     - nonamedreturns
     - noinlineerr
     - exhaustruct
+    - exhaustruct_v5
 
     # Complexity and duplicity is fine
     - interfacebloat
@@ -123,6 +124,7 @@ linters:
         - "git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction.Proofs"
         - "git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction.Transaction"
         - "git.gammaspectra.live/P2Pool/consensus/v5/monero/transaction.PrunedTransaction"
+        - "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/generalized-bulletproofs.Variable"
 
     staticcheck:
       checks:
@@ -236,4 +238,4 @@ run:
   timeout: 5m
   tests: false
   modules-download-mode: readonly
-  go: "1.26"
+  go: "1.27"

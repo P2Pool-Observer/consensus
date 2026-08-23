@@ -6,6 +6,7 @@ import "slices"
 
 // BatchInvert Sets v to sum(inv(inputs...)), sets each input element to its inverse
 // If any input element is zero, it is unchanged
+// Aliasing inputs is not supported
 //
 // Constant time proportional to length of inputs
 func BatchInvert[F any, FE BasicField[F]](v *F, inputs ...*F) *F {

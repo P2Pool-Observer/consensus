@@ -11,6 +11,9 @@ const PrivateKeySize = 32
 
 var ZeroPrivateKeyBytes = PrivateKeyBytes{}
 
+// PrivateKeyBytes A little endian 256-bit Scalar
+//
+//nolint:recvcheck
 type PrivateKeyBytes [PrivateKeySize]byte
 
 func (k *PrivateKeyBytes) Slice() []byte {

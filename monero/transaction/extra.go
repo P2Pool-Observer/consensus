@@ -33,6 +33,7 @@ const TxExtraNonceMaxCount = 255
 
 const TxExtraNoncePaymentId = 0x00
 const TxExtraNonceEncryptedPaymentId = 0x01
+const TxExtraNonceArbitraryData = 0x7f
 
 const TxExtraTagMergeMiningMaxCount = types.HashSize + 9
 
@@ -121,6 +122,18 @@ func (t *ExtraTags) GetTag(tag uint8) *ExtraTag {
 	}
 
 	return nil
+}
+
+func (t *ExtraTags) GetTags(tag uint8) iter.Seq[*ExtraTag] {
+	return func(yield func(*ExtraTag) bool) {
+		for i := range *t {
+			if (*t)[i].Tag == tag {
+				if !yield(&(*t)[i]) {
+					return
+				}
+			}
+		}
+	}
 }
 
 func (t *ExtraTag) UnmarshalBinary(data []byte) error {
@@ -341,4 +354,24 @@ func ExtraPaymentId(extra ExtraTags) (legacyPaymentId *[monero.LegacyPaymentIdSi
 		return nil, (*[monero.PaymentIdSize]byte)(nonce.Data[1:])
 	}
 	return nil, nil
+}
+
+// ExtraArbitraryData Extracts the arbitrary data as produced by monero-oxide in a single buffer
+// See https://github.com/monero-oxide/monero-oxide/blob/c8be5d3d1287669946a83fbfcb296ce2a8852e47/monero-oxide/wallet/src/extra.rs#L312-L350
+func ExtraArbitraryData(extra ExtraTags) (buf []byte) {
+	for _, p := range ExtraArbitraryDataParts(extra) {
+		buf = append(buf, p...)
+	}
+	return buf
+}
+
+// ExtraArbitraryDataParts Extracts the arbitrary data as produced by monero-oxide in split parts
+// See https://github.com/monero-oxide/monero-oxide/blob/c8be5d3d1287669946a83fbfcb296ce2a8852e47/monero-oxide/wallet/src/extra.rs#L312-L350
+func ExtraArbitraryDataParts(extra ExtraTags) (parts [][]byte) {
+	for t := range extra.GetTags(TxExtraTagNonce) {
+		if len(t.Data) > 0 && t.Data[0] == TxExtraNonceArbitraryData {
+			parts = append(parts, t.Data[1:])
+		}
+	}
+	return parts
 }

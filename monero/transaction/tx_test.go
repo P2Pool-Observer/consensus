@@ -89,6 +89,10 @@ var testTransactions = []types.Hash{
 	// xns
 	types.MustHashFromString("39d4fa93dc0b646dbef792d0c6ec0321ff057e3e4fb3d856464385144c48a159"),
 
+	// eigenwallet Hermes message
+	types.MustHashFromString("aa1d017b7cb04b73501f4796d0db86e8e8a5521f95f3aa27497978f45913fa66"),
+	types.MustHashFromString("3d47a7a7641c168d34f2a43033319c58b9d48d0ec332afea9b3bafe4b6961d8c"),
+
 	// fcmp++ beta stressnet tx
 	// this transaction is stored in this test file.
 	types.MustHashFromString("332691761f1ded0d74c80b223a7266f3568f472fe67f33f97d8390a48d9caa29"),

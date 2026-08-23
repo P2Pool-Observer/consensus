@@ -48,6 +48,7 @@ func (c *Client) Listen(ctx context.Context, listeners Listeners, success func()
 		success()
 	}
 
+	//nolint:staticcheck
 	if err := c.loop(listeners); err != nil {
 		return fmt.Errorf("loop: %w", err)
 	}
@@ -82,6 +83,7 @@ func (c *Client) listen(ctx context.Context, topics ...Topic) error {
 	return nil
 }
 
+//nolint:staticcheck
 func (c *Client) loop(listeners Listeners) error {
 	topics := listeners.Topics()
 	for {

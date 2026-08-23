@@ -162,7 +162,6 @@ func (h *Hash) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-//nolint:recvcheck
 type Bytes []byte
 
 func (b Bytes) MarshalJSON() ([]byte, error) {
@@ -191,7 +190,6 @@ func (b *Bytes) UnmarshalJSON(buf []byte) error {
 	return nil
 }
 
-//nolint:recvcheck
 type SliceBytes []byte
 
 func (b SliceBytes) MarshalJSON() ([]byte, error) {

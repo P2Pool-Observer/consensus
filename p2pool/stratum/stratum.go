@@ -1431,7 +1431,6 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 										return errors.New("could not read login params")
 									}
 								}(); err != nil {
-									//nolint:errchkjson
 									_ = client.encoder.Encode(JsonRpcResult{
 										Id:             msg.Id,
 										JsonRpcVersion: "2.0",
@@ -1442,7 +1441,6 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 									})
 									return
 								} else if err = s.SendTemplateResponse(client, msg.Id, false); err != nil {
-									//nolint:errchkjson
 									_ = client.encoder.Encode(JsonRpcResult{
 										Id:             msg.Id,
 										JsonRpcVersion: "2.0",
@@ -1620,7 +1618,6 @@ func (s *Server) Listen(listen string, controlOpts ...func(network, address stri
 								}
 							default:
 								err = utils.ErrorfNoEscape("unknown command %s", msg.Method)
-								//nolint:errchkjson
 								_ = client.encoder.Encode(JsonRpcResult{
 									Id:             msg.Id,
 									JsonRpcVersion: "2.0",

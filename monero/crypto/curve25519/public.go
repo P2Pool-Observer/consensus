@@ -216,6 +216,8 @@ func (v *PublicKey[T]) Montgomery() (out MontgomeryPoint) {
 }
 
 // PublicKeyBytes A compressed Edwards25519 Y point
+//
+//nolint:recvcheck
 type PublicKeyBytes [PublicKeySize]byte
 
 func (k *PublicKeyBytes) Slice() []byte {

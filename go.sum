@@ -6,8 +6,8 @@ git.gammaspectra.live/P2Pool/go-hex v0.0.0-20251214231021-098f65fc1214 h1:MWH8m0
 git.gammaspectra.live/P2Pool/go-hex v0.0.0-20251214231021-098f65fc1214/go.mod h1:b4whW/umqLY4eVZ4eaSgumFQNIFPCrO20AQoSR0vS5s=
 git.gammaspectra.live/P2Pool/go-randomx/v5 v5.0.1 h1:ynubhsja2WLLg3+FE/feW9RtDmz4bNiWLvW4xPSaVPM=
 git.gammaspectra.live/P2Pool/go-randomx/v5 v5.0.1/go.mod h1:wyEHprwcDq5+7G0QQPnkrxcTyobalndsDj8r+vMskSU=
-git.gammaspectra.live/P2Pool/helioselene v0.0.0-20260806070208-d7917a2b3dfa h1:OYSlYWpurnrbrHwhlwHwhiFd1KjL7PmdkEq2VuGPx6k=
-git.gammaspectra.live/P2Pool/helioselene v0.0.0-20260806070208-d7917a2b3dfa/go.mod h1:RwuVWtog/47OKZ+30OP8ximlsfsHYGikpuTJT3L0EVk=
+git.gammaspectra.live/P2Pool/helioselene v0.0.0-20260816203754-1242ee893faa h1:o+JQjoasO7nYZcPmLag6pshRWnCa7BITnqACiPGMqd4=
+git.gammaspectra.live/P2Pool/helioselene v0.0.0-20260816203754-1242ee893faa/go.mod h1:RwuVWtog/47OKZ+30OP8ximlsfsHYGikpuTJT3L0EVk=
 git.gammaspectra.live/P2Pool/monero-base58 v1.0.0 h1:s8LZxVNc93YEs2NCCNWZ7CKr8RbEb031y6Wkvhn+TS4=
 git.gammaspectra.live/P2Pool/monero-base58 v1.0.0/go.mod h1:WWEJy/AdWKxKAruvlKI82brw+DtVlePy0ct3ZiBlc68=
 git.gammaspectra.live/P2Pool/randomx-go-bindings v1.0.0 h1:tajr4QFSPrb8NtHmU14JaXdhr+z+0RbOBLIgUDI5Tow=

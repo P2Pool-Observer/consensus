@@ -735,7 +735,6 @@ func (c *SideChain) verifyLoop(blockToVerify *PoolBlock) (verificationErr error,
 						}
 						blocksToVerify = append(blocksToVerify, b)
 					} else {
-						//nolint:modernize
 						for _, uncleHash := range b.Side.Uncles {
 							if uncleHash == block.SideTemplateId(c.Consensus()) {
 								// Update depth if needed
