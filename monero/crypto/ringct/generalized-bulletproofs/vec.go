@@ -116,9 +116,9 @@ func (v ScalarVector[F, FE]) MultiplyVec(o ScalarVector[F, FE]) ScalarVector[F, 
 	return v
 }
 
-type PointVector[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.BasicField[F]] []P
+type PointVector[P any, F any, PE curve.ExtraCurvePoint[P, F]] []P
 
-func (v PointVector[P, F, PE, FE]) Split() (a, b PointVector[P, F, PE, FE]) {
+func (v PointVector[P, F, PE]) Split() (a, b PointVector[P, F, PE]) {
 	if len(v) <= 1 || len(v)%2 != 0 {
 		panic("unreachable")
 	}
@@ -126,19 +126,19 @@ func (v PointVector[P, F, PE, FE]) Split() (a, b PointVector[P, F, PE, FE]) {
 	return v[:len(v)/2], v[len(v)/2:]
 }
 
-func (v PointVector[P, F, PE, FE]) Copy(out PointVector[P, F, PE, FE]) PointVector[P, F, PE, FE] {
+func (v PointVector[P, F, PE]) Copy(out PointVector[P, F, PE]) PointVector[P, F, PE] {
 	out = append(out, v...)
 	return out
 }
 
-func (v PointVector[P, F, PE, FE]) Multiply(scalar *F) PointVector[P, F, PE, FE] {
+func (v PointVector[P, F, PE]) Multiply(scalar *F) PointVector[P, F, PE] {
 	for i := range v {
 		PE(&v[i]).ScalarMult(scalar, &v[i])
 	}
 	return v
 }
 
-func (v PointVector[P, F, PE, FE]) AddVec(o PointVector[P, F, PE, FE]) PointVector[P, F, PE, FE] {
+func (v PointVector[P, F, PE]) AddVec(o PointVector[P, F, PE]) PointVector[P, F, PE] {
 	if len(o) != len(v) {
 		panic("len mismatch")
 	}
@@ -148,7 +148,7 @@ func (v PointVector[P, F, PE, FE]) AddVec(o PointVector[P, F, PE, FE]) PointVect
 	return v
 }
 
-func (v PointVector[P, F, PE, FE]) SubtractVec(o PointVector[P, F, PE, FE]) PointVector[P, F, PE, FE] {
+func (v PointVector[P, F, PE]) SubtractVec[FE curve.BasicField[F]](o PointVector[P, F, PE]) PointVector[P, F, PE] {
 	if len(o) != len(v) {
 		panic("len mismatch")
 	}
@@ -158,7 +158,7 @@ func (v PointVector[P, F, PE, FE]) SubtractVec(o PointVector[P, F, PE, FE]) Poin
 	return v
 }
 
-func (v PointVector[P, F, PE, FE]) MultiplyVec(o ScalarVector[F, FE]) PointVector[P, F, PE, FE] {
+func (v PointVector[P, F, PE]) MultiplyVec[FE curve.BasicField[F]](o ScalarVector[F, FE]) PointVector[P, F, PE] {
 	if len(o) != len(v) {
 		panic("len mismatch")
 	}
@@ -168,13 +168,13 @@ func (v PointVector[P, F, PE, FE]) MultiplyVec(o ScalarVector[F, FE]) PointVecto
 	return v
 }
 
-func (v PointVector[P, F, PE, FE]) MultiExp(dst *P, scalars ScalarVector[F, FE]) *P {
+func (v PointVector[P, F, PE]) MultiExp[FE curve.BasicField[F]](dst *P, scalars ScalarVector[F, FE]) *P {
 	if len(scalars) != len(v) {
 		panic("len mismatch")
 	}
-	pairs := make([]multiexp.ScalarPointPair[P, F, PE, FE], 0, len(v))
+	pairs := make([]multiexp.ScalarPointPair[P, F], 0, len(v))
 	for i := range v {
-		pairs = append(pairs, multiexp.ScalarPointPair[P, F, PE, FE]{S: scalars[i], P: v[i]})
+		pairs = append(pairs, multiexp.ScalarPointPair[P, F]{S: scalars[i], P: v[i]})
 	}
-	return multiexp.MultiExp(dst, pairs)
+	return multiexp.MultiExp[P, F, PE](dst, pairs)
 }

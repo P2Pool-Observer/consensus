@@ -21,18 +21,18 @@ func HashGrow[
 		return nil
 	}
 
-	pairs := make([]multiexp.ScalarPointPair[P, S, PE, SE], 0, len(newChildren))
+	pairs := make([]multiexp.ScalarPointPair[P, S], 0, len(newChildren))
 	firstNew := newChildren[0]
-	pairs = append(pairs, multiexp.ScalarPointPair[P, S, PE, SE]{
+	pairs = append(pairs, multiexp.ScalarPointPair[P, S]{
 		S: *SE(new(S)).Subtract(&firstNew, existingChildAtOffset), P: generators.GBold[offset],
 	})
 	for i := 1; i < len(newChildren); i++ {
-		pairs = append(pairs, multiexp.ScalarPointPair[P, S, PE, SE]{
+		pairs = append(pairs, multiexp.ScalarPointPair[P, S]{
 			S: newChildren[i], P: generators.GBold[offset+i],
 		})
 	}
 
-	return PE(new(P)).Add(existingHash, multiexp.MultiExp[P, S, PE, SE](new(P), pairs))
+	return PE(new(P)).Add(existingHash, multiexp.MultiExp[P, S, PE](new(P), pairs))
 }
 
 func HashTrim[
@@ -46,18 +46,18 @@ func HashTrim[
 	children []S,
 	childToGrowBack *S,
 ) *P {
-	pairs := make([]multiexp.ScalarPointPair[P, S, PE, SE], 0, len(children))
+	pairs := make([]multiexp.ScalarPointPair[P, S], 0, len(children))
 	for i, child := range children {
 		if i == 0 {
-			pairs = append(pairs, multiexp.ScalarPointPair[P, S, PE, SE]{
+			pairs = append(pairs, multiexp.ScalarPointPair[P, S]{
 				S: *SE(new(S)).Subtract(&child, childToGrowBack), P: generators.GBold[offset+i],
 			})
 		} else {
-			pairs = append(pairs, multiexp.ScalarPointPair[P, S, PE, SE]{
+			pairs = append(pairs, multiexp.ScalarPointPair[P, S]{
 				S: child, P: generators.GBold[offset+i],
 			})
 		}
 	}
 
-	return PE(new(P)).Subtract(existingHash, multiexp.MultiExp[P, S, PE, SE](new(P), pairs))
+	return PE(new(P)).Subtract(existingHash, multiexp.MultiExp[P, S, PE](new(P), pairs))
 }

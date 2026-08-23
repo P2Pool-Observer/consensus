@@ -8,7 +8,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/curve"
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/helioselene"
-	generalized_bulletproofs "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/generalized-bulletproofs"
+	gb "git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/ringct/generalized-bulletproofs"
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
@@ -35,14 +35,14 @@ var SeleneHashInit = rejectionSamplingHashToCurve("Monero Selene Hash Initialize
 
 // Lazy generator init
 
-var HeliosGenerators = sync.OnceValue(func() *generalized_bulletproofs.Generators[helioselene.HeliosPoint] {
+var HeliosGenerators = sync.OnceValue(func() *gb.Generators[helioselene.HeliosPoint] {
 	return initGenerators[helioselene.HeliosPoint, helioselene.HeliosScalar, helioselene.HeliosField]("Helios", HeliosGeneratorsSize)
 })
-var SeleneGenerators = sync.OnceValue(func() *generalized_bulletproofs.Generators[helioselene.SelenePoint] {
+var SeleneGenerators = sync.OnceValue(func() *gb.Generators[helioselene.SelenePoint] {
 	return initGenerators[helioselene.SelenePoint, helioselene.SeleneScalar, helioselene.SeleneField]("Selene", SeleneGeneratorsSize)
 })
 
-func initGenerators[P helioselene.Point, S helioselene.Scalar, F helioselene.Field, V helioselene.CurvePointWithAffine[P, S, F]](id string, size int) *generalized_bulletproofs.Generators[P] {
+func initGenerators[P helioselene.Point, S helioselene.Scalar, F helioselene.Field, V helioselene.CurvePointWithAffine[P, S, F]](id string, size int) *gb.Generators[P] {
 
 	G := rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s G", id), new(P))
 	H := rejectionSamplingHashToCurve[P, V](fmt.Sprintf("Monero %s H", id), new(P))
@@ -61,7 +61,7 @@ func initGenerators[P helioselene.Point, S helioselene.Scalar, F helioselene.Fie
 		panic(err)
 	}
 
-	g, err := generalized_bulletproofs.NewGenerators[P, V](G, H, GBold, HBold)
+	g, err := gb.NewGenerators[P, V](G, H, GBold, HBold)
 	if err != nil {
 		panic(err)
 	}

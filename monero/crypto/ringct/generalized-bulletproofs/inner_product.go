@@ -10,8 +10,7 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/utils"
 )
 
-// IPStatement TODO: remove PE on Go 1.27
-type IPStatement[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Field[F]] struct {
+type IPStatement[P any, F any, FE curve.Field[F]] struct {
 	Generators   ProofGenerators[P]
 	HBoldWeights ScalarVector[F, FE]
 	U            F
@@ -20,19 +19,19 @@ type IPStatement[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Field[F]
 	ProverG        *P
 }
 
-func (ips *IPStatement[P, F, PE, FE]) IsVerifier() bool {
+func (ips *IPStatement[P, F, FE]) IsVerifier() bool {
 	return ips.VerifierWeight != nil
 }
 
-func (ips *IPStatement[P, F, PE, FE]) IsProver() bool {
+func (ips *IPStatement[P, F, FE]) IsProver() bool {
 	return ips.ProverG != nil
 }
 
-func NewIPStatementProver[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Field[F]](generators *ProofGenerators[P], hBoldWeights ScalarVector[F, FE], u *F, proverG *P) *IPStatement[P, F, PE, FE] {
+func NewIPStatementProver[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Field[F]](generators *ProofGenerators[P], hBoldWeights ScalarVector[F, FE], u *F, proverG *P) *IPStatement[P, F, FE] {
 	if len(generators.HBold) != len(hBoldWeights) {
 		return nil
 	}
-	return &IPStatement[P, F, PE, FE]{
+	return &IPStatement[P, F, FE]{
 		Generators:   *generators,
 		HBoldWeights: hBoldWeights,
 		U:            *u,
@@ -40,11 +39,11 @@ func NewIPStatementProver[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve
 	}
 }
 
-func NewIPStatementVerifier[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Field[F]](generators *ProofGenerators[P], hBoldWeights ScalarVector[F, FE], u *F, verifierWeight *F) *IPStatement[P, F, PE, FE] {
+func NewIPStatementVerifier[P any, F any, FE curve.Field[F]](generators *ProofGenerators[P], hBoldWeights ScalarVector[F, FE], u *F, verifierWeight *F) *IPStatement[P, F, FE] {
 	if len(generators.HBold) != len(hBoldWeights) {
 		return nil
 	}
-	return &IPStatement[P, F, PE, FE]{
+	return &IPStatement[P, F, FE]{
 		Generators:     *generators,
 		HBoldWeights:   hBoldWeights,
 		U:              *u,
@@ -56,9 +55,9 @@ var ErrIncorrectAmountOfGenerators = errors.New("incorrect amount of generators"
 var ErrInconsistentWitness = errors.New("inconsistent witness")
 var ErrIncompleteProof = errors.New("incomplete proof")
 
-func (ips *IPStatement[P, F, PE, FE]) Prove(transcript *Transcript[P, F, PE, FE], witness IPWitness[F, FE]) (err error) {
-	type PointPair = multiexp.ScalarPointPair[P, F, PE, FE]
-	gBold, hBold, u, p, a, b, err := func() (gBold, hBold PointVector[P, F, PE, FE], u, p *P, a, b ScalarVector[F, FE], err error) {
+func (ips *IPStatement[P, F, FE]) Prove[PE curve.ExtraCurvePoint[P, F]](transcript *Transcript[P, F], witness IPWitness[F, FE]) (err error) {
+	type PointPair = multiexp.ScalarPointPair[P, F]
+	gBold, hBold, u, p, a, b, err := func() (gBold, hBold PointVector[P, F, PE], u, p *P, a, b ScalarVector[F, FE], err error) {
 		u = PE(new(P)).ScalarMult(&ips.U, &ips.Generators.G)
 
 		if len(witness.A) > (math.MaxInt>>1)+1 {
@@ -68,8 +67,8 @@ func (ips *IPStatement[P, F, PE, FE]) Prove(transcript *Transcript[P, F, PE, FE]
 			return nil, nil, nil, nil, nil, nil, ErrIncorrectAmountOfGenerators
 		}
 
-		gBold = PointVector[P, F, PE, FE](slices.Clone(ips.Generators.GBold))
-		hBold = PointVector[P, F, PE, FE](slices.Clone(ips.Generators.HBold)).MultiplyVec(ips.HBoldWeights)
+		gBold = PointVector[P, F, PE](slices.Clone(ips.Generators.GBold))
+		hBold = PointVector[P, F, PE](slices.Clone(ips.Generators.HBold)).MultiplyVec[FE](ips.HBoldWeights)
 
 		a, b = witness.A, witness.B
 
@@ -99,7 +98,7 @@ func (ips *IPStatement[P, F, PE, FE]) Prove(transcript *Transcript[P, F, PE, FE]
 				S: a.InnerProduct(b),
 				P: *u,
 			})
-			if PE(multiexp.MultiExp[P, F, PE, FE](new(P), pairs)).Equal(p) == 0 {
+			if PE(multiexp.MultiExp[P, F, PE](new(P), pairs)).Equal(p) == 0 {
 				return nil, nil, nil, nil, nil, nil, ErrInconsistentWitness
 			}
 		}
@@ -138,7 +137,7 @@ func (ips *IPStatement[P, F, PE, FE]) Prove(transcript *Transcript[P, F, PE, FE]
 				LTerms = append(LTerms, PointPair{S: b2[i], P: hBold1[i]})
 			}
 			LTerms = append(LTerms, PointPair{S: cl, P: *u})
-			multiexp.MultiExp(&L, LTerms)
+			multiexp.MultiExp[P, F, PE](&L, LTerms)
 		}
 		{
 			RTerms := make([]PointPair, 0, 1+(2*len(gBold1)))
@@ -149,23 +148,23 @@ func (ips *IPStatement[P, F, PE, FE]) Prove(transcript *Transcript[P, F, PE, FE]
 				RTerms = append(RTerms, PointPair{S: b1[i], P: hBold2[i]})
 			}
 			RTerms = append(RTerms, PointPair{S: cr, P: *u})
-			multiexp.MultiExp(&R, RTerms)
+			multiexp.MultiExp[P, F, PE](&R, RTerms)
 		}
 
 		// Now that we've calculate L, R, transcript them to receive x (26-27)
-		transcript.PushPoint(&L)
-		transcript.PushPoint(&R)
-		x := transcript.Challenge(new(F))
+		transcript.PushPoint[PE](&L)
+		transcript.PushPoint[PE](&R)
+		x := transcript.Challenge[FE](new(F))
 		xInv := FE(new(F)).Invert(x)
 
 		// The prover and verifier now calculate the following (28-31)
-		gBold = make(PointVector[P, F, PE, FE], 0, len(gBold1))
+		gBold = make(PointVector[P, F, PE], 0, len(gBold1))
 		for i := range gBold1 {
-			gBold = append(gBold, *multiexp.MultiExp(new(P), []PointPair{{S: *xInv, P: gBold1[i]}, {S: *x, P: gBold2[i]}}))
+			gBold = append(gBold, *multiexp.MultiExp[P, F, PE](new(P), []PointPair{{S: *xInv, P: gBold1[i]}, {S: *x, P: gBold2[i]}}))
 		}
-		hBold = make(PointVector[P, F, PE, FE], 0, len(hBold1))
+		hBold = make(PointVector[P, F, PE], 0, len(hBold1))
 		for i := range hBold1 {
-			hBold = append(hBold, *multiexp.MultiExp(new(P), []PointPair{{S: *x, P: hBold1[i]}, {S: *xInv, P: hBold2[i]}}))
+			hBold = append(hBold, *multiexp.MultiExp[P, F, PE](new(P), []PointPair{{S: *x, P: hBold1[i]}, {S: *xInv, P: hBold2[i]}}))
 		}
 		// P = (L * (x * x)) + P + (R * (x_inv * x_inv));
 		PE(p).Add(p, PE(new(P)).ScalarMult(FE(new(F)).Multiply(x, x), &L))
@@ -184,8 +183,8 @@ func (ips *IPStatement[P, F, PE, FE]) Prove(transcript *Transcript[P, F, PE, FE]
 	// `if n = 1` case from line 14-17
 
 	// We simply send a/b
-	transcript.PushScalar(&a[0])
-	transcript.PushScalar(&b[0])
+	transcript.PushScalar[FE](&a[0])
+	transcript.PushScalar[FE](&b[0])
 
 	return nil
 }
@@ -209,7 +208,7 @@ func (ips *IPStatement[P, F, PE, FE]) Prove(transcript *Transcript[P, F, PE, FE]
 //
 //	When there are 4 challenges (n=16), the iterative approach does 28 multiplications
 //	versus divide and conquer's 24.
-func (ips *IPStatement[P, F, PE, FE]) ChallengeProducts(challenges [][2]F) []F {
+func (ips *IPStatement[P, F, FE]) ChallengeProducts(challenges [][2]F) []F {
 	products := make([]F, 1<<len(challenges))
 	for i := range products {
 		FE(&products[i]).One()
@@ -242,7 +241,7 @@ func (ips *IPStatement[P, F, PE, FE]) ChallengeProducts(challenges [][2]F) []F {
 	return products
 }
 
-func (ips *IPStatement[P, F, PE, FE]) Verify(verifier *BatchVerifier[P, F, PE, FE], transcript *VerifierTranscript[P, F, PE, FE]) (err error) {
+func (ips *IPStatement[P, F, FE]) Verify[PE curve.ExtraCurvePoint[P, F]](verifier *BatchVerifier[P, F], transcript *VerifierTranscript[P, F]) (err error) {
 	if len(verifier.GBold) < len(ips.Generators.GBold) {
 		verifier.GBold = slices.Grow(verifier.GBold, len(ips.Generators.GBold))[:len(ips.Generators.GBold)]
 	}
@@ -270,17 +269,17 @@ func (ips *IPStatement[P, F, PE, FE]) Verify(verifier *BatchVerifier[P, F, PE, F
 	R := make([]P, 0, lrLen)
 	xs := make([]F, 0, lrLen)
 	for range lrLen {
-		LP, err := transcript.ReadPoint(new(P))
+		LP, err := transcript.ReadPoint[PE](new(P))
 		if err != nil {
 			return err
 		}
 		L = append(L, *LP)
-		RP, err := transcript.ReadPoint(new(P))
+		RP, err := transcript.ReadPoint[PE](new(P))
 		if err != nil {
 			return err
 		}
 		R = append(R, *RP)
-		xs = append(xs, *transcript.Challenge(new(F)))
+		xs = append(xs, *transcript.Challenge[FE](new(F)))
 	}
 
 	// We calculate their inverse in batch
@@ -305,8 +304,8 @@ func (ips *IPStatement[P, F, PE, FE]) Verify(verifier *BatchVerifier[P, F, PE, F
 		for i := range xs {
 			challenges = append(challenges, [2]F{xs[i], xInvs[i]})
 			verifier.Additional = append(verifier.Additional,
-				multiexp.ScalarPointPair[P, F, PE, FE]{S: *FE(new(F)).Multiply(weight, FE(new(F)).Square(&xs[i])), P: L[i]},
-				multiexp.ScalarPointPair[P, F, PE, FE]{S: *FE(new(F)).Multiply(weight, FE(new(F)).Square(&xInvs[i])), P: R[i]},
+				multiexp.ScalarPointPair[P, F]{S: *FE(new(F)).Multiply(weight, FE(new(F)).Square(&xs[i])), P: L[i]},
+				multiexp.ScalarPointPair[P, F]{S: *FE(new(F)).Multiply(weight, FE(new(F)).Square(&xInvs[i])), P: R[i]},
 			)
 		}
 
@@ -314,11 +313,11 @@ func (ips *IPStatement[P, F, PE, FE]) Verify(verifier *BatchVerifier[P, F, PE, F
 	}
 
 	// And now for the `if n = 1` case
-	a, err := transcript.ReadScalar(new(F))
+	a, err := transcript.ReadScalar[FE](new(F))
 	if err != nil {
 		return ErrIncompleteProof
 	}
-	b, err := transcript.ReadScalar(new(F))
+	b, err := transcript.ReadScalar[FE](new(F))
 	if err != nil {
 		return ErrIncompleteProof
 	}

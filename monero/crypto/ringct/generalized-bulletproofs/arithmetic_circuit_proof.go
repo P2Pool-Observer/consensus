@@ -10,16 +10,16 @@ import (
 	"git.gammaspectra.live/P2Pool/consensus/v5/monero/crypto/multiexp"
 )
 
-type ArithmeticCircuitWitness[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.BasicField[F]] struct {
+type ArithmeticCircuitWitness[P any, F any, FE curve.BasicField[F]] struct {
 	AL ScalarVector[F, FE]
 	AR ScalarVector[F, FE]
 	AO ScalarVector[F, FE]
 
-	C []PedersenVectorCommitment[P, F, PE, FE]
-	V []PedersenCommitment[P, F, PE, FE]
+	C []PedersenVectorCommitment[P, F]
+	V []PedersenCommitment[P, F]
 }
 
-func (acw *ArithmeticCircuitWitness[P, F, PE, FE]) VMaskVec() (ret ScalarVector[F, FE]) {
+func (acw *ArithmeticCircuitWitness[P, F, FE]) VMaskVec() (ret ScalarVector[F, FE]) {
 	ret = make(ScalarVector[F, FE], 0, len(acw.V))
 	for _, v := range acw.V {
 		ret = append(ret, v.Mask)
@@ -27,11 +27,11 @@ func (acw *ArithmeticCircuitWitness[P, F, PE, FE]) VMaskVec() (ret ScalarVector[
 	return ret
 }
 
-func NewArithmeticCircuitWitness[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.BasicField[F]](
+func NewArithmeticCircuitWitness[P any, F any, FE curve.BasicField[F]](
 	aL, aR []F,
-	c []PedersenVectorCommitment[P, F, PE, FE],
-	v []PedersenCommitment[P, F, PE, FE],
-) *ArithmeticCircuitWitness[P, F, PE, FE] {
+	c []PedersenVectorCommitment[P, F],
+	v []PedersenCommitment[P, F],
+) *ArithmeticCircuitWitness[P, F, FE] {
 	if len(aL) != len(aR) {
 		return nil
 	}
@@ -44,7 +44,7 @@ func NewArithmeticCircuitWitness[P any, F any, PE curve.ExtraCurvePoint[P, F], F
 	}
 
 	ao := slices.Clone(ScalarVector[F, FE](aL)).MultiplyVec(aR)
-	return &ArithmeticCircuitWitness[P, F, PE, FE]{
+	return &ArithmeticCircuitWitness[P, F, FE]{
 		AL: aL,
 		AR: aR,
 		AO: ao,
@@ -57,14 +57,14 @@ type ArithmeticCircuitStatement[P any, F any, PE curve.ExtraCurvePoint[P, F], FE
 	Generators  ProofGenerators[P]
 	Constraints []LinComb[F, FE]
 
-	C PointVector[P, F, PE, FE]
-	V PointVector[P, F, PE, FE]
+	C PointVector[P, F, PE]
+	V PointVector[P, F, PE]
 }
 
 func NewArithmeticCircuitStatement[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Field[F]](
 	generators *ProofGenerators[P],
 	constraints []LinComb[F, FE],
-	commitments Commitments[P, F, PE, FE],
+	commitments Commitments[P, F, PE],
 ) (*ArithmeticCircuitStatement[P, F, PE, FE], error) {
 	for _, constraint := range constraints {
 		if len(generators.GBold) <= constraint.HighestAIndex {
@@ -139,8 +139,8 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) YZChallenges(y, z1 *F) YzCh
 // This is only guaranteed to return a valid proof when the witness satisfies the statement. It
 // may or may not return an error if the witness does not satisfy the statement.
 func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
-	transcript *Transcript[P, F, PE, FE],
-	witness *ArithmeticCircuitWitness[P, F, PE, FE],
+	transcript *Transcript[P, F],
+	witness *ArithmeticCircuitWitness[P, F, FE],
 	randomReader io.Reader,
 ) error {
 	n := acs.NumN()
@@ -171,7 +171,7 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 	beta := curve.RandomField[F, FE](new(F), randomReader)
 	rho := curve.RandomField[F, FE](new(F), randomReader)
 
-	type PointPair = multiexp.ScalarPointPair[P, F, PE, FE]
+	type PointPair = multiexp.ScalarPointPair[P, F]
 
 	var AI, AO P
 	{
@@ -184,7 +184,7 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 		}
 		AITerms = append(AITerms, PointPair{S: *alpha, P: acs.Generators.H})
 
-		multiexp.MultiExp[P, F, PE, FE](&AI, AITerms)
+		multiexp.MultiExp[P, F, PE](&AI, AITerms)
 	}
 	{
 		var AOTerms []PointPair
@@ -193,7 +193,7 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 		}
 		AOTerms = append(AOTerms, PointPair{S: *beta, P: acs.Generators.H})
 
-		multiexp.MultiExp[P, F, PE, FE](&AO, AOTerms)
+		multiexp.MultiExp[P, F, PE](&AO, AOTerms)
 	}
 
 	sL := make(ScalarVector[F, FE], n)
@@ -213,15 +213,15 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 		}
 		STerms = append(STerms, PointPair{S: *rho, P: acs.Generators.H})
 
-		multiexp.MultiExp[P, F, PE, FE](&S, STerms)
+		multiexp.MultiExp[P, F, PE](&S, STerms)
 	}
 
-	transcript.PushPoint(&AI)
-	transcript.PushPoint(&AO)
-	transcript.PushPoint(&S)
+	transcript.PushPoint[PE](&AI)
+	transcript.PushPoint[PE](&AO)
+	transcript.PushPoint[PE](&S)
 
-	y := transcript.Challenge(new(F))
-	z := transcript.Challenge(new(F))
+	y := transcript.Challenge[FE](new(F))
+	z := transcript.Challenge[FE](new(F))
 	yz := acs.YZChallenges(y, z)
 	yPowers := ScalarPowers[F, FE](y, n)
 
@@ -370,12 +370,12 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 
 	// Calculate commitments to the coefficients of `t`, blinded by `tau`
 	for i, t := range t[ni/2 : ni] {
-		transcript.PushPoint(PE(new(P)).DoubleScalarMult(&t, &acs.Generators.G, &tauBeforeNi[i], &acs.Generators.H))
+		transcript.PushPoint[PE](PE(new(P)).DoubleScalarMult(&t, &acs.Generators.G, &tauBeforeNi[i], &acs.Generators.H))
 	}
 	for i, t := range t[ni+1:] {
-		transcript.PushPoint(PE(new(P)).DoubleScalarMult(&t, &acs.Generators.G, &tauAfterNi[i], &acs.Generators.H))
+		transcript.PushPoint[PE](PE(new(P)).DoubleScalarMult(&t, &acs.Generators.G, &tauAfterNi[i], &acs.Generators.H))
 	}
-	x := ScalarPowers[F, FE](transcript.Challenge(new(F)), len(t))
+	x := ScalarPowers[F, FE](transcript.Challenge[FE](new(F)), len(t))
 
 	polyEval := func(poly []ScalarVector[F, FE], x ScalarVector[F, FE]) (res ScalarVector[F, FE]) {
 		res = make(ScalarVector[F, FE], n)
@@ -426,9 +426,9 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 			}
 		}
 
-		transcript.PushScalar(&tauX)
-		transcript.PushScalar(&mu)
-		transcript.PushScalar(&tCaret)
+		transcript.PushScalar[FE](&tauX)
+		transcript.PushScalar[FE](&mu)
+		transcript.PushScalar[FE](&tCaret)
 
 		/*
 		   Use the Inner-Product argument to prove for the following statement:
@@ -438,7 +438,7 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 
 		// Protocol 1, inlined, since our `IpStatement` is for Protocol 2
 
-		ipX := transcript.Challenge(new(F))
+		ipX := transcript.Challenge[FE](new(F))
 
 		PTerms := make([]PointPair, 0, 1+(2*len(acs.Generators.GBold)))
 		for i := range l {
@@ -450,7 +450,7 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 
 		PTerms = append(PTerms, PointPair{S: *FE(new(F)).Multiply(ipX, &tCaret), P: acs.Generators.G})
 
-		if err := NewIPStatementProver[P, F, PE, FE](&acs.Generators, yz.YInv, ipX, multiexp.MultiExp(new(P), PTerms)).Prove(transcript, *NewIPWitness[F, FE](l, r)); err != nil {
+		if err := NewIPStatementProver[P, F, PE, FE](&acs.Generators, yz.YInv, ipX, multiexp.MultiExp[P, F, PE](new(P), PTerms)).Prove[PE](transcript, *NewIPWitness[F, FE](l, r)); err != nil {
 			return err
 		}
 	}
@@ -458,8 +458,8 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Prove(
 }
 
 func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Verify(
-	verifier *BatchVerifier[P, F, PE, FE],
-	transcript *VerifierTranscript[P, F, PE, FE],
+	verifier *BatchVerifier[P, F],
+	transcript *VerifierTranscript[P, F],
 	randomReader io.Reader,
 ) error {
 	if len(verifier.GBold) < len(acs.Generators.GBold) {
@@ -478,30 +478,30 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Verify(
 	is := ni + 1
 	jo := 0
 
-	AI, err := transcript.ReadPoint(new(P))
+	AI, err := transcript.ReadPoint[PE](new(P))
 	if err != nil {
 		return ErrIncompleteProof
 	}
 
-	AO, err := transcript.ReadPoint(new(P))
+	AO, err := transcript.ReadPoint[PE](new(P))
 	if err != nil {
 		return ErrIncompleteProof
 	}
 
-	S, err := transcript.ReadPoint(new(P))
+	S, err := transcript.ReadPoint[PE](new(P))
 	if err != nil {
 		return ErrIncompleteProof
 	}
 
-	y := transcript.Challenge(new(F))
-	z := transcript.Challenge(new(F))
+	y := transcript.Challenge[FE](new(F))
+	z := transcript.Challenge[FE](new(F))
 	yz := acs.YZChallenges(y, z)
 
 	// The fixed GBP paper writes this as `2 * (ni + 1)` (inclusive), but this is exclusive
 	tPolyLen := (2 * (ni + 1)) + 1
 	tBeforeNi := make([]P, 0, ni-(ni/2))
 	for i := ni / 2; i < ni; i++ {
-		p, err := transcript.ReadPoint(new(P))
+		p, err := transcript.ReadPoint[PE](new(P))
 		if err != nil {
 			return ErrIncompleteProof
 		}
@@ -509,14 +509,14 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Verify(
 	}
 	tAfterNi := make([]P, 0, tPolyLen-(ni+1))
 	for i := ni + 1; i < tPolyLen; i++ {
-		p, err := transcript.ReadPoint(new(P))
+		p, err := transcript.ReadPoint[PE](new(P))
 		if err != nil {
 			return ErrIncompleteProof
 		}
 		tAfterNi = append(tAfterNi, *p)
 	}
 
-	x := ScalarPowers[F, FE](transcript.Challenge(new(F)), tPolyLen)
+	x := ScalarPowers[F, FE](transcript.Challenge[FE](new(F)), tPolyLen)
 
 	lWeights := make(ScalarVector[F, FE], n)
 	rWeights := make(ScalarVector[F, FE], n)
@@ -532,20 +532,20 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Verify(
 
 	delta := slices.Clone(rWeights).InnerProduct(lWeights)
 
-	tauX, err := transcript.ReadScalar(new(F))
+	tauX, err := transcript.ReadScalar[FE](new(F))
 	if err != nil {
 		return ErrIncompleteProof
 	}
-	mu, err := transcript.ReadScalar(new(F))
+	mu, err := transcript.ReadScalar[FE](new(F))
 	if err != nil {
 		return ErrIncompleteProof
 	}
-	tCaret, err := transcript.ReadScalar(new(F))
+	tCaret, err := transcript.ReadScalar[FE](new(F))
 	if err != nil {
 		return ErrIncompleteProof
 	}
 
-	type PointPair = multiexp.ScalarPointPair[P, F, PE, FE]
+	type PointPair = multiexp.ScalarPointPair[P, F]
 
 	// Lines 88-90, modified per Generalized Bulletproofs as needed w.r.t. `t`
 	// This corresponds to the verifier's final Step 4 in the 'fixed' paper
@@ -658,10 +658,10 @@ func (acs *ArithmeticCircuitStatement[P, F, PE, FE]) Verify(
 
 	// Prove for lines 88, 92 with an Inner-Product statement
 	// This inlines Protocol 1, as our IpStatement implements Protocol 2
-	ipX := transcript.Challenge(new(F))
+	ipX := transcript.Challenge[FE](new(F))
 
 	// `P` is amended with this additional term
 	FE(&verifier.G).Add(&verifier.G, FE(new(F)).Multiply(verifierWeight, FE(new(F)).Multiply(ipX, tCaret)))
 
-	return NewIPStatementVerifier[P, F, PE, FE](&acs.Generators, yz.YInv, ipX, verifierWeight).Verify(verifier, transcript)
+	return NewIPStatementVerifier[P, F, FE](&acs.Generators, yz.YInv, ipX, verifierWeight).Verify[PE](verifier, transcript)
 }

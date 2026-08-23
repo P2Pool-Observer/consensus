@@ -50,13 +50,13 @@ func testZeroInnerProduct[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve
 	context := [32]byte{}
 
 	proof, err := func() ([]byte, error) {
-		transcript := NewTranscript[P, F, PE, FE](context)
+		transcript := NewTranscript[P, F](context)
 		if err := NewIPStatementProver[P, F, PE, FE](
 			reduced,
 			ScalarVector[F, FE]{*FE(new(F)).One()},
 			FE(new(F)).One(),
 			identity,
-		).Prove(transcript, *witness); err != nil {
+		).Prove[PE](transcript, *witness); err != nil {
 			return nil, err
 		}
 
@@ -66,17 +66,17 @@ func testZeroInnerProduct[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve
 		t.Fatal(err)
 	}
 
-	var verifier BatchVerifier[P, F, PE, FE]
-	if err := NewIPStatementVerifier[P, F, PE, FE](
+	var verifier BatchVerifier[P, F]
+	if err := NewIPStatementVerifier[P, F, FE](
 		reduced,
 		ScalarVector[F, FE]{*FE(new(F)).One()},
 		FE(new(F)).One(),
 		FE(new(F)).One(),
-	).Verify(&verifier, NewVerifierTranscript[P, F, PE, FE](context, proof)); err != nil {
+	).Verify[PE](&verifier, NewVerifierTranscript[P, F](context, proof)); err != nil {
 		t.Fatal(err)
 	}
 
-	if !verifier.Verify(generators) {
+	if !verifier.Verify[PE](generators) {
 		t.Fatal("could not verify proof")
 	}
 
@@ -113,7 +113,7 @@ func testInnerProduct[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Fie
 	if err != nil {
 		t.Fatal(err)
 	}
-	var verifier BatchVerifier[P, F, PE, FE]
+	var verifier BatchVerifier[P, F]
 	for i := 1; i <= 32; i++ {
 		generators := generators.Reduce(i)
 		g := generators.G
@@ -121,8 +121,8 @@ func testInnerProduct[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Fie
 			t.FailNow()
 		}
 
-		gBold := PointVector[P, F, PE, FE](slices.Clone(generators.GBold[:i]))
-		hBold := PointVector[P, F, PE, FE](slices.Clone(generators.HBold[:i]))
+		gBold := PointVector[P, F, PE](slices.Clone(generators.GBold[:i]))
+		hBold := PointVector[P, F, PE](slices.Clone(generators.HBold[:i]))
 
 		a := make(ScalarVector[F, FE], i)
 		b := make(ScalarVector[F, FE], i)
@@ -133,7 +133,7 @@ func testInnerProduct[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Fie
 			curve.RandomScalar[F, FE](&b[i], randomReader)
 		}
 
-		p := PE(new(P)).Add(gBold.MultiExp(new(P), a), hBold.MultiExp(new(P), b))
+		p := PE(new(P)).Add(gBold.MultiExp[FE](new(P), a), hBold.MultiExp[FE](new(P), b))
 		ip := a.InnerProduct(b)
 		p = PE(p).Add(p, PE(new(P)).ScalarMult(&ip, &g))
 
@@ -147,13 +147,13 @@ func testInnerProduct[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Fie
 		}
 
 		proof, err := func() ([]byte, error) {
-			transcript := NewTranscript[P, F, PE, FE](context)
+			transcript := NewTranscript[P, F](context)
 			if err := NewIPStatementProver[P, F, PE, FE](
 				generators,
 				hBoldWeights,
 				FE(new(F)).One(),
 				p,
-			).Prove(transcript, *witness); err != nil {
+			).Prove[PE](transcript, *witness); err != nil {
 				return nil, err
 			}
 
@@ -163,19 +163,19 @@ func testInnerProduct[P any, F any, PE curve.ExtraCurvePoint[P, F], FE curve.Fie
 			t.Fatal(err)
 		}
 
-		verifier.Additional = append(verifier.Additional, multiexp.ScalarPointPair[P, F, PE, FE]{S: *FE(new(F)).One(), P: *p})
+		verifier.Additional = append(verifier.Additional, multiexp.ScalarPointPair[P, F]{S: *FE(new(F)).One(), P: *p})
 
-		if err := NewIPStatementVerifier[P, F, PE, FE](
+		if err := NewIPStatementVerifier[P, F, FE](
 			generators,
 			hBoldWeights,
 			FE(new(F)).One(),
 			FE(new(F)).One(),
-		).Verify(&verifier, NewVerifierTranscript[P, F, PE, FE](context, proof)); err != nil {
+		).Verify[PE](&verifier, NewVerifierTranscript[P, F](context, proof)); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if !verifier.Verify(generators) {
+	if !verifier.Verify[PE](generators) {
 		t.Fatal("could not verify proofs")
 	}
 }

@@ -53,22 +53,22 @@ func testZeroArithmeticCircuit[P any, F any, PE curve.ExtraCurvePoint[P, F], FE 
 
 	context := [32]byte{}
 
-	transcript := NewTranscript[P, F, PE, FE](context)
-	commitments := transcript.WriteCommitments(nil, V)
+	transcript := NewTranscript[P, F](context)
+	commitments := transcript.WriteCommitments[PE](nil, V)
 	statement, err := NewArithmeticCircuitStatement[P, F, PE, FE](generators.Reduce(1), nil, commitments)
 	if err != nil {
 		t.Fatal(err)
 	}
-	witness := NewArithmeticCircuitWitness[P, F, PE, FE](aL, aR, nil, []PedersenCommitment[P, F, PE, FE]{{Value: *value, Mask: *gamma}})
+	witness := NewArithmeticCircuitWitness[P, F, FE](aL, aR, nil, []PedersenCommitment[P, F]{{Value: *value, Mask: *gamma}})
 
 	if err = statement.Prove(transcript, witness, randomReader); err != nil {
 		t.Fatal(err)
 	}
 	proof := transcript.Complete()
 
-	var verifier BatchVerifier[P, F, PE, FE]
-	verifierTranscript := NewVerifierTranscript[P, F, PE, FE](context, proof)
-	verifierCommitments, err := verifierTranscript.ReadCommitments(0, 1)
+	var verifier BatchVerifier[P, F]
+	verifierTranscript := NewVerifierTranscript[P, F](context, proof)
+	verifierCommitments, err := verifierTranscript.ReadCommitments[PE](0, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func testZeroArithmeticCircuit[P any, F any, PE curve.ExtraCurvePoint[P, F], FE 
 	if err = statement.Verify(&verifier, verifierTranscript, randomReader); err != nil {
 		t.Fatal(err)
 	}
-	if !verifier.Verify(generators) {
+	if !verifier.Verify[PE](generators) {
 		t.Fatal("could not verify proof")
 	}
 
@@ -138,8 +138,8 @@ func testVectorCommitmentArithmeticCircuit[P any, F any, PE curve.ExtraCurvePoin
 
 	context := [32]byte{}
 
-	transcript := NewTranscript[P, F, PE, FE](context)
-	commitments := transcript.WriteCommitments(C, V)
+	transcript := NewTranscript[P, F](context)
+	commitments := transcript.WriteCommitments[PE](C, V)
 	statement, err := NewArithmeticCircuitStatement[P, F, PE, FE](
 		reduced,
 		[]LinComb[F, FE]{
@@ -153,16 +153,16 @@ func testVectorCommitmentArithmeticCircuit[P any, F any, PE curve.ExtraCurvePoin
 	if err != nil {
 		t.Fatal(err)
 	}
-	witness := NewArithmeticCircuitWitness[P, F, PE, FE](aL, aR, []PedersenVectorCommitment[P, F, PE, FE]{{GValues: []F{*v1, *v2}, Mask: *gamma}}, nil)
+	witness := NewArithmeticCircuitWitness[P, F, FE](aL, aR, []PedersenVectorCommitment[P, F]{{GValues: []F{*v1, *v2}, Mask: *gamma}}, nil)
 
 	if err = statement.Prove(transcript, witness, randomReader); err != nil {
 		t.Fatal(err)
 	}
 	proof := transcript.Complete()
 
-	var verifier BatchVerifier[P, F, PE, FE]
-	verifierTranscript := NewVerifierTranscript[P, F, PE, FE](context, proof)
-	verifierCommitments, err := verifierTranscript.ReadCommitments(1, 0)
+	var verifier BatchVerifier[P, F]
+	verifierTranscript := NewVerifierTranscript[P, F](context, proof)
+	verifierCommitments, err := verifierTranscript.ReadCommitments[PE](1, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func testVectorCommitmentArithmeticCircuit[P any, F any, PE curve.ExtraCurvePoin
 	if err = statement.Verify(&verifier, verifierTranscript, randomReader); err != nil {
 		t.Fatal(err)
 	}
-	if !verifier.Verify(generators) {
+	if !verifier.Verify[PE](generators) {
 		t.Fatal("could not verify proof")
 	}
 }

@@ -187,8 +187,8 @@ func (sal *SpendAuthAndLinkability[T]) Challenge(dst *curve25519.Scalar, signabl
 	curve25519.BytesToScalar64(dst, h)
 }
 
-type BatchVerifier[T curve25519.PointOperations] = multiexp.BatchVerifier[types.Hash, curve25519.PublicKey[T], curve25519.Scalar, *curve25519.PublicKey[T], *curve25519.Scalar]
-type ScalarPointPair[T curve25519.PointOperations] = multiexp.ScalarPointPair[curve25519.PublicKey[T], curve25519.Scalar, *curve25519.PublicKey[T], *curve25519.Scalar]
+type BatchVerifier[T curve25519.PointOperations] = multiexp.BatchVerifier[types.Hash, curve25519.PublicKey[T], curve25519.Scalar]
+type ScalarPointPair[T curve25519.PointOperations] = multiexp.ScalarPointPair[curve25519.PublicKey[T], curve25519.Scalar]
 
 func (sal *SpendAuthAndLinkability[T]) Verify(verifier *BatchVerifier[T], signableTxHash types.Hash, input *Input[T], L *curve25519.PublicKey[T], randomReader io.Reader) {
 
